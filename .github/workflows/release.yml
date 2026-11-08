@@ -1,0 +1,102 @@
+# Builds and publishes a release to https://attack.fm/devkeyboard/ with tool/release.mjs, exactly as a release from
+# the Mac does: Ghost.md's box.mjs and .env loader (from a checkout of the public glyph repo), the same box account,
+# the same release key.
+#
+# Secrets:
+#   AFM_DEPLOY_HOST, AFM_DEPLOY_USER, AFM_DEPLOY_PASS   the box's account, as in glyph/tauri/.env
+#   RELEASE_KEYSTORE_B64                                 ~/.config/devkeyboard/release.keystore, base64
+#   RELEASE_KEY_PASSWORD                                 its store and key password
+#   RELEASE_CERT_SHA256                                  the release certificate's pin (cert.sha256)
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version name (blank keeps pubspec.yaml's)
+        required: false
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dev-keyboard
+
+      - name: Ghost.md's deploy code (box.mjs, the .env loader)
+        uses: actions/checkout@v4
+        with:
+          repository: InfamousVague/glyph
+          path: glyph
+          sparse-checkout: |
+            tauri/scripts/lib
+            scripts/lib
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: sshpass
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass rsync
+
+      - name: The box's account, where Ghost.md's loader reads it
+        env:
+          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST }}
+          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER }}
+          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS }}
+        run: |
+          umask 077
+          printf 'AFM_DEPLOY_HOST=%s\nAFM_DEPLOY_USER=%s\nAFM_DEPLOY_PASS=%s\n' "$AFM_DEPLOY_HOST" "$AFM_DEPLOY_USER" "$AFM_DEPLOY_PASS" > glyph/tauri/.env
+          mkdir -p ~/.ssh ~/Library/Logs && chmod 700 ~/.ssh
+
+      - name: The release key
+        env:
+          KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          PIN: ${{ secrets.RELEASE_CERT_SHA256 }}
+        run: |
+          umask 077
+          mkdir -p ~/.config/devkeyboard
+          echo "$KEYSTORE" | base64 -d > ~/.config/devkeyboard/release.keystore
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=devkeyboard\nkeyPassword=%s\n' "$HOME/.config/devkeyboard/release.keystore" "$PASSWORD" "$PASSWORD" > ~/.config/devkeyboard/signing.properties
+          echo "$PIN" > ~/.config/devkeyboard/cert.sha256
+
+      - name: Build and publish
+        working-directory: dev-keyboard
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            node tool/release.mjs --glyph ../glyph --version "$VERSION"
+          else
+            node tool/release.mjs --glyph ../glyph
+          fi
+
+      - name: Forget the secrets
+        if: always()
+        run: rm -rf ~/.config/devkeyboard glyph/tauri/.env
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: devkeyboard-apk
+          path: dev-keyboard/build/release/
+          retention-days: 30
