@@ -305,6 +305,7 @@ List<Widget> _swipe(BuildContext context, SettingsStore store) => [
           SettingRow(label: 'Not the word you meant?', hint: Text('Its other guesses sit in the row above the keys: tap one to swap it in.')),
           SettingRow(label: 'Backspace', hint: Text('Straight after a swipe, it takes the whole word.')),
           SettingRow(label: 'Taps still type', hint: Text('A short slide is still a tap: only a slide of most of a key starts a swipe.')),
+          SettingRow(label: 'Its trail', hint: Text('Gradients and effects (glow, neon, comet, sparkle) are in Themes › Swipe trail, with the Themes plugin added.')),
         ],
       ),
       PaneSection(children: [SettingRow(label: 'Remove Swipe typing', onPress: () => store.setPlugin('swipe', false))]),

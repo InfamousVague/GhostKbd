@@ -206,3 +206,25 @@ const List<(String, String, List<int>)> themePresets = [
   ('paper', 'Paper', [0xFFF4EFE6, 0xFFFFFCF6, 0xFFE4DCCD, 0xFFB5522B, 0xFF2B2622]),
   ('retro', 'Retro', [0xFF34302B, 0xFFE9E1CD, 0xFFA8A190, 0xFFD9542B, 0xFF2E2A24]),
 ];
+
+/// Swipe typing's trail colours (android SwipeTrail.kt): id, name, and its gradient from tail to finger. "theme" is the
+/// theme's accent alone.
+const List<(String, String, List<int>)> swipeTrails = [
+  ('theme', 'Accent', []),
+  ('aurora', 'Aurora', [0xFF22D3EE, 0xFF818CF8, 0xFFE879F9]),
+  ('sunset', 'Sunset', [0xFFFBBF24, 0xFFF97316, 0xFFEC4899, 0xFF8B5CF6]),
+  ('ocean', 'Ocean', [0xFF0EA5E9, 0xFF14B8A6, 0xFF22C55E]),
+  ('neon', 'Neon', [0xFF39FF14, 0xFF00E5FF, 0xFFFF00E5]),
+  ('fire', 'Fire', [0xFFB91C1C, 0xFFF97316, 0xFFFDE047]),
+  ('rainbow', 'Rainbow', [0xFFEF4444, 0xFFF59E0B, 0xFF22C55E, 0xFF3B82F6, 0xFFA855F7]),
+  ('mono', 'Mono', [0xFF9CA3AF, 0xFFFFFFFF]),
+];
+
+/// The trail's effects (KeyboardView.drawSwipe).
+const List<(String, String, String)> swipeEffects = [
+  ('fade', 'Fade', 'A line that thins toward where you started.'),
+  ('glow', 'Glow', 'A soft halo around the line.'),
+  ('neon', 'Neon', 'A white-hot core in a coloured glow.'),
+  ('comet', 'Comet', 'A bright head with a tapering tail.'),
+  ('sparkle', 'Sparkle', 'Twinkling stars scattered along the path.'),
+];

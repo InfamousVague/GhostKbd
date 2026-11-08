@@ -6,6 +6,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
+import '../art/app_icon.dart';
+import '../art/lucide.g.dart';
 import '../market/market_cards.dart';
 import '../plugins/catalogue.dart';
 import '../settings_store.dart';
@@ -93,6 +95,54 @@ class ThemeEditor extends StatelessWidget {
               ),
           ],
         ),
+        if (store.pluginOn('swipe')) ...[
+          SizedBox(height: t.space(4)),
+          PaneSection(
+            title: 'Swipe trail',
+            footer: const Text('The line your finger leaves while swipe typing: its colours run from where you started to your finger.'),
+            children: [
+              SettingRowBox(
+                child: MarketGrid(
+                  minWidth: 100,
+                  most: 4,
+                  children: [
+                    for (final (id, name, colours) in swipeTrails)
+                      MarketCard(
+                        selected: store.choice('swipe_trail') == id,
+                        onPress: () => store.set('swipe_trail', id),
+                        label: name,
+                        child: Padding(
+                          padding: EdgeInsets.all(t.space(2)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Container(
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(7),
+                                  color: colours.isEmpty ? Color(own[3]) : null,
+                                  gradient: colours.length < 2 ? null : LinearGradient(colors: [for (final c in colours) Color(c)]),
+                                ),
+                              ),
+                              SizedBox(height: t.space(1)),
+                              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: pageText(t, t.fontSize('sm'), weight: 'medium', color: t.color('app-ink'))),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              for (final (id, name, line) in swipeEffects)
+                SettingRow(
+                  label: name,
+                  hint: Text(line),
+                  icon: store.choice('swipe_effect') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+                  onPress: () => store.set('swipe_effect', id),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }
