@@ -60,6 +60,9 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
     var keyBorders = false
         set(value) { field = value; invalidate() }
+
+    /** Settings › Developer › Tap log, and not in a password field (the service decides both). */
+    var tapLog = false
     private var numberRow = false
     private var showToolbar = false
     private var rowHeightDp = 58f
@@ -209,6 +212,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 x += w
             }
             y += rowH
+        }
+        if (tapLog) {
+            val d = resources.displayMetrics.density
+            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp lift=$TOUCH_LIFT density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
         }
     }
 
@@ -498,7 +505,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
 
     // --- touch ------------------------------------------------------------------------------------------------------
 
-    private class Touch(val pointerId: Int, var key: Key, var rect: RectF, val downX: Float) {
+    private class Touch(val pointerId: Int, var key: Key, var rect: RectF, val downX: Float, val downY: Float) {
+        val firstKey = key
+        var lastX = downX
+        var lastY = downY
         var panel: Panel? = null
         var longPressed = false
         var cursorAnchor = downX
@@ -552,7 +562,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                     return true
                 }
                 val (key, rect) = keyAt(x, y) ?: return true
-                press(Touch(event.getPointerId(i), key, rect, x))
+                press(Touch(event.getPointerId(i), key, rect, x, y))
             }
             MotionEvent.ACTION_MOVE -> {
                 val t = touch ?: return true
@@ -584,6 +594,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     private fun move(t: Touch, x: Float, y: Float) {
+        t.lastX = x
+        t.lastY = y
         t.panel?.let { selectInPanel(it, x, y); return }
         when (t.key.type) {
             KeyType.SPACE -> if (spaceCursor) {
@@ -648,7 +660,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             panel != null -> commit(panel.choices[panel.selected])
             t.longPressed -> Unit
             else -> when (t.key.type) {
-                KeyType.CHAR -> commit(display(t.key.text))
+                KeyType.CHAR -> {
+                    if (tapLog) logTap(t)
+                    commit(display(t.key.text))
+                }
                 KeyType.SPACE -> if (!t.cursorMoved) listener.onSpace()
                 KeyType.ENTER -> listener.onEnter()
                 KeyType.SHIFT -> tapShift()
@@ -657,6 +672,21 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             }
         }
         invalidate()
+    }
+
+    private fun logTap(t: Touch) {
+        val d = resources.displayMetrics.density
+        fun px(v: Float) = "%.1f".format(v / d)
+        fun py(v: Float) = "%.1f".format((v - keysTop) / d)
+        val face = face(t.rect)
+        val dx = (t.downX - face.centerX()) / t.rect.width()
+        val dy = (t.downY - face.centerY()) / t.rect.height()
+        TapLog.add(
+            context,
+            "${t.key.text}  down=${px(t.downX)},${py(t.downY)}  up=${px(t.lastX)},${py(t.lastY)}  " +
+                "key=${t.key.text}@${px(face.centerX())},${py(face.centerY())}  d=${"%+.2f".format(dx)},${"%+.2f".format(dy)}  " +
+                "slid=${if (t.key !== t.firstKey) "yes" else "-"}  first=${t.firstKey.text.ifEmpty { t.firstKey.label }}",
+        )
     }
 
     private fun cancelTouch() {

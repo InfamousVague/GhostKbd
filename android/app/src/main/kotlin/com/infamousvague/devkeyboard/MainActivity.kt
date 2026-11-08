@@ -53,6 +53,11 @@ class MainActivity : FlutterActivity() {
                         imm.showInputMethodPicker()
                         result.success(null)
                     }
+                    "tapLog" -> result.success(mapOf("text" to TapLog.text(this@MainActivity), "count" to TapLog.count(this@MainActivity)))
+                    "clearTapLog" -> {
+                        TapLog.clear(this@MainActivity)
+                        result.success(null)
+                    }
                     "updateState" -> result.success(Updater.state.toMap(this@MainActivity))
                     "checkUpdate" -> {
                         Updater.check(this@MainActivity, install = call.argument<Boolean>("install") == true)

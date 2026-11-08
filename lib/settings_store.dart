@@ -32,6 +32,7 @@ class SettingsStore extends ChangeNotifier {
     'key_borders': false,
     'toolbar': false,
     'haptics': 'medium',
+    'tap_log': false,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -86,6 +87,18 @@ class SettingsStore extends ChangeNotifier {
   Future<void> openInputSettings() => _call('openInputSettings');
   Future<void> showPicker() => _call('showPicker');
   Future<void> checkForUpdate() => _call('checkUpdate');
+
+  /// The keyboard's tap log (TapLog.kt): its text and how many taps it holds.
+  Future<({String text, int count})> tapLog() async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, Object>('tapLog');
+      return (text: raw?['text'] as String? ?? '', count: raw?['count'] as int? ?? 0);
+    } on MissingPluginException {
+      return (text: '', count: 0);
+    }
+  }
+
+  Future<void> clearTapLog() => _call('clearTapLog');
   Future<void> installUpdate() => _call('installUpdate');
 
   Future<void> _call(String method) async {

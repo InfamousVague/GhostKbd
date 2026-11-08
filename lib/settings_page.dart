@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
@@ -61,6 +62,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 ..._feedback(),
                 SizedBox(height: t.space(6)),
                 ..._updates(t),
+                SizedBox(height: t.space(6)),
+                ..._developer(t),
                 SizedBox(height: t.space(6)),
                 _tips(t),
               ],
@@ -289,6 +292,54 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       ),
     ];
   }
+
+  String? _tapLogNote;
+
+  List<Widget> _developer(Tokens t) => [
+        const SectionLabel('Developer'),
+        SettingsCard(
+          children: [
+            SwitchSetting(
+              title: 'Tap log',
+              description: 'Records where each tap lands and which key it typed, to tune the keyboard. Never in password fields. Turn it off when you\'re done.',
+              value: store.flag('tap_log'),
+              onChanged: (v) => store.set('tap_log', v),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: t.space(4), vertical: t.space(3)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GlacierButton(
+                        label: 'Copy tap log',
+                        onPressed: () async {
+                          final log = await store.tapLog();
+                          await Clipboard.setData(ClipboardData(text: log.text));
+                          setState(() => _tapLogNote = log.count == 0 ? 'No taps logged yet.' : 'Copied ${log.count} taps. Paste them into the chat.');
+                        },
+                      ),
+                      SizedBox(width: t.space(2)),
+                      GlacierButton(
+                        label: 'Clear',
+                        onPressed: () async {
+                          await store.clearTapLog();
+                          setState(() => _tapLogNote = 'Cleared.');
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_tapLogNote != null) ...[
+                    SizedBox(height: t.space(2)),
+                    Text(_tapLogNote!, style: t.text('sm', color: t.color('glacier-text-muted'))),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ];
 
   Widget _tips(Tokens t) {
     final muted = t.text('sm', color: t.color('glacier-text-muted'));

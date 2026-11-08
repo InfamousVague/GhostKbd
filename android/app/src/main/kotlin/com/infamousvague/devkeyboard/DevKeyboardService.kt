@@ -111,10 +111,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         view.theme = KeyboardTheme.resolve(this, prefs.theme)
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.keyBorders = prefs.keyBorders
+        view.tapLog = prefs.tapLog && !isPassword(currentInputEditorInfo)
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints
         view.spaceCursor = prefs.spaceCursor
         view.longPressMs = prefs.longPressMs
+    }
+
+    /** A field whose text must never be recorded: the tap log stays off in it. */
+    private fun isPassword(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        val cls = info.inputType and InputType.TYPE_MASK_CLASS
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return (cls == InputType.TYPE_CLASS_TEXT && (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)) ||
+            (cls == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
     }
 
     /** Shift on at the start of a sentence, where the field asks for it and the setting allows. */
