@@ -217,7 +217,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         }
         if (tapLog) {
             val d = resources.displayMetrics.density
-            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp lift=$TOUCH_LIFT density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
+            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp lift=${LIFT_TOP_DP.toInt()}/${LIFT_MIDDLE_DP.toInt()}/0dp shiftL=${SHIFT_LEFT_HALF_DP.toInt()}dp density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
         }
     }
 
@@ -534,13 +534,19 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     /**
-     * The key a touch at (x, y) means. A thumb's contact lands below the point it aims at, so the touch is read a
-     * little higher, as Gboard and AOSP's keyboard do (their "touch position correction").
+     * The key a touch at (rawX, rawY) means, after touch position correction (Gboard and AOSP's keyboard have their
+     * own). Measured from Matt's tap log (159 taps, 0.1.3): thumbs land further below the keys the higher the row
+     * (top row 9.5dp low, middle 5.6dp, bottom on target), and the left thumb lands left of its keys (about 5dp).
+     * So a touch is read [LIFT_TOP_DP] higher in the top rows, [LIFT_MIDDLE_DP] in the middle row, as it is in the two
+     * bottom rows, and [SHIFT_LEFT_HALF_DP] to the right on the left half.
      */
-    private fun keyAt(x: Float, rawY: Float): Pair<Key, RectF>? {
+    private fun keyAt(rawX: Float, rawY: Float): Pair<Key, RectF>? {
         if (rawY < keysTop) return null
         val rowH = keysHeight / rows.size
-        val y = (rawY - rowH * TOUCH_LIFT).coerceAtLeast(keysTop + 1f)
+        val fromBottom = rows.size - 1 - ((rawY - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
+        val lift = when (fromBottom) { 0, 1 -> 0f; 2 -> dp(LIFT_MIDDLE_DP); else -> dp(LIFT_TOP_DP) }
+        val y = (rawY - lift).coerceAtLeast(keysTop + 1f)
+        val x = if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX
         keyRects.firstOrNull { it.second.contains(x, y) }?.let { return it }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
@@ -727,8 +733,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     companion object {
-        /** How far up a touch is read, as a share of a row: about where a thumb's aim sits above its contact. */
-        private const val TOUCH_LIFT = 0.12f
+        /** Touch position correction, from the tap log (see [keyAt]). */
+        private const val LIFT_TOP_DP = 11f
+        private const val LIFT_MIDDLE_DP = 6f
+        private const val SHIFT_LEFT_HALF_DP = 5f
         private const val KEYBOARD_TAP = android.view.HapticFeedbackConstants.KEYBOARD_TAP
         private const val LONG_PRESS = android.view.HapticFeedbackConstants.LONG_PRESS
     }
