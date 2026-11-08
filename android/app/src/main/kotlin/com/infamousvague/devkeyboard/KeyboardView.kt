@@ -369,8 +369,11 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     }
 
     private fun drawKey(canvas: Canvas, key: Key, rect: RectF, pressed: Boolean) {
-        val f = face(rect)
-        if (keyBorders) {
+        val f0 = face(rect)
+        var f = f0
+        if (theme.mechanical) {
+            f = drawKeycap(canvas, key, f0, pressed)
+        } else if (keyBorders) {
             fill.color = when {
                 key.type == KeyType.ENTER -> if (pressed) theme.accentPressed else theme.accent
                 key.type == KeyType.SHIFT && shift != ShiftState.OFF -> if (pressed) theme.keyPressed else theme.key
@@ -421,6 +424,36 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
         }
+    }
+
+    /**
+     * The Retro theme's keycap: a darker skirt below a cap with a lit top edge, the cap sinking most of the way into
+     * its skirt while pressed. Returns the cap's top face, where the label goes.
+     */
+    private fun drawKeycap(canvas: Canvas, key: Key, f: RectF, pressed: Boolean): RectF {
+        val base = when {
+            key.type == KeyType.ENTER -> theme.accent
+            key.type == KeyType.SHIFT && shift != ShiftState.OFF -> theme.key
+            key.functional -> theme.functionKey
+            else -> theme.key
+        }
+        val depth = dp(5f)
+        val travel = if (pressed) depth * 0.7f else 0f
+        val r = keyRadius * 0.8f
+        // The shadow on the case, then the skirt (the cap's sides).
+        fill.color = 0x55000000
+        canvas.drawRoundRect(RectF(f.left + dp(0.5f), f.top + travel + dp(1.5f), f.right - dp(0.5f), f.bottom + dp(1.5f)), r, r, fill)
+        fill.color = KeyboardTheme.mix(base, 0xFF000000.toInt(), 0.38f)
+        canvas.drawRoundRect(RectF(f.left, f.top + travel, f.right, f.bottom), r, r, fill)
+        // The cap's top: lighter at its upper edge, as light from above catches it.
+        val cap = RectF(f.left + dp(1.5f), f.top + travel, f.right - dp(1.5f), f.bottom - depth + travel - dp(1f))
+        fill.color = if (pressed) KeyboardTheme.mix(base, 0xFF000000.toInt(), 0.08f) else base
+        canvas.drawRoundRect(cap, r, r, fill)
+        fill.color = KeyboardTheme.mix(base, 0xFFFFFFFF.toInt(), 0.35f)
+        fill.alpha = if (pressed) 60 else 140
+        canvas.drawRoundRect(RectF(cap.left + dp(2f), cap.top + dp(1f), cap.right - dp(2f), cap.top + dp(3f)), dp(1f), dp(1f), fill)
+        fill.alpha = 255
+        return cap
     }
 
     /** What a character key shows: its label where it has its own (the developer page), else what it types. */

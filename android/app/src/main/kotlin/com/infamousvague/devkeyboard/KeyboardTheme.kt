@@ -21,6 +21,8 @@ data class KeyboardTheme(
     val popupShadow: Int,
     val toolbarIcon: Int,
     val dark: Boolean,
+    /** Keys drawn as raised mechanical keycaps that sink when pressed (the Retro preset). */
+    val mechanical: Boolean = false,
 ) {
     companion object {
         val LIGHT = KeyboardTheme(
@@ -119,6 +121,9 @@ data class KeyboardTheme(
             "monokai" to fromBase(0xFF1E1F1C.toInt(), 0xFF3E3D32.toInt(), 0xFF272822.toInt(), 0xFFA6E22E.toInt(), 0xFFF8F8F2.toInt()),
             "github" to fromBase(0xFFF6F8FA.toInt(), 0xFFFFFFFF.toInt(), 0xFFD0D7DE.toInt(), 0xFF0969DA.toInt(), 0xFF1F2328.toInt()),
             "paper" to fromBase(0xFFF4EFE6.toInt(), 0xFFFFFCF6.toInt(), 0xFFE4DCCD.toInt(), 0xFFB5522B.toInt(), 0xFF2B2622.toInt()),
+            // A beige mechanical board: cream caps, grey modifiers, a red-orange enter, on a dark case.
+            "retro" to fromBase(0xFF34302B.toInt(), 0xFFE9E1CD.toInt(), 0xFFA8A190.toInt(), 0xFFD9542B.toInt(), 0xFF2E2A24.toInt())
+                .copy(hint = 0xFF7A715F.toInt(), toolbarIcon = 0xFFD8CFBB.toInt(), mechanical = true),
         )
 
         private fun luminance(c: Int): Double {
@@ -126,7 +131,7 @@ data class KeyboardTheme(
             return 0.2126 * ch((c shr 16) and 0xFF) + 0.7152 * ch((c shr 8) and 0xFF) + 0.0722 * ch(c and 0xFF)
         }
 
-        private fun mix(a: Int, b: Int, t: Float): Int {
+        fun mix(a: Int, b: Int, t: Float): Int {
             fun lerp(x: Int, y: Int) = (x + (y - x) * t).toInt().coerceIn(0, 255)
             return (0xFF shl 24) or (lerp((a shr 16) and 0xFF, (b shr 16) and 0xFF) shl 16) or
                 (lerp((a shr 8) and 0xFF, (b shr 8) and 0xFF) shl 8) or lerp(a and 0xFF, b and 0xFF)

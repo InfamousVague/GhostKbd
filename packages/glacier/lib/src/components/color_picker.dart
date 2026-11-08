@@ -2,10 +2,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import '../haptics/haptics.dart';
+import '../haptics/haptics.dart' show HapticKind;
 import '../tokens/oklch.dart';
 import '../tokens/theme.dart';
-import '../tokens/tokens.dart';
 import 'input.dart';
 import 'field_core.dart';
 import 'pressable.dart';
@@ -175,11 +174,10 @@ class _GlacierColorPickerState extends State<GlacierColorPicker> {
                   for (final p in widget.presets)
                     if (_parseHex(p) case final pc?)
                       GlacierPressable(
-                        onPressed: () {
-                          haptic(HapticKind.selection);
-                          _set(Oklch.fromColor(pc), end: true);
-                        },
-                        child: Container(
+                        onPressed: () => _set(Oklch.fromColor(pc), end: true),
+                        haptic: HapticKind.selection,
+                        semanticLabel: _hex(pc),
+                        builder: (context, state) => Container(
                           width: sm ? 24 : 28,
                           height: sm ? 24 : 28,
                           decoration: BoxDecoration(

@@ -136,7 +136,7 @@ const List<PluginManifest> catalogue = [
     category: PluginCategory.look,
     hue: 'magenta',
     icon: Lucide.palette,
-    adds: ['Eight preset themes', 'A theme of your own'],
+    adds: ['Nine preset themes, Retro’s raised keycaps among them', 'A theme of your own from one colour'],
     hasPage: true,
   ),
   PluginManifest(
@@ -204,4 +204,5 @@ const List<(String, String, List<int>)> themePresets = [
   ('monokai', 'Monokai', [0xFF1E1F1C, 0xFF3E3D32, 0xFF272822, 0xFFA6E22E, 0xFFF8F8F2]),
   ('github', 'GitHub light', [0xFFF6F8FA, 0xFFFFFFFF, 0xFFD0D7DE, 0xFF0969DA, 0xFF1F2328]),
   ('paper', 'Paper', [0xFFF4EFE6, 0xFFFFFCF6, 0xFFE4DCCD, 0xFFB5522B, 0xFF2B2622]),
+  ('retro', 'Retro', [0xFF34302B, 0xFFE9E1CD, 0xFFA8A190, 0xFFD9542B, 0xFF2E2A24]),
 ];
