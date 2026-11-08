@@ -164,7 +164,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
         override fun onDraw(canvas: Canvas) {
             val s = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20f, resources.displayMetrics)
-            drawer.tint = color
+            drawer.ink = color
             drawer.setBounds(((width - s) / 2).toInt(), ((height - s) / 2).toInt(), ((width + s) / 2).toInt(), ((height + s) / 2).toInt())
             drawer.draw(canvas)
         }
@@ -172,7 +172,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 }
 
 /** The row's icons, drawn in a 24-unit box as Lucide's are, at whatever size the bounds give. */
-class IconDrawable(private val icon: RowIcon, var tint: Int, size: Int) : android.graphics.drawable.Drawable() {
+class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int) : android.graphics.drawable.Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
@@ -186,7 +186,7 @@ class IconDrawable(private val icon: RowIcon, var tint: Int, size: Int) : androi
         val u = b.width() / 24f
         canvas.save()
         canvas.translate(b.left.toFloat(), b.top.toFloat())
-        paint.color = tint
+        paint.color = ink
         paint.strokeWidth = 2f * u
         paint.style = Paint.Style.STROKE
         when (icon) {
