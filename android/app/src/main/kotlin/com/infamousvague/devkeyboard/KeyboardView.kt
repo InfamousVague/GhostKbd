@@ -518,8 +518,14 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         }
     }
 
-    private fun keyAt(x: Float, y: Float): Pair<Key, RectF>? {
-        if (y < keysTop) return null
+    /**
+     * The key a touch at (x, y) means. A thumb's contact lands below the point it aims at, so the touch is read a
+     * little higher, as Gboard and AOSP's keyboard do (their "touch position correction").
+     */
+    private fun keyAt(x: Float, rawY: Float): Pair<Key, RectF>? {
+        if (rawY < keysTop) return null
+        val rowH = keysHeight / rows.size
+        val y = (rawY - rowH * TOUCH_LIFT).coerceAtLeast(keysTop + 1f)
         keyRects.firstOrNull { it.second.contains(x, y) }?.let { return it }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
@@ -592,7 +598,11 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 }
             }
             KeyType.CHAR -> {
-                // A finger that slides onto another character key types that one instead.
+                // A finger that clearly slides onto another character key types that one instead. A thumb rolls a
+                // little as it lifts, so staying within 40% of a key's size past its edge is still that key.
+                val slackX = t.rect.width() * 0.4f
+                val slackY = t.rect.height() * 0.4f
+                if (x >= t.rect.left - slackX && x <= t.rect.right + slackX && y >= t.rect.top - slackY && y <= t.rect.bottom + slackY) return
                 val (key, rect) = keyAt(x, y) ?: return
                 if (key !== t.key && key.type == KeyType.CHAR) {
                     t.key = key; t.rect = rect
@@ -682,6 +692,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     companion object {
+        /** How far up a touch is read, as a share of a row: about where a thumb's aim sits above its contact. */
+        private const val TOUCH_LIFT = 0.12f
         private const val KEYBOARD_TAP = android.view.HapticFeedbackConstants.KEYBOARD_TAP
         private const val LONG_PRESS = android.view.HapticFeedbackConstants.LONG_PRESS
     }
