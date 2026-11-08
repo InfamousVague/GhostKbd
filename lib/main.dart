@@ -43,7 +43,7 @@ class GhostKeyboardApp extends StatelessWidget {
             sheet: sheet,
             attrs: {'platform': 'mobile', if (theme != 'system') 'theme': theme},
             typography: const GlacierTypography(features: [FontFeature('cv11'), FontFeature('ss01')]),
-            child: HapticsProvider(enabled: store.flag('vibrate'), child: _SystemBars(child: child!)),
+            child: HapticsProvider(enabled: store.flag('vibrate'), child: _InkOverrides(child: _SystemBars(child: child!))),
           ),
           home: _Home(store: store),
         );
@@ -112,6 +112,20 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
       },
     );
   }
+}
+
+/// What Ghost.md's ink.css does to the kit's parts that no token reaches (its lib/app/ghost_app.dart `_InkOverrides`):
+/// the selected segment's thumb is ink, so its label is paper; the switch's thumb is paper, where the kit's near-white
+/// vanished on the dark theme's near-white track; and the segment's thumb has no shadow.
+class _InkOverrides extends StatelessWidget {
+  const _InkOverrides({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => GlacierOverrides(switchThumbColor: _paper, segmentedSelectedLabelColor: _paper, segmentedThumbShadow: _none, child: child);
+
+  static Color _paper(Tokens t) => t.color('app-paper');
+  static List<BoxShadow> _none(Tokens t) => const [];
 }
 
 /// The status and navigation bars' icons, dark on the light theme and light on the dark.

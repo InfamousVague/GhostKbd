@@ -1,7 +1,7 @@
 name: dev_keyboard
 description: "Ghost Keyboard: a developer-centric keyboard for Android. The keyboard is a native InputMethodService; this Flutter app is its walkthrough, settings and plugin Market, drawn with Glacier and Ghost.md's settings kit."
 publish_to: 'none'
-version: 0.3.0+8
+version: 0.3.1+9
 
 environment:
   sdk: ^3.11.0
