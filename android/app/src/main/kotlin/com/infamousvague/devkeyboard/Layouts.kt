@@ -99,8 +99,8 @@ object Layouts {
     fun letters(numberRow: Boolean): List<KeyRow> {
         val top = "qwertyuiop".mapIndexed { i, c -> letter(c.toString(), if (numberRow) null else digits[i]) }
         // Gboard's long-press symbol hints: the ?123 page's second and third rows, in order.
-        val middle = "asdfghjkl".zip("@#\$_&-+()".toList()) { c, h -> letter(c.toString(), h.toString()) }
-        val bottom = "zxcvbnm".zip("*\"':;!?".toList()) { c, h -> letter(c.toString(), h.toString()) }
+        val middle = "asdfghjkl".zip("@#\$_&-+()") { c, h -> letter(c.toString(), h.toString()) }
+        val bottom = "zxcvbnm".zip("*\"':;!?") { c, h -> letter(c.toString(), h.toString()) }
         return listOfNotNull(
             if (numberRow) numberRow() else null,
             KeyRow(top),
