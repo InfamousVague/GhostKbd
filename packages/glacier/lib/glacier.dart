@@ -27,3 +27,4 @@ export 'src/components/search_field.dart';
 export 'src/components/segmented_control.dart';
 export 'src/components/switch.dart';
 export 'src/components/toast.dart';
+export 'src/components/color_picker.dart';

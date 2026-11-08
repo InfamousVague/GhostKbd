@@ -94,6 +94,7 @@ class MainActivity : FlutterActivity() {
             setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getSettings" -> result.success(prefs.all())
+                    "popupDefaults" -> result.success(Layouts.defaultPopups().map { (key, alts) -> mapOf("key" to key, "alts" to alts) })
                     "setSetting" -> {
                         val key = call.argument<String>("key")
                         val ok = key != null && prefs.set(key, call.argument<Any>("value"))

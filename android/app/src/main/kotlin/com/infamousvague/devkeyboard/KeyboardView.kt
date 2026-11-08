@@ -41,6 +41,28 @@ interface KeyboardListener {
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
 }
 
+/**
+ * [KeyboardListener] with every call guarded: a bug in one key's handling is logged and that keystroke dropped,
+ * rather than taking the whole keyboard down with the app's text field still waiting for it.
+ */
+class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
+    private inline fun guard(what: String, block: () -> Unit) {
+        try { block() } catch (t: Throwable) { android.util.Log.e("GhostKeyboard", "$what failed", t) }
+    }
+    override fun onText(text: String, caretBack: Int) = guard("onText") { inner.onText(text, caretBack) }
+    override fun onDelete() = guard("onDelete") { inner.onDelete() }
+    override fun onSpace() = guard("onSpace") { inner.onSpace() }
+    override fun onEnter() = guard("onEnter") { inner.onEnter() }
+    override fun onCursor(steps: Int) = guard("onCursor") { inner.onCursor(steps) }
+    override fun onShiftChanged() = guard("onShiftChanged") { inner.onShiftChanged() }
+    override fun onKeyFeedback(key: Key) = guard("onKeyFeedback") { inner.onKeyFeedback(key) }
+    override fun onShowPicker() = guard("onShowPicker") { inner.onShowPicker() }
+    override fun onOpenSettings() = guard("onOpenSettings") { inner.onOpenSettings() }
+    override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
+    override fun onMic() = guard("onMic") { inner.onMic() }
+    override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
+}
+
 enum class ShiftState { OFF, ON, LOCKED }
 
 /** The dictation plugin's panel over the keys: off, listening (with how loud), or turning speech into words. */
@@ -54,7 +76,8 @@ enum class EnterIcon { RETURN, SEARCH, GO, SEND, NEXT, PREVIOUS, DONE }
  * are no popup windows to manage.
  */
 @SuppressLint("ViewConstructor")
-class KeyboardView(context: Context, private val listener: KeyboardListener) : View(context) {
+class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
+    private val listener: KeyboardListener = SafeListener(host)
 
     // --- settings ---------------------------------------------------------------------------------------------------
 
@@ -87,6 +110,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
      */
     var pluginRow = false
         set(value) { if (field != value) { field = value; requestLayout(); invalidate() } }
+
+    /** Settings › Long-press keys, as KeyboardPrefs keeps it. */
+    var popupKeys = ""
+        set(value) { if (field != value) { field = value; Layouts.custom = Layouts.parseCustom(value); rebuild(); invalidate() } }
 
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
     var swipeTyping = false

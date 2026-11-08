@@ -91,6 +91,8 @@ class Autocorrect(context: Context) {
         if (!ready || typed.isEmpty() || typed.length > 24) return null
         // An acronym or a deliberate capitalised name of two letters or more is left as typed.
         if (typed.length > 1 && typed.all { it.isUpperCase() }) return null
+        // camelCase, iOS, McDonald: a capital after the first letter is deliberate.
+        if (typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase()
         if (lower in learned) return null
         val fixed = best(lower) ?: return null

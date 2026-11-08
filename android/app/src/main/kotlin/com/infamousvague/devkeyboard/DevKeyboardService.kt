@@ -50,7 +50,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var row: PluginRow? = null
     private var gifPanel: GifPanel? = null
     private val rowHandler = Handler(Looper.getMainLooper())
-    private val refreshTask = Runnable { refreshRow() }
+    private val refreshTask = Runnable { runCatching { refreshRow() }.onFailure { android.util.Log.e("GhostKeyboard", "row refresh failed", it) } }
 
     /** The passwords plugin: the autofill service's inline suggestions for this field, as views. */
     private var inlineViews: List<View> = emptyList()
@@ -172,6 +172,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
+        view.popupKeys = prefs.popupKeys
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
@@ -283,6 +284,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val prev = before[start - 1]
             if (prev.isLetterOrDigit() || prev in "@#/._-\\:\$`") return false
         }
+        // In the middle of a word (the cursor moved back into it): the word goes on past the cursor, leave it.
+        val after = ic.getTextAfterCursor(1, 0)
+        if (!after.isNullOrEmpty() && (after[0].isLetterOrDigit() || after[0] == '\'')) return false
         val fixed = autocorrect.correct(word) ?: return false
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)

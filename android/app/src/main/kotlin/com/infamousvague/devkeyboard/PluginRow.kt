@@ -104,7 +104,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             return IconButton(context, item.icon).apply {
                 color = theme.toolbarIcon
                 minimumWidth = dp(44f)
-                setOnClickListener { item.onTap?.invoke() }
+                setOnClickListener { tap(item) }
             }
         }
         return TextView(context).apply {
@@ -119,12 +119,18 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             setPadding(padX, 0, padX, 0)
             background = pressable(item.chip)
             isClickable = item.onTap != null
-            setOnClickListener { item.onTap?.invoke() }
+            setOnClickListener { tap(item) }
             if (item.icon != null) {
                 setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f)), null, null, null)
                 compoundDrawablePadding = dp(6f)
             }
         }
+    }
+
+    private fun tap(item: RowItem) {
+        val action = item.onTap ?: return
+        performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        try { action() } catch (t: Throwable) { android.util.Log.e("GhostKeyboard", "row item ${item.id} failed", t) }
     }
 
     private fun pressable(chip: Boolean): StateListDrawable {

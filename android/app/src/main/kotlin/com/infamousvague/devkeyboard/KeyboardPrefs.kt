@@ -31,6 +31,9 @@ class KeyboardPrefs(context: Context) {
     /** The GIF plugin: a GIPHY key of the person's own, used instead of the build's. */
     val giphyKey: String get() = prefs.getString(GIPHY_KEY, "")!!
 
+    /** The person's own long-press keys: "a=á à â" a line (Layouts.parseCustom). */
+    val popupKeys: String get() = prefs.getString(POPUP_KEYS, "")!!
+
     /** Autocorrect's languages: codes with a dictionary in assets/dict, comma-separated ("en,es"). */
     val languages: List<String> get() = prefs.getString(LANGUAGES, DEFAULTS[LANGUAGES] as String)!!.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf("en") }
 
@@ -115,6 +118,7 @@ class KeyboardPrefs(context: Context) {
         const val LANGUAGES = "languages"
         const val SUGGESTIONS = "suggestions"
         const val GIPHY_KEY = "giphy_key"
+        const val POPUP_KEYS = "popup_keys"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
@@ -142,6 +146,10 @@ class KeyboardPrefs(context: Context) {
             LANGUAGES to "en",
             SUGGESTIONS to true,
             GIPHY_KEY to "",
+            POPUP_KEYS to "",
+            "theme_tint" to "#7CC4FA",
+            "theme_accent" to "",
+            "theme_mode" to "dark",
             LEARNED_WORDS to "",
             PLUGINS to "autocorrect",
             THEME_PRESET to "gboard",

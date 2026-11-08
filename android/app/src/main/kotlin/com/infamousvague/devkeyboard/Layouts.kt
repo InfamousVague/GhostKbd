@@ -33,6 +33,33 @@ class KeyRow(val keys: List<Key>, val inset: Float = 0f) {
 }
 
 object Layouts {
+    /**
+     * The person's own long-press keys (Settings › Long-press keys): a key's text to the choices its popup offers,
+     * in order. A key here shows its first choice in its corner; an empty list means no popup at all.
+     */
+    @Volatile var custom: Map<String, List<String>> = emptyMap()
+
+    /** "a=á à â\n.=? !" as [custom] reads it: one key a line, its choices split by spaces. */
+    fun parseCustom(spec: String): Map<String, List<String>> = spec.lines().mapNotNull { line ->
+        val eq = line.indexOf('=', startIndex = 1)
+        if (eq < 1) null else line.substring(0, eq) to line.substring(eq + 1).split(' ').filter { it.isNotEmpty() }
+    }.toMap()
+
+    /** The letters page's popups as they ship, QWERTY's order then the period: what Settings shows and resets to. */
+    fun defaultPopups(): List<Pair<String, List<String>>> {
+        val saved = custom
+        custom = emptyMap()
+        try {
+            return letters(false).flatMap { it.keys }.filter { it.type == KeyType.CHAR && it.text != "," }.map { it.text to it.alts }
+        } finally {
+            custom = saved
+        }
+    }
+
+    private fun own(key: Key): Key {
+        val mine = custom[key.text] ?: return key
+        return key.copy(alts = mine, hint = if (key.type == KeyType.CHAR && key.text.length == 1 && key.text[0].isLetter()) mine.firstOrNull() else key.hint)
+    }
     /** The dictation plugin's mic key, beside the space bar, which gives it a key's width. */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
@@ -86,9 +113,9 @@ object Layouts {
     private val digits = "1234567890".map { it.toString() }
 
     private fun letter(c: String, hint: String?) =
-        Key(KeyType.CHAR, c, hint = hint, alts = listOfNotNull(hint) + accents[c].orEmpty())
+        own(Key(KeyType.CHAR, c, hint = hint, alts = listOfNotNull(hint) + accents[c].orEmpty()))
 
-    private fun sym(c: String) = Key(KeyType.CHAR, c, alts = symbolAlts[c].orEmpty())
+    private fun sym(c: String) = own(Key(KeyType.CHAR, c, alts = symbolAlts[c].orEmpty()))
 
     private val shift = Key(KeyType.SHIFT, width = 1.5f)
     private val delete = Key(KeyType.DELETE, width = 1.5f)
@@ -104,7 +131,7 @@ object Layouts {
             Key(KeyType.MODE, label = modeLabel, width = 1.5f, page = modePage),
             second,
             Key(KeyType.SPACE, " ", width = 5f),
-            Key(KeyType.CHAR, ".", alts = periodAlts),
+            own(Key(KeyType.CHAR, ".", alts = periodAlts)),
             Key(KeyType.ENTER, width = 1.5f),
         ),
     )

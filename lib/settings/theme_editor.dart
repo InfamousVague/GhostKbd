@@ -1,8 +1,8 @@
 /// The Themes plugin's page: the presets as cards, each a small keyboard in its colours, and a theme of one's own made
-/// from five colours. The keyboard draws whichever is chosen (KeyboardTheme.kt), from the same ids and colours.
+/// from one colour picked with Glacier's colour picker (deriveTheme works out the
+/// five colours the keyboard draws). The keyboard draws whichever is chosen (KeyboardTheme.kt).
 library;
 
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
@@ -11,8 +11,6 @@ import '../plugins/catalogue.dart';
 import '../settings_store.dart';
 import 'kit/settings_kit.dart';
 import 'kit/settings_type.dart';
-
-const _parts = ['Keyboard', 'Keys', 'Function keys', 'Accent', 'Letters'];
 
 List<int> _parse(String spec) {
   final colours = spec.split(',').map((h) => int.tryParse(h.trim().replaceFirst('#', ''), radix: 16)).toList();
@@ -53,28 +51,44 @@ class ThemeEditor extends StatelessWidget {
         SizedBox(height: t.space(4)),
         PaneSection(
           title: 'Your own theme',
-          footer: const Text('Colours as #RRGGBB. The keyboard works out the pressed keys, the hints and the popups from these five.'),
+          footer: const Text('Pick one colour: the keyboard, its keys and the function keys are drawn from it, and the letters take a faint touch of it too.'),
           children: [
-            for (var i = 0; i < 5; i++)
-              SettingRow(
-                label: _parts[i],
-                icon: Container(width: 22, height: 22, decoration: BoxDecoration(color: Color(own[i]), borderRadius: BorderRadius.circular(6), border: Border.all(color: t.color('app-rule')))),
-                control: SizedBox(
-                  width: 120,
-                  child: GlacierInput(
-                    key: ValueKey('theme-part-$i-${own[i]}'),
-                    size: GlacierFieldSize.sm,
-                    defaultValue: _hex(own[i]),
-                    autoCapitalize: TextCapitalization.characters,
-                    ariaLabel: '${_parts[i]} colour',
-                    onSubmitted: (text) {
-                      final v = int.tryParse(text.trim().replaceFirst('#', ''), radix: 16);
-                      if (v == null || text.trim().replaceFirst('#', '').length != 6) return;
-                      final next = [...own]..[i] = 0xFF000000 | v;
-                      store.set('custom_theme', next.map(_hex).join(','));
-                      store.set('theme_preset', 'custom');
-                    },
-                  ),
+            SettingRow(
+              label: 'Look',
+              layout: SettingRowLayout.stacked,
+              control: GlacierSegmentedControl(
+                options: const [GlacierSegmentedOption(value: 'dark', label: Text('Dark')), GlacierSegmentedOption(value: 'light', label: Text('Light'))],
+                value: store.choice('theme_mode'),
+                onValueChange: (v) => _apply(store, mode: v),
+                fullWidth: true,
+                size: GlacierSegmentedSize.sm,
+                ariaLabel: 'Light or dark',
+              ),
+            ),
+            SettingRowBox(
+              child: GlacierColorPicker(
+                value: store.choice('theme_tint'),
+                presets: _tints,
+                size: GlacierColorPickerSize.sm,
+                onChangeEnd: (hex) => _apply(store, tint: hex),
+              ),
+            ),
+            SettingRow(
+              label: 'Accent matches the colour',
+              hint: const Text('Off: pick the enter key’s and the popups’ colour yourself.'),
+              control: GlacierSwitch(
+                checked: store.choice('theme_accent').isEmpty,
+                onCheckedChange: (on) => _apply(store, accent: on ? '' : store.choice('theme_tint')),
+                ariaLabel: 'Accent matches the colour',
+              ),
+            ),
+            if (store.choice('theme_accent').isNotEmpty)
+              SettingRowBox(
+                child: GlacierColorPicker(
+                  value: store.choice('theme_accent'),
+                  presets: _tints,
+                  size: GlacierColorPickerSize.sm,
+                  onChangeEnd: (hex) => _apply(store, accent: hex),
                 ),
               ),
           ],
@@ -82,6 +96,51 @@ class ThemeEditor extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Swatches under the picker: the presets' accents and a few more.
+const _tints = ['#7CC4FA', '#8AB4F8', '#BD93F9', '#88C0D0', '#B58900', '#A6E22E', '#F28B82', '#F6AE2D', '#5B7CFA', '#2BB673'];
+
+/// Writes the theme of one's own from its colour, accent and look, and chooses it.
+void _apply(SettingsStore store, {String? tint, String? accent, String? mode}) {
+  if (tint != null) store.set('theme_tint', tint);
+  if (accent != null) store.set('theme_accent', accent);
+  if (mode != null) store.set('theme_mode', mode);
+  final colours = deriveTheme(
+    _parseColour(tint ?? store.choice('theme_tint')) ?? const Color(0xFF7CC4FA),
+    accent: _parseColour(accent ?? store.choice('theme_accent')),
+    dark: (mode ?? store.choice('theme_mode')) != 'light',
+  );
+  store.set('custom_theme', colours.map(_hex).join(','));
+  store.set('theme_preset', 'custom');
+}
+
+Color? _parseColour(String text) {
+  final v = int.tryParse(text.trim().replaceFirst('#', ''), radix: 16);
+  return v == null || text.trim().replaceFirst('#', '').length != 6 ? null : Color(0xFF000000 | v);
+}
+
+/// The five colours the keyboard draws (KeyboardTheme.fromBase's order: keyboard, keys, function keys, accent,
+/// letters) from one colour, in OKLCH so every hue comes out equally light. Surfaces keep only a little of its
+/// chroma; the letters keep a trace (0.018), enough to sit in the colour without reading as coloured text.
+List<int> deriveTheme(Color tint, {Color? accent, bool dark = true}) {
+  final c = Oklch.fromColor(tint);
+  final h = c.achromatic ? 250.0 : c.h;
+  double cap(double max) => c.c < max ? c.c : max;
+  final Oklch background, key, function, text;
+  if (dark) {
+    background = Oklch(0.17, cap(0.03), h);
+    key = Oklch(0.285, cap(0.035), h);
+    function = Oklch(0.225, cap(0.03), h);
+    text = Oklch(0.95, c.c < 0.02 ? c.c : 0.018, h);
+  } else {
+    background = Oklch(0.925, cap(0.025), h);
+    key = Oklch(0.995, cap(0.008), h);
+    function = Oklch(0.85, cap(0.03), h);
+    text = Oklch(0.24, c.c < 0.02 ? c.c : 0.02, h);
+  }
+  final a = accent ?? tint;
+  return [for (final o in [background, key, function]) o.toColor().toARGB32(), a.toARGB32() | 0xFF000000, text.toColor().toARGB32()];
 }
 
 /// A theme as a small keyboard: three rows of keys and a space bar in its colours, under its name.
