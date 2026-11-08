@@ -18,8 +18,6 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
-import kotlin.math.cos
-import kotlin.math.sin
 
 /** The small drawn icons the plugin row's buttons use. */
 enum class RowIcon { SETTINGS, HIDE, GIF, BACK, SEARCH, KEY }
@@ -53,6 +51,10 @@ class RowItem(
 class PluginRow(context: Context, private val onSettings: () -> Unit, private val onHide: () -> Unit) : LinearLayout(context) {
     var theme: KeyboardTheme = KeyboardTheme.LIGHT
         set(value) { field = value; restyle() }
+
+    /** The icon pack the row's icons come from (RowIcons.PACKS). */
+    var iconPack = "lucide"
+        set(value) { if (field != value) { field = value; settings.pack = value; hide.pack = value; restyle() } }
 
     var showHide = false
         set(value) { field = value; hide.visibility = if (value) VISIBLE else GONE }
@@ -102,6 +104,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private fun makeView(item: RowItem): View {
         if (item.icon != null && item.label == null) {
             return IconButton(context, item.icon).apply {
+                pack = iconPack
                 color = theme.toolbarIcon
                 minimumWidth = dp(44f)
                 setOnClickListener { tap(item) }
@@ -121,7 +124,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             isClickable = item.onTap != null
             setOnClickListener { tap(item) }
             if (item.icon != null) {
-                setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f)), null, null, null)
+                setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f), iconPack), null, null, null)
                 compoundDrawablePadding = dp(6f)
             }
         }
@@ -154,6 +157,8 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private class IconButton(context: Context, val icon: RowIcon) : View(context) {
         var color = 0xFF444746.toInt()
             set(value) { field = value; invalidate() }
+        var pack = "lucide"
+            set(value) { field = value; drawer.pack = value; invalidate() }
         private val drawer = IconDrawable(icon, color, 0)
 
         init {
@@ -177,64 +182,33 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     }
 }
 
-/** The row's icons, drawn in a 24-unit box as Lucide's are, at whatever size the bounds give. */
-class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int) : android.graphics.drawable.Drawable() {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
-    }
-    private val path = Path()
+/**
+ * The row's icons, from the chosen icon pack (RowIcons.kt, Ghost.md's packs): drawn on the 24 grid at whatever size
+ * the bounds give, in Ghost.md's look, outlines with a wash inside: the icon's body filled at a third of the ink.
+ */
+class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int, var pack: String = "lucide") : android.graphics.drawable.Drawable() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
 
     init { if (size > 0) setBounds(0, 0, size, size) }
 
     override fun draw(canvas: Canvas) {
         val b = bounds
         if (b.width() <= 0) return
+        val glyph = RowIcons.icon(pack, icon)
         val u = b.width() / 24f
         canvas.save()
         canvas.translate(b.left.toFloat(), b.top.toFloat())
+        canvas.scale(u, u)
         paint.color = ink
-        paint.strokeWidth = 2f * u
-        paint.style = Paint.Style.STROKE
-        when (icon) {
-            RowIcon.SETTINGS -> {
-                for (i in 0 until 8) {
-                    val a = Math.PI / 4 * i
-                    canvas.drawLine(12 * u + (7 * u * cos(a)).toFloat(), 12 * u + (7 * u * sin(a)).toFloat(),
-                        12 * u + (10 * u * cos(a)).toFloat(), 12 * u + (10 * u * sin(a)).toFloat(), paint)
-                }
-                canvas.drawCircle(12 * u, 12 * u, 7 * u, paint)
-                canvas.drawCircle(12 * u, 12 * u, 3 * u, paint)
-            }
-            RowIcon.HIDE -> {
-                path.reset(); path.moveTo(6 * u, 9 * u); path.lineTo(12 * u, 15 * u); path.lineTo(18 * u, 9 * u)
-                canvas.drawPath(path, paint)
-            }
-            RowIcon.BACK -> {
-                path.reset(); path.moveTo(12 * u, 19 * u); path.lineTo(5 * u, 12 * u); path.lineTo(12 * u, 5 * u)
-                path.moveTo(19 * u, 12 * u); path.lineTo(5 * u, 12 * u)
-                canvas.drawPath(path, paint)
-            }
-            RowIcon.SEARCH -> {
-                canvas.drawCircle(11 * u, 11 * u, 7 * u, paint)
-                canvas.drawLine(21 * u, 21 * u, 16.2f * u, 16.2f * u, paint)
-            }
-            RowIcon.KEY -> {
-                canvas.drawCircle(7.5f * u, 15.5f * u, 5.5f * u, paint)
-                path.reset(); path.moveTo(11.4f * u, 11.6f * u); path.lineTo(21 * u, 2 * u)
-                path.moveTo(15.5f * u, 7.5f * u); path.lineTo(18.5f * u, 10.5f * u)
-                path.moveTo(19 * u, 4 * u); path.lineTo(21 * u, 6 * u)
-                canvas.drawPath(path, paint)
-            }
-            RowIcon.GIF -> {
-                val r = android.graphics.RectF(2 * u, 5 * u, 22 * u, 19 * u)
-                canvas.drawRoundRect(r, 3 * u, 3 * u, paint)
-                paint.style = Paint.Style.FILL
-                paint.textSize = 8.5f * u
-                paint.typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
-                paint.textAlign = Paint.Align.CENTER
-                canvas.drawText("GIF", 12 * u, 15 * u, paint)
-            }
+        paint.style = Paint.Style.FILL
+        paint.alpha = (glyph.washAlpha * android.graphics.Color.alpha(ink)).toInt()
+        for (d in glyph.wash) canvas.drawPath(SvgPath.parse(d), paint)
+        paint.alpha = android.graphics.Color.alpha(ink)
+        if (glyph.lines) {
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2f
         }
+        for (d in glyph.paths) canvas.drawPath(SvgPath.parse(d), paint)
         canvas.restore()
     }
 
@@ -263,14 +237,22 @@ class KeyboardFrame(context: Context, val keyboard: KeyboardView, val row: Plugi
         keyboard.measure(widthMeasureSpec, heightMeasureSpec)
         val w = keyboard.measuredWidth
         val h = keyboard.measuredHeight
-        row.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((keyboard.rowBottom - keyboard.rowTop).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY))
+        row.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(rowHeight(), MeasureSpec.EXACTLY))
         panel.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((keyboard.keysBottom - keyboard.rowBottom).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY))
         setMeasuredDimension(w, h)
     }
 
+    /**
+     * The row's pixels: from the pixel its strip starts in to one past the pixel the keys start in. The strip's edges
+     * fall between pixels, and rounding both down left a hairline of the app showing between the row and the keys;
+     * the overlap is under the keyboard's own background, which is drawn over the row.
+     */
+    private fun rowHeight() = (kotlin.math.ceil(keyboard.rowBottom) - kotlin.math.floor(keyboard.rowTop)).toInt().coerceAtLeast(0) + 1
+
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         keyboard.layout(0, 0, keyboard.measuredWidth, keyboard.measuredHeight)
-        row.layout(0, keyboard.rowTop.toInt(), row.measuredWidth, keyboard.rowTop.toInt() + row.measuredHeight)
+        val top = kotlin.math.floor(keyboard.rowTop).toInt()
+        row.layout(0, top, row.measuredWidth, top + row.measuredHeight)
         panel.layout(0, keyboard.rowBottom.toInt(), panel.measuredWidth, keyboard.rowBottom.toInt() + panel.measuredHeight)
     }
 

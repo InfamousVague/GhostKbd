@@ -45,6 +45,7 @@ class SettingsStore extends ChangeNotifier {
     'theme_mode': 'dark',
     'popup_keys': '',
     'swipe_trail': 'theme',
+    'icon_pack': 'lucide',
     'swipe_effect': 'fade',
     'plugins': 'autocorrect',
     'theme_preset': 'gboard',

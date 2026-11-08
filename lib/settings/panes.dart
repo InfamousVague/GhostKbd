@@ -183,6 +183,19 @@ List<Widget> _look(BuildContext context, SettingsStore store) => [
           _toggle(store, 'toolbar', 'Toolbar', 'A strip above the keys with settings and hide. Long-press { } opens settings either way.'),
         ],
       ),
+      PaneSection(
+        title: 'Row icons',
+        footer: const Text('The icons in the row above the keys, from Ghost.md’s icon packs, outlined with a soft fill inside.'),
+        children: [
+          for (final (id, name, line) in rowIconPacks)
+            SettingRow(
+              label: name,
+              hint: Text(line),
+              icon: store.choice('icon_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+              onPress: () => store.set('icon_pack', id),
+            ),
+        ],
+      ),
     ];
 
 // --- Typing -------------------------------------------------------------------------------------------------------
@@ -524,6 +537,7 @@ List<Widget> _about(BuildContext context, SettingsStore store) => [
         children: const [
           SettingRow(label: 'Glacier', hint: Text('The UI kit, from Ghost.md.')),
           SettingRow(label: 'whisper.cpp', hint: Text('Speech to text on the phone (MIT).')),
+          SettingRow(label: 'Icon packs', hint: Text('Lucide (ISC), Tabler (MIT), Phosphor (MIT), Material Symbols (Apache 2.0), Remix Icon (Remix Icon License).')),
           SettingRow(label: 'Lucide', hint: Text('The icons (ISC).')),
           SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word list (CC BY-SA 4.0).')),
         ],

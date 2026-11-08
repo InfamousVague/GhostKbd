@@ -179,7 +179,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeEffect = if (themed) prefs.swipeEffect else "fade"
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
-        row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
+        row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
         if (!Plugins.isOn(prefs, Plugins.GIFS)) closeGifs()
         scheduleRow()

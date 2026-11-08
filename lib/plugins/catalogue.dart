@@ -228,3 +228,12 @@ const List<(String, String, String)> swipeEffects = [
   ('comet', 'Comet', 'A bright head with a tapering tail.'),
   ('sparkle', 'Sparkle', 'Twinkling stars scattered along the path.'),
 ];
+
+/// The plugin row's icon packs (android RowIcons.kt): id, name, and a line on how it draws.
+const List<(String, String, String)> rowIconPacks = [
+  ('lucide', 'Lucide', 'Clean, even outlines. Ghost.md’s own.'),
+  ('tabler', 'Tabler', 'Outlines a touch rounder and airier.'),
+  ('phosphor', 'Phosphor', 'Friendly shapes with a duotone fill.'),
+  ('material', 'Material Symbols', 'Google’s, as Android draws them.'),
+  ('remix', 'Remix', 'Crisp, slightly geometric outlines.'),
+];
