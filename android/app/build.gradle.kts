@@ -32,6 +32,17 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // arm64 only: the phones this is for, and whisper.cpp built once rather than four times.
+        ndk { abiFilters += listOf("arm64-v8a") }
+        externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
+    }
+
+    // The dictation plugin's speech to text: whisper.cpp in one JNI library (src/main/cpp).
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     signingConfigs {

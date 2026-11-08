@@ -195,7 +195,7 @@ const versionName = flag('version') ?? pub.name;
 const versionCode = Math.max((live?.versionCode ?? 0) + 1, pub.build);
 say(`> Building Dev Keyboard ${versionName} (code ${versionCode}; live is ${live ? `${live.version} (${live.versionCode})` : 'nothing yet'})`);
 
-run('flutter', ['build', 'apk', '--release', `--build-name=${versionName}`, `--build-number=${versionCode}`], { cwd: ROOT });
+run('flutter', ['build', 'apk', '--release', '--target-platform', 'android-arm64', `--build-name=${versionName}`, `--build-number=${versionCode}`], { cwd: ROOT });
 const built = join(ROOT, 'build/app/outputs/flutter-apk/app-release.apk');
 if (!existsSync(built)) fail(`No APK at ${built}.`);
 

@@ -26,6 +26,15 @@ class KeyboardPrefs(context: Context) {
     val tapLog: Boolean get() = bool(TAP_LOG)
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
 
+    /** The added plugins' ids, comma-separated (Plugins.kt). */
+    val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
+
+    /** The themes plugin: a preset's id, or "custom" for [customTheme]. */
+    val themePreset: String get() = prefs.getString(THEME_PRESET, DEFAULTS[THEME_PRESET] as String)!!
+
+    /** The themes plugin's own theme: "background,key,functionKey,accent,text" as #RRGGBB, comma-separated. */
+    val customTheme: String get() = prefs.getString(CUSTOM_THEME, DEFAULTS[CUSTOM_THEME] as String)!!
+
     /** "light", "medium" or "strong". */
     val haptics: String get() = prefs.getString(HAPTICS, DEFAULTS[HAPTICS] as String)!!
 
@@ -86,6 +95,9 @@ class KeyboardPrefs(context: Context) {
         const val HAPTICS = "haptics"
         const val TAP_LOG = "tap_log"
         const val AUTOCORRECT = "autocorrect"
+        const val PLUGINS = "plugins"
+        const val THEME_PRESET = "theme_preset"
+        const val CUSTOM_THEME = "custom_theme"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "system",
@@ -105,6 +117,9 @@ class KeyboardPrefs(context: Context) {
             HAPTICS to "medium",
             TAP_LOG to false,
             AUTOCORRECT to true,
+            PLUGINS to "autocorrect",
+            THEME_PRESET to "gboard",
+            CUSTOM_THEME to "#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3",
         )
     }
 }

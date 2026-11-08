@@ -34,9 +34,14 @@ interface KeyboardListener {
     fun onShowPicker()
     fun onOpenSettings()
     fun onHideKeyboard()
+    /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
+    fun onMic()
 }
 
 enum class ShiftState { OFF, ON, LOCKED }
+
+/** The dictation plugin's panel over the keys: off, listening (with how loud), or turning speech into words. */
+enum class DictationPhase { OFF, LISTENING, TRANSCRIBING }
 
 enum class EnterIcon { RETURN, SEARCH, GO, SEND, NEXT, PREVIOUS, DONE }
 
@@ -61,6 +66,17 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
     var keyBorders = false
         set(value) { field = value; invalidate() }
+
+    /** The dictation plugin is added and its model is here: the mic key stands beside the space bar. */
+    var micKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+
+    var dictation = DictationPhase.OFF
+        set(value) { field = value; if (value == DictationPhase.OFF) level = 0f; invalidate() }
+
+    /** How loud the microphone hears it, 0..1, eased. */
+    var level = 0f
+        set(value) { field = field * 0.6f + value * 0.4f; invalidate() }
 
     /** Settings › Developer › Tap log, and not in a password field (the service decides both). */
     var tapLog = false
@@ -124,12 +140,13 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     private fun rebuild() {
-        rows = when (page) {
+        val base = when (page) {
             Page.LETTERS -> Layouts.letters(numberRow)
             Page.SYMBOLS -> Layouts.symbols()
             Page.MORE -> Layouts.more()
             Page.DEV -> Layouts.dev()
         }
+        rows = if (micKey) Layouts.withMic(base) else base
         layoutKeys()
     }
 
@@ -246,6 +263,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         canvas.drawRect(0f, keyboardTop, width.toFloat(), height.toFloat(), fill)
         if (showToolbar) drawToolbar(canvas)
         for ((key, rect) in keyRects) drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null } == true)
+        if (dictation != DictationPhase.OFF) { drawDictation(canvas); return }
         touch?.let { t ->
             when {
                 t.panel != null -> drawPanel(canvas, t.panel!!)
@@ -333,6 +351,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 drawCentered(canvas, key.label, cx, cy)
             }
             KeyType.SPACE -> Unit
+            KeyType.MIC -> drawMic(canvas, cx, cy, theme.text)
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
@@ -381,6 +400,38 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             stroke.strokeWidth = dp(2f)
             canvas.drawLine(cx - 4 * u, cy + 11 * u, cx + 4 * u, cy + 11 * u, stroke)
         }
+    }
+
+    /** A microphone: a capsule, its cradle and its stand. */
+    private fun drawMic(canvas: Canvas, cx: Float, cy: Float, color: Int, scale: Float = 1f) {
+        val u = dp(1f) * scale
+        stroke.color = color
+        stroke.strokeWidth = dp(1.8f) * scale
+        canvas.drawRoundRect(RectF(cx - 3.5f * u, cy - 9 * u, cx + 3.5f * u, cy + 2 * u), 3.5f * u, 3.5f * u, stroke)
+        path.reset()
+        path.addArc(RectF(cx - 7 * u, cy - 6 * u, cx + 7 * u, cy + 6 * u), 0f, 180f)
+        canvas.drawPath(path, stroke)
+        canvas.drawLine(cx, cy + 6 * u, cx, cy + 9 * u, stroke)
+    }
+
+    /** The listening panel, over the keys: a ring that swells with the voice, and what to do. */
+    private fun drawDictation(canvas: Canvas) {
+        fill.color = theme.background
+        canvas.drawRect(0f, keysTop, width.toFloat(), keysTop + keysHeight + bottomPad, fill)
+        val cx = width / 2f
+        val cy = keysTop + keysHeight * 0.42f
+        val r = dp(34f)
+        fill.color = theme.accent
+        fill.alpha = 60
+        canvas.drawCircle(cx, cy, r + dp(26f) * level.coerceIn(0f, 1f) + dp(4f), fill)
+        fill.alpha = 255
+        canvas.drawCircle(cx, cy, r, fill)
+        drawMic(canvas, cx, cy + dp(1f), theme.onAccent, 1.6f)
+        label.typeface = medium
+        label.textSize = sp(15f)
+        label.color = theme.text
+        val words = if (dictation == DictationPhase.LISTENING) "Listening… tap to finish" else "Writing it down…"
+        drawCentered(canvas, words, cx, cy + r + dp(30f))
     }
 
     private fun drawDelete(canvas: Canvas, cx: Float, cy: Float) {
@@ -619,6 +670,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                     }
                     return true
                 }
+                if (dictation != DictationPhase.OFF) {
+                    if (dictation == DictationPhase.LISTENING && event.actionMasked == MotionEvent.ACTION_DOWN) listener.onMic()
+                    return true
+                }
                 val (key, rect) = keyAt(x, y) ?: return true
                 press(Touch(event.getPointerId(i), key, rect, x, y))
             }
@@ -729,6 +784,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 KeyType.ENTER -> listener.onEnter()
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)
+                KeyType.MIC -> listener.onMic()
                 KeyType.DELETE -> Unit
             }
         }

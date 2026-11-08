@@ -1,7 +1,7 @@
 package com.infamousvague.devkeyboard
 
 /** What a key does when it is pressed. */
-enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE }
+enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC }
 
 /** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
 enum class Page { LETTERS, SYMBOLS, MORE, DEV }
@@ -33,6 +33,13 @@ class KeyRow(val keys: List<Key>, val inset: Float = 0f) {
 }
 
 object Layouts {
+    /** The dictation plugin's mic key, beside the space bar, which gives it a key's width. */
+    fun withMic(rows: List<KeyRow>): List<KeyRow> {
+        val last = rows.last()
+        val keys = last.keys.flatMap { if (it.type == KeyType.SPACE) listOf(Key(KeyType.MIC), it.copy(width = it.width - 1f)) else listOf(it) }
+        return rows.dropLast(1) + KeyRow(keys, last.inset)
+    }
+
     private val accents = mapOf(
         "a" to listOf("à", "á", "â", "ä", "æ", "ã", "å", "ā"),
         "c" to listOf("ç", "ć", "č"),

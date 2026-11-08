@@ -1,6 +1,8 @@
 package com.infamousvague.devkeyboard
 
+import android.Manifest
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -20,16 +22,38 @@ class MainActivity : FlutterActivity() {
     private val prefs by lazy { KeyboardPrefs(this) }
     private val imm by lazy { getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager }
     private val onUpdate: (Updater.State) -> Unit = { channel?.invokeMethod("updateChanged", it.toMap(this)) }
+    private val onModel: (WhisperModel.State) -> Unit = { channel?.invokeMethod("dictationChanged", dictationState()) }
+
+    /** A page the app was opened at (the keyboard's mic key, when the microphone is not allowed yet). */
+    private var openAt: String? = null
+
+    private fun dictationState(): Map<String, Any?> = WhisperModel.state.toMap() + mapOf(
+        "microphone" to (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
+    )
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_OPEN)?.let { channel?.invokeMethod("open", it) }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        channel?.invokeMethod("dictationChanged", dictationState())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Updater.addListener(onUpdate)
+        WhisperModel.refresh(this)
+        WhisperModel.addListener(onModel)
+        openAt = intent?.getStringExtra(EXTRA_OPEN)
         // Automatic updates: look each time the app opens, and install what is found.
         if (KeyboardPrefs(this).autoUpdate) Updater.check(this, install = true)
     }
 
     override fun onDestroy() {
         Updater.removeListener(onUpdate)
+        WhisperModel.removeListener(onModel)
         super.onDestroy()
     }
 
@@ -51,6 +75,27 @@ class MainActivity : FlutterActivity() {
                     }
                     "showPicker" -> {
                         imm.showInputMethodPicker()
+                        result.success(null)
+                    }
+                    "openAt" -> { result.success(openAt); openAt = null }
+                    "setPlugin" -> {
+                        val id = call.argument<String>("id") ?: ""
+                        val on = call.argument<Boolean>("on") == true
+                        if (!Plugins.set(prefs, id, on)) { result.error("bad_plugin", "Unknown plugin: $id", null); return@setMethodCallHandler }
+                        // Adding dictation fetches its model and asks for the microphone, in one go.
+                        if (id == Plugins.DICTATION && on) {
+                            WhisperModel.download(this@MainActivity)
+                            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
+                            }
+                        }
+                        result.success(prefs.all())
+                    }
+                    "dictationState" -> result.success(dictationState())
+                    "downloadModel" -> { WhisperModel.download(this@MainActivity); result.success(null) }
+                    "deleteModel" -> { WhisperModel.delete(this@MainActivity); result.success(null) }
+                    "requestMicrophone" -> {
+                        requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
                         result.success(null)
                     }
                     "tapLog" -> result.success(mapOf("text" to TapLog.text(this@MainActivity), "count" to TapLog.count(this@MainActivity)))
@@ -93,5 +138,11 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         channel?.invokeMethod("statusChanged", status())
+    }
+
+    companion object {
+        /** An extra naming the settings page to open at. */
+        const val EXTRA_OPEN = "open"
+        private const val REQUEST_MIC = 41
     }
 }

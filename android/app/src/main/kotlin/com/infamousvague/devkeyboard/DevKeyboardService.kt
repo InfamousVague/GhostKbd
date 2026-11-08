@@ -19,7 +19,7 @@ import android.view.inputmethod.InputMethodManager
 import kotlin.math.abs
 
 /** The keyboard: a native input method drawing [KeyboardView], configured from [KeyboardPrefs]. */
-class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPreferences.OnSharedPreferenceChangeListener {
+class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Listener, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private lateinit var prefs: KeyboardPrefs
     private var keyboard: KeyboardView? = null
@@ -27,6 +27,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
     private var selEnd = -1
     private var lastSpaceAt = 0L
     private lateinit var autocorrect: Autocorrect
+    private val dictation by lazy { Dictation(this) }
+    private val onModel: (WhisperModel.State) -> Unit = { applySettings() }
 
     /** The last autocorrection, while backspace can still undo it: the word as typed, what replaced it, and the separator. */
     private var lastCorrection: Triple<String, String, String>? = null
@@ -45,11 +47,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         prefs = KeyboardPrefs(this)
         prefs.prefs.registerOnSharedPreferenceChangeListener(this)
         autocorrect = Autocorrect(this)
+        WhisperModel.refresh(this)
+        WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
         Updater.backgroundCheck(this)
     }
 
     override fun onDestroy() {
+        WhisperModel.removeListener(onModel)
+        dictation.release()
         prefs.prefs.unregisterOnSharedPreferenceChangeListener(this)
         super.onDestroy()
     }
@@ -114,7 +120,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
 
     private fun applySettings() {
         val view = keyboard ?: return
-        view.theme = KeyboardTheme.resolve(this, prefs.theme)
+        view.theme = KeyboardTheme.resolve(this, prefs)
+        view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.keyBorders = prefs.keyBorders
         view.tapLog = prefs.tapLog && !isPassword(currentInputEditorInfo)
@@ -171,7 +178,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
 
     /** Autocorrect where this field wants it: not passwords, addresses, or fields that ask for no suggestions. */
     private fun autocorrectAllowed(): Boolean {
-        if (!prefs.autocorrect) return false
+        if (!Plugins.isOn(prefs, Plugins.AUTOCORRECT)) return false
         val info = currentInputEditorInfo ?: return false
         if (info.inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
         if (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0) return false
@@ -319,6 +326,46 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
     }
 
     override fun onHideKeyboard() = requestHideSelf(0)
+
+    // --- dictation (the dictation plugin) ---------------------------------------------------------------------------
+
+    override fun onMic() {
+        val view = keyboard ?: return
+        if (dictation.listening) { dictation.stop(); return }
+        if (view.dictation == DictationPhase.TRANSCRIBING) return
+        if (!dictation.hasPermission()) {
+            // An input method cannot ask for a permission itself: the settings app asks, on Dictation's page.
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(MainActivity.EXTRA_OPEN, "dictation"))
+            return
+        }
+        view.dictation = DictationPhase.LISTENING
+        dictation.start(this)
+    }
+
+    override fun onLevel(level: Float) { keyboard?.level = level }
+
+    override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING }
+
+    override fun onDictated(text: String) {
+        keyboard?.dictation = DictationPhase.OFF
+        if (text.isEmpty()) return
+        val ic = currentInputConnection ?: return
+        // A space before the words where they follow other words, none where they start a line.
+        val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
+        val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
+        ic.commitText(lead + text, 1)
+        lastCorrection = null
+    }
+
+    override fun onError(message: String) {
+        keyboard?.dictation = DictationPhase.OFF
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        if (dictation.listening) dictation.stop()
+    }
 
     companion object {
         /** Punctuation that finishes a word, and so runs autocorrect on it before it is typed. */
