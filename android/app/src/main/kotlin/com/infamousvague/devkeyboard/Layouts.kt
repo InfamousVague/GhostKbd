@@ -1,0 +1,134 @@
+package com.infamousvague.devkeyboard
+
+/** What a key does when it is pressed. */
+enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE }
+
+/** The three pages, as Gboard has them: letters, ?123, and =\<. */
+enum class Page { LETTERS, SYMBOLS, MORE }
+
+/**
+ * One key. [text] is what it types (letters are typed in upper case while shift is on), [label] what it shows,
+ * [width] its share of the row in key units, [hint] the small character in its corner, [alts] the long-press
+ * choices (the hint, when there is one, comes first), [page] the page a MODE key goes to.
+ */
+data class Key(
+    val type: KeyType,
+    val text: String = "",
+    val label: String = text,
+    val width: Float = 1f,
+    val hint: String? = null,
+    val alts: List<String> = emptyList(),
+    val page: Page? = null,
+) {
+    /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123 and the like. */
+    val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE
+}
+
+/** A row of keys, [inset] key units of space before and after it (Gboard's middle letter row sits half a key in). */
+class KeyRow(val keys: List<Key>, val inset: Float = 0f) {
+    val units: Float get() = keys.sumOf { it.width.toDouble() }.toFloat() + inset * 2
+}
+
+object Layouts {
+    private val accents = mapOf(
+        "a" to listOf("à", "á", "â", "ä", "æ", "ã", "å", "ā"),
+        "c" to listOf("ç", "ć", "č"),
+        "e" to listOf("è", "é", "ê", "ë", "ē", "ę", "ė"),
+        "i" to listOf("î", "ï", "í", "ī", "į", "ì"),
+        "l" to listOf("ł"),
+        "n" to listOf("ñ", "ń"),
+        "o" to listOf("ô", "ö", "ò", "ó", "œ", "ø", "ō", "õ"),
+        "s" to listOf("ß", "ś", "š"),
+        "u" to listOf("û", "ü", "ù", "ú", "ū"),
+        "y" to listOf("ÿ"),
+        "z" to listOf("ž", "ź", "ż"),
+    )
+
+    /** Long-press choices on the symbol pages, with the pairs a programmer reaches for most. */
+    private val symbolAlts = mapOf(
+        "1" to listOf("¹", "½", "⅓", "¼", "⅛"),
+        "2" to listOf("²", "⅔"),
+        "3" to listOf("³", "¾", "⅜"),
+        "4" to listOf("⁴"),
+        "0" to listOf("ⁿ", "∅"),
+        "(" to listOf("<", "[", "{"),
+        ")" to listOf(">", "]", "}"),
+        "-" to listOf("_", "–", "—", "·"),
+        "+" to listOf("±"),
+        "/" to listOf("\\"),
+        "'" to listOf("`", "‘", "’", "‚", "‹", "›"),
+        "\"" to listOf("“", "”", "„", "«", "»"),
+        "!" to listOf("¡"),
+        "?" to listOf("¿", "‽"),
+        "$" to listOf("¢", "£", "€", "¥", "₹", "₱"),
+        "*" to listOf("†", "‡", "★"),
+        "=" to listOf("≠", "≈", "∞"),
+        "%" to listOf("‰", "℅"),
+        "#" to listOf("№"),
+        "&" to listOf("§"),
+        "<" to listOf("≤", "«", "‹"),
+        ">" to listOf("≥", "»", "›"),
+    )
+
+    /** The period's long-press punctuation panel, as Gboard has it. */
+    private val periodAlts = listOf("?", "!", ",", "'", "\"", ":", ";", "-", "/", "@", "#", "&", "(", ")", "%", "+")
+
+    private val digits = "1234567890".map { it.toString() }
+
+    private fun letter(c: String, hint: String?) =
+        Key(KeyType.CHAR, c, hint = hint, alts = listOfNotNull(hint) + accents[c].orEmpty())
+
+    private fun sym(c: String) = Key(KeyType.CHAR, c, alts = symbolAlts[c].orEmpty())
+
+    private val shift = Key(KeyType.SHIFT, width = 1.5f)
+    private val delete = Key(KeyType.DELETE, width = 1.5f)
+
+    private fun bottomRow(modeLabel: String, modePage: Page) = KeyRow(
+        listOf(
+            Key(KeyType.MODE, label = modeLabel, width = 1.5f, page = modePage),
+            Key(KeyType.CHAR, ","),
+            Key(KeyType.SPACE, " ", width = 5f),
+            Key(KeyType.CHAR, ".", alts = periodAlts),
+            Key(KeyType.ENTER, width = 1.5f),
+        ),
+    )
+
+    private fun numberRow() = KeyRow(digits.map { sym(it) })
+
+    /** QWERTY. With [numberRow] the digits get a row of their own and leave the top row's corners. */
+    fun letters(numberRow: Boolean): List<KeyRow> {
+        val top = "qwertyuiop".mapIndexed { i, c -> letter(c.toString(), if (numberRow) null else digits[i]) }
+        // Gboard's long-press symbol hints: the ?123 page's second and third rows, in order.
+        val middle = "asdfghjkl".zip("@#\$_&-+()".toList()) { c, h -> letter(c.toString(), h.toString()) }
+        val bottom = "zxcvbnm".zip("*\"':;!?".toList()) { c, h -> letter(c.toString(), h.toString()) }
+        return listOfNotNull(
+            if (numberRow) numberRow() else null,
+            KeyRow(top),
+            KeyRow(middle, inset = 0.5f),
+            KeyRow(listOf(shift) + bottom + delete),
+            bottomRow("?123", Page.SYMBOLS),
+        )
+    }
+
+    /** ?123: digits, the common symbols, and =\< for the rest. */
+    fun symbols(): List<KeyRow> = listOf(
+        numberRow(),
+        KeyRow("@#\$_&-+()/".map { sym(it.toString()) }),
+        KeyRow(
+            listOf(Key(KeyType.MODE, label = "=\\<", width = 1.5f, page = Page.MORE)) +
+                "*\"':;!?".map { sym(it.toString()) } + delete,
+        ),
+        bottomRow("ABC", Page.LETTERS),
+    )
+
+    /** =\<: the rarer symbols. */
+    fun more(): List<KeyRow> = listOf(
+        KeyRow("~`|•√π÷×§∆".map { sym(it.toString()) }),
+        KeyRow("£¥€¢^°={}\\".map { sym(it.toString()) }),
+        KeyRow(
+            listOf(Key(KeyType.MODE, label = "?123", width = 1.5f, page = Page.SYMBOLS)) +
+                "%©®™✓[]".map { sym(it.toString()) } + delete,
+        ),
+        bottomRow("ABC", Page.LETTERS),
+    )
+}

@@ -1,0 +1,30 @@
+name: dev_keyboard
+description: "A developer-centric keyboard for Android. The keyboard itself is a native InputMethodService; this Flutter app is its setup and settings, drawn with Glacier."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The Glacier UI kit in Flutter, vendored from Ghost.md (packages/glacier/VENDORED.md).
+  glacier:
+    path: packages/glacier
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: false
+  fonts:
+    # The kit's faces (tokens.css --glacier-font-sans / --glacier-font-mono), OFL (assets/fonts/OFL.txt).
+    - family: Inter Variable
+      fonts:
+        - asset: assets/fonts/InterVariable-latin.ttf
+    - family: JetBrains Mono Variable
+      fonts:
+        - asset: assets/fonts/JetBrainsMonoVariable-latin.ttf
