@@ -3,13 +3,15 @@ package com.infamousvague.devkeyboard
 /** What a key does when it is pressed. */
 enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE }
 
-/** The three pages, as Gboard has them: letters, ?123, and =\<. */
-enum class Page { LETTERS, SYMBOLS, MORE }
+/** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
+enum class Page { LETTERS, SYMBOLS, MORE, DEV }
 
 /**
  * One key. [text] is what it types (letters are typed in upper case while shift is on), [label] what it shows,
  * [width] its share of the row in key units, [hint] the small character in its corner, [alts] the long-press
- * choices (the hint, when there is one, comes first), [page] the page a MODE key goes to.
+ * choices (the hint, when there is one, comes first), [page] the page a MODE key goes to. A `¦` in [text] or an
+ * alternative is where the cursor is left: `(¦)` types a pair and puts the cursor between. [pill] is whether a MODE
+ * key is drawn as Gboard's pill (?123) or as a bare label (the { } key, where Gboard's comma was).
  */
 data class Key(
     val type: KeyType,
@@ -19,6 +21,7 @@ data class Key(
     val hint: String? = null,
     val alts: List<String> = emptyList(),
     val page: Page? = null,
+    val pill: Boolean = true,
 ) {
     /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123 and the like. */
     val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE
@@ -83,11 +86,16 @@ object Layouts {
     private val shift = Key(KeyType.SHIFT, width = 1.5f)
     private val delete = Key(KeyType.DELETE, width = 1.5f)
 
-    private fun bottomRow(modeLabel: String, modePage: Page) = KeyRow(
+    private val comma = Key(KeyType.CHAR, ",")
+
+    /** Where Gboard has its comma: the developer page's key (long-press: settings). */
+    private val devKey = Key(KeyType.MODE, label = "{ }", page = Page.DEV, pill = false)
+
+    private fun bottomRow(modeLabel: String, modePage: Page, second: Key = comma) = KeyRow(
         listOf(
             // Gboard's, measured: ?123 and enter a key and a half, space five keys.
             Key(KeyType.MODE, label = modeLabel, width = 1.5f, page = modePage),
-            Key(KeyType.CHAR, ","),
+            second,
             Key(KeyType.SPACE, " ", width = 5f),
             Key(KeyType.CHAR, ".", alts = periodAlts),
             Key(KeyType.ENTER, width = 1.5f),
@@ -107,9 +115,56 @@ object Layouts {
             KeyRow(top),
             KeyRow(middle, inset = 0.5f),
             KeyRow(listOf(shift) + bottom + delete),
-            bottomRow("?123", Page.SYMBOLS),
+            bottomRow("?123", Page.SYMBOLS, devKey),
         )
     }
+
+    /** A key that types [text] (with its `¦` caret mark), showing [label]. */
+    private fun snip(label: String, text: String, vararg alts: String) = Key(KeyType.CHAR, text, label = label, alts = alts.toList())
+
+    /**
+     * The developer page: what code is made of, a tap away. Top row, pairs that leave the cursor inside (long-press
+     * for one half alone) and the shapes typed most; middle, operators, each long-press holding its compounds; then
+     * tab and the punctuation code leans on; the comma lives here now.
+     */
+    fun dev(): List<KeyRow> = listOf(
+        KeyRow(
+            listOf(
+                snip("( )", "(¦)", "(", ")"),
+                snip("[ ]", "[¦]", "[", "]"),
+                snip("{ }", "{¦}", "{", "}", "{\n  ¦\n}"),
+                snip("< >", "<¦>", "<", ">", "</¦>"),
+                snip("\" \"", "\"¦\"", "\""),
+                snip("' '", "'¦'", "'"),
+                snip("` `", "`¦`", "`", "```\n¦\n```"),
+                snip("\${ }", "\${¦}", "{{¦}}", "%s", "{}"),
+                snip("=>", " => ", "->", "<-", "=>", "::"),
+                snip("ƒ", "function ¦() {}", "() => {¦}", "const ¦ = () => {}", "def ¦():", "fn ¦() {}", "func ¦() {}"),
+            ),
+        ),
+        KeyRow(
+            listOf(
+                snip("=", "=", "==", "===", "!=", "!==", "<=", ">="),
+                snip("+", "+", "++", "+="),
+                snip("-", "-", "--", "-=", "->"),
+                snip("*", "*", "**", "*=", "/*¦*/"),
+                snip("/", "/", "//", "/=", "\\"),
+                snip("|", "|", "||", "|=", "|>"),
+                snip("&", "&", "&&", "&="),
+                snip("!", "!", "!=", "!!"),
+                snip("?", "?", "??", "?.", "??="),
+                snip("%", "%", "%=", "^", "^="),
+            ),
+        ),
+        KeyRow(
+            listOf(Key(KeyType.CHAR, "\t", label = "⇥", width = 1.5f)) +
+                listOf(
+                    snip(";", ";"), snip(":", ":", "::", ":="), snip("_", "_", "__"), snip("$", "$", "\$("),
+                    snip("#", "#", "#!/"), snip("@", "@"), snip("~", "~", "`", "^"),
+                ) + delete,
+        ),
+        bottomRow("ABC", Page.LETTERS),
+    )
 
     /** ?123: digits, the common symbols, and =\< for the rest. */
     fun symbols(): List<KeyRow> = listOf(

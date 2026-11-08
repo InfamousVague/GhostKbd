@@ -33,6 +33,7 @@ class SettingsStore extends ChangeNotifier {
     'toolbar': false,
     'haptics': 'medium',
     'tap_log': false,
+    'autocorrect': true,
   };
 
   final Map<String, Object> _values = {...defaults};

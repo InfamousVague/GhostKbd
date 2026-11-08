@@ -23,7 +23,8 @@ import kotlin.math.sin
 
 /** What the keyboard asks of whoever hosts it (the input method service). */
 interface KeyboardListener {
-    fun onText(text: String)
+    /** [text] typed, the cursor left [caretBack] characters before its end (a pair's inside). */
+    fun onText(text: String, caretBack: Int = 0)
     fun onDelete()
     fun onSpace()
     fun onEnter()
@@ -127,6 +128,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             Page.LETTERS -> Layouts.letters(numberRow)
             Page.SYMBOLS -> Layouts.symbols()
             Page.MORE -> Layouts.more()
+            Page.DEV -> Layouts.dev()
         }
         layoutKeys()
     }
@@ -217,7 +219,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         }
         if (tapLog) {
             val d = resources.displayMetrics.density
-            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp lift=${LIFT_TOP_DP.toInt()}/${LIFT_MIDDLE_DP.toInt()}/0dp shiftL=${SHIFT_LEFT_HALF_DP.toInt()}dp density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
+            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp correction=perkey-v1 density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
         }
     }
 
@@ -301,18 +303,22 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             val pill = p.height() / 2
             when (key.type) {
                 KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(p, pill, pill, fill) }
-                KeyType.SPACE, KeyType.MODE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
+                KeyType.SPACE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
+                KeyType.MODE -> if (key.pill) {
+                    fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill)
+                } else if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
                 else -> if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
             }
         }
         val cx = f.centerX(); val cy = f.centerY()
         when (key.type) {
             KeyType.CHAR -> {
-                val text = display(key.text)
+                val text = shown(key)
                 val letter = page == Page.LETTERS && text.length == 1 && text[0].isLetter()
                 label.typeface = regular
-                label.textSize = sp(if (letter) 23f else 21f)
+                label.textSize = sp(if (letter) 23f else if (text.length > 2) 17f else 21f)
                 label.color = theme.text
+                fitText(text, f.width() - dp(4f))
                 drawCentered(canvas, text, cx, cy)
                 if (showHints && key.hint != null) {
                     label.textSize = sp(10.5f)
@@ -331,6 +337,17 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
         }
+    }
+
+    /** What a character key shows: its label where it has its own (the developer page), else what it types. */
+    private fun shown(key: Key) = if (key.label != key.text) key.label else display(key.text)
+
+    /** An alternative or snippet as it is shown: the caret mark gone, a line break as ⏎, a tab as ⇥. */
+    private fun pretty(text: String) = text.replace("¦", "").replace("\n", "⏎").replace("\t", "⇥").trim().ifEmpty { text.trim() }
+
+    /** Shrinks [label]'s text size until [text] fits [width]. */
+    private fun fitText(text: String, width: Float) {
+        while (label.textSize > sp(9f) && label.measureText(text) > width) label.textSize -= sp(1f)
     }
 
     private fun display(text: String) = if (page == Page.LETTERS && shift != ShiftState.OFF) text.uppercase() else text
@@ -437,7 +454,9 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         label.typeface = regular
         label.textSize = sp(30f)
         label.color = theme.text
-        drawCentered(canvas, display(key.text), bubble.centerX(), bubble.centerY())
+        val shownText = shown(key)
+        fitText(shownText, bubble.width() - dp(4f))
+        drawCentered(canvas, shownText, bubble.centerX(), bubble.centerY())
     }
 
     // --- the long-press panel ---------------------------------------------------------------------------------------
@@ -489,7 +508,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             } else {
                 label.color = theme.text
             }
-            drawCentered(canvas, choice, cell.centerX(), cell.centerY())
+            val text = pretty(choice)
+            label.textSize = sp(22f)
+            fitText(text, cell.width() - dp(4f))
+            drawCentered(canvas, text, cell.centerX(), cell.centerY())
         }
     }
 
@@ -542,11 +564,15 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
      */
     private fun keyAt(rawX: Float, rawY: Float): Pair<Key, RectF>? {
         if (rawY < keysTop) return null
-        val rowH = keysHeight / rows.size
-        val fromBottom = rows.size - 1 - ((rawY - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
-        val lift = when (fromBottom) { 0, 1 -> 0f; 2 -> dp(LIFT_MIDDLE_DP); else -> dp(LIFT_TOP_DP) }
-        val y = (rawY - lift).coerceAtLeast(keysTop + 1f)
-        val x = if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX
+        val (x, y) = if (page == Page.LETTERS) {
+            val (ox, oy) = letterCorrection(rawX, rawY)
+            (rawX - ox) to (rawY - oy).coerceAtLeast(keysTop + 1f)
+        } else {
+            val rowH = keysHeight / rows.size
+            val fromBottom = rows.size - 1 - ((rawY - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
+            val lift = when (fromBottom) { 0, 1 -> 0f; 2 -> dp(LIFT_MIDDLE_DP); else -> dp(LIFT_TOP_DP) }
+            (if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX) to (rawY - lift).coerceAtLeast(keysTop + 1f)
+        }
         keyRects.firstOrNull { it.second.contains(x, y) }?.let { return it }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
@@ -554,6 +580,27 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             val dy = if (y < r.top) r.top - y else if (y > r.bottom) y - r.bottom else 0f
             dx * dx + dy * dy
         }
+    }
+
+    /**
+     * On the letters page, how far from where it is aimed a thumb lands at (x, y): a smooth blend of each key's own
+     * measured offset ([LETTER_OFFSETS_DP]), weighted by how near its centre the touch is. The bottom row's keys
+     * (?123, space, enter...) count as landing on target, which keeps the blend from leaking into them.
+     */
+    private fun letterCorrection(x: Float, y: Float): Pair<Float, Float> {
+        val unitW = keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: return 0f to 0f
+        val sigma2 = 2f * (unitW * 0.6f) * (unitW * 0.6f)
+        var sw = 0f; var sx = 0f; var sy = 0f
+        val bottomTop = keyRects.last().second.top
+        for ((key, r) in keyRects) {
+            val off = LETTER_OFFSETS_DP[key.text]
+            if (off == null && r.top < bottomTop) continue
+            val dx = x - r.centerX(); val dy = y - r.centerY()
+            val w = kotlin.math.exp(-(dx * dx + dy * dy) / sigma2)
+            sw += w
+            if (off != null) { sx += w * dp(off.first); sy += w * dp(off.second) }
+        }
+        return if (sw < 1e-6f) 0f to 0f else (sx / sw) to (sy / sw)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -599,6 +646,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 timer.postDelayed(repeatDelete, 400)
             }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT -> timer.postDelayed(longPress, longPressMs)
+            KeyType.MODE -> if (t.key.page == Page.DEV) timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
         invalidate()
@@ -641,6 +689,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     private fun onLongPress(t: Touch) {
         when (t.key.type) {
             KeyType.SPACE -> { t.longPressed = true; listener.onShowPicker() }
+            // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
+            KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
             KeyType.SHIFT -> {
                 t.longPressed = true
                 shift = ShiftState.LOCKED; autoShifted = false
@@ -672,7 +722,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             t.longPressed -> Unit
             else -> when (t.key.type) {
                 KeyType.CHAR -> {
-                    if (tapLog) logTap(t)
+                    if (tapLog && page == Page.LETTERS) logTap(t)
                     commit(display(t.key.text))
                 }
                 KeyType.SPACE -> if (!t.cursorMoved) listener.onSpace()
@@ -707,9 +757,10 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         invalidate()
     }
 
-    private fun commit(text: String) {
+    private fun commit(raw: String) {
         if (shift == ShiftState.ON) { shift = ShiftState.OFF; autoShifted = false }
-        listener.onText(text)
+        val caret = raw.indexOf('¦')
+        if (caret < 0) listener.onText(raw) else listener.onText(raw.removeRange(caret, caret + 1), raw.length - 1 - caret)
         invalidate()
     }
 
@@ -733,7 +784,22 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     companion object {
-        /** Touch position correction, from the tap log (see [keyAt]). */
+        /**
+         * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
+         * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps
+         * (6 taps' weight), capped at 14dp across and 20dp down.
+         */
+        private val LETTER_OFFSETS_DP: Map<String, Pair<Float, Float>> = mapOf(
+            "q" to (-3.6f to 7.0f), "w" to (-4.1f to 3.0f), "e" to (-5.9f to 2.7f), "r" to (-5.9f to 8.5f),
+            "t" to (-9.0f to 6.2f), "y" to (0.7f to 13.9f), "u" to (-2.2f to 17.0f), "i" to (-0.7f to 14.1f),
+            "o" to (-3.8f to 16.7f), "p" to (-4.9f to 17.0f), "a" to (-7.2f to 2.7f), "s" to (-10.5f to 4.6f),
+            "d" to (-10.1f to 3.2f), "f" to (-4.4f to 5.9f), "g" to (-6.2f to 9.7f), "h" to (5.6f to 8.7f),
+            "j" to (3.8f to 3.8f), "k" to (0.5f to 5.6f), "l" to (-2.0f to 14.3f), "z" to (-0.3f to 3.6f),
+            "x" to (1.4f to 3.7f), "c" to (-1.3f to 3.6f), "v" to (-3.0f to 0.0f), "b" to (1.5f to -3.3f),
+            "n" to (0.2f to 3.5f), "m" to (-1.7f to 0.2f),
+        )
+
+        /** The other pages' touch position correction, from the first tap log (see [keyAt]). */
         private const val LIFT_TOP_DP = 11f
         private const val LIFT_MIDDLE_DP = 6f
         private const val SHIFT_LEFT_HALF_DP = 5f

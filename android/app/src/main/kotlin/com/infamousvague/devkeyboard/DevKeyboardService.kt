@@ -26,6 +26,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
     private var selStart = -1
     private var selEnd = -1
     private var lastSpaceAt = 0L
+    private lateinit var autocorrect: Autocorrect
+
+    /** The last autocorrection, while backspace can still undo it: the word as typed, what replaced it, and the separator. */
+    private var lastCorrection: Triple<String, String, String>? = null
 
     private val audio by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private val vibrator: Vibrator by lazy {
@@ -40,6 +44,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         super.onCreate()
         prefs = KeyboardPrefs(this)
         prefs.prefs.registerOnSharedPreferenceChangeListener(this)
+        autocorrect = Autocorrect(this)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
         Updater.backgroundCheck(this)
     }
@@ -80,6 +85,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         selStart = info.initialSelStart
         selEnd = info.initialSelEnd
         lastSpaceAt = 0L
+        lastCorrection = null
         keyboard?.let { view ->
             if (!restarting) view.reset()
             view.enterIcon = enterIconFor(info)
@@ -153,13 +159,70 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
 
     // --- KeyboardListener -------------------------------------------------------------------------------------------
 
-    override fun onText(text: String) {
-        currentInputConnection?.commitText(text, 1)
+    override fun onText(text: String, caretBack: Int) {
+        val ic = currentInputConnection ?: return
         lastSpaceAt = 0L
+        // Punctuation ends a word, as space does: autocorrect it first.
+        if (caretBack == 0 && text.length == 1 && text[0] in WORD_ENDS && correctLastWord(ic, text)) return
+        lastCorrection = null
+        // commitText's cursor position counts from the end of the text: 1 is just after it, 1 - n is n before.
+        ic.commitText(text, 1 - caretBack)
+    }
+
+    /** Autocorrect where this field wants it: not passwords, addresses, or fields that ask for no suggestions. */
+    private fun autocorrectAllowed(): Boolean {
+        if (!prefs.autocorrect) return false
+        val info = currentInputEditorInfo ?: return false
+        if (info.inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
+        if (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0) return false
+        return when (info.inputType and InputType.TYPE_MASK_VARIATION) {
+            InputType.TYPE_TEXT_VARIATION_URI, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_FILTER -> false
+            else -> true
+        }
+    }
+
+    /**
+     * The word just before the cursor, corrected and followed by [separator], if autocorrect has a better one. True
+     * when it typed the separator itself. Words in code-shaped text (after @ # / . _ - or a digit) are left alone.
+     */
+    private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean {
+        if (!autocorrectAllowed()) return false
+        val before = ic.getTextBeforeCursor(48, 0)?.toString() ?: return false
+        var start = before.length
+        while (start > 0 && (before[start - 1].isLetter() || before[start - 1] == '\'')) start--
+        val word = before.substring(start).trimStart('\'')
+        if (word.isEmpty() || !word.any { it.isLetter() }) return false
+        if (start > 0) {
+            val prev = before[start - 1]
+            if (prev.isLetterOrDigit() || prev in "@#/._-\\:\$`") return false
+        }
+        val fixed = autocorrect.correct(word) ?: return false
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(word.length, 0)
+        ic.commitText(fixed + separator, 1)
+        ic.endBatchEdit()
+        lastCorrection = Triple(word, fixed, separator)
+        return true
     }
 
     override fun onDelete() {
         val ic = currentInputConnection ?: return
+        // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
+        lastCorrection?.let { (typed, fixed, separator) ->
+            lastCorrection = null
+            val tail = fixed + separator
+            if (ic.getTextBeforeCursor(tail.length, 0)?.toString() == tail) {
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(tail.length, 0)
+                ic.commitText(typed, 1)
+                ic.endBatchEdit()
+                lastSpaceAt = 0L
+                return
+            }
+        }
         val selected = ic.getSelectedText(0)
         if (!selected.isNullOrEmpty()) ic.commitText("", 1) else sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         lastSpaceAt = 0L
@@ -180,6 +243,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
                 return
             }
         }
+        if (correctLastWord(ic, " ")) { lastSpaceAt = now; return }
+        lastCorrection = null
         ic.commitText(" ", 1)
         lastSpaceAt = now
     }
@@ -188,6 +253,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         val info = currentInputEditorInfo
         val ic = currentInputConnection ?: return
         lastSpaceAt = 0L
+        lastCorrection = null
         if (info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
             val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
             if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
@@ -200,6 +266,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
 
     override fun onCursor(steps: Int) {
         val ic = currentInputConnection ?: return
+        lastCorrection = null
         if (selEnd < 0) {
             val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
             repeat(abs(steps)) { sendDownUpKeyEvents(code) }
@@ -252,4 +319,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
     }
 
     override fun onHideKeyboard() = requestHideSelf(0)
+
+    companion object {
+        /** Punctuation that finishes a word, and so runs autocorrect on it before it is typed. */
+        private const val WORD_ENDS = ".,!?"
+    }
 }

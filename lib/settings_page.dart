@@ -169,6 +169,12 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
         SettingsCard(
           children: [
             SwitchSetting(
+              title: 'Autocorrect',
+              description: 'Fixes a misspelled word when you finish it. Backspace right after puts back what you typed. Never in passwords, addresses or code fields.',
+              value: store.flag('autocorrect'),
+              onChanged: (v) => store.set('autocorrect', v),
+            ),
+            SwitchSetting(
               title: 'Auto-capitalization',
               description: 'Shift on at the start of each sentence.',
               value: store.flag('auto_caps'),
@@ -355,7 +361,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       children: [
         tip([const Text('Long-press'), const GlacierKbd(child: Text('space')), const Text('to switch keyboards.')]),
         tip([const Text('Double-tap'), const GlacierKbd(child: Text('⇧')), const Text('for caps lock.')]),
-        tip([const Text('Long-press'), const GlacierKbd(child: Text(',')), const Text('to open these settings.')]),
+        tip([const Text('Tap'), const GlacierKbd(child: Text('{ }')), const Text('for code symbols, pairs and snippets.')]),
+        tip([const Text('Long-press'), const GlacierKbd(child: Text('{ }')), const Text('to open these settings.')]),
       ],
     );
   }

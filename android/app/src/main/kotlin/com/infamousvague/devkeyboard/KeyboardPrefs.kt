@@ -24,6 +24,7 @@ class KeyboardPrefs(context: Context) {
     val keyBorders: Boolean get() = bool(KEY_BORDERS)
     val toolbar: Boolean get() = bool(TOOLBAR)
     val tapLog: Boolean get() = bool(TAP_LOG)
+    val autocorrect: Boolean get() = bool(AUTOCORRECT)
 
     /** "light", "medium" or "strong". */
     val haptics: String get() = prefs.getString(HAPTICS, DEFAULTS[HAPTICS] as String)!!
@@ -84,6 +85,7 @@ class KeyboardPrefs(context: Context) {
         const val TOOLBAR = "toolbar"
         const val HAPTICS = "haptics"
         const val TAP_LOG = "tap_log"
+        const val AUTOCORRECT = "autocorrect"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "system",
@@ -102,6 +104,7 @@ class KeyboardPrefs(context: Context) {
             TOOLBAR to false,
             HAPTICS to "medium",
             TAP_LOG to false,
+            AUTOCORRECT to true,
         )
     }
 }

@@ -1,7 +1,7 @@
 name: dev_keyboard
 description: "A developer-centric keyboard for Android. The keyboard itself is a native InputMethodService; this Flutter app is its setup and settings, drawn with Glacier."
 publish_to: 'none'
-version: 0.1.5+6
+version: 0.2.0+7
 
 environment:
   sdk: ^3.11.0
