@@ -121,7 +121,9 @@ class SettingsStore extends ChangeNotifier {
   /// The person's own popups, by key: "a=á à â" a line, the keyboard's format.
   Map<String, List<String>> get popupKeys => {
         for (final line in choice('popup_keys').split('\n'))
-          if (line.indexOf('=', 1) case final eq when eq > 0) line.substring(0, eq): line.substring(eq + 1).split(' ').where((a) => a.isNotEmpty).toList(),
+          // A line is at least "k=": shorter (the empty setting's one blank line) is skipped, as indexOf past the end throws.
+          if (line.length >= 2 && line.indexOf('=', 1) > 0)
+            line.substring(0, line.indexOf('=', 1)): line.substring(line.indexOf('=', 1) + 1).split(' ').where((a) => a.isNotEmpty).toList(),
       };
 
   /// What [key]'s popup offers now: the person's own, else as it ships.
