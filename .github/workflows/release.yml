@@ -1,4 +1,4 @@
-# Builds and publishes a release (every push to main, or Run workflow) to https://attack.fm/devkeyboard/ with tool/release.mjs, exactly as a release from
+# Builds and publishes a release (a pushed tag vX.Y.Z, or Run workflow) to https://attack.fm/devkeyboard/ with tool/release.mjs, exactly as a release from
 # the Mac does: Ghost.md's box.mjs and .env loader (from a checkout of the public glyph repo), the same box account,
 # the same release key.
 #
@@ -15,9 +15,9 @@ on:
       version:
         description: Version name (blank keeps pubspec.yaml's)
         required: false
+  # Releases are deliberate: a tag, not every push. `git tag v0.2.0 && git push origin v0.2.0` releases 0.2.0.
   push:
-    branches: [main]
-    paths-ignore: ['**.md']
+    tags: ['v*']
 
 concurrency:
   group: release
@@ -106,8 +106,9 @@ jobs:
       - name: Build and publish
         working-directory: dev-keyboard
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
         run: |
+          VERSION="${VERSION#v}"
           if [ -n "$VERSION" ]; then
             node tool/release.mjs --glyph ../glyph --version "$VERSION"
           else
