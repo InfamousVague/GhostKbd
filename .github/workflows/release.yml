@@ -26,6 +26,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # The secrets live in the Prod environment.
+    environment: Prod
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
