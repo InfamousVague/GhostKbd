@@ -55,6 +55,23 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Which secrets are set (lengths only)
+        env:
+          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST }}
+          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER }}
+          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS }}
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 }}
+        run: |
+          missing=0
+          for name in AFM_DEPLOY_HOST AFM_DEPLOY_USER AFM_DEPLOY_PASS RELEASE_KEYSTORE_B64 RELEASE_KEY_PASSWORD RELEASE_CERT_SHA256; do
+            value="${!name}"
+            echo "$name: ${#value} characters"
+            [ -n "$value" ] || { echo "::error::Secret $name is not set (or is empty)"; missing=1; }
+          done
+          exit $missing
+
       - name: sshpass
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass rsync
 
