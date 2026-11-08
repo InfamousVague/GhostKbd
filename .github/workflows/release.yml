@@ -2,7 +2,7 @@
 # the Mac does: Ghost.md's box.mjs and .env loader (from a checkout of the public glyph repo), the same box account,
 # the same release key.
 #
-# Secrets:
+# Secrets (repository Actions secrets; repository variables of the same names are read too):
 #   AFM_DEPLOY_HOST, AFM_DEPLOY_USER, AFM_DEPLOY_PASS   the box's account, as in glyph/tauri/.env
 #   RELEASE_KEYSTORE_B64                                 ~/.config/devkeyboard/release.keystore, base64
 #   RELEASE_KEY_PASSWORD                                 its store and key password
@@ -57,18 +57,18 @@ jobs:
 
       - name: Which secrets are set (lengths only)
         env:
-          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST }}
-          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER }}
-          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS }}
-          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 }}
+          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST || vars.AFM_DEPLOY_HOST }}
+          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER || vars.AFM_DEPLOY_USER }}
+          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS || vars.AFM_DEPLOY_PASS }}
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 || vars.RELEASE_KEYSTORE_B64 }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || vars.RELEASE_KEY_PASSWORD }}
+          RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 || vars.RELEASE_CERT_SHA256 }}
         run: |
           missing=0
           for name in AFM_DEPLOY_HOST AFM_DEPLOY_USER AFM_DEPLOY_PASS RELEASE_KEYSTORE_B64 RELEASE_KEY_PASSWORD RELEASE_CERT_SHA256; do
             value="${!name}"
             echo "$name: ${#value} characters"
-            [ -n "$value" ] || { echo "::error::Secret $name is not set (or is empty)"; missing=1; }
+            [ -n "$value" ] || { echo "::error::$name is not set as a repository secret or variable"; missing=1; }
           done
           exit $missing
 
@@ -77,9 +77,9 @@ jobs:
 
       - name: The box's account, where Ghost.md's loader reads it
         env:
-          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST }}
-          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER }}
-          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS }}
+          AFM_DEPLOY_HOST: ${{ secrets.AFM_DEPLOY_HOST || vars.AFM_DEPLOY_HOST }}
+          AFM_DEPLOY_USER: ${{ secrets.AFM_DEPLOY_USER || vars.AFM_DEPLOY_USER }}
+          AFM_DEPLOY_PASS: ${{ secrets.AFM_DEPLOY_PASS || vars.AFM_DEPLOY_PASS }}
         run: |
           umask 077
           printf 'AFM_DEPLOY_HOST=%s\nAFM_DEPLOY_USER=%s\nAFM_DEPLOY_PASS=%s\n' "$AFM_DEPLOY_HOST" "$AFM_DEPLOY_USER" "$AFM_DEPLOY_PASS" > glyph/tauri/.env
@@ -87,9 +87,9 @@ jobs:
 
       - name: The release key
         env:
-          KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_B64 }}
-          PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          PIN: ${{ secrets.RELEASE_CERT_SHA256 }}
+          KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_B64 || vars.RELEASE_KEYSTORE_B64 }}
+          PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || vars.RELEASE_KEY_PASSWORD }}
+          PIN: ${{ secrets.RELEASE_CERT_SHA256 || vars.RELEASE_CERT_SHA256 }}
         run: |
           umask 077
           mkdir -p ~/.config/devkeyboard
