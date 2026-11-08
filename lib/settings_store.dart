@@ -36,6 +36,10 @@ class SettingsStore extends ChangeNotifier {
     'haptics': 'medium',
     'tap_log': false,
     'autocorrect': true,
+    'languages': 'en',
+    'learned_words': '',
+    'suggestions': true,
+    'giphy_key': '',
     'plugins': 'autocorrect',
     'theme_preset': 'gboard',
     'custom_theme': '#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3',
@@ -98,6 +102,25 @@ class SettingsStore extends ChangeNotifier {
   bool flag(String key) => _values[key] as bool? ?? defaults[key] as bool;
   String choice(String key) => _values[key] as String? ?? defaults[key] as String;
 
+  /// Autocorrect's languages, as codes ("en", "es").
+  List<String> get languages => choice('languages').split(',').where((l) => l.isNotEmpty).toList();
+  Future<void> setLanguage(String code, bool on) {
+    final now = languages.toSet();
+    on ? now.add(code) : now.remove(code);
+    if (now.isEmpty) now.add('en');
+    return set('languages', autocorrectLanguages.keys.where(now.contains).join(','));
+  }
+
+  /// Words autocorrect keeps as typed: learned when a fix is undone, or added here.
+  List<String> get learnedWords => choice('learned_words').split('\n').map((w) => w.trim()).where((w) => w.isNotEmpty).toList();
+  Future<void> setLearned(String word, bool keep) {
+    final now = learnedWords.toSet();
+    final w = word.trim().toLowerCase();
+    if (w.isEmpty) return Future.value();
+    keep ? now.add(w) : now.remove(w);
+    return set('learned_words', (now.toList()..sort()).join('\n'));
+  }
+
   Future<void> load() async {
     try {
       final values = await _channel.invokeMapMethod<String, Object>('getSettings');
@@ -132,6 +155,7 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> openInputSettings() => _call('openInputSettings');
+  Future<void> openAutofillSettings() => _call('openAutofillSettings');
   Future<void> showPicker() => _call('showPicker');
   Future<void> checkForUpdate() => _call('checkUpdate');
 
@@ -178,3 +202,13 @@ class SettingsStore extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// The languages autocorrect has a dictionary for (android/app/src/main/assets/dict).
+const autocorrectLanguages = {
+  'en': 'English',
+  'es': 'Español',
+  'fr': 'Français',
+  'de': 'Deutsch',
+  'it': 'Italiano',
+  'pt': 'Português',
+};

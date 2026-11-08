@@ -35,7 +35,11 @@ android {
         // arm64 only: the phones this is for, and whisper.cpp built once rather than four times.
         ndk { abiFilters += listOf("arm64-v8a") }
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
+        // The GIF plugin's GIPHY key, from CI's GIPHY_API_KEY secret (empty: the plugin asks for one in Settings).
+        buildConfigField("String", "GIPHY_KEY", "\"${System.getenv("GIPHY_API_KEY") ?: ""}\"")
     }
+
+    buildFeatures { buildConfig = true }
 
     // The dictation plugin's speech to text: whisper.cpp in one JNI library (src/main/cpp).
     externalNativeBuild {
@@ -71,4 +75,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // The passwords plugin: the style Android's inline autofill suggestions are drawn in.
+    implementation("androidx.autofill:autofill:1.1.0")
 }

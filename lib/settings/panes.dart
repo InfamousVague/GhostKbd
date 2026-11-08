@@ -72,7 +72,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         screen: (context) => MarketScreen(store: store),
       ),
       if (store.pluginOn('autocorrect'))
-        SettingsSection(id: 'autocorrect', label: 'Autocorrect', icon: _icon(Lucide.spellCheck), hue: 'lime', group: 'plugins', summary: (s) => 'On: backspace right after undoes a fix', page: _autocorrect),
+        SettingsSection(id: 'autocorrect', label: 'Autocorrect', icon: _icon(Lucide.spellCheck), hue: 'lime', group: 'plugins', summary: (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), page: _autocorrect),
       if (store.pluginOn('dictation'))
         SettingsSection(id: 'dictation', label: 'Dictation', icon: _icon(Lucide.mic), hue: 'rose', group: 'plugins', summary: _dictationSummary, page: _dictation),
       if (store.pluginOn('themes'))
@@ -85,6 +85,12 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
           summary: (s) => s.choice('theme_preset') == 'custom' ? 'Your own theme' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Gboard'),
           page: (context, store) => [ThemeEditor(store: store)],
         ),
+      if (store.pluginOn('swipe'))
+        SettingsSection(id: 'swipe', label: 'Swipe typing', icon: _icon(LucideMore.pointer), hue: 'cyan', group: 'plugins', summary: (s) => 'Glide across the letters', page: _swipe),
+      if (store.pluginOn('passwords'))
+        SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
+      if (store.pluginOn('gifs'))
+        SettingsSection(id: 'gifs', label: 'GIFs', icon: _icon(Lucide.image), hue: 'orange', group: 'plugins', summary: (s) => 'GIPHY search', page: _gifs),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => s.flag('tap_log') ? 'Tap log is on' : 'Tap log', page: _developer),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: (s) => 'Ghost Keyboard ${s.update['current'] ?? ''}'.trim(), page: _about),
@@ -203,19 +209,112 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
 
 // --- Plugins' own pages -------------------------------------------------------------------------------------------
 
-List<Widget> _autocorrect(BuildContext context, SettingsStore store) => [
-      PaneHero(glyph: AppIcon(Lucide.spellCheck, size: 24), title: 'Autocorrect', meta: const Text('Fixes a misspelled word when you finish it.'), status: const PaneHeroStatus('On')),
+List<Widget> _autocorrect(BuildContext context, SettingsStore store) {
+  final learned = store.learnedWords;
+  return [
+    PaneHero(glyph: AppIcon(Lucide.spellCheck, size: 24), title: 'Autocorrect', meta: const Text('Fixes a misspelled word when you finish it, and suggests words as you type.'), status: const PaneHeroStatus('On')),
+    PaneSection(children: [
+      _toggle(store, 'autocorrect', 'Correct automatically', 'Off: suggestions only, nothing changes on its own.'),
+      _toggle(store, 'suggestions', 'Show suggestions', 'Completions and fixes in the row above the keys. Tap one to type it.'),
+    ]),
+    PaneSection(
+      title: 'Languages',
+      footer: const Text('Turn on every language you write in: they work together, so a message can mix them. A word typed without its accents (cafe, senor) gets them.'),
+      children: [
+        for (final e in autocorrectLanguages.entries)
+          SettingRow(
+            label: e.value,
+            control: GlacierSwitch(checked: store.languages.contains(e.key), onCheckedChange: (v) => store.setLanguage(e.key, v), ariaLabel: e.value),
+          ),
+      ],
+    ),
+    PaneSection(
+      title: 'Learned words',
+      footer: const Text('Backspace straight after a fix puts your word back and adds it here, so it isn’t changed again. Tap a word to forget it.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('learn-${learned.length}'),
+            placeholder: 'Add a word',
+            ariaLabel: 'Add a learned word',
+            onSubmitted: (text) => store.setLearned(text, true),
+          ),
+        ),
+        if (learned.isEmpty) const SettingRow(label: 'None yet', hint: Text('Undo a fix and the word lands here.')),
+        for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
+      ],
+    ),
+    PaneSection(
+      title: 'How it works',
+      footer: const Text('Dictionaries: each language’s commonest words (wordfreq, CC BY-SA 4.0), English contractions and a programmer’s vocabulary.'),
+      children: const [
+        SettingRow(label: 'Finish a word', hint: Text('A space, or . , ! ? after a word, checks it.')),
+        SettingRow(label: 'Where it stays out', hint: Text('Passwords, web and email addresses, fields that ask for no suggestions, and words after @ # / . _ -')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Autocorrect', onPress: () => store.setPlugin('autocorrect', false))]),
+  ];
+}
+
+List<Widget> _swipe(BuildContext context, SettingsStore store) => [
+      PaneHero(glyph: AppIcon(LucideMore.pointer, size: 24), title: 'Swipe typing', meta: const Text('Draw a word across the letters without lifting your thumb.'), status: const PaneHeroStatus('On')),
       PaneSection(
         title: 'How it works',
-        footer: const Text('Its dictionary: the 40,000 commonest English words (wordfreq, CC BY-SA 4.0), their contractions and a programmer’s vocabulary.'),
+        footer: const Text('It reads your path against the words of your autocorrect languages, and words you’ve taught it.'),
         children: const [
-          SettingRow(label: 'Finish a word', hint: Text('A space, or . , ! ? after a word, checks it.')),
-          SettingRow(label: 'Undo a fix', hint: Text('Backspace straight after puts back exactly what you typed.')),
-          SettingRow(label: 'Where it stays out', hint: Text('Passwords, web and email addresses, fields that ask for no suggestions, and words after @ # / . _ -')),
+          SettingRow(label: 'Glide and lift', hint: Text('Start on the first letter, pass over the rest, lift on the last. A space goes in before the next word.')),
+          SettingRow(label: 'Not the word you meant?', hint: Text('Its other guesses sit in the row above the keys: tap one to swap it in.')),
+          SettingRow(label: 'Backspace', hint: Text('Straight after a swipe, it takes the whole word.')),
+          SettingRow(label: 'Taps still type', hint: Text('A short slide is still a tap: only a slide of most of a key starts a swipe.')),
         ],
       ),
-      PaneSection(children: [SettingRow(label: 'Remove Autocorrect', onPress: () => store.setPlugin('autocorrect', false))]),
+      PaneSection(children: [SettingRow(label: 'Remove Swipe typing', onPress: () => store.setPlugin('swipe', false))]),
     ];
+
+List<Widget> _passwords(BuildContext context, SettingsStore store) => [
+      PaneHero(glyph: AppIcon(Lucide.keyRound, size: 24), title: 'Password managers', meta: const Text('Your password manager’s logins, a tap above the keys.'), status: const PaneHeroStatus('On')),
+      PaneSection(
+        title: 'Set up',
+        footer: const Text('Ghost Keyboard never sees your passwords: Android draws your manager’s chips and fills the field itself. Needs Android 11 or later.'),
+        children: [
+          const SettingRow(label: 'Pick your manager as Android’s autofill service', hint: Text('Settings › Passwords & accounts › Autofill service (the name differs a little between phones), then NordPass, 1Password, Bitwarden…')),
+          SettingRow(label: 'Open Android settings', onPress: () => store.openAutofillSettings()),
+          const SettingRow(label: 'Then tap a login field', hint: Text('Its logins appear in the row above the keys. Tap one to fill it.')),
+        ],
+      ),
+      PaneSection(children: [SettingRow(label: 'Remove Password managers', onPress: () => store.setPlugin('passwords', false))]),
+    ];
+
+List<Widget> _gifs(BuildContext context, SettingsStore store) {
+  final own = store.choice('giphy_key');
+  return [
+    PaneHero(glyph: AppIcon(Lucide.image, size: 24), title: 'GIFs', meta: const Text('Search GIPHY and send a GIF from the keyboard.'), status: const PaneHeroStatus('On')),
+    PaneSection(
+      title: 'How it works',
+      footer: const Text('GIFs come from GIPHY, rated PG-13 at most. Apps that take pictures get the GIF itself; others get its link.'),
+      children: const [
+        SettingRow(label: 'The GIF button', hint: Text('In the row above the keys whenever you aren’t mid-word. It opens trending GIFs.')),
+        SettingRow(label: 'Search', hint: Text('Tap the search chip, type, and press enter. The back arrow returns to the keys.')),
+      ],
+    ),
+    PaneSection(
+      title: 'GIPHY key',
+      footer: const Text('If the GIF panel asks for a key, or to use your own, paste one from developers.giphy.com and press enter.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('giphy-$own'),
+            defaultValue: own,
+            placeholder: 'Your GIPHY API key (optional)',
+            ariaLabel: 'GIPHY API key',
+            onSubmitted: (text) => store.set('giphy_key', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove GIFs', onPress: () => store.setPlugin('gifs', false))]),
+  ];
+}
 
 List<Widget> _dictation(BuildContext context, SettingsStore store) {
   final d = store.dictation;

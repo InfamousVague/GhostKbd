@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -36,6 +37,8 @@ interface KeyboardListener {
     fun onHideKeyboard()
     /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
     fun onMic()
+    /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
+    fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
 }
 
 enum class ShiftState { OFF, ON, LOCKED }
@@ -77,6 +80,16 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     /** How loud the microphone hears it, 0..1, eased. */
     var level = 0f
         set(value) { field = field * 0.6f + value * 0.4f; invalidate() }
+
+    /**
+     * The plugin row is shown: a real view (PluginRow) sits in the strip between the preview room and the keys, so
+     * this view leaves that strip unpainted and lets its touches through.
+     */
+    var pluginRow = false
+        set(value) { if (field != value) { field = value; requestLayout(); invalidate() } }
+
+    /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
+    var swipeTyping = false
 
     /** Settings › Developer › Tap log, and not in a password field (the service decides both). */
     var tapLog = false
@@ -160,8 +173,12 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     /** Where the keyboard itself starts, below [previewSpace]: the service tells Android only this part is the IME. */
     val keyboardTop get() = previewSpace
     // Gboard leaves 24dp above the first row's keys (this, and the key's own 6dp of row gap).
-    private val toolbarHeight get() = if (showToolbar) dp(44f) else dp(18f)
+    private val toolbarHeight get() = if (showToolbar || pluginRow) dp(44f) else dp(18f)
     private val keysTop get() = keyboardTop + toolbarHeight
+    /** The plugin row's strip, and where the keys end (above Android's buttons): KeyboardFrame lays out by these. */
+    val rowTop get() = keyboardTop
+    val rowBottom get() = keysTop
+    val keysBottom get() = keysTop + keysHeight + bottomPad
     // Gboard: keys 1.5dp + half a 6dp gap from the screen's edges, and 2dp + half a row gap above Android's buttons.
     private val sidePad get() = dp(1.5f)
     private val bottomPad get() = dp(2f)
@@ -260,17 +277,38 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
 
     override fun onDraw(canvas: Canvas) {
         fill.color = theme.background
-        canvas.drawRect(0f, keyboardTop, width.toFloat(), height.toFloat(), fill)
-        if (showToolbar) drawToolbar(canvas)
-        for ((key, rect) in keyRects) drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null } == true)
+        canvas.drawRect(0f, if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
+        if (showToolbar && !pluginRow) drawToolbar(canvas)
+        for ((key, rect) in keyRects) drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
+        touch?.swipe?.let { drawSwipe(canvas, it) }
         if (dictation != DictationPhase.OFF) { drawDictation(canvas); return }
         touch?.let { t ->
             when {
                 t.panel != null -> drawPanel(canvas, t.panel!!)
-                showPreview && t.key.type == KeyType.CHAR && !t.cursorMoved -> drawPreview(canvas, t.key, t.rect)
+                showPreview && t.key.type == KeyType.CHAR && !t.cursorMoved && t.swipe == null -> drawPreview(canvas, t.key, t.rect)
             }
         }
     }
+
+    /** Swipe typing's trail: the finger's path in the accent colour, fading toward its start. */
+    private fun drawSwipe(canvas: Canvas, points: List<PointF>) {
+        if (points.size < 2) return
+        stroke.color = theme.accent
+        stroke.strokeCap = Paint.Cap.ROUND
+        val from = maxOf(1, points.size - 120)
+        for (i in from until points.size) {
+            val f = (i - from + 1f) / (points.size - from)
+            stroke.alpha = (90 + 165 * f).toInt()
+            stroke.strokeWidth = dp(2.5f + 3.5f * f)
+            canvas.drawLine(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, stroke)
+        }
+        stroke.alpha = 255
+    }
+
+    /** Each letter key's centre, for the swipe decoder. */
+    private fun letterCenters(): Map<Char, PointF> = keyRects
+        .filter { (k, _) -> k.type == KeyType.CHAR && k.text.length == 1 && k.text[0].isLetter() }
+        .associate { (k, r) -> k.text[0].lowercaseChar() to PointF(r.centerX(), r.centerY()) }
 
     private val settingsRect get() = RectF(dp(4f), keyboardTop, dp(4f) + toolbarHeight, keysTop)
     private val hideRect get() = RectF(width - dp(4f) - toolbarHeight, keyboardTop, width - dp(4f), keysTop)
@@ -591,6 +629,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         var longPressed = false
         var cursorAnchor = downX
         var cursorMoved = false
+        /** Swipe typing: the path so far, once the finger has slid far enough to be spelling a word. */
+        var swipe: ArrayList<PointF>? = null
     }
 
     private var touch: Touch? = null
@@ -663,6 +703,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 // Rolling typing: a second finger down finishes the first finger's key.
                 touch?.let { if (it.panel == null) release(it) else return true }
                 if (event.actionMasked == MotionEvent.ACTION_DOWN && y < keysTop) {
+                    // The plugin row lies under this view: its strip's touches are the row's.
+                    if (pluginRow && y >= keyboardTop) return false
                     if (!showToolbar || y < keyboardTop) return true
                     when {
                         settingsRect.contains(x, y) -> { performHapticFeedback(KEYBOARD_TAP); listener.onOpenSettings() }
@@ -724,6 +766,16 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 }
             }
             KeyType.CHAR -> {
+                t.swipe?.let { it.add(PointF(x, y)); invalidate(); return }
+                // Swipe typing: a slide of most of a key's width from a letter starts spelling a word.
+                if (swipeTyping && page == Page.LETTERS && t.panel == null && t.firstKey.text.length == 1 && t.firstKey.text[0].isLetter() &&
+                    kotlin.math.hypot(x - t.downX, y - t.downY) > t.rect.width() * 0.9f
+                ) {
+                    t.swipe = arrayListOf(PointF(t.downX, t.downY), PointF(x, y))
+                    timer.removeCallbacks(longPress)
+                    invalidate()
+                    return
+                }
                 // A finger that clearly slides onto another character key types that one instead. A thumb rolls a
                 // little as it lifts, so staying within 40% of a key's size past its edge is still that key.
                 val slackX = t.rect.width() * 0.4f
@@ -772,7 +824,13 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         timer.removeCallbacks(repeatDelete)
         touch = null
         val panel = t.panel
+        val swipe = t.swipe
         when {
+            swipe != null -> {
+                val unitW = keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: t.rect.width()
+                listener.onSwipe(swipe, letterCenters(), unitW)
+                if (shift == ShiftState.ON) { shift = ShiftState.OFF; autoShifted = false; listener.onShiftChanged() }
+            }
             panel != null -> commit(panel.choices[panel.selected])
             t.longPressed -> Unit
             else -> when (t.key.type) {

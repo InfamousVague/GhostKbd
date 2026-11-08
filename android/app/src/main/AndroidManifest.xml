@@ -50,6 +50,13 @@
             android:name=".InstallReceiver"
             android:exported="false" />
 
+        <!-- The GIF plugin hands the GIF it sends to the app through here (Gifs.kt). -->
+        <provider
+            android:name=".GifProvider"
+            android:authorities="${applicationId}.gifs"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

@@ -96,7 +96,7 @@ const List<PluginManifest> catalogue = [
     name: 'Autocorrect',
     line: 'Fixes a misspelled word as you finish it, and knows a programmer’s words.',
     description:
-        'When you finish a word with a space or punctuation, Autocorrect checks it against forty thousand English words, '
+        'When you finish a word with a space or punctuation, Autocorrect checks it against the commonest words of your languages, '
         'their contractions and a programmer’s vocabulary (npm, async, Kotlin…), and swaps a slip of the thumb for the '
         'word you meant. Backspace straight after puts back exactly what you typed. It stays out of passwords, '
         'addresses and fields that ask for no suggestions, and leaves code-shaped words alone.',
@@ -147,7 +147,8 @@ const List<PluginManifest> catalogue = [
     category: PluginCategory.typing,
     hue: 'cyan',
     icon: LucideMore.pointer,
-    soon: '0.4.0',
+    adds: ['Glide typing on the letters', 'Other guesses in the row above the keys'],
+    hasPage: true,
   ),
   PluginManifest(
     id: 'passwords',
@@ -160,7 +161,8 @@ const List<PluginManifest> catalogue = [
     hue: 'green',
     icon: Lucide.keyRound,
     permissions: [PluginPermission(Permission.autofill, 'To show the logins your password manager offers for the field you are in.')],
-    soon: '0.4.0',
+    adds: ['Logins in the row above the keys'],
+    hasPage: true,
   ),
   PluginManifest(
     id: 'gifs',
@@ -172,7 +174,8 @@ const List<PluginManifest> catalogue = [
     icon: Lucide.image,
     permissions: [PluginPermission(Permission.network, 'To search GIPHY and fetch the GIF you pick.')],
     hosts: ['api.giphy.com', 'media.giphy.com'],
-    soon: '0.4.0',
+    adds: ['A GIF button in the row above the keys', 'GIPHY search'],
+    hasPage: true,
   ),
 ];
 

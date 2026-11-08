@@ -24,7 +24,24 @@ class KeyboardPrefs(context: Context) {
     val keyBorders: Boolean get() = bool(KEY_BORDERS)
     val toolbar: Boolean get() = bool(TOOLBAR)
     val tapLog: Boolean get() = bool(TAP_LOG)
+    /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
+    val suggestions: Boolean get() = bool(SUGGESTIONS)
+
+    /** The GIF plugin: a GIPHY key of the person's own, used instead of the build's. */
+    val giphyKey: String get() = prefs.getString(GIPHY_KEY, "")!!
+
+    /** Autocorrect's languages: codes with a dictionary in assets/dict, comma-separated ("en,es"). */
+    val languages: List<String> get() = prefs.getString(LANGUAGES, DEFAULTS[LANGUAGES] as String)!!.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf("en") }
+
+    /** Words autocorrect leaves alone, one a line: added when a fix is undone, removable in Settings. */
+    val learnedWords: Set<String> get() = prefs.getString(LEARNED_WORDS, "")!!.lines().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+    fun learn(word: String) {
+        val w = word.lowercase()
+        val now = learnedWords
+        if (w !in now) prefs.edit().putString(LEARNED_WORDS, (now + w).sorted().joinToString("\n")).apply()
+    }
 
     /** The added plugins' ids, comma-separated (Plugins.kt). */
     val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
@@ -95,6 +112,10 @@ class KeyboardPrefs(context: Context) {
         const val HAPTICS = "haptics"
         const val TAP_LOG = "tap_log"
         const val AUTOCORRECT = "autocorrect"
+        const val LANGUAGES = "languages"
+        const val SUGGESTIONS = "suggestions"
+        const val GIPHY_KEY = "giphy_key"
+        const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
         const val CUSTOM_THEME = "custom_theme"
@@ -118,6 +139,10 @@ class KeyboardPrefs(context: Context) {
             HAPTICS to "medium",
             TAP_LOG to false,
             AUTOCORRECT to true,
+            LANGUAGES to "en",
+            SUGGESTIONS to true,
+            GIPHY_KEY to "",
+            LEARNED_WORDS to "",
             PLUGINS to "autocorrect",
             THEME_PRESET to "gboard",
             CUSTOM_THEME to "#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3",

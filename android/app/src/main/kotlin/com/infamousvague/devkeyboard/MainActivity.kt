@@ -124,6 +124,19 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(prefs.all())
                     }
+                    "openAutofillSettings" -> {
+                        // There is no public screen for picking the autofill service on every phone: try the
+                        // Passwords & accounts screen some open with, then Settings itself.
+                        val tries = listOf(
+                            Intent("android.settings.AUTOFILL_SETTINGS"),
+                            Intent(android.provider.Settings.ACTION_SYNC_SETTINGS),
+                            Intent(android.provider.Settings.ACTION_SETTINGS),
+                        )
+                        for (intent in tries) {
+                            if (runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) break
+                        }
+                        result.success(null)
+                    }
                     "dictationState" -> result.success(dictationState())
                     "downloadModel" -> { WhisperModel.download(this@MainActivity); result.success(null) }
                     "deleteModel" -> { WhisperModel.delete(this@MainActivity); result.success(null) }
