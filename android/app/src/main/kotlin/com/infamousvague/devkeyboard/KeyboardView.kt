@@ -65,11 +65,11 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     var tapLog = false
     private var numberRow = false
     private var showToolbar = false
-    private var rowHeightDp = 58f
+    private var rowHeightDp = 60f
 
     fun configure(numberRow: Boolean, keyHeight: String, toolbar: Boolean) {
-        // Gboard's default row is about 58dp from one row's keys to the next's.
-        val height = when (keyHeight) { "short" -> 50f; "tall" -> 66f; else -> 58f }
+        // Gboard's rows, measured from its own screenshot: a 48dp key and a 12dp gap, 60dp from row to row.
+        val height = when (keyHeight) { "short" -> 52f; "tall" -> 68f; else -> 60f }
         if (numberRow == this.numberRow && height == rowHeightDp && toolbar == showToolbar) return
         this.numberRow = numberRow
         rowHeightDp = height
@@ -140,13 +140,15 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     private val previewSpace get() = dp(rowHeightDp * 1.3f)
     /** Where the keyboard itself starts, below [previewSpace]: the service tells Android only this part is the IME. */
     val keyboardTop get() = previewSpace
-    private val toolbarHeight get() = if (showToolbar) dp(44f) else dp(6f)
+    // Gboard leaves 24dp above the first row's keys (this, and the key's own 6dp of row gap).
+    private val toolbarHeight get() = if (showToolbar) dp(44f) else dp(18f)
     private val keysTop get() = keyboardTop + toolbarHeight
-    private val sidePad get() = dp(3f)
-    private val bottomPad get() = dp(6f)
+    // Gboard: keys 1.5dp + half a 6dp gap from the screen's edges, and 2dp + half a row gap above Android's buttons.
+    private val sidePad get() = dp(1.5f)
+    private val bottomPad get() = dp(2f)
     private val keyPadX get() = dp(3f)
-    private val keyPadY get() = dp(4f)
-    private val keyRadius get() = dp(8f)
+    private val keyPadY get() = dp(6f)
+    private val keyRadius get() = dp(6f)
     private var navInset = 0
 
     /** The letters page sets the height; the symbol pages spread their rows over the same space, as Gboard does. */
@@ -292,11 +294,14 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
             }
             canvas.drawRoundRect(f, keyRadius, keyRadius, fill)
         } else {
-            // Gboard: ?123, space and enter are pills; every other key is only its label, with a wash while pressed.
-            val pill = f.height() / 2
+            // Gboard: ?123, space and enter are pills about three quarters of a key's height; every other key is only
+            // its label, with a wash while pressed.
+            val shrink = f.height() * 0.13f
+            val p = RectF(f.left, f.top + shrink, f.right, f.bottom - shrink)
+            val pill = p.height() / 2
             when (key.type) {
-                KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(f, pill, pill, fill) }
-                KeyType.SPACE, KeyType.MODE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(f, pill, pill, fill) }
+                KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(p, pill, pill, fill) }
+                KeyType.SPACE, KeyType.MODE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
                 else -> if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
             }
         }
