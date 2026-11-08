@@ -32,6 +32,7 @@ class Dictation(private val context: Context) {
     @Volatile private var recording = false
     private var record: AudioRecord? = null
     private var model = 0L
+    private var modelPath: String? = null
 
     val listening get() = recording
 
@@ -41,7 +42,7 @@ class Dictation(private val context: Context) {
     fun start(listener: Listener) {
         if (recording) return
         if (!hasPermission()) { listener.onError("Ghost Keyboard needs the microphone: allow it in Settings › Plugins › Dictation."); return }
-        if (!WhisperModel.isReady(context)) { listener.onError("The dictation model is still downloading."); return }
+        if (!WhisperModel.isReady(context)) { listener.onError("The dictation model isn't downloaded yet: Settings › Dictation."); return }
         val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = runCatching {
             AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, max(min, RATE))
@@ -83,12 +84,21 @@ class Dictation(private val context: Context) {
 
     private fun transcribe(samples: FloatArray): String {
         if (!Whisper.load()) throw IllegalStateException("Speech to text is not in this build.")
+        val spec = WhisperModel.active(context)
+        val path = WhisperModel.file(context, spec).path
+        // Another model chosen since the last take: let the old one go first, they are large.
+        if (model != 0L && path != modelPath) { Whisper.nativeFree(model); model = 0L }
         if (model == 0L) {
-            model = Whisper.nativeInit(WhisperModel.file(context).path)
+            model = Whisper.nativeInit(path)
             if (model == 0L) throw IllegalStateException("The dictation model could not be loaded.")
+            modelPath = path
         }
+        // English-only models hear English; the others listen for the language set, or work it out.
+        val language = if (!spec.multilingual) "en" else KeyboardPrefs(context).dictationLanguage.ifBlank { "auto" }
+        // The developer's-words hint is English: given to another language, it pulls the words toward English.
+        val prompt = if (language == "en") PROMPT else null
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 6)
-        return Whisper.nativeTranscribe(model, samples, threads, PROMPT).trim()
+        return Whisper.nativeTranscribe(model, samples, threads, prompt, language).trim()
             // whisper's way of saying it heard nothing.
             .takeUnless { it == "[BLANK_AUDIO]" || it.startsWith("(") && it.endsWith(")") } ?: ""
     }

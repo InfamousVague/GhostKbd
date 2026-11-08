@@ -112,15 +112,15 @@ const List<PluginManifest> catalogue = [
     line: 'Speak instead of typing: whisper, running on your phone.',
     description:
         'A microphone key beside the space bar. Tap it, talk, and tap again: whisper turns what you said into text on '
-        'your phone, with nothing sent anywhere. It is the same speech model Ghost.md dictates with, base.en, '
-        'downloaded once when you add the plugin.',
+        'your phone, with nothing sent anywhere. It starts with Ghost.md\'s English model, base.en; models that hear '
+        'about a hundred languages (tiny, base, small, large v3 turbo) can be downloaded in its settings.',
     category: PluginCategory.voice,
     hue: 'rose',
     icon: Lucide.mic,
-    adds: ['A mic key beside the space bar', 'Speech to text on your phone, offline'],
+    adds: ['A mic key beside the space bar', 'Speech to text on your phone, offline', 'Models for English or about a hundred languages'],
     permissions: [
       PluginPermission(Permission.microphone, 'To hear you while you hold the mic open, and only then.'),
-      PluginPermission(Permission.download, 'Its speech model: 60 MB, downloaded once.'),
+      PluginPermission(Permission.download, 'Its speech model: 60 MB to start; bigger and multilingual models if you choose them.'),
       PluginPermission(Permission.network, 'Only to download the model.'),
     ],
     hosts: ['attack.fm', 'huggingface.co'],

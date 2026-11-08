@@ -11,6 +11,7 @@ object Whisper {
     }
 
     @JvmStatic external fun nativeInit(path: String): Long
-    @JvmStatic external fun nativeTranscribe(context: Long, samples: FloatArray, threads: Int, prompt: String?): String
+    /** [language]: a whisper code ("en", "es"), or "auto" to detect it. */
+    @JvmStatic external fun nativeTranscribe(context: Long, samples: FloatArray, threads: Int, prompt: String?, language: String): String
     @JvmStatic external fun nativeFree(context: Long)
 }

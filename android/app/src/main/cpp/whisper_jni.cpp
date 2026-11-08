@@ -20,7 +20,7 @@ Java_com_infamousvague_devkeyboard_Whisper_nativeInit(JNIEnv *env, jclass, jstri
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_infamousvague_devkeyboard_Whisper_nativeTranscribe(JNIEnv *env, jclass, jlong handle, jfloatArray samples, jint threads, jstring prompt) {
+Java_com_infamousvague_devkeyboard_Whisper_nativeTranscribe(JNIEnv *env, jclass, jlong handle, jfloatArray samples, jint threads, jstring prompt, jstring language) {
     auto *ctx = reinterpret_cast<whisper_context *>(handle);
     if (ctx == nullptr) return env->NewStringUTF("");
     jsize count = env->GetArrayLength(samples);
@@ -28,7 +28,10 @@ Java_com_infamousvague_devkeyboard_Whisper_nativeTranscribe(JNIEnv *env, jclass,
 
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads = threads;
-    params.language = "en";
+    // "auto" makes whisper detect the language from the first seconds; English-only models are always given "en".
+    const char *lang = env->GetStringUTFChars(language, nullptr);
+    params.language = lang;
+    params.detect_language = false;
     params.translate = false;
     params.no_context = true;
     params.single_segment = false;
@@ -49,6 +52,7 @@ Java_com_infamousvague_devkeyboard_Whisper_nativeTranscribe(JNIEnv *env, jclass,
     }
 
     if (hint != nullptr) env->ReleaseStringUTFChars(prompt, hint);
+    env->ReleaseStringUTFChars(language, lang);
     env->ReleaseFloatArrayElements(samples, audio, JNI_ABORT);
     return env->NewStringUTF(text.c_str());
 }

@@ -355,19 +355,30 @@ List<Widget> _gifs(BuildContext context, SettingsStore store) {
   ];
 }
 
+String _megabytes(Object? bytes) {
+  final b = (bytes as num?)?.toDouble() ?? 0;
+  return b >= 1e9 ? '${(b / 1e9).toStringAsFixed(1)} GB' : '${(b / 1e6).round()} MB';
+}
+
 List<Widget> _dictation(BuildContext context, SettingsStore store) {
   final d = store.dictation;
   final phase = d['phase'] as String? ?? 'missing';
   final progress = ((d['progress'] as num?) ?? 0).toDouble();
   final mic = d['microphone'] == true;
   final t = context.tokens;
+  final models = [for (final m in (d['models'] as List? ?? const [])) if (m is Map) m];
+  final activeId = d['model'] as String? ?? 'base.en';
+  final active = models.where((m) => m['id'] == activeId).firstOrNull;
+  final multilingual = active?['multilingual'] == true;
+  final language = d['language'] as String? ?? 'auto';
+  final languages = [for (final l in (d['languages'] as List? ?? const [])) if (l is Map) (code: l['code'] as String, name: l['name'] as String)];
   return [
     PaneHero(
       glyph: AppIcon(Lucide.mic, size: 24),
       title: phase == 'ready' ? (mic ? 'Ready' : 'Allow the microphone') : (phase == 'downloading' ? 'Downloading' : 'Not ready'),
       meta: Text(switch (phase) {
-        'ready' => 'Tap the mic beside the space bar, talk, and tap again.',
-        'downloading' => 'The speech model, 60 MB, once. ${(progress * 100).round()}%',
+        'ready' => 'Tap the mic beside the space bar, talk, and tap again. ${active?['name'] ?? ''}.',
+        'downloading' => '${active?['name'] ?? 'The speech model'}, ${_megabytes(d['bytes'])}, once. ${(progress * 100).round()}%',
         'failed' => d['error'] as String? ?? 'The model did not download.',
         _ => 'The speech model is not on this phone yet.',
       }),
@@ -384,18 +395,49 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
           value: Text(mic ? 'Allowed' : 'Allow'),
           onPress: mic ? null : store.requestMicrophone,
         ),
-        SettingRow(
-          label: 'Speech model',
-          hint: const Text('whisper base.en, 59.7 MB, on this phone. Nothing you say leaves it.'),
-          icon: AppIcon(LucideMore.hardDriveDownload, size: 18),
-          value: Text(switch (phase) { 'ready' => 'Downloaded', 'downloading' => '${(progress * 100).round()}%', 'failed' => 'Try again', _ => 'Download' }),
-          onPress: phase == 'missing' || phase == 'failed' ? store.downloadModel : null,
-        ),
       ],
     ),
     PaneSection(
+      title: 'Speech model',
+      footer: const Text('Models run on this phone: nothing you say leaves it. Tap one to use it; it downloads first if it isn’t here. Bigger is more accurate and slower.'),
       children: [
-        if (phase == 'ready') SettingRow(label: 'Delete the model', hint: const Text('Frees 60 MB; the mic key goes until it is downloaded again.'), onPress: store.deleteModel),
+        for (final m in models)
+          SettingRow(
+            label: m['name'] as String,
+            hint: Text('${m['note']}  ${_megabytes(m['bytes'])}${m['error'] != null ? ' · ${m['error']}' : ''}'),
+            icon: AppIcon(m['id'] == activeId ? Lucide.circleCheck : LucideMore.hardDriveDownload, size: 18),
+            value: Text(switch (m) {
+              _ when m['downloading'] == true => '${(((m['progress'] as num?) ?? 0) * 100).round()}%',
+              _ when m['id'] == activeId && m['installed'] == true => 'In use',
+              _ when m['installed'] == true => 'Use',
+              _ => 'Get',
+            }),
+            onPress: m['id'] == activeId && m['installed'] == true ? null : () => store.useModel(m['id'] as String),
+          ),
+      ],
+    ),
+    PaneSection(
+      title: 'Language',
+      footer: Text(multilingual
+          ? 'Detect it works out the language from your first few words. Choosing yours is a little faster and surer.'
+          : 'This model hears English only. Pick an “all languages” model above to dictate in others.'),
+      children: [
+        for (final l in languages)
+          SettingRow(
+            label: l.name,
+            disabled: !multilingual && l.code != 'en',
+            icon: (multilingual ? language == l.code : l.code == 'en') ? AppIcon(Lucide.check, size: 18) : null,
+            onPress: multilingual && language != l.code ? () => store.setDictationLanguage(l.code) : null,
+          ),
+      ],
+    ),
+    PaneSection(
+      title: 'Downloaded',
+      children: [
+        for (final m in models)
+          if (m['installed'] == true && m['id'] != activeId)
+            SettingRow(label: 'Delete ${m['name']}', hint: Text('Frees ${_megabytes(m['bytes'])}.'), onPress: () => store.deleteModelId(m['id'] as String)),
+        if (phase == 'ready') SettingRow(label: 'Delete the model in use', hint: const Text('The mic key goes until a model is downloaded again.'), onPress: store.deleteModel),
         SettingRow(label: 'Remove Dictation', onPress: () => store.setPlugin('dictation', false)),
       ],
     ),

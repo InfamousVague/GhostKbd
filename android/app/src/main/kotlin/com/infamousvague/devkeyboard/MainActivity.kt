@@ -29,7 +29,9 @@ class MainActivity : FlutterActivity() {
     /** A page the app was opened at (the keyboard's mic key, when the microphone is not allowed yet). */
     private var openAt: String? = null
 
-    private fun dictationState(): Map<String, Any?> = WhisperModel.state.toMap() + mapOf(
+    private fun dictationState(): Map<String, Any?> = WhisperModel.toMap(this) + mapOf(
+        "language" to prefs.dictationLanguage,
+        "languages" to WhisperModel.LANGUAGES.map { (code, name) -> mapOf("code" to code, "name" to name) },
         "microphone" to (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
     )
 
@@ -139,8 +141,27 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "dictationState" -> result.success(dictationState())
-                    "downloadModel" -> { WhisperModel.download(this@MainActivity); result.success(null) }
-                    "deleteModel" -> { WhisperModel.delete(this@MainActivity); result.success(null) }
+                    "downloadModel" -> {
+                        val id = call.argument<String>("id")
+                        WhisperModel.download(this@MainActivity, if (id == null) WhisperModel.active(this@MainActivity) else WhisperModel.spec(id))
+                        result.success(null)
+                    }
+                    "deleteModel" -> {
+                        val id = call.argument<String>("id")
+                        WhisperModel.delete(this@MainActivity, if (id == null) WhisperModel.active(this@MainActivity) else WhisperModel.spec(id))
+                        result.success(null)
+                    }
+                    "useModel" -> {
+                        // Choosing a model downloads it if it is not here yet.
+                        val spec = WhisperModel.spec(call.argument<String>("id"))
+                        prefs.set(KeyboardPrefs.WHISPER_MODEL, spec.id)
+                        WhisperModel.download(this@MainActivity, spec)
+                        result.success(dictationState())
+                    }
+                    "setDictationLanguage" -> {
+                        prefs.set(KeyboardPrefs.DICTATION_LANGUAGE, call.argument<String>("code") ?: "auto")
+                        result.success(dictationState())
+                    }
                     "requestMicrophone" -> {
                         requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
                         result.success(null)

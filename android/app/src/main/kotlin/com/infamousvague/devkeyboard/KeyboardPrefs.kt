@@ -34,6 +34,10 @@ class KeyboardPrefs(context: Context) {
     /** The person's own long-press keys: "a=á à â" a line (Layouts.parseCustom). */
     val popupKeys: String get() = prefs.getString(POPUP_KEYS, "")!!
 
+    /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
+    val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
+    val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
+
     /** Autocorrect's languages: codes with a dictionary in assets/dict, comma-separated ("en,es"). */
     val languages: List<String> get() = prefs.getString(LANGUAGES, DEFAULTS[LANGUAGES] as String)!!.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf("en") }
 
@@ -119,6 +123,8 @@ class KeyboardPrefs(context: Context) {
         const val SUGGESTIONS = "suggestions"
         const val GIPHY_KEY = "giphy_key"
         const val POPUP_KEYS = "popup_keys"
+        const val WHISPER_MODEL = "whisper_model"
+        const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
@@ -147,6 +153,8 @@ class KeyboardPrefs(context: Context) {
             SUGGESTIONS to true,
             GIPHY_KEY to "",
             POPUP_KEYS to "",
+            WHISPER_MODEL to "base.en",
+            DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#7CC4FA",
             "theme_accent" to "",
             "theme_mode" to "dark",

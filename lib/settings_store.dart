@@ -208,6 +208,21 @@ class SettingsStore extends ChangeNotifier {
   Future<void> clearTapLog() => _call('clearTapLog');
   Future<void> installUpdate() => _call('installUpdate');
 
+  /// Dictation's models: choose one (downloading it if it isn't here), fetch or delete any of them, and the
+  /// language a multilingual model expects.
+  Future<void> useModel(String id) => _dictationCall('useModel', {'id': id});
+  Future<void> downloadModelId(String id) => _dictationCall('downloadModel', {'id': id});
+  Future<void> deleteModelId(String id) => _dictationCall('deleteModel', {'id': id});
+  Future<void> setDictationLanguage(String code) => _dictationCall('setDictationLanguage', {'code': code});
+
+  Future<void> _dictationCall(String method, Map<String, Object> args) async {
+    try {
+      _setDictation(await _channel.invokeMethod<Object>(method, args));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   Future<void> _call(String method) async {
     try {
       await _channel.invokeMethod<void>(method);
