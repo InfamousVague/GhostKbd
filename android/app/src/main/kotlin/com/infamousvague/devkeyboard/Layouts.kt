@@ -85,11 +85,12 @@ object Layouts {
 
     private fun bottomRow(modeLabel: String, modePage: Page) = KeyRow(
         listOf(
-            Key(KeyType.MODE, label = modeLabel, width = 1.5f, page = modePage),
+            // Gboard's proportions: a long space bar between narrower ?123 and enter pills.
+            Key(KeyType.MODE, label = modeLabel, width = 1.25f, page = modePage),
             Key(KeyType.CHAR, ","),
-            Key(KeyType.SPACE, " ", width = 5f),
+            Key(KeyType.SPACE, " ", width = 5.5f),
             Key(KeyType.CHAR, ".", alts = periodAlts),
-            Key(KeyType.ENTER, width = 1.5f),
+            Key(KeyType.ENTER, width = 1.25f),
         ),
     )
 

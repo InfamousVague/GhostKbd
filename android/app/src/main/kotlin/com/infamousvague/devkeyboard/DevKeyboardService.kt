@@ -10,6 +10,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.inputmethodservice.InputMethodService
+import android.inputmethodservice.InputMethodService.Insets
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
@@ -53,6 +54,23 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         applySettings()
     }
 
+    /**
+     * Only the keyboard is the IME: the see-through room above it, where key previews are drawn, lets touches through
+     * to the app and does not push the app's content up.
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        val view = keyboard ?: return
+        if (!isInputViewShown || view.height == 0) return
+        val at = IntArray(2)
+        view.getLocationInWindow(at)
+        val top = at[1] + view.keyboardTop.toInt()
+        outInsets.contentTopInsets = top
+        outInsets.visibleTopInsets = top
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+        outInsets.touchableRegion.set(0, top, view.width, at[1] + view.height)
+    }
+
     /** Gboard stays a keyboard in landscape too, rather than taking the screen over with an extract view. */
     override fun onEvaluateFullscreenMode(): Boolean = false
 
@@ -91,7 +109,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
     private fun applySettings() {
         val view = keyboard ?: return
         view.theme = KeyboardTheme.resolve(this, prefs.theme)
-        view.configure(prefs.numberRow, prefs.keyHeight)
+        view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
+        view.keyBorders = prefs.keyBorders
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints
         view.spaceCursor = prefs.spaceCursor
@@ -187,10 +206,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
 
     override fun onKeyFeedback(key: Key) {
         if (prefs.vibrate) {
+            // Medium is Gboard's feel; tick alone was too faint.
             val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                VibrationEffect.createPredefined(
+                    when (prefs.haptics) {
+                        "light" -> VibrationEffect.EFFECT_TICK
+                        "strong" -> VibrationEffect.EFFECT_HEAVY_CLICK
+                        else -> VibrationEffect.EFFECT_CLICK
+                    },
+                )
             } else {
-                VibrationEffect.createOneShot(12, VibrationEffect.DEFAULT_AMPLITUDE)
+                VibrationEffect.createOneShot(when (prefs.haptics) { "light" -> 10L; "strong" -> 30L; else -> 18L }, VibrationEffect.DEFAULT_AMPLITUDE)
             }
             vibrator.vibrate(effect)
         }

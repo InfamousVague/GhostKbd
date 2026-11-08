@@ -29,6 +29,9 @@ class SettingsStore extends ChangeNotifier {
     'key_height': 'normal',
     'long_press': 'normal',
     'auto_update': true,
+    'key_borders': false,
+    'toolbar': false,
+    'haptics': 'medium',
   };
 
   final Map<String, Object> _values = {...defaults};

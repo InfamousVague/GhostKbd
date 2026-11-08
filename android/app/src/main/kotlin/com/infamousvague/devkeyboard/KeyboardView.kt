@@ -56,14 +56,21 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         set(value) { field = value; invalidate() }
     var spaceCursor = true
     var longPressMs = 300L
-    private var numberRow = false
-    private var rowHeightDp = 54f
 
-    fun configure(numberRow: Boolean, keyHeight: String) {
-        val height = when (keyHeight) { "short" -> 46f; "tall" -> 62f; else -> 54f }
-        if (numberRow == this.numberRow && height == rowHeightDp) return
+    /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
+    var keyBorders = false
+        set(value) { field = value; invalidate() }
+    private var numberRow = false
+    private var showToolbar = false
+    private var rowHeightDp = 58f
+
+    fun configure(numberRow: Boolean, keyHeight: String, toolbar: Boolean) {
+        // Gboard's default row is about 58dp from one row's keys to the next's.
+        val height = when (keyHeight) { "short" -> 50f; "tall" -> 66f; else -> 58f }
+        if (numberRow == this.numberRow && height == rowHeightDp && toolbar == showToolbar) return
         this.numberRow = numberRow
         rowHeightDp = height
+        showToolbar = toolbar
         rebuild()
         requestLayout()
     }
@@ -126,9 +133,14 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics)
     private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
-    private val toolbarHeight get() = dp(44f)
+    /** Room above the keyboard for the key preview and long-press panels, see-through and not touchable there. */
+    private val previewSpace get() = dp(rowHeightDp * 1.3f)
+    /** Where the keyboard itself starts, below [previewSpace]: the service tells Android only this part is the IME. */
+    val keyboardTop get() = previewSpace
+    private val toolbarHeight get() = if (showToolbar) dp(44f) else dp(6f)
+    private val keysTop get() = keyboardTop + toolbarHeight
     private val sidePad get() = dp(3f)
-    private val bottomPad get() = dp(4f)
+    private val bottomPad get() = dp(6f)
     private val keyPadX get() = dp(3f)
     private val keyPadY get() = dp(4f)
     private val keyRadius get() = dp(8f)
@@ -151,9 +163,32 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        requestApplyInsets()
+    }
+
+    /**
+     * The strip Android keeps under the keyboard for its own buttons (collapse, switch keyboard) and the gesture bar.
+     * Read from the window itself each layout, so it is right however the insets were dispatched.
+     */
+    private fun bottomInset(): Int {
+        val insets = rootWindowInsets ?: return navInset
+        val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            maxOf(
+                insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
+                insets.getInsets(WindowInsets.Type.tappableElement()).bottom,
+            )
+        } else {
+            @Suppress("DEPRECATION") insets.systemWindowInsetBottom
+        }
+        return maxOf(bottom, navInset)
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val height = ceil(toolbarHeight + keysHeight + bottomPad).toInt() + navInset
+        navInset = bottomInset()
+        val height = ceil(keysTop + keysHeight + bottomPad).toInt() + navInset
         setMeasuredDimension(width, height)
     }
 
@@ -165,7 +200,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         val units = rows.maxOf { it.units }
         val unit = (width - sidePad * 2) / units
         val rowH = keysHeight / rows.size
-        var y = toolbarHeight
+        var y = keysTop
         for (row in rows) {
             var x = sidePad + row.inset * unit + (units - row.units) * unit / 2
             for (key in row.keys) {
@@ -196,8 +231,9 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     // --- drawing ----------------------------------------------------------------------------------------------------
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(theme.background)
-        drawToolbar(canvas)
+        fill.color = theme.background
+        canvas.drawRect(0f, keyboardTop, width.toFloat(), height.toFloat(), fill)
+        if (showToolbar) drawToolbar(canvas)
         for ((key, rect) in keyRects) drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null } == true)
         touch?.let { t ->
             when {
@@ -207,8 +243,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
         }
     }
 
-    private val settingsRect get() = RectF(dp(4f), 0f, dp(4f) + toolbarHeight, toolbarHeight)
-    private val hideRect get() = RectF(width - dp(4f) - toolbarHeight, 0f, width - dp(4f), toolbarHeight)
+    private val settingsRect get() = RectF(dp(4f), keyboardTop, dp(4f) + toolbarHeight, keysTop)
+    private val hideRect get() = RectF(width - dp(4f) - toolbarHeight, keyboardTop, width - dp(4f), keysTop)
 
     private fun drawToolbar(canvas: Canvas) {
         stroke.color = theme.toolbarIcon
@@ -240,13 +276,23 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
 
     private fun drawKey(canvas: Canvas, key: Key, rect: RectF, pressed: Boolean) {
         val f = face(rect)
-        fill.color = when {
-            key.type == KeyType.ENTER -> if (pressed) theme.accentPressed else theme.accent
-            key.type == KeyType.SHIFT && shift != ShiftState.OFF -> if (pressed) theme.keyPressed else theme.key
-            key.functional -> if (pressed) theme.functionKeyPressed else theme.functionKey
-            else -> if (pressed) theme.keyPressed else theme.key
+        if (keyBorders) {
+            fill.color = when {
+                key.type == KeyType.ENTER -> if (pressed) theme.accentPressed else theme.accent
+                key.type == KeyType.SHIFT && shift != ShiftState.OFF -> if (pressed) theme.keyPressed else theme.key
+                key.functional -> if (pressed) theme.functionKeyPressed else theme.functionKey
+                else -> if (pressed) theme.keyPressed else theme.key
+            }
+            canvas.drawRoundRect(f, keyRadius, keyRadius, fill)
+        } else {
+            // Gboard: ?123, space and enter are pills; every other key is only its label, with a wash while pressed.
+            val pill = f.height() / 2
+            when (key.type) {
+                KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(f, pill, pill, fill) }
+                KeyType.SPACE, KeyType.MODE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(f, pill, pill, fill) }
+                else -> if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
+            }
         }
-        canvas.drawRoundRect(f, keyRadius, keyRadius, fill)
         val cx = f.centerX(); val cy = f.centerY()
         when (key.type) {
             KeyType.CHAR -> {
@@ -473,7 +519,7 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
     }
 
     private fun keyAt(x: Float, y: Float): Pair<Key, RectF>? {
-        if (y < toolbarHeight) return null
+        if (y < keysTop) return null
         keyRects.firstOrNull { it.second.contains(x, y) }?.let { return it }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
@@ -491,7 +537,8 @@ class KeyboardView(context: Context, private val listener: KeyboardListener) : V
                 val x = event.getX(i); val y = event.getY(i)
                 // Rolling typing: a second finger down finishes the first finger's key.
                 touch?.let { if (it.panel == null) release(it) else return true }
-                if (event.actionMasked == MotionEvent.ACTION_DOWN && y < toolbarHeight) {
+                if (event.actionMasked == MotionEvent.ACTION_DOWN && y < keysTop) {
+                    if (!showToolbar || y < keyboardTop) return true
                     when {
                         settingsRect.contains(x, y) -> { performHapticFeedback(KEYBOARD_TAP); listener.onOpenSettings() }
                         hideRect.contains(x, y) -> { performHapticFeedback(KEYBOARD_TAP); listener.onHideKeyboard() }

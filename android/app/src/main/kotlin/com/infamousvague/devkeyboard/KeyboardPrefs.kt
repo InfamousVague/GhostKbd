@@ -21,6 +21,11 @@ class KeyboardPrefs(context: Context) {
     val doubleSpacePeriod: Boolean get() = bool(DOUBLE_SPACE_PERIOD)
     val spaceCursor: Boolean get() = bool(SPACE_CURSOR)
     val autoUpdate: Boolean get() = bool(AUTO_UPDATE)
+    val keyBorders: Boolean get() = bool(KEY_BORDERS)
+    val toolbar: Boolean get() = bool(TOOLBAR)
+
+    /** "light", "medium" or "strong". */
+    val haptics: String get() = prefs.getString(HAPTICS, DEFAULTS[HAPTICS] as String)!!
 
     /** "short", "normal" or "tall". */
     val keyHeight: String get() = prefs.getString(KEY_HEIGHT, DEFAULTS[KEY_HEIGHT] as String)!!
@@ -74,6 +79,9 @@ class KeyboardPrefs(context: Context) {
         const val KEY_HEIGHT = "key_height"
         const val LONG_PRESS = "long_press"
         const val AUTO_UPDATE = "auto_update"
+        const val KEY_BORDERS = "key_borders"
+        const val TOOLBAR = "toolbar"
+        const val HAPTICS = "haptics"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "system",
@@ -88,6 +96,9 @@ class KeyboardPrefs(context: Context) {
             KEY_HEIGHT to "normal",
             LONG_PRESS to "normal",
             AUTO_UPDATE to true,
+            KEY_BORDERS to false,
+            TOOLBAR to false,
+            HAPTICS to "medium",
         )
     }
 }

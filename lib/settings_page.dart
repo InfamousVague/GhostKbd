@@ -140,6 +140,18 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onChanged: (v) => store.set('number_row', v),
             ),
             SwitchSetting(
+              title: 'Key borders',
+              description: 'A shape behind every key. Off is Gboard\'s look: only ?123, space and enter have one.',
+              value: store.flag('key_borders'),
+              onChanged: (v) => store.set('key_borders', v),
+            ),
+            SwitchSetting(
+              title: 'Toolbar',
+              description: 'A strip above the keys with settings and hide. Long-press comma opens settings either way.',
+              value: store.flag('toolbar'),
+              onChanged: (v) => store.set('toolbar', v),
+            ),
+            SwitchSetting(
               title: 'Symbol hints',
               description: 'Show each key\'s long-press character in its corner.',
               value: store.flag('hints'),
@@ -196,6 +208,13 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               value: store.flag('vibrate'),
               onChanged: (v) => store.set('vibrate', v),
             ),
+            if (store.flag('vibrate'))
+              ChoiceSetting(
+                title: 'Vibration strength',
+                value: store.choice('haptics'),
+                options: const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'},
+                onChanged: (v) => store.set('haptics', v),
+              ),
             SwitchSetting(
               title: 'Sound on key press',
               value: store.flag('sound'),
