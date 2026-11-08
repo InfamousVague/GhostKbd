@@ -76,7 +76,11 @@ jobs:
         run: |
           umask 077
           mkdir -p ~/.config/devkeyboard
-          echo "$KEYSTORE" | base64 -d > ~/.config/devkeyboard/release.keystore
+          # Whitespace and line breaks a paste may add are dropped before decoding.
+          printf '%s' "$KEYSTORE" | tr -d ' \n\r\t' | base64 -d > ~/.config/devkeyboard/release.keystore
+          echo "keystore: $(wc -c < ~/.config/devkeyboard/release.keystore) bytes, sha256 $(sha256sum ~/.config/devkeyboard/release.keystore | cut -c1-16)…; secret was $(printf '%s' "$KEYSTORE" | tr -d ' \n\r\t' | wc -c) base64 characters"
+          keytool -list -keystore ~/.config/devkeyboard/release.keystore -storepass "$PASSWORD" > /dev/null \
+            || { echo "::error::RELEASE_KEYSTORE_B64 does not decode to a keystore RELEASE_KEY_PASSWORD opens (expected 4306 bytes, 5744 base64 characters)"; exit 1; }
           printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=devkeyboard\nkeyPassword=%s\n' "$HOME/.config/devkeyboard/release.keystore" "$PASSWORD" "$PASSWORD" > ~/.config/devkeyboard/signing.properties
           echo "$PIN" > ~/.config/devkeyboard/cert.sha256
 
