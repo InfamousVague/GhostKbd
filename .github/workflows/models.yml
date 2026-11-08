@@ -1,0 +1,19 @@
+# Lists whisper.cpp's model files with their sizes and SHA-256s (Hugging Face's LFS ids), for WhisperModel.kt's
+# catalogue. Runs when this file changes; read the answer in the job's log.
+name: models
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/models.yml']
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sS "https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main" | python3 -c "
+          import json,sys
+          for f in json.load(sys.stdin):
+            p=f['path']
+            if p.endswith('.bin'):
+              print('MODEL', p, f.get('size'), (f.get('lfs') or {}).get('oid'))
+          "
