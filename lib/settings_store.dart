@@ -10,6 +10,7 @@ class SettingsStore extends ChangeNotifier {
   SettingsStore() {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
+      if (call.method == 'updateChanged') _setUpdate(call.arguments);
     });
   }
 
@@ -27,6 +28,7 @@ class SettingsStore extends ChangeNotifier {
     'space_cursor': true,
     'key_height': 'normal',
     'long_press': 'normal',
+    'auto_update': true,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -39,6 +41,10 @@ class SettingsStore extends ChangeNotifier {
 
   bool loaded = false;
 
+  /// The app's own updates (Updater.kt): `phase` is idle, disabled, checking, upToDate, available, downloading,
+  /// ready, installing or failed; `current`, `available`, `progress` and `error` go with it.
+  Map<String, Object?> update = const {'phase': 'idle'};
+
   bool flag(String key) => _values[key] as bool? ?? defaults[key] as bool;
   String choice(String key) => _values[key] as String? ?? defaults[key] as String;
 
@@ -47,6 +53,7 @@ class SettingsStore extends ChangeNotifier {
       final values = await _channel.invokeMapMethod<String, Object>('getSettings');
       if (values != null) _values.addAll(values);
       _setStatus(await _channel.invokeMethod<Object>('status'));
+      _setUpdate(await _channel.invokeMethod<Object>('updateState'));
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -75,6 +82,8 @@ class SettingsStore extends ChangeNotifier {
 
   Future<void> openInputSettings() => _call('openInputSettings');
   Future<void> showPicker() => _call('showPicker');
+  Future<void> checkForUpdate() => _call('checkUpdate');
+  Future<void> installUpdate() => _call('installUpdate');
 
   Future<void> _call(String method) async {
     try {
@@ -82,6 +91,12 @@ class SettingsStore extends ChangeNotifier {
     } on MissingPluginException {
       return;
     }
+  }
+
+  void _setUpdate(Object? raw) {
+    if (raw is! Map) return;
+    update = raw.map((k, v) => MapEntry('$k', v as Object?));
+    notifyListeners();
   }
 
   void _setStatus(Object? raw) {

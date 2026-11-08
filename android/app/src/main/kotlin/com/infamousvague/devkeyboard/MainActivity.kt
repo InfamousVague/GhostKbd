@@ -3,6 +3,8 @@ package com.infamousvague.devkeyboard
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import io.flutter.embedding.android.FlutterActivity
@@ -17,6 +19,19 @@ class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
     private val prefs by lazy { KeyboardPrefs(this) }
     private val imm by lazy { getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager }
+    private val onUpdate: (Updater.State) -> Unit = { channel?.invokeMethod("updateChanged", it.toMap(this)) }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Updater.addListener(onUpdate)
+        // Automatic updates: look each time the app opens, and install what is found.
+        if (KeyboardPrefs(this).autoUpdate) Updater.check(this, install = true)
+    }
+
+    override fun onDestroy() {
+        Updater.removeListener(onUpdate)
+        super.onDestroy()
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -36,6 +51,19 @@ class MainActivity : FlutterActivity() {
                     }
                     "showPicker" -> {
                         imm.showInputMethodPicker()
+                        result.success(null)
+                    }
+                    "updateState" -> result.success(Updater.state.toMap(this@MainActivity))
+                    "checkUpdate" -> {
+                        Updater.check(this@MainActivity, install = call.argument<Boolean>("install") == true)
+                        result.success(null)
+                    }
+                    "installUpdate" -> {
+                        if (!packageManager.canRequestPackageInstalls()) {
+                            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                        } else {
+                            Updater.installNow(this@MainActivity)
+                        }
                         result.success(null)
                     }
                     else -> result.notImplemented()

@@ -21,6 +21,27 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - Number/phone fields open on `?123`; toolbar with settings and hide
 - Settings: theme, key height, number row, symbol hints, auto-caps, double-space period, space-bar cursor, long-press delay, popup, vibrate, sound
 
+## Releases and auto-update
+
+Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
+and from the keyboard twice a day, `Updater.kt` reads `apk.json`, downloads the APK, checks its size, SHA-256,
+package, version and signing certificate, and installs it with Android's `PackageInstaller` — silently on Android 12+
+once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › Updates shows
+where it stands and has the **Automatic updates** switch. Debug builds never update.
+
+To publish a release (from the Mac that has Flutter, the Android SDK and the Ghost.md checkout):
+
+```sh
+node tool/release.mjs                 # build, check, publish; version code = live + 1
+node tool/release.mjs --version 0.2.0 # with a new version name
+node tool/release.mjs --no-deploy     # build and check only, into build/release
+```
+
+It uses **Ghost.md's box credentials as they are**: `AFM_DEPLOY_*` from Ghost.md's `tauri/.env`, through Ghost.md's
+own `box.mjs` (one multiplexed login). It finds the Ghost.md checkout beside this repo or in the usual places
+(`--glyph <path>` or `GLYPH_ROOT` to say). The release key is made on first run in `~/.config/devkeyboard/`
+and its certificate pinned there — **back that folder up**: without it no installed copy can take another update.
+
 ## Build and run
 
 Needs Flutter 3.41+ (Dart 3.11) and the Android SDK — the same toolchain as Ghost.md.

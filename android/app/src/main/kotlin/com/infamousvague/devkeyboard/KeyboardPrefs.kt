@@ -20,6 +20,7 @@ class KeyboardPrefs(context: Context) {
     val autoCaps: Boolean get() = bool(AUTO_CAPS)
     val doubleSpacePeriod: Boolean get() = bool(DOUBLE_SPACE_PERIOD)
     val spaceCursor: Boolean get() = bool(SPACE_CURSOR)
+    val autoUpdate: Boolean get() = bool(AUTO_UPDATE)
 
     /** "short", "normal" or "tall". */
     val keyHeight: String get() = prefs.getString(KEY_HEIGHT, DEFAULTS[KEY_HEIGHT] as String)!!
@@ -72,6 +73,7 @@ class KeyboardPrefs(context: Context) {
         const val SPACE_CURSOR = "space_cursor"
         const val KEY_HEIGHT = "key_height"
         const val LONG_PRESS = "long_press"
+        const val AUTO_UPDATE = "auto_update"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "system",
@@ -85,6 +87,7 @@ class KeyboardPrefs(context: Context) {
             SPACE_CURSOR to true,
             KEY_HEIGHT to "normal",
             LONG_PRESS to "normal",
+            AUTO_UPDATE to true,
         )
     }
 }

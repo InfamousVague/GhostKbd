@@ -39,6 +39,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, SharedPrefere
         super.onCreate()
         prefs = KeyboardPrefs(this)
         prefs.prefs.registerOnSharedPreferenceChangeListener(this)
+        // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
+        Updater.backgroundCheck(this)
     }
 
     override fun onDestroy() {

@@ -1,0 +1,314 @@
+package com.infamousvague.devkeyboard
+
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import org.json.JSONObject
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+import java.util.concurrent.Executors
+
+/**
+ * The app's own updates, from the box: `apk.json` and the APK it names under [BASE], published by tool/release.mjs.
+ *
+ * What makes it safe to install what was downloaded:
+ * - the file is handed on only at exactly the size and SHA-256 that apk.json gives;
+ * - it must be this app (same package) at the version code apk.json gives;
+ * - it must be signed by the same certificate as the installed app, checked here before Android's installer, which
+ *   refuses an update signed by any other key in any case. So a changed file on the box can at worst offer an update
+ *   that is never installed.
+ *
+ * Debug builds never look (a debug build's key is not the release key, so no release could install over it).
+ */
+object Updater {
+    const val BASE = "https://attack.fm/devkeyboard"
+    private const val ACTION_INSTALLED = "com.infamousvague.devkeyboard.INSTALL_STATUS"
+    private const val PREFS = "dev_keyboard_updates"
+    private const val CHECKED_AT = "checked_at"
+    private const val BACKGROUND_EVERY_MS = 12 * 60 * 60 * 1000L
+
+    data class Release(val version: String, val code: Long, val sha256: String, val bytes: Long, val url: String)
+
+    /** Where an update stands, as the settings app shows it. */
+    data class State(
+        val phase: String = "idle", // idle, disabled, checking, upToDate, available, downloading, ready, installing, failed
+        val available: Release? = null,
+        val progress: Double? = null,
+        val error: String? = null,
+    ) {
+        fun toMap(context: Context): Map<String, Any?> = mapOf(
+            "phase" to phase,
+            "current" to currentVersion(context),
+            "currentCode" to currentCode(context),
+            "available" to available?.version,
+            "availableCode" to available?.code,
+            "progress" to progress,
+            "error" to error,
+            "source" to BASE,
+        )
+    }
+
+    @Volatile var state = State()
+        private set
+
+    private val listeners = mutableSetOf<(State) -> Unit>()
+    private val main = Handler(Looper.getMainLooper())
+    private val io = Executors.newSingleThreadExecutor()
+    @Volatile private var busy = false
+
+    fun addListener(l: (State) -> Unit) { listeners += l }
+    fun removeListener(l: (State) -> Unit) { listeners -= l }
+
+    private fun set(next: State) {
+        state = next
+        main.post { listeners.toList().forEach { it(next) } }
+    }
+
+    fun isDebuggable(context: Context) = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    fun currentVersion(context: Context): String = packageInfo(context).versionName ?: "?"
+
+    fun currentCode(context: Context): Long {
+        val info = packageInfo(context)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()
+    }
+
+    private fun packageInfo(context: Context): PackageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+
+    /**
+     * Looks for a newer release. With [install], goes on to download and install it. With [silentOnly] (the keyboard
+     * service, in the background), installs only where Android lets this app update itself with no prompt, and
+     * otherwise leaves the download ready for the settings app.
+     */
+    fun check(context: Context, install: Boolean, silentOnly: Boolean = false) {
+        val app = context.applicationContext
+        if (isDebuggable(app)) { set(State(phase = "disabled", error = "Updates are off in debug builds.")); return }
+        if (busy) return
+        busy = true
+        set(state.copy(phase = "checking", error = null))
+        io.execute {
+            try {
+                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(CHECKED_AT, System.currentTimeMillis()).apply()
+                val release = fetchRelease()
+                if (release.code <= currentCode(app)) {
+                    set(State(phase = "upToDate"))
+                    return@execute
+                }
+                set(State(phase = "available", available = release))
+                if (install) downloadAndInstall(app, release, silentOnly)
+            } catch (e: Exception) {
+                set(state.copy(phase = "failed", progress = null, error = e.message ?: e.javaClass.simpleName))
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    /** The keyboard service's look, at most twice a day, when automatic updates are on. */
+    fun backgroundCheck(context: Context) {
+        val app = context.applicationContext
+        if (isDebuggable(app) || !KeyboardPrefs(app).autoUpdate) return
+        val last = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(CHECKED_AT, 0L)
+        if (System.currentTimeMillis() - last < BACKGROUND_EVERY_MS) return
+        check(app, install = true, silentOnly = true)
+    }
+
+    /** The settings app's "Update now": install the release already found (or look again first). */
+    fun installNow(context: Context) {
+        val release = state.available
+        if (release == null) { check(context, install = true); return }
+        val app = context.applicationContext
+        if (busy) return
+        busy = true
+        io.execute {
+            try {
+                downloadAndInstall(app, release, silentOnly = false)
+            } catch (e: Exception) {
+                set(state.copy(phase = "failed", progress = null, error = e.message ?: e.javaClass.simpleName))
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    // --- the steps --------------------------------------------------------------------------------------------------
+
+    private fun open(url: String): HttpURLConnection = (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 15_000
+        readTimeout = 30_000
+        useCaches = false
+        setRequestProperty("Cache-Control", "no-cache")
+        instanceFollowRedirects = true
+    }
+
+    private fun fetchRelease(): Release {
+        val conn = open("$BASE/apk.json?t=${System.currentTimeMillis()}")
+        try {
+            if (conn.responseCode != 200) throw IllegalStateException("The update server answered ${conn.responseCode}.")
+            val body = conn.inputStream.use { it.readBytes() }
+            if (body.size > 64 * 1024) throw IllegalStateException("apk.json is too large.")
+            val json = JSONObject(String(body, Charsets.UTF_8))
+            val url = json.getString("url")
+            if (!url.startsWith("https://") && !Regex("^[A-Za-z0-9._-]+$").matches(url)) throw IllegalStateException("apk.json names a bad file.")
+            val sha = json.getString("sha256").lowercase()
+            if (!Regex("^[0-9a-f]{64}$").matches(sha)) throw IllegalStateException("apk.json has a bad hash.")
+            return Release(json.getString("version"), json.getLong("versionCode"), sha, json.getLong("bytes"), url)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun apkFile(context: Context, release: Release) =
+        File(File(context.cacheDir, "updates").apply { mkdirs() }, "devkeyboard-${release.code}.apk")
+
+    private fun downloadAndInstall(context: Context, release: Release, silentOnly: Boolean) {
+        val file = apkFile(context, release)
+        if (!(file.exists() && file.length() == release.bytes && sha256(file) == release.sha256)) {
+            download(release, file)
+        }
+        verifyArchive(context, file, release)
+        if (silentOnly && !canUpdateSilently(context)) {
+            set(State(phase = "ready", available = release))
+            return
+        }
+        if (!silentOnly && !context.packageManager.canRequestPackageInstalls()) {
+            set(State(phase = "ready", available = release, error = "needsPermission"))
+            return
+        }
+        set(State(phase = "installing", available = release))
+        commit(context, file)
+    }
+
+    private fun download(release: Release, file: File) {
+        // One release kept at a time: older downloads go.
+        file.parentFile?.listFiles()?.forEach { if (it != file) it.delete() }
+        val url = if (release.url.startsWith("https://")) release.url else "$BASE/${release.url}"
+        val part = File(file.path + ".part")
+        val digest = MessageDigest.getInstance("SHA-256")
+        val conn = open(url)
+        try {
+            if (conn.responseCode != 200) throw IllegalStateException("The download answered ${conn.responseCode}.")
+            var got = 0L
+            var lastShown = -1
+            conn.inputStream.use { input ->
+                part.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        got += n
+                        if (got > release.bytes) throw IllegalStateException("The download is larger than the release says.")
+                        digest.update(buf, 0, n)
+                        out.write(buf, 0, n)
+                        val pct = (got * 100 / release.bytes).toInt()
+                        if (pct != lastShown) {
+                            lastShown = pct
+                            set(State(phase = "downloading", available = release, progress = got.toDouble() / release.bytes))
+                        }
+                    }
+                }
+            }
+            if (got != release.bytes) throw IllegalStateException("The download stopped short.")
+            if (digest.digest().toHex() != release.sha256) throw IllegalStateException("The download does not match the release's hash.")
+            if (!part.renameTo(file)) throw IllegalStateException("Could not keep the download.")
+        } finally {
+            conn.disconnect()
+            part.delete()
+        }
+    }
+
+    /** The download is this app, at the release's version, signed by the installed app's certificate. */
+    private fun verifyArchive(context: Context, file: File, release: Release) {
+        val pm = context.packageManager
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+        @Suppress("DEPRECATION")
+        val archive = pm.getPackageArchiveInfo(file.path, flags) ?: throw IllegalStateException("The download is not an app.")
+        if (archive.packageName != context.packageName) throw IllegalStateException("The download is another app (${archive.packageName}).")
+        val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) archive.longVersionCode else @Suppress("DEPRECATION") archive.versionCode.toLong()
+        if (code != release.code) throw IllegalStateException("The download is version $code, not ${release.code}.")
+        val ours = signers(pm.getPackageInfo(context.packageName, flags))
+        val theirs = signers(archive)
+        // An archive whose signers this Android cannot read is left to the installer, which checks them itself.
+        if (theirs.isNotEmpty() && ours.isNotEmpty() && theirs != ours) throw IllegalStateException("The download is not signed by this app's key.")
+    }
+
+    private fun signers(info: PackageInfo): Set<String> {
+        val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.let { if (it.hasMultipleSigners()) it.apkContentsSigners else it.signingCertificateHistory }
+        } else {
+            @Suppress("DEPRECATION") info.signatures
+        }
+        return sigs.orEmpty().filterNotNull().map { MessageDigest.getInstance("SHA-256").digest(it.toByteArray()).toHex() }.toSet()
+    }
+
+    /** Android 12+ lets an app update itself with no prompt once it installed its own last version. */
+    private fun canUpdateSilently(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        if (!context.packageManager.canRequestPackageInstalls()) return false
+        val source = runCatching { context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName }.getOrNull()
+        return source == context.packageName
+    }
+
+    private fun commit(context: Context, file: File) {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            setSize(file.length())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+        val id = installer.createSession(params)
+        installer.openSession(id).use { session ->
+            session.openWrite("base.apk", 0, file.length()).use { out ->
+                file.inputStream().use { it.copyTo(out) }
+                session.fsync(out)
+            }
+            val intent = Intent(context, InstallReceiver::class.java).setAction(ACTION_INSTALLED)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+            session.commit(PendingIntent.getBroadcast(context, id, intent, flags).intentSender)
+        }
+    }
+
+    internal fun onInstallStatus(context: Context, intent: Intent) {
+        when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                val confirm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                } else {
+                    @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                }
+                confirm?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { runCatching { context.startActivity(it) } }
+            }
+            PackageInstaller.STATUS_SUCCESS -> set(State(phase = "upToDate"))
+            else -> {
+                val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                set(state.copy(phase = if (status == PackageInstaller.STATUS_FAILURE_ABORTED) "available" else "failed", progress = null, error = message ?: "The install did not finish ($status)."))
+            }
+        }
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) { val n = input.read(buf); if (n < 0) break; digest.update(buf, 0, n) }
+        }
+        return digest.digest().toHex()
+    }
+
+    private fun ByteArray.toHex() = joinToString("") { "%02x".format(it) }
+}
+
+/** Where Android's installer reports on a session [Updater] committed. */
+class InstallReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = Updater.onInstallStatus(context, intent)
+}

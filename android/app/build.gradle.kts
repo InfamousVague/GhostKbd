@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+/*
+ * THE RELEASE KEY. Android installs an update only over an app signed with the same certificate, so every release is
+ * signed with one key kept outside the repository: ~/.config/devkeyboard/signing.properties (or the file
+ * $DEVKEYBOARD_SIGNING names) with storeFile, storePassword, keyAlias and keyPassword. tool/release.mjs makes it the
+ * first time. Without it a release build is signed with this machine's debug key, and tool/release.mjs refuses to
+ * publish that.
+ */
+val signingFile = file(System.getenv("DEVKEYBOARD_SIGNING") ?: "${System.getProperty("user.home")}/.config/devkeyboard/signing.properties")
+val signing = Properties().apply { if (signingFile.exists()) signingFile.inputStream().use { load(it) } }
 
 android {
     namespace = "com.infamousvague.devkeyboard"
@@ -22,10 +34,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (signing.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(signing.getProperty("storeFile"))
+                storePassword = signing.getProperty("storePassword")
+                keyAlias = signing.getProperty("keyAlias")
+                keyPassword = signing.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Signed with the debug key until a release key is set up.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

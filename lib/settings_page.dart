@@ -60,6 +60,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 SizedBox(height: t.space(6)),
                 ..._feedback(),
                 SizedBox(height: t.space(6)),
+                ..._updates(t),
+                SizedBox(height: t.space(6)),
                 _tips(t),
               ],
             ),
@@ -202,6 +204,72 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
           ],
         ),
       ];
+
+  List<Widget> _updates(Tokens t) {
+    final u = store.update;
+    final phase = u['phase'] as String? ?? 'idle';
+    final current = u['current'] as String?;
+    final available = u['available'] as String?;
+    final progress = (u['progress'] as num?)?.toDouble();
+    final error = u['error'] as String?;
+    final needsPermission = error == 'needsPermission';
+
+    final (String line, GlacierPillTone tone, String pill) = switch (phase) {
+      'disabled' => ('Updates are off in debug builds.', GlacierPillTone.neutral, 'Debug'),
+      'checking' => ('Looking for a new version…', GlacierPillTone.neutral, 'Checking'),
+      'upToDate' => ('You have the latest version.', GlacierPillTone.success, 'Up to date'),
+      'available' => ('Version $available is available.', GlacierPillTone.accent, 'New'),
+      'downloading' => ('Downloading version $available…', GlacierPillTone.accent, '${((progress ?? 0) * 100).round()}%'),
+      'ready' when needsPermission => ('Allow Dev Keyboard to install updates, then tap Update.', GlacierPillTone.warning, 'Ready'),
+      'ready' => ('Version $available is downloaded and ready.', GlacierPillTone.accent, 'Ready'),
+      'installing' => ('Installing version $available…', GlacierPillTone.accent, 'Installing'),
+      'failed' => (error ?? 'The update did not finish.', GlacierPillTone.danger, 'Failed'),
+      _ => ('Updates come from attack.fm.', GlacierPillTone.neutral, 'Idle'),
+    };
+    final canInstall = phase == 'available' || phase == 'ready';
+    final busy = phase == 'checking' || phase == 'downloading' || phase == 'installing';
+
+    return [
+      const SectionLabel('Updates'),
+      SettingsCard(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: t.space(4), vertical: t.space(3)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text('Dev Keyboard ${current ?? ''}', style: t.text('md', weight: 'medium'))),
+                    GlacierPill(tone: tone, size: GlacierPillSize.sm, child: Text(pill)),
+                  ],
+                ),
+                SizedBox(height: t.space(1) / 2),
+                Text(line, style: t.text('sm', color: t.color(phase == 'failed' ? 'glacier-danger-text' : 'glacier-text-muted'))),
+                if (phase == 'downloading') ...[
+                  SizedBox(height: t.space(3)),
+                  GlacierProgressBar(value: (progress ?? 0) * 100, size: GlacierProgressBarSize.sm, ariaLabel: 'Download'),
+                ],
+                SizedBox(height: t.space(3)),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: canInstall
+                      ? GlacierButton(label: needsPermission ? 'Allow installs' : 'Update now', onPressed: store.installUpdate)
+                      : GlacierButton(label: 'Check for updates', onPressed: busy || phase == 'disabled' ? null : store.checkForUpdate),
+                ),
+              ],
+            ),
+          ),
+          SwitchSetting(
+            title: 'Automatic updates',
+            description: 'Look for a new version when the app opens and twice a day, and install it.',
+            value: store.flag('auto_update'),
+            onChanged: (v) => store.set('auto_update', v),
+          ),
+        ],
+      ),
+    ];
+  }
 
   Widget _tips(Tokens t) {
     final muted = t.text('sm', color: t.color('glacier-text-muted'));
