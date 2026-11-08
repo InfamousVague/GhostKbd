@@ -1,4 +1,4 @@
-# Builds and publishes a release to https://attack.fm/devkeyboard/ with tool/release.mjs, exactly as a release from
+# Builds and publishes a release (every push to main, or Run workflow) to https://attack.fm/devkeyboard/ with tool/release.mjs, exactly as a release from
 # the Mac does: Ghost.md's box.mjs and .env loader (from a checkout of the public glyph repo), the same box account,
 # the same release key.
 #
