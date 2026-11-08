@@ -150,7 +150,7 @@ const page = (info) => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dev Keyboard</title>
+<title>Ghost Keyboard</title>
 <style>
   :root { color-scheme: light dark; --bg: #f7f8fa; --card: #fff; --text: #16181d; --muted: #5d6470; --accent: #2f6feb; }
   @media (prefers-color-scheme: dark) { :root { --bg: #0f1114; --card: #191c21; --text: #eceef2; --muted: #9aa1ad; --accent: #6b9bff; } }
@@ -167,12 +167,12 @@ const page = (info) => `<!doctype html>
 <body>
 <main>
   <div class="card">
-    <h1>Dev Keyboard</h1>
+    <h1>Ghost Keyboard</h1>
     <p>A keyboard for people who write code. Version ${info.version}.</p>
     <a class="button" href="${info.url}">Download for Android</a>
     <ol>
       <li>Open the download and tap Install (allow installs from your browser if Android asks).</li>
-      <li>Open Dev Keyboard and follow its two setup steps.</li>
+      <li>Open Ghost Keyboard and follow its walkthrough.</li>
       <li>It keeps itself up to date from here on.</li>
     </ol>
     <small>${(info.bytes / 1e6).toFixed(1)} MB · SHA-256 ${info.sha256.slice(0, 16)}…</small>

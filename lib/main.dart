@@ -2,22 +2,27 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
-import 'settings_page.dart';
+import 'onboarding/onboarding.dart';
+import 'settings/panes.dart';
+import 'settings/settings_css.dart';
+import 'settings/settings_screen.dart';
 import 'settings_store.dart';
 
-/// Dev Keyboard's setup and settings. The keyboard itself is native (android/.../DevKeyboardService.kt); this app
-/// turns it on and configures it, drawn with the Glacier kit.
+/// Ghost Keyboard's setup and settings. The keyboard itself is native (android/.../DevKeyboardService.kt); this app
+/// walks a new person through turning it on, then is its Settings and its plugin Market, drawn with Glacier and
+/// Ghost.md's own settings kit, icons and stylesheets (assets/css/ink.css, app.css).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  final sheet = await loadTokenSheet();
+  final sheet = await loadTokenSheet(more: const ['assets/css/ink.css', 'assets/css/app.css']);
+  installSettingsStyles(sheet);
   final store = SettingsStore();
   await store.load();
-  runApp(DevKeyboardApp(sheet: sheet, store: store));
+  runApp(GhostKeyboardApp(sheet: sheet, store: store));
 }
 
-class DevKeyboardApp extends StatelessWidget {
-  const DevKeyboardApp({super.key, required this.sheet, required this.store});
+class GhostKeyboardApp extends StatelessWidget {
+  const GhostKeyboardApp({super.key, required this.sheet, required this.store});
 
   final TokenSheet sheet;
   final SettingsStore store;
@@ -27,27 +32,82 @@ class DevKeyboardApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
-        // The app wears the theme the keyboard is set to, so the two always match.
         final theme = store.choice('theme');
         return WidgetsApp(
-          title: 'Dev Keyboard',
-          color: const Color(0xFF2F6FEB),
+          title: 'Ghost Keyboard',
+          color: const Color(0xFF4F5BD5),
           debugShowCheckedModeBanner: false,
           pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) =>
               PageRouteBuilder<T>(settings: settings, pageBuilder: (context, _, _) => builder(context)),
           builder: (context, child) => GlacierTheme(
             sheet: sheet,
-            attrs: {
-              'platform': 'mobile',
-              if (theme != 'system') 'theme': theme,
-            },
+            attrs: {'platform': 'mobile', if (theme != 'system') 'theme': theme},
             typography: const GlacierTypography(features: [FontFeature('cv11'), FontFeature('ss01')]),
-            child: HapticsProvider(
-              enabled: store.flag('vibrate'),
-              child: _SystemBars(child: child!),
-            ),
+            child: HapticsProvider(enabled: store.flag('vibrate'), child: _SystemBars(child: child!)),
           ),
-          home: SettingsPage(store: store),
+          home: _Home(store: store),
+        );
+      },
+    );
+  }
+}
+
+/// The walkthrough on first launch, then Settings.
+class _Home extends StatefulWidget {
+  const _Home({required this.store});
+  final SettingsStore store;
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> with WidgetsBindingObserver {
+  SettingsStore get store => widget.store;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    store.openRequests.addListener(_openRequested);
+    store.openAt().then((page) {
+      if (page != null) store.openRequests.value = page;
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    store.openRequests.removeListener(_openRequested);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) store.refreshStatus();
+  }
+
+  /// The keyboard asked for a page: its section, over Settings.
+  void _openRequested() {
+    final id = store.openRequests.value;
+    if (id == null || !mounted) return;
+    store.openRequests.value = null;
+    final section = settingsSections(store).where((s) => s.id == id).firstOrNull;
+    if (section == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) pushSettings(context, (_) => SectionPage(section: section, store: store));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        if (!store.flag('onboarded')) return Onboarding(store: store, onDone: () => setState(() {}));
+        return SettingsPage(
+          title: 'Ghost Keyboard',
+          back: false,
+          child: SettingsList(store: store, sections: settingsSections(store)),
         );
       },
     );

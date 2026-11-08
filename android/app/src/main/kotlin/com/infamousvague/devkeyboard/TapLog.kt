@@ -55,7 +55,7 @@ object TapLog {
     fun text(context: Context): String {
         load(context)
         val taps = lines.count { !it.startsWith("#") }
-        return "Dev Keyboard tap log: $taps taps\n" + lines.joinToString("\n")
+        return "Ghost Keyboard tap log: $taps taps\n" + lines.joinToString("\n")
     }
 
     @Synchronized

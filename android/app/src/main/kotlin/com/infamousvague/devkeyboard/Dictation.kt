@@ -40,7 +40,7 @@ class Dictation(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun start(listener: Listener) {
         if (recording) return
-        if (!hasPermission()) { listener.onError("Dev Keyboard needs the microphone: allow it in Settings › Plugins › Dictation."); return }
+        if (!hasPermission()) { listener.onError("Ghost Keyboard needs the microphone: allow it in Settings › Plugins › Dictation."); return }
         if (!WhisperModel.isReady(context)) { listener.onError("The dictation model is still downloading."); return }
         val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = runCatching {

@@ -1,0 +1,34 @@
+# The walkthrough's voice: when lib/onboarding/narration.dart changes (or by hand), ElevenLabs says each page's words
+# in Ghost.md's voice (tool/onboarding_voice.py) and the files are committed to main, so the app ships them.
+# Secret (Prod environment): ELEVENLABS_API_KEY, the key Ghost.md uses (~/.elevenlabs-key on the Mac).
+name: Voice
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['lib/onboarding/narration.dart', 'tool/onboarding_voice.py']
+
+permissions:
+  contents: write
+
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    environment: Prod
+    steps:
+      - uses: actions/checkout@v4
+      - name: Speak the walkthrough
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -z "$ELEVENLABS_API_KEY" ]; then echo "::error::Add ELEVENLABS_API_KEY to the Prod environment's secrets"; exit 1; fi
+          python3 tool/onboarding_voice.py
+      - name: Commit the voice
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/onboarding
+          git diff --cached --quiet && { echo "Nothing new to say."; exit 0; }
+          git commit -m "The walkthrough's voice, from lib/onboarding/narration.dart"
+          git push

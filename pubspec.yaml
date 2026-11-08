@@ -1,5 +1,5 @@
 name: dev_keyboard
-description: "A developer-centric keyboard for Android. The keyboard itself is a native InputMethodService; this Flutter app is its setup and settings, drawn with Glacier."
+description: "Ghost Keyboard: a developer-centric keyboard for Android. The keyboard is a native InputMethodService; this Flutter app is its walkthrough, settings and plugin Market, drawn with Glacier and Ghost.md's settings kit."
 publish_to: 'none'
 version: 0.2.0+7
 
@@ -20,6 +20,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: false
+  assets:
+    # Ghost.md's stylesheets, read by the token engine over Glacier's own (lib/main.dart).
+    - assets/css/ink.css
+    - assets/css/app.css
+    # The walkthrough's voice (lib/onboarding/narration.dart, tool/onboarding_voice.py).
+    - assets/onboarding/
   fonts:
     # The kit's faces (tokens.css --glacier-font-sans / --glacier-font-mono), OFL (assets/fonts/OFL.txt).
     - family: Inter Variable

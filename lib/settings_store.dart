@@ -11,6 +11,8 @@ class SettingsStore extends ChangeNotifier {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
+      if (call.method == 'dictationChanged') _setDictation(call.arguments);
+      if (call.method == 'open' && call.arguments is String) openRequests.value = call.arguments as String;
     });
   }
 
@@ -34,6 +36,10 @@ class SettingsStore extends ChangeNotifier {
     'haptics': 'medium',
     'tap_log': false,
     'autocorrect': true,
+    'plugins': 'autocorrect',
+    'theme_preset': 'gboard',
+    'custom_theme': '#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3',
+    'onboarded': false,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -50,6 +56,45 @@ class SettingsStore extends ChangeNotifier {
   /// ready, installing or failed; `current`, `available`, `progress` and `error` go with it.
   Map<String, Object?> update = const {'phase': 'idle'};
 
+  /// The dictation plugin's model and microphone (WhisperModel.kt): `phase` missing, downloading, ready or failed;
+  /// `progress`, `error`, and `microphone` (allowed or not).
+  Map<String, Object?> dictation = const {'phase': 'missing', 'microphone': false};
+
+  /// A settings page the keyboard asked the app to open at (its mic key, before the microphone is allowed).
+  final ValueNotifier<String?> openRequests = ValueNotifier(null);
+
+  /// The added plugins' ids.
+  Set<String> get plugins => choice('plugins').split(',').map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
+
+  bool pluginOn(String id) => plugins.contains(id);
+
+  Future<void> setPlugin(String id, bool on) async {
+    final next = {...plugins};
+    on ? next.add(id) : next.remove(id);
+    _values['plugins'] = next.join(',');
+    notifyListeners();
+    try {
+      final values = await _channel.invokeMapMethod<String, Object>('setPlugin', {'id': id, 'on': on});
+      if (values != null) _values.addAll(values);
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> downloadModel() => _call('downloadModel');
+  Future<void> deleteModel() => _call('deleteModel');
+  Future<void> requestMicrophone() => _call('requestMicrophone');
+
+  /// The page the app was opened at, once.
+  Future<String?> openAt() async {
+    try {
+      return await _channel.invokeMethod<String>('openAt');
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   bool flag(String key) => _values[key] as bool? ?? defaults[key] as bool;
   String choice(String key) => _values[key] as String? ?? defaults[key] as String;
 
@@ -59,6 +104,7 @@ class SettingsStore extends ChangeNotifier {
       if (values != null) _values.addAll(values);
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
+      _setDictation(await _channel.invokeMethod<Object>('dictationState'));
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -108,6 +154,12 @@ class SettingsStore extends ChangeNotifier {
     } on MissingPluginException {
       return;
     }
+  }
+
+  void _setDictation(Object? raw) {
+    if (raw is! Map) return;
+    dictation = raw.map((k, v) => MapEntry('$k', v as Object?));
+    notifyListeners();
   }
 
   void _setUpdate(Object? raw) {

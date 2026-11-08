@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
+import android.media.MediaPlayer
+import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -30,6 +32,35 @@ class MainActivity : FlutterActivity() {
     private fun dictationState(): Map<String, Any?> = WhisperModel.state.toMap() + mapOf(
         "microphone" to (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
     )
+
+    private var player: MediaPlayer? = null
+
+    /** The walkthrough's voice: one of the app's Flutter assets, played once; false where the file is not there. */
+    private fun play(asset: String): Boolean {
+        stopAudio()
+        return runCatching {
+            val key = FlutterInjector.instance().flutterLoader().getLookupKeyForAsset(asset)
+            assets.openFd(key).use { fd ->
+                player = MediaPlayer().apply {
+                    setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
+                    setOnCompletionListener { it.release(); if (player === it) player = null }
+                    prepare()
+                    start()
+                }
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun stopAudio() {
+        player?.let { runCatching { it.stop() }; it.release() }
+        player = null
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopAudio()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -77,6 +108,8 @@ class MainActivity : FlutterActivity() {
                         imm.showInputMethodPicker()
                         result.success(null)
                     }
+                    "playAsset" -> result.success(play(call.argument<String>("asset") ?: ""))
+                    "stopAudio" -> { stopAudio(); result.success(null) }
                     "openAt" -> { result.success(openAt); openAt = null }
                     "setPlugin" -> {
                         val id = call.argument<String>("id") ?: ""

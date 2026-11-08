@@ -98,6 +98,7 @@ class KeyboardPrefs(context: Context) {
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
         const val CUSTOM_THEME = "custom_theme"
+        const val ONBOARDED = "onboarded"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "system",
@@ -120,6 +121,7 @@ class KeyboardPrefs(context: Context) {
             PLUGINS to "autocorrect",
             THEME_PRESET to "gboard",
             CUSTOM_THEME to "#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3",
+            ONBOARDED to false,
         )
     }
 }

@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
-        android:label="Dev Keyboard"
+        android:label="Ghost Keyboard"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
@@ -34,7 +34,7 @@
         <!-- The keyboard itself: a native input method, so it is fast and needs no Flutter engine. -->
         <service
             android:name=".DevKeyboardService"
-            android:label="Dev Keyboard"
+            android:label="Ghost Keyboard"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:exported="true">
             <intent-filter>
