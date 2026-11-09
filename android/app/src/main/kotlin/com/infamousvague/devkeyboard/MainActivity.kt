@@ -83,7 +83,7 @@ class MainActivity : FlutterActivity() {
                 android.widget.Toast.makeText(this, error ?: "Signed in to Ghost.md", android.widget.Toast.LENGTH_SHORT).show()
             }
         }.start()
-        openAt = "ghostwriter"
+        openAt = "ai"
     }
 
     private var exportSamples = false

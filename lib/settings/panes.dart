@@ -50,92 +50,27 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         summary: (s) => s.enabled && s.selected ? 'Ready: you’re typing with Ghost Keyboard' : (s.enabled ? 'One step left' : 'Two steps left'),
         page: _setup,
       ),
-      SettingsSection(id: 'look', label: 'Look & layout', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _look),
-      SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: (s) => s.flag('auto_caps') ? 'Capitals, full stops, cursor control' : 'No auto-capitals', page: _typing),
-      SettingsSection(
-        id: 'keypress',
-        label: 'Key press',
-        icon: _icon(LucideMore.vibrate),
-        hue: 'coral',
-        group: 'keyboard',
-        summary: (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('key_popup')) 'Popup'].join(', ').ifEmptyThen('Nothing'),
-        page: _keyPress,
-      ),
-      SettingsSection(
-        id: 'backlight',
-        label: 'Backlight',
-        icon: _icon(Lucide.sparkles),
-        hue: 'purple',
-        group: 'keyboard',
-        summary: (s) => s.flag('backlight') ? (backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? 'On') : 'Off',
-        page: _backlight,
-      ),
-      // The keys' sounds: the stock sounds, Android's own, and the volume.
-      SettingsSection(
-        id: 'sounds-stock',
-        label: 'Sounds',
-        icon: _icon(Lucide.volume2),
-        hue: 'amber',
-        group: 'keyboard',
-        summary: (s) => !s.flag('sound') ? 'Off' : stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'On',
-        page: _soundsStock,
-      ),
+      SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: _typingSummary, page: _typingPage, parts: _typingParts),
+      SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
+      SettingsSection(id: 'ai', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),
+      SettingsSection(id: 'rowtools', label: 'Row tools', icon: _icon(Lucide.clipboardPaste), hue: 'amber', group: 'keyboard', summary: _rowSummary, page: _rowToolsPage),
       SettingsSection(
         id: 'market',
         label: 'Plugins',
         icon: _icon(Lucide.store),
         hue: 'purple',
         group: 'plugins',
-        summary: (s) => '${s.plugins.length} added · browse the Market',
+        summary: (s) => '${marketCatalogue.where((p) => s.pluginOn(p.id)).length} added · browse the Market',
         page: (context, store) => const [],
         screen: (context) => MarketScreen(store: store),
       ),
-      if (store.pluginOn('autocorrect'))
-        SettingsSection(id: 'autocorrect', label: 'Autocorrect', icon: _icon(Lucide.spellCheck), hue: 'lime', group: 'plugins', summary: (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), page: _autocorrect),
       if (store.pluginOn('dictation'))
         SettingsSection(id: 'dictation', label: 'Dictation', icon: _icon(Lucide.mic), hue: 'rose', group: 'plugins', summary: _dictationSummary, page: _dictation),
-      if (store.pluginOn('themes'))
-        SettingsSection(
-          id: 'themes',
-          label: 'Themes',
-          icon: _icon(Lucide.palette),
-          hue: 'magenta',
-          group: 'plugins',
-          summary: (s) => s.choice('theme_preset') == 'custom' ? 'Your own theme' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost'),
-          page: (context, store) => [ThemeEditor(store: store)],
-        ),
-      if (store.pluginOn('swipe'))
-        SettingsSection(id: 'swipe', label: 'Swipe typing', icon: _icon(LucideMore.pointer), hue: 'cyan', group: 'plugins', summary: (s) => 'Glide across the letters', page: _swipe),
       if (store.pluginOn('passwords'))
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
-      if (store.pluginOn('gifs'))
-        SettingsSection(id: 'gifs', label: 'GIFs', icon: _icon(Lucide.image), hue: 'orange', group: 'plugins', summary: (s) => 'GIPHY search', page: _gifs),
-      if (store.pluginOn('markdown'))
-        SettingsSection(id: 'markdown', label: 'Markdown', icon: _icon(Lucide.hash), hue: 'indigo', group: 'plugins', summary: (s) => s.flag('markdown_everywhere') ? 'Everywhere' : 'In notes apps', page: _markdown),
-      if (store.pluginOn('terminal'))
-        SettingsSection(id: 'terminal', label: 'Terminal mode', icon: _icon(Lucide.terminal), hue: 'slate', group: 'plugins', summary: (s) => s.flag('terminal_everywhere') ? 'Everywhere' : 'In terminal apps', page: _terminal),
-      if (store.pluginOn('clipboard'))
-        SettingsSection(id: 'clipboard', label: 'Clipboard history', icon: _icon(Lucide.clipboardPaste), hue: 'amber', group: 'plugins', summary: (s) => '${s.clipCount} saved', page: _clipboard),
-      if (store.pluginOn('undo'))
-        SettingsSection(id: 'undo', label: 'Undo and redo', icon: _icon(Lucide.undo2), hue: 'blue', group: 'plugins', summary: (s) => 'In the row', page: _undo),
-      if (store.pluginOn('incognito'))
-        SettingsSection(id: 'incognito', label: 'Incognito', icon: _icon(Lucide.eyeOff), hue: 'purple', group: 'plugins', summary: (s) => 'A switch in the row', page: _incognito),
-      if (store.pluginOn('emoji'))
-        SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
-      if (store.pluginOn('mockingbird'))
-        SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'purple', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbird),
-      if (store.pluginOn('adaptive'))
-        SettingsSection(id: 'adaptive', label: 'Adaptive keys', icon: _icon(LucideMore.target), hue: 'coral', group: 'plugins', summary: (s) => '${s.adaptive['keys'] ?? 0} keys tuned', page: _adaptive),
-      if (store.pluginOn('ghostwriter'))
-        SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: (s) => s.ai['ready'] == true ? '<<request>> anywhere' : 'Add an AI key', page: _ghostwriter),
-      SettingsSection(id: 'profile', label: 'Typing profile', icon: _icon(Lucide.fileText), hue: 'slate', group: 'app', summary: (s) => 'Import and export', page: _profile),
-      SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
-      // Hidden until the version number in About is tapped five times.
-      if (store.flag('developer'))
-        SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => 'Versions and diagnostics', page: _developer),
-      SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: (s) => 'Ghost Keyboard ${s.update['current'] ?? ''}'.trim(), page: _about),
+      SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
     ];
 
 extension on String {
@@ -187,148 +122,11 @@ List<Widget> _setup(BuildContext context, SettingsStore store) {
 
 // --- Look & layout ------------------------------------------------------------------------------------------------
 
-List<Widget> _look(BuildContext context, SettingsStore store) => [
-      PaneSection(
-        title: 'Theme',
-        footer: store.pluginOn('themes') ? null : const Text('Presets and a theme of your own come with the Themes plugin, in the Market.'),
-        children: [
-          _choice(store, 'theme', 'Light or dark', const {'system': 'System', 'light': 'Light', 'dark': 'Dark'}),
-          if (store.pluginOn('themes'))
-            SettingRow(
-              label: 'Colours',
-              icon: AppIcon(Lucide.palette, size: 18),
-              value: Text(store.choice('theme_preset') == 'custom' ? 'Your own' : (themePresets.where((p) => p.$1 == store.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost')),
-              onPress: () => pushSettings(context, (_) => ListenableBuilder(listenable: store, builder: (context, _) => SettingsPage(title: 'Themes', hue: 'magenta', child: ThemeEditor(store: store)))),
-            ),
-        ],
-      ),
-      PaneSection(
-        title: 'Keys',
-        children: [
-          _choice(store, 'key_height', 'Key height', const {'short': 'Short', 'normal': 'Normal', 'tall': 'Tall'}),
-          _toggle(store, 'key_borders', 'Key borders', 'A shape behind every key. Off is Gboard’s look: only ?123, space and enter have one.'),
-          _toggle(store, 'number_row', 'Number row', 'Digits in a row of their own above the letters.'),
-          _toggle(store, 'split_keyboard', 'Split on wide screens', 'Unfolded, or on a tablet: the keys in two halves with the middle open, a phone’s key size each side.'),
-          _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
-          _toggle(store, 'toolbar', 'Toolbar', 'A strip above the keys with settings and hide. Long-press { } opens settings either way.'),
-        ],
-      ),
-    ];
-
 // --- Typing -------------------------------------------------------------------------------------------------------
-
-List<Widget> _typing(BuildContext context, SettingsStore store) => [
-      PaneSection(
-        children: [
-          _toggle(store, 'auto_caps', 'Auto-capitalization', 'Shift on at the start of each sentence.'),
-          _toggle(store, 'double_space_period', 'Double-space period', 'Two spaces after a word type a period and a space.'),
-          _toggle(store, 'space_cursor', 'Space bar cursor control', 'Slide along the space bar to move the cursor.'),
-          _choice(store, 'long_press', 'Long-press delay', const {'fast': 'Fast', 'normal': 'Normal', 'slow': 'Slow'}),
-        ],
-      ),
-      PaneSection(
-        title: 'The { } key',
-        footer: const Text('Pairs leave the cursor inside; long-press any key on the { } page for its compounds (== !== => ->…).'),
-        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Beside space'))],
-      ),
-    ];
 
 // --- Key press ----------------------------------------------------------------------------------------------------
 
-List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
-      PaneSection(
-        children: [
-          _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, shown large above your finger.'),
-          _toggle(store, 'vibrate', 'Vibrate on key press'),
-          if (store.flag('vibrate')) _choice(store, 'haptics', 'Vibration strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
-        ],
-      ),
-    ];
-
-List<Widget> _soundsStock(BuildContext context, SettingsStore store) => [
-      PaneSection(children: [_toggle(store, 'sound', 'Sound on key press')]),
-      if (store.flag('sound'))
-        PaneSection(
-          title: 'Sound',
-          footer: const Text('Tap one to hear it. More sounds join this list over time.'),
-          children: [
-            for (final (id, name) in stockSounds)
-              SettingRow(
-                label: name,
-                icon: store.choice('stock_sound') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
-                onPress: () async {
-                  await store.set('stock_sound', id);
-                  if (id != 'system') store.sampleSound(id);
-                },
-              ),
-          ],
-        ),
-      if (store.flag('sound')) PaneSection(children: [_volume(store)]),
-    ];
-
 // --- Plugins' own pages -------------------------------------------------------------------------------------------
-
-List<Widget> _autocorrect(BuildContext context, SettingsStore store) {
-  final learned = store.learnedWords;
-  return [
-    PaneHero(glyph: AppIcon(Lucide.spellCheck, size: 24), title: 'Autocorrect', meta: const Text('Fixes a misspelled word when you finish it, and suggests words as you type.'), status: const PaneHeroStatus('On')),
-    PaneSection(children: [
-      _toggle(store, 'autocorrect', 'Correct automatically', 'Off: suggestions only, nothing changes on its own.'),
-      _toggle(store, 'suggestions', 'Show suggestions', 'Completions and fixes in the row above the keys. Tap one to type it.'),
-    ]),
-    PaneSection(
-      title: 'Languages',
-      footer: const Text('Turn on every language you write in: they work together, so a message can mix them. A word typed without its accents (cafe, senor) gets them.'),
-      children: [
-        for (final e in autocorrectLanguages.entries)
-          SettingRow(
-            label: e.value,
-            control: GlacierSwitch(checked: store.languages.contains(e.key), onCheckedChange: (v) => store.setLanguage(e.key, v), ariaLabel: e.value),
-          ),
-      ],
-    ),
-    PaneSection(
-      title: 'Learned words',
-      footer: const Text('Backspace straight after a fix puts your word back and adds it here, so it isn’t changed again. Tap a word to forget it.'),
-      children: [
-        SettingRowBox(
-          child: GlacierInput(
-            key: ValueKey('learn-${learned.length}'),
-            placeholder: 'Add a word',
-            ariaLabel: 'Add a learned word',
-            onSubmitted: (text) => store.setLearned(text, true),
-          ),
-        ),
-        if (learned.isEmpty) const SettingRow(label: 'None yet', hint: Text('Undo a fix and the word lands here.')),
-        for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
-      ],
-    ),
-    PaneSection(
-      title: 'How it works',
-      footer: const Text('Dictionaries: each language’s commonest words (wordfreq, CC BY-SA 4.0), English contractions and a programmer’s vocabulary.'),
-      children: const [
-        SettingRow(label: 'Finish a word', hint: Text('A space, or . , ! ? after a word, checks it.')),
-        SettingRow(label: 'Where it stays out', hint: Text('Passwords, web and email addresses, fields that ask for no suggestions, and words after @ # / . _ -')),
-      ],
-    ),
-    PaneSection(children: [SettingRow(label: 'Remove Autocorrect', onPress: () => store.setPlugin('autocorrect', false))]),
-  ];
-}
-
-List<Widget> _swipe(BuildContext context, SettingsStore store) => [
-      PaneHero(glyph: AppIcon(LucideMore.pointer, size: 24), title: 'Swipe typing', meta: const Text('Draw a word across the letters without lifting your thumb.'), status: const PaneHeroStatus('On')),
-      PaneSection(
-        title: 'How it works',
-        footer: const Text('It reads your path against the words of your autocorrect languages, and words you’ve taught it.'),
-        children: const [
-          SettingRow(label: 'Glide and lift', hint: Text('Start on the first letter, pass over the rest, lift on the last. A space goes in before the next word.')),
-          SettingRow(label: 'Not the word you meant?', hint: Text('Its other guesses sit in the row above the keys: tap one to swap it in.')),
-          SettingRow(label: 'Backspace', hint: Text('Straight after a swipe, it takes the whole word.')),
-          SettingRow(label: 'Taps still type', hint: Text('A short slide is still a tap: only a slide of most of a key starts a swipe.')),
-        ],
-      ),
-      PaneSection(children: [SettingRow(label: 'Remove Swipe typing', onPress: () => store.setPlugin('swipe', false))]),
-    ];
 
 List<Widget> _passwords(BuildContext context, SettingsStore store) => [
       PaneHero(glyph: AppIcon(Lucide.keyRound, size: 24), title: 'Password managers', meta: const Text('Your password manager’s logins, a tap above the keys.'), status: const PaneHeroStatus('On')),
@@ -344,37 +142,6 @@ List<Widget> _passwords(BuildContext context, SettingsStore store) => [
       PaneSection(children: [SettingRow(label: 'Remove Password managers', onPress: () => store.setPlugin('passwords', false))]),
     ];
 
-List<Widget> _gifs(BuildContext context, SettingsStore store) {
-  final own = store.choice('giphy_key');
-  return [
-    PaneHero(glyph: AppIcon(Lucide.image, size: 24), title: 'GIFs', meta: const Text('Search GIPHY and send a GIF from the keyboard.'), status: const PaneHeroStatus('On')),
-    PaneSection(
-      title: 'How it works',
-      footer: const Text('GIFs come from GIPHY, rated PG-13 at most. Apps that take pictures get the GIF itself; others get its link.'),
-      children: const [
-        SettingRow(label: 'The GIF button', hint: Text('In the row above the keys whenever you aren’t mid-word. It opens trending GIFs.')),
-        SettingRow(label: 'Search', hint: Text('Tap the search chip, type, and press enter. The back arrow returns to the keys.')),
-      ],
-    ),
-    PaneSection(
-      title: 'GIPHY key',
-      footer: const Text('If the GIF panel asks for a key, or to use your own, paste one from developers.giphy.com and press enter.'),
-      children: [
-        SettingRowBox(
-          child: GlacierInput(
-            key: ValueKey('giphy-$own'),
-            defaultValue: own,
-            placeholder: 'Your GIPHY API key (optional)',
-            ariaLabel: 'GIPHY API key',
-            onSubmitted: (text) => store.set('giphy_key', text.trim()),
-          ),
-        ),
-      ],
-    ),
-    PaneSection(children: [SettingRow(label: 'Remove GIFs', onPress: () => store.setPlugin('gifs', false))]),
-  ];
-}
-
 String _megabytes(Object? bytes) {
   final b = (bytes as num?)?.toDouble() ?? 0;
   return b >= 1e9 ? '${(b / 1e9).toStringAsFixed(1)} GB' : '${(b / 1e6).round()} MB';
@@ -387,93 +154,9 @@ List<Widget> _rowPluginPage(SettingsStore store, {required String id, required L
       PaneSection(children: [SettingRow(label: 'Remove $title', onPress: () => store.setPlugin(id, false))]),
     ];
 
-List<Widget> _markdown(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'markdown',
-      icon: Lucide.hash,
-      title: 'Markdown',
-      meta: 'Bold, code, links and lists a tap above the keys.',
-      settings: [_toggle(store, 'markdown_everywhere', 'Everywhere', 'Off: only in notes apps (Ghost.md, Obsidian, Joplin, Markor, Notion, GitHub…).')],
-      how: const [
-        ('Wraps the selection', 'Select words and tap B: they become **bold**. With nothing selected the cursor waits inside the pair.'),
-        ('Line buttons', '# • ☐ ❝ go at the start of the line you are on.'),
-        ('In Ghost.md', 'A [[ ]] button links to another note.'),
-      ],
-    );
-
-List<Widget> _terminal(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'terminal',
-      icon: Lucide.terminal,
-      title: 'Terminal mode',
-      meta: 'Esc, Tab, Ctrl, Alt and arrows for SSH and Termux.',
-      settings: [_toggle(store, 'terminal_everywhere', 'Everywhere', 'Off: only in terminal apps (Termux, Termius, JuiceSSH, ConnectBot…).')],
-      how: const [
-        ('Sticky Ctrl and Alt', 'Tap Ctrl (it turns bold), then a letter: Ctrl+C, Ctrl+D, Ctrl+R. They let go after one key.'),
-        ('Keys', 'Esc, Tab and the arrows are sent as real key presses, which terminals and vim read.'),
-      ],
-    );
-
-List<Widget> _clipboard(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'clipboard',
-      icon: Lucide.clipboardPaste,
-      title: 'Clipboard history',
-      meta: '${store.clipCount} of your last 25 copies are saved on this phone.',
-      settings: [SettingRow(label: 'Clear the history', onPress: store.clipCount == 0 ? null : store.clearClipboard)],
-      how: const [
-        ('Paste', 'Tap Clipboard in the row, then any copy. Something just copied waits as the first chip for a minute and a half.'),
-        ('What it skips', 'Copies Android marks sensitive (password managers), and anything copied while incognito.'),
-        ('Only while it is your keyboard', 'Android lets just the keyboard in use read the clipboard, so copies made under another keyboard are not seen.'),
-      ],
-    );
-
-List<Widget> _undo(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'undo',
-      icon: Lucide.undo2,
-      title: 'Undo and redo',
-      meta: 'Take back the last edit, or put it back.',
-      how: const [
-        ('In the row', 'Undo and Redo show whenever you are not mid-word.'),
-        ('Where it works', 'Android’s own text fields and most editors. A few apps ignore Ctrl+Z; there, nothing happens.'),
-      ],
-    );
-
-List<Widget> _incognito(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'incognito',
-      icon: Lucide.eyeOff,
-      title: 'Incognito',
-      meta: 'Type without the keyboard learning or remembering anything.',
-      how: const [
-        ('The switch', 'Tap Incognito in the row; it reads “Incognito on” in bold until you tap it again.'),
-        ('What stops', 'Learning words when you undo a fix or keep what you typed, and the clipboard history.'),
-        ('On by itself', 'Fields that ask for privacy, like a browser’s private tab, are incognito whatever the switch says.'),
-      ],
-    );
-
 /// Key sound volume, as a share of the phone's own: a whisper to loud.
 SettingRow _volume(SettingsStore store) =>
     _choice(store, 'sound_volume', 'Volume', const {'10': 'Whisper', '20': 'Soft', '35': 'Medium', '55': 'Loud', '80': 'Max'}, 'How loud key sounds play, under your phone’s own volume.');
-
-List<Widget> _emoji(BuildContext context, SettingsStore store) => _rowPluginPage(
-      store,
-      id: 'emoji',
-      icon: LucideMore.smile,
-      title: 'Emoji',
-      meta: 'Every emoji in Emoji 18.0, Unicode’s latest, that your phone can draw.',
-      settings: [
-        _choice(store, 'emoji_skin', 'Skin tone', const {'0': '✋', '1': '✋🏻', '2': '✋🏼', '3': '✋🏽', '4': '✋🏾', '5': '✋🏿'}),
-        _toggle(store, 'emoji_suggest', 'Emoji for the word you type', 'Type pizza and 🍕 is offered in the row; tap it to add it after the word.'),
-      ],
-      how: const [
-        ('The panel', 'Tap 😀 Emoji in the row: tabs for each group, your recent ones first.'),
-        ('Search', 'Tap Search emoji and type: names, keywords and shortcodes all match. The results fill the row.'),
-        (':shortcodes', 'Type : and a few letters (:fire) anywhere and the matching emoji appear in the row.'),
-        ('Newest emoji', 'Emoji your phone’s font doesn’t have yet are hidden rather than shown as boxes; they appear when Android updates its font.'),
-      ],
-    );
 
 List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPage(
       store,
@@ -491,12 +174,6 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
     );
 
 // --- Mockingbird and Ghostwriter ------------------------------------------------------------------------------------
-
-String _mockingbirdSummary(SettingsStore s) {
-  if (s.ai['training'] == true) return 'Training…';
-  if (s.ai['profile'] != null) return 'Trained';
-  return '${s.ai['samples'] ?? 0} samples';
-}
 
 String _when(Object? ms) {
   if (ms is! num) return '';
@@ -578,202 +255,6 @@ List<Widget> _aiSetup(SettingsStore store) {
         if (store.aiMessage != null) SettingRow(label: store.aiMessage!),
       ],
     ),
-  ];
-}
-
-List<Widget> _mockingbird(BuildContext context, SettingsStore store) {
-  final ai = store.ai;
-  final profile = ai['profile'] is Map ? ai['profile'] as Map : null;
-  final samples = ai['samples'] as int? ?? 0;
-  final training = ai['training'] == true || store.aiBusy;
-  return [
-    PaneHero(
-      glyph: AppIcon(LucideMore.bird, size: 24),
-      title: profile != null ? 'Trained on your voice' : 'Learning your voice',
-      meta: Text(profile != null
-          ? 'Profile from ${profile['samples']} samples, ${_when(profile['at'])}, by ${profile['provider']} (${profile['model']}). $samples samples now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.'
-          : '$samples samples so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains once there are ${samples < 50 ? 50 : 10} or so and an AI key is set.'),
-      status: PaneHeroStatus(training ? 'Training' : (profile != null ? 'On' : 'Learning'), pulse: training),
-    ),
-    PaneSection(
-      title: 'Learning',
-      footer: const Text('Never from passwords, email or web addresses, names, searches or number fields, nor while incognito.'),
-      children: [
-        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'A message sent, or a field you leave, is kept on this phone (the last 1,500).'),
-        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most once a day, after 50 new samples. One small request each time.'),
-        SettingRow(
-          label: training ? 'Training…' : 'Train now',
-          hint: const Text('Sends a selection of your newest samples, once, to make the profile.'),
-          onPress: training || samples < 10 ? null : store.trainMockingbird,
-        ),
-        if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
-      ],
-    ),
-    if (profile != null)
-      PaneSection(
-        title: 'Your style profile',
-        footer: const Text('What the AI is told about how you write. It describes style only, not private facts.'),
-        children: [SettingRowBox(child: Text(profile['text'] as String? ?? ''))],
-      ),
-    ..._aiSetup(store),
-    PaneSection(
-      title: 'How it works',
-      children: const [
-        SettingRow(label: 'Texting and writing', hint: Text('Chat apps (WhatsApp, Signal, Messages, Slack, Discord…) teach your texting; everything else your writing.')),
-        SettingRow(label: 'In my voice', hint: Text('Select text anywhere and tap In my voice in the row: it is rewritten as you.')),
-        SettingRow(label: 'A profile, not fine-tuning', hint: Text('The same profile works with every provider, and switching loses nothing.')),
-      ],
-    ),
-    PaneSection(children: [
-      SettingRow(label: 'Delete samples and profile', onPress: samples == 0 && profile == null ? null : store.clearMockingbird),
-      SettingRow(label: 'Remove Mockingbird', onPress: () => store.setPlugin('mockingbird', false)),
-    ]),
-  ];
-}
-
-List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
-  final ready = store.ai['ready'] == true;
-  return [
-    PaneHero(
-      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
-      title: ready ? 'Ready' : 'Add an AI key',
-      meta: const Text('Type <<what you want>> in any app. Close it with >> and the AI writes it there, as you.'),
-      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
-    ),
-    PaneSection(
-      children: [
-        _toggle(store, 'ghostwriter_auto', 'Fill when I type >>', 'Off: tap Fill in the row when the cursor is on a request.'),
-        _toggle(store, 'ghostwriter_memory', 'Answer from my past messages', store.pluginOn('mockingbird') ? 'The samples Mockingbird keeps that share the request’s words.' : 'Add Mockingbird to keep samples; until then only the field’s own text.'),
-        _toggle(
-          store,
-          'ghostwriter_web',
-          'Look things up online',
-          const {'anthropic', 'openai', 'gemini', 'openrouter'}.contains(store.choice('ai_provider'))
-              ? 'News, results, dates and figures are searched for with your provider’s own web search, instead of left as [blanks].'
-              : 'Your provider has no web search: switch to Claude, OpenAI, Gemini or OpenRouter for this.',
-        ),
-        _toggle(store, 'ghostwriter_typing', 'Type the answer out', 'The keys light up as the AI types its answer into the field. Off: it appears at once.'),
-        _toggle(store, 'ghostwriter_clipboard', 'Read my recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies go with the request.' : 'Needs the Clipboard history plugin.'),
-      ],
-    ),
-    PaneSection(
-      title: 'Ghost.md notes',
-      footer: const Text('For a request like <<what did we decide about pricing>>: your notes that match go with it. Ghost.md on this phone is asked first, with nothing going online; turn it off in Ghost.md under Settings › AI › Ghost Keyboard. Signed in here, the notes are also searched online through Ghost.md’s connector when the phone has none that match.'),
-      children: [
-        _toggle(store, 'ghostwriter_notes', 'Search my Ghost.md notes'),
-        SettingRow(label: 'On this phone', value: Text(store.ai['ghostInstalled'] == true ? 'Ghost.md found' : 'Ghost.md not installed')),
-        if (store.ai['ghostOnline'] == true)
-          SettingRow(label: 'Online: signed in', hint: const Text('Signing out ends the session on Ghost.md’s server too.'), value: const Text('Sign out'), onPress: store.aiBusy ? null : store.ghostSignOut)
-        else
-          SettingRow(label: 'Sign in to Ghost.md online', hint: const Text('Opens Ghost.md’s sign-in page in your browser. Your password stays in that page.'), onPress: store.aiBusy ? null : store.ghostSignIn),
-        if (store.ghostMessage != null) SettingRow(label: store.ghostMessage!),
-      ],
-    ),
-    PaneSection(
-      title: 'GitHub',
-      footer: const Text('For <<posthog updates we made>>: the request’s words are searched in the commit messages of your repositories and your organizations’, newest first. A classic token with the repo scope, or a fine-grained one with Contents: read, from github.com/settings/tokens. Kept on your phone.'),
-      children: [
-        _toggle(store, 'ghostwriter_github', 'Search my GitHub commits'),
-        SettingRowBox(
-          child: GlacierInput(
-            key: const ValueKey('github-token'),
-            type: GlacierInputType.password,
-            defaultValue: store.text('github_token'),
-            placeholder: 'Paste a GitHub token',
-            ariaLabel: 'GitHub token',
-            autoCorrect: false,
-            onChange: (text) => store.set('github_token', text.trim()),
-          ),
-        ),
-        SettingRow(label: store.aiBusy ? 'Checking…' : 'Check the token', onPress: store.aiBusy ? null : store.checkGithub),
-        if (store.githubMessage != null) SettingRow(label: store.githubMessage!),
-      ],
-    ),
-    ..._aiSetup(store),
-    PaneSection(
-      title: 'How it works',
-      children: const [
-        SettingRow(label: '<<engineering standup tldr>>', hint: Text('Something to write: it writes it, from what you have typed lately.')),
-        SettingRow(label: '<<why do the metrics not fire on signup>>', hint: Text('A question: it writes the answer you would give. Facts it doesn’t have become [blanks] to fill.')),
-        SettingRow(label: '<<summary of the 2026 election>>', hint: Text('Public facts: with Look things up online, it searches the web first.')),
-        SettingRow(label: 'While it writes', hint: Text('The row shows Writing… with ✕ to stop. Keep typing elsewhere and the answer waits in the row to insert.')),
-        SettingRow(label: 'Never', hint: Text('In password fields or while incognito.')),
-      ],
-    ),
-    PaneSection(children: [SettingRow(label: 'Remove Ghostwriter', onPress: () => store.setPlugin('ghostwriter', false))]),
-  ];
-}
-
-List<Widget> _profile(BuildContext context, SettingsStore store) => [
-      PaneHero(
-        glyph: AppIcon(Lucide.fileText, size: 24),
-        title: 'Typing profile',
-        meta: const Text('One open file for how you type: where you aim at each key, your slips, your words and how you write. Other apps and AI models can read it to build reports, and write one for this keyboard to learn from.'),
-        status: const PaneHeroStatus('On'),
-      ),
-      PaneSection(
-        title: 'Import',
-        footer: const Text('Or open or share any typing profile (.json) with Ghost Keyboard. Key aims and slips need Adaptive keys; writing style needs Mockingbird.'),
-        children: [
-          SettingRow(label: 'Import a typing profile…', onPress: store.importProfile),
-          if (store.profileError != null) SettingRow(label: store.profileError!),
-          for (final line in store.profileLines) SettingRow(label: line),
-          if (store.profileSource != null && store.profileLines.isNotEmpty) SettingRow(label: 'From ${store.profileSource}'),
-        ],
-      ),
-      if (store.profileReport != null)
-        PaneSection(title: 'Its report', children: [SettingRowBox(child: Text(store.profileReport!))]),
-      PaneSection(
-        title: 'Export',
-        footer: const Text('Saved where you choose; nothing is uploaded. Without your samples it holds your key aims, slips, learned words and style profile.'),
-        children: [
-          SettingRow(
-            label: 'Include my message samples',
-            hint: const Text('What Mockingbird keeps of what you typed. Leave off unless you trust where the file goes.'),
-            control: GlacierSwitch(checked: store.profileSamples, onCheckedChange: store.setProfileSamples, ariaLabel: 'Include my message samples'),
-          ),
-          SettingRow(label: 'Export my typing profile…', onPress: store.exportProfile),
-        ],
-      ),
-      PaneSection(
-        title: 'The format',
-        children: const [
-          SettingRow(label: 'ghost-typing-profile, version 1', hint: Text('Described in docs/typing-profile.md, with a JSON Schema, in the GhostKbd repository on GitHub.')),
-        ],
-      ),
-    ];
-
-List<Widget> _adaptive(BuildContext context, SettingsStore store) {
-  final a = store.adaptive;
-  final keys = a['keys'] as int? ?? 0;
-  final mistakes = a['mistakes'] as int? ?? 0;
-  final common = [for (final c in (a['common'] as List? ?? const [])) '$c'];
-  return [
-    PaneHero(
-      glyph: AppIcon(LucideMore.target, size: 24),
-      title: keys == 0 ? 'Learning your aim' : '$keys keys tuned',
-      meta: Text(mistakes == 0 ? 'Type as usual. Each letter needs a few dozen touches before its edges move.' : '$mistakes mistakes remembered${common.isEmpty ? '' : '. Most often: ${common.join(', ')}'}.'),
-      status: const PaneHeroStatus('On'),
-    ),
-    PaneSection(
-      footer: const Text('Try it in the field below: red glows are where your mistakes land; a dot on a line is where a key now listens, moved from its middle.'),
-      children: [
-        _toggle(store, 'adaptive_map', 'Show the heatmap on the keyboard', 'Your mistakes and the moved keys, drawn over the letters while this is on.'),
-        SettingRow(label: 'Refresh', onPress: store.refreshAdaptive),
-      ],
-    ),
-    PaneSection(
-      title: 'How it works',
-      children: const [
-        SettingRow(label: 'What it learns from', hint: Text('Backspace and then the letter beside it, and autocorrect putting a neighbouring letter in. Each letter left standing teaches its own key where you aim.')),
-        SettingRow(label: 'How far keys move', hint: Text('A third of a key at most, and only once a letter has 15 touches; a key’s middle is always its own.')),
-        SettingRow(label: 'Never', hint: Text('In password fields or while incognito. It all stays on this phone.')),
-      ],
-    ),
-    PaneSection(children: [
-      SettingRow(label: 'Forget what it learned', onPress: keys == 0 && mistakes == 0 ? null : store.resetAdaptive),
-      SettingRow(label: 'Remove Adaptive keys', onPress: () => store.setPlugin('adaptive', false)),
-    ]),
   ];
 }
 
@@ -948,91 +429,9 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
 
 // --- Updates ------------------------------------------------------------------------------------------------------
 
-List<Widget> _updates(BuildContext context, SettingsStore store) {
-  final u = store.update;
-  final phase = u['phase'] as String? ?? 'idle';
-  final available = u['available'] as String?;
-  final progress = (u['progress'] as num?)?.toDouble();
-  final error = u['error'] as String?;
-  final needsPermission = error == 'needsPermission';
-  final canInstall = phase == 'available' || phase == 'ready';
-  final busy = phase == 'checking' || phase == 'downloading' || phase == 'installing';
-  final line = switch (phase) {
-    'disabled' => 'Updates are off in debug builds.',
-    'checking' => 'Looking for a new version…',
-    'upToDate' => 'You have the latest version.',
-    'available' => 'Version $available is available.',
-    'downloading' => 'Downloading version $available… ${((progress ?? 0) * 100).round()}%',
-    'ready' when needsPermission => 'Allow Ghost Keyboard to install updates, then tap Update.',
-    'ready' => 'Version $available is downloaded and ready.',
-    'installing' => 'Installing version $available…',
-    'failed' => error ?? 'The update did not finish.',
-    _ => 'Updates come from attack.fm.',
-  };
-  return [
-    PaneHero(
-      glyph: AppIcon(Lucide.refreshCw, size: 24),
-      title: 'Ghost Keyboard ${u['current'] ?? ''}',
-      meta: Text(line),
-      status: PaneHeroStatus(phase == 'upToDate' ? 'Up to date' : (busy ? 'Working' : (canInstall ? 'Update ready' : 'Idle')), pulse: busy),
-    ),
-    if (phase == 'downloading') Padding(padding: EdgeInsets.symmetric(horizontal: context.tokens.space(2)), child: GlacierProgressBar(value: (progress ?? 0) * 100, ariaLabel: 'Download')),
-    PaneSection(
-      children: [
-        if (canInstall)
-          SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate)
-        else
-          SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled'),
-        _toggle(store, 'auto_update', 'Automatic updates', 'Look for a new version when the app opens and twice a day, and install it.'),
-      ],
-    ),
-  ];
-}
-
 // --- Developer ----------------------------------------------------------------------------------------------------
 
-List<Widget> _developer(BuildContext context, SettingsStore store) {
-  final u = store.update;
-  return [
-    PaneSection(
-      title: 'This build',
-      children: [
-        SettingRow(label: 'Version', value: Text('${u['current'] ?? '—'}')),
-        SettingRow(label: 'Keyboard', value: Text(store.enabled ? (store.selected ? 'On and in use' : 'On, not in use') : 'Not turned on')),
-        SettingRow(label: 'Plugins', hint: Text(store.plugins.join(', '))),
-        SettingRow(
-          label: 'Copy these details',
-          icon: AppIcon(Lucide.copy, size: 18),
-          onPress: () => Clipboard.setData(ClipboardData(text: 'Ghost Keyboard ${u['current'] ?? ''}\nplugins: ${store.plugins.join(', ')}\nsettings: ${store.settingsJson}')),
-        ),
-      ],
-    ),
-    PaneSection(children: [SettingRow(label: 'Hide developer settings', onPress: () { store.set('developer', false); Navigator.of(context).maybePop(); })]),
-  ];
-}
-
 // --- About --------------------------------------------------------------------------------------------------------
-
-List<Widget> _about(BuildContext context, SettingsStore store) => [
-      PaneHero(glyph: AppIcon(LucideMore.keyboard, size: 24), title: 'Ghost Keyboard', meta: const Text('A keyboard for people who write code')),
-      PaneSection(children: [_VersionRow(store: store)]),
-      PaneSection(
-        children: [
-          SettingRow(label: 'Watch the walkthrough again', icon: AppIcon(LucideMore.rocket, size: 18), onPress: () => openOnboarding(context, store, replay: true)),
-          SettingRow(label: 'Plugins', icon: AppIcon(Lucide.store, size: 18), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
-        ],
-      ),
-      PaneSection(
-        title: 'Made with',
-        children: const [
-          SettingRow(label: 'Glacier', hint: Text('The UI kit, from Ghost.md.')),
-          SettingRow(label: 'whisper.cpp', hint: Text('Speech to text on the phone (MIT).')),
-          SettingRow(label: 'Phosphor Icons', hint: Text('The keyboard’s icons (MIT).')),
-          SettingRow(label: 'Lucide', hint: Text('The icons (ISC).')),
-          SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word list (CC BY-SA 4.0).')),
-        ],
-      ),
-    ];
 
 /// About's version number. Tapped five times in a row it shows Settings › Developer, as Android's build number does.
 class _VersionRow extends StatefulWidget {
@@ -1071,4 +470,439 @@ class _VersionRowState extends State<_VersionRow> {
             },
     );
   }
+}
+
+// --- The simplified pages (2026-11-09: "simplify the settings and minimize what we have") ------------------------
+//
+// Six top pages where there were twenty-two: Typing, Look & feel, Ghostwriter, Row tools, About, and pages only for
+// the plugins that need setting up (Dictation, Password managers, Ghost.md). A page with parts shows its main switches,
+// then its parts as a list like the home list's ("if I click on ghostwriter I see another settings sidebar with the
+// ghostwriter parts"). The plugins every keyboard has (autocorrect, swipe, adaptive keys, the row's buttons,
+// Mockingbird and Ghostwriter) are switches on these pages, not Market items. Each "clear" sits beside what it clears.
+
+/// A plugin as a switch: on adds it, off removes it.
+SettingRow _plugin(SettingsStore store, String id, String label, String hint) => SettingRow(
+      label: label,
+      hint: Text(hint),
+      control: GlacierSwitch(checked: store.pluginOn(id), onCheckedChange: (v) => store.setPlugin(id, v), ariaLabel: label),
+    );
+
+/// Rarely changed settings: a More row that opens them in place, and Fewer to fold them again.
+List<Widget> _more(SettingsStore store, String id, List<Widget> sections) => store.moreOpen.contains(id)
+    ? [...sections, PaneSection(children: [SettingRow(label: 'Fewer settings', onPress: () => store.toggleMore(id))])]
+    : [PaneSection(children: [SettingRow(label: 'More settings', icon: AppIcon(LucideMore.slidersHorizontal, size: 18), onPress: () => store.toggleMore(id))])];
+
+/// A part of a page: a section of its own in the page's list.
+SettingsSection _part(String id, String label, LucideIcon icon, String hue, String Function(SettingsStore) summary, List<Widget> Function(BuildContext, SettingsStore) page) =>
+    SettingsSection(id: id, label: label, icon: _icon(icon), hue: hue, group: 'parts', summary: summary, page: page);
+
+String _typingSummary(SettingsStore s) =>
+    [if (s.pluginOn('autocorrect')) 'Autocorrect', if (s.pluginOn('swipe')) 'swipe', if (s.pluginOn('adaptive')) 'adaptive keys'].join(', ').ifEmptyThen('Plain typing');
+
+String _aiSummary(SettingsStore s) {
+  if (!s.pluginOn('mockingbird') && !s.pluginOn('ghostwriter')) return 'Off';
+  if (s.ai['ready'] != true) return 'Add an AI key';
+  return [if (s.pluginOn('ghostwriter')) '<<requests>>', if (s.pluginOn('mockingbird')) (s.ai['profile'] != null ? 'your style' : 'learning your style')].join(', ');
+}
+
+const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
+
+String _rowSummary(SettingsStore s) {
+  final on = _rowIds.where(s.pluginOn).length;
+  return on == 0 ? 'None' : '$on of ${_rowIds.length} on';
+}
+
+// --- Typing -------------------------------------------------------------------------------------------------------
+
+List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
+      PaneSection(
+        children: [
+          _plugin(store, 'autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'),
+          _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
+          _plugin(store, 'adaptive', 'Adaptive keys', 'Learns where you aim and the keys you slip onto, and moves their edges to fit.'),
+          _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
+          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor'),
+        ],
+      ),
+    ];
+
+List<SettingsSection> _typingParts(SettingsStore store) => [
+      if (store.pluginOn('autocorrect'))
+        _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), _autocorrectPart),
+      if (store.pluginOn('adaptive'))
+        _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys tuned, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+      _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
+    ];
+
+List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
+  final learned = store.learnedWords;
+  return [
+    PaneSection(children: [
+      _toggle(store, 'autocorrect', 'Correct on its own', 'Off: it only suggests.'),
+      _toggle(store, 'suggestions', 'Suggestions above the keys'),
+    ]),
+    PaneSection(
+      title: 'Languages',
+      footer: const Text('They work together, so a message can mix them.'),
+      children: [
+        for (final e in autocorrectLanguages.entries)
+          SettingRow(label: e.value, control: GlacierSwitch(checked: store.languages.contains(e.key), onCheckedChange: (v) => store.setLanguage(e.key, v), ariaLabel: e.value)),
+      ],
+    ),
+    PaneSection(
+      title: 'Learned words',
+      footer: const Text('Words it leaves alone. Undoing a fix adds the word here; tap one to forget it.'),
+      children: [
+        SettingRowBox(child: GlacierInput(key: ValueKey('learn-${learned.length}'), placeholder: 'Add a word', ariaLabel: 'Add a learned word', onSubmitted: (text) => store.setLearned(text, true))),
+        for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
+      ],
+    ),
+  ];
+}
+
+List<Widget> _adaptivePart(BuildContext context, SettingsStore store) {
+  final a = store.adaptive;
+  final keys = a['keys'] as int? ?? 0;
+  final slips = a['mistakes'] as int? ?? 0;
+  final common = [for (final c in (a['common'] as List? ?? const [])) '$c'];
+  return [
+    PaneSection(
+      footer: Text(slips == 0 ? 'Type as usual: each letter needs about 15 touches before its edges move, never more than a third of a key.' : 'Most often: ${common.join(', ')}. Try it in the field below.'),
+      children: [
+        _toggle(store, 'adaptive_map', 'Show the heatmap on the keyboard', 'Red glows are your slips; a dot on a line is where a key now listens.'),
+        SettingRow(label: 'Learned so far', value: Text('$keys keys, $slips slips')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Forget what it learned', onPress: keys == 0 && slips == 0 ? null : store.resetAdaptive)]),
+  ];
+}
+
+List<Widget> _typingMorePart(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [
+        _toggle(store, 'double_space_period', 'Double space types a full stop'),
+        _choice(store, 'long_press', 'Long-press delay', const {'fast': 'Fast', 'normal': 'Normal', 'slow': 'Slow'}),
+      ]),
+      PaneSection(
+        title: 'The { } key',
+        footer: const Text('Pairs leave the cursor inside; long-press a key on the { } page for its compounds (== !== => ->…).'),
+        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Beside space'))],
+      ),
+    ];
+
+// --- Look & feel --------------------------------------------------------------------------------------------------
+
+List<Widget> _lookPage(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [
+        _choice(store, 'theme', 'Light or dark', const {'system': 'System', 'light': 'Light', 'dark': 'Dark'}),
+        _choice(store, 'key_height', 'Key height', const {'short': 'Short', 'normal': 'Normal', 'tall': 'Tall'}),
+      ]),
+    ];
+
+List<SettingsSection> _lookParts(SettingsStore store) => [
+      _part('colours', 'Colours', Lucide.palette, 'magenta', (s) => s.pluginOn('themes') ? (s.choice('theme_preset') == 'custom' ? 'Your own' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost')) : 'Standard', (context, store) => [ThemeEditor(store: store)]),
+      _part('backlight', 'Backlight', Lucide.sparkles, 'purple', (s) => s.flag('backlight') ? (backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? 'On') : 'Off', _backlight),
+      _part('keys', 'Keys', LucideMore.keyboard, 'indigo', (s) => [if (s.flag('number_row')) 'Number row', if (s.flag('split_keyboard')) 'split when wide', if (s.flag('hints')) 'hints'].join(', ').ifEmptyThen('Plain'), _keysPart),
+      _part('keypress', 'Key press & sound', Lucide.volume2, 'amber', (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('sound')) (stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'sound')].join(', ').ifEmptyThen('Silent'), _keyPressPart),
+    ];
+
+List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [
+        _toggle(store, 'number_row', 'Number row'),
+        _toggle(store, 'split_keyboard', 'Split on wide screens', 'Unfolded or on a tablet: two halves, a phone’s key size each.'),
+        _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
+        _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
+        _toggle(store, 'key_borders', 'Key borders'),
+        _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
+      ]),
+    ];
+
+List<Widget> _keyPressPart(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [
+        _toggle(store, 'vibrate', 'Vibrate'),
+        if (store.flag('vibrate')) _choice(store, 'haptics', 'Strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
+        _toggle(store, 'sound', 'Sound'),
+      ]),
+      if (store.flag('sound'))
+        PaneSection(
+          title: 'Sound',
+          footer: const Text('Tap one to hear it.'),
+          children: [
+            for (final (id, name) in stockSounds)
+              SettingRow(
+                label: name,
+                icon: store.choice('stock_sound') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+                onPress: () async {
+                  await store.set('stock_sound', id);
+                  if (id != 'system') store.sampleSound(id);
+                },
+              ),
+          ],
+        ),
+      if (store.flag('sound')) PaneSection(children: [_volume(store)]),
+    ];
+
+// --- Ghostwriter --------------------------------------------------------------------------------------------------
+
+List<Widget> _aiPage(BuildContext context, SettingsStore store) {
+  final mb = store.pluginOn('mockingbird');
+  final gw = store.pluginOn('ghostwriter');
+  final ready = store.ai['ready'] == true;
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
+      title: !mb && !gw ? 'Ghostwriter' : (ready ? 'Ready' : 'Add an AI key'),
+      meta: const Text('Learns how you write, writes <<what you ask for>> in any app, and rewrites a selection In my voice. Your own key, straight to the provider.'),
+      status: PaneHeroStatus(!mb && !gw ? 'Off' : (ready ? 'On' : 'Waiting')),
+    ),
+    PaneSection(children: [
+      _plugin(store, 'ghostwriter', 'Fill <<requests>>', 'Type <<what you want>> anywhere; close it with >> or press enter, and the AI writes it as you.'),
+      _plugin(store, 'mockingbird', 'Learn my style', 'Keeps samples of what you type, on this phone, and trains a profile of how you write.'),
+    ]),
+  ];
+}
+
+List<SettingsSection> _aiParts(SettingsStore store) {
+  final mb = store.pluginOn('mockingbird');
+  final gw = store.pluginOn('ghostwriter');
+  return [
+    if (mb || gw) _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', (context, store) => _aiSetup(store)),
+    if (mb) _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
+    if (gw) _part('ai-filling', 'Filling', LucideMore.textCursorInput, 'indigo', (s) => [s.flag('ghostwriter_auto') ? 'On >>' : 'On Fill', if (s.flag('ghostwriter_typing')) 'typed out'].join(', '), _fillingPart),
+    if (gw) _part('ai-sources', 'What it can read', Lucide.globe, 'cyan', _sourcesSummary, _sourcesPart),
+    _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
+  ];
+}
+
+String _providerName(SettingsStore s) {
+  final id = s.choice('ai_provider');
+  return [for (final p in (s.ai['providers'] as List? ?? const [])) if (p is Map && p['id'] == id) p['name'] as String].firstOrNull ?? 'Claude';
+}
+
+String _modelOf(SettingsStore s) {
+  final id = s.choice('ai_provider');
+  final own = s.text('ai_model_$id');
+  if (own.isNotEmpty) return own;
+  return [for (final p in (s.ai['providers'] as List? ?? const [])) if (p is Map && p['id'] == id) p['defaultModel'] as String].firstOrNull ?? '';
+}
+
+String _sourcesSummary(SettingsStore s) => [
+      if (s.flag('ghostwriter_memory') && s.pluginOn('mockingbird')) 'messages',
+      if (s.flag('ghostwriter_notes')) 'notes',
+      if (s.flag('ghostwriter_github') && s.text('github_token').isNotEmpty) 'GitHub',
+      if (s.flag('ghostwriter_web')) 'the web',
+      if (s.flag('ghostwriter_clipboard') && s.pluginOn('clipboard')) 'clipboard',
+    ].join(', ').ifEmptyThen('Only the field');
+
+List<Widget> _stylePart(BuildContext context, SettingsStore store) {
+  final ai = store.ai;
+  final profile = ai['profile'] is Map ? ai['profile'] as Map : null;
+  final samples = ai['samples'] as int? ?? 0;
+  final training = ai['training'] == true || store.aiBusy;
+  return [
+    PaneSection(
+      footer: Text(profile != null ? 'Trained ${_when(profile['at'])} from ${profile['samples']} samples by ${profile['provider']}. $samples kept now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.' : '$samples kept so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains itself at about 50.'),
+      children: [
+        SettingRow(label: training ? 'Training…' : 'Train now', onPress: training || samples < 10 ? null : store.trainMockingbird),
+        if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
+        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito.'),
+        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples.'),
+      ],
+    ),
+    if (profile != null)
+      PaneSection(title: 'Your style profile', footer: const Text('What the AI is told about how you write: style only, no private facts.'), children: [SettingRowBox(child: Text(profile['text'] as String? ?? ''))]),
+    PaneSection(children: [SettingRow(label: 'Delete samples and profile', onPress: samples == 0 && profile == null ? null : store.clearMockingbird)]),
+  ];
+}
+
+List<Widget> _fillingPart(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [
+        _toggle(store, 'ghostwriter_auto', 'Fill as soon as I type >>', 'Off: tap Fill, or press enter, on a request.'),
+        _toggle(store, 'ghostwriter_typing', 'Type the answer out', 'Keys press, light and sound as it types. Off: it appears at once.'),
+      ]),
+      PaneSection(
+        title: 'How it works',
+        children: const [
+          SettingRow(label: '<<engineering standup tldr>>', hint: Text('Something to write: it writes it, as you.')),
+          SettingRow(label: '<<why do the metrics not fire on signup>>', hint: Text('A question: it answers from what it can read. Facts it can’t find become [blanks].')),
+          SettingRow(label: 'Never', hint: Text('In password fields or while incognito.')),
+        ],
+      ),
+    ];
+
+List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
+  final mb = store.pluginOn('mockingbird');
+  return [
+    PaneSection(children: [
+      _toggle(store, 'ghostwriter_memory', 'My past messages', mb ? 'Your samples that share the request’s words.' : 'Needs Learn my style.'),
+      _toggle(store, 'ghostwriter_web', 'The web', const {'anthropic', 'openai', 'gemini', 'openrouter'}.contains(store.choice('ai_provider')) ? 'Public facts, with your provider’s own search.' : 'Your provider has no web search.'),
+      _toggle(store, 'ghostwriter_clipboard', 'My recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies.' : 'Needs Clipboard history in Row tools.'),
+    ]),
+    PaneSection(
+      title: 'Ghost.md notes',
+      footer: const Text('Ghost.md on this phone is asked first, with nothing going online (it can be turned off in Ghost.md, Settings › AI › Ghost Keyboard). Signed in, notes are also searched online when the phone has none that match.'),
+      children: [
+        _toggle(store, 'ghostwriter_notes', 'Search my notes', store.ai['ghostInstalled'] == true ? 'Ghost.md is on this phone.' : 'Ghost.md isn’t on this phone.'),
+        if (store.ai['ghostOnline'] == true)
+          SettingRow(label: 'Online: signed in', value: const Text('Sign out'), onPress: store.aiBusy ? null : store.ghostSignOut)
+        else
+          SettingRow(label: 'Sign in to search online', hint: const Text('In your browser; your password stays on Ghost.md’s page.'), onPress: store.aiBusy ? null : store.ghostSignIn),
+        if (store.ghostMessage != null) SettingRow(label: store.ghostMessage!),
+      ],
+    ),
+    PaneSection(
+      title: 'GitHub commits',
+      footer: const Text('A classic token with the repo scope, or a fine-grained one with Contents: read, from github.com/settings/tokens. Kept on your phone.'),
+      children: [
+        _toggle(store, 'ghostwriter_github', 'Search my commits', 'Messages that match the request, from your repositories and organizations.'),
+        SettingRowBox(
+          child: GlacierInput(
+            key: const ValueKey('github-token'),
+            type: GlacierInputType.password,
+            defaultValue: store.text('github_token'),
+            placeholder: 'Paste a GitHub token',
+            ariaLabel: 'GitHub token',
+            autoCorrect: false,
+            onChange: (text) => store.set('github_token', text.trim()),
+          ),
+        ),
+        SettingRow(label: store.aiBusy ? 'Checking…' : 'Check the token', onPress: store.aiBusy ? null : store.checkGithub),
+        if (store.githubMessage != null) SettingRow(label: store.githubMessage!),
+      ],
+    ),
+  ];
+}
+
+List<Widget> _profilePart(BuildContext context, SettingsStore store) => [
+      PaneSection(
+        footer: const Text('One open file (ghost-typing-profile, docs/typing-profile.md in the GhostKbd repository) for your key aims, slips, words and writing style. Other apps and AI models read it to build reports and write one back; open or share a .json profile with Ghost Keyboard to bring it in.'),
+        children: [
+          SettingRow(label: 'Import a typing profile…', onPress: store.importProfile),
+          if (store.profileError != null) SettingRow(label: store.profileError!),
+          for (final line in store.profileLines) SettingRow(label: line),
+          if (store.profileSource != null && store.profileLines.isNotEmpty) SettingRow(label: 'From ${store.profileSource}'),
+        ],
+      ),
+      if (store.profileReport != null) PaneSection(title: 'Its report', children: [SettingRowBox(child: Text(store.profileReport!))]),
+      PaneSection(
+        title: 'Export',
+        footer: const Text('Saved where you choose; nothing is uploaded.'),
+        children: [
+          SettingRow(
+            label: 'Include my message samples',
+            hint: const Text('Leave off unless you trust where the file goes.'),
+            control: GlacierSwitch(checked: store.profileSamples, onCheckedChange: store.setProfileSamples, ariaLabel: 'Include my message samples'),
+          ),
+          SettingRow(label: 'Export my typing profile…', onPress: store.exportProfile),
+        ],
+      ),
+    ];
+
+// --- Row tools ----------------------------------------------------------------------------------------------------
+
+List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
+  final own = store.choice('giphy_key');
+  return [
+    PaneSection(
+      footer: const Text('Buttons in the row above the keys, whenever you aren’t mid-word.'),
+      children: [
+        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.'),
+        _plugin(store, 'undo', 'Undo and redo', 'Back and forward arrows.'),
+        _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.'),
+        _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.'),
+        _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.'),
+        if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app'),
+        _plugin(store, 'terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows, in terminal apps.'),
+        if (store.pluginOn('terminal')) _toggle(store, 'terminal_everywhere', 'Terminal keys in every app'),
+        _plugin(store, 'incognito', 'Incognito switch', 'Type without the keyboard learning or keeping anything.'),
+      ],
+    ),
+    if (store.pluginOn('emoji'))
+      PaneSection(
+        title: 'Emoji',
+        children: [
+          _choice(store, 'emoji_skin', 'Skin tone', const {'0': '✋', '1': '✋🏻', '2': '✋🏼', '3': '✋🏽', '4': '✋🏾', '5': '✋🏿'}),
+          _toggle(store, 'emoji_suggest', 'Emoji for the word you type'),
+        ],
+      ),
+    if (store.pluginOn('clipboard')) PaneSection(children: [SettingRow(label: 'Clear clipboard history', value: Text('${store.clipCount} saved'), onPress: store.clipCount == 0 ? null : store.clearClipboard)]),
+    if (store.pluginOn('gifs'))
+      ..._more(store, 'rowtools', [
+        PaneSection(
+          title: 'GIPHY key',
+          footer: const Text('Only if the GIF panel asks for one: paste a key from developers.giphy.com and press enter.'),
+          children: [SettingRowBox(child: GlacierInput(key: ValueKey('giphy-$own'), defaultValue: own, placeholder: 'Your GIPHY API key (optional)', ariaLabel: 'GIPHY API key', onSubmitted: (text) => store.set('giphy_key', text.trim())))],
+        ),
+      ]),
+  ];
+}
+
+// --- About --------------------------------------------------------------------------------------------------------
+
+List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
+  final u = store.update;
+  final phase = u['phase'] as String? ?? 'idle';
+  final available = u['available'] as String?;
+  final progress = (u['progress'] as num?)?.toDouble();
+  final error = u['error'] as String?;
+  final needsPermission = error == 'needsPermission';
+  final canInstall = phase == 'available' || phase == 'ready';
+  final busy = phase == 'checking' || phase == 'downloading' || phase == 'installing';
+  final line = switch (phase) {
+    'disabled' => 'Updates are off in debug builds.',
+    'checking' => 'Looking for a new version…',
+    'upToDate' => 'You have the latest version.',
+    'available' => 'Version $available is available.',
+    'downloading' => 'Downloading version $available… ${((progress ?? 0) * 100).round()}%',
+    'ready' when needsPermission => 'Allow Ghost Keyboard to install updates, then tap Update.',
+    'ready' => 'Version $available is downloaded and ready.',
+    'installing' => 'Installing version $available…',
+    'failed' => error ?? 'The update did not finish.',
+    _ => 'Updates come from attack.fm.',
+  };
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.keyboard, size: 24),
+      title: 'Ghost Keyboard ${u['current'] ?? ''}',
+      meta: Text(line),
+      status: PaneHeroStatus(phase == 'upToDate' ? 'Up to date' : (busy ? 'Working' : (canInstall ? 'Update ready' : 'A keyboard for people who write code')), pulse: busy),
+    ),
+    if (phase == 'downloading') Padding(padding: EdgeInsets.symmetric(horizontal: context.tokens.space(2)), child: GlacierProgressBar(value: (progress ?? 0) * 100, ariaLabel: 'Download')),
+    PaneSection(
+      title: 'Updates',
+      children: [
+        if (canInstall)
+          SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate)
+        else
+          SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled'),
+        _toggle(store, 'auto_update', 'Update by itself', 'When the app opens and twice a day.'),
+      ],
+    ),
+    PaneSection(children: [
+      _VersionRow(store: store),
+      SettingRow(label: 'Watch the walkthrough again', icon: AppIcon(LucideMore.rocket, size: 18), onPress: () => openOnboarding(context, store, replay: true)),
+    ]),
+    if (store.flag('developer'))
+      PaneSection(
+        title: 'Developer',
+        children: [
+          SettingRow(label: 'Keyboard', value: Text(store.enabled ? (store.selected ? 'On and in use' : 'On, not in use') : 'Not turned on')),
+          SettingRow(label: 'Plugins', hint: Text(store.plugins.join(', '))),
+          SettingRow(
+            label: 'Copy these details',
+            icon: AppIcon(Lucide.copy, size: 18),
+            onPress: () => Clipboard.setData(ClipboardData(text: 'Ghost Keyboard ${u['current'] ?? ''}\nplugins: ${store.plugins.join(', ')}\nsettings: ${store.settingsJson}')),
+          ),
+          SettingRow(label: 'Hide developer settings', onPress: () => store.set('developer', false)),
+        ],
+      ),
+    PaneSection(
+      title: 'Made with',
+      children: const [
+        SettingRow(label: 'Glacier', hint: Text('The UI kit, from Ghost.md.')),
+        SettingRow(label: 'whisper.cpp', hint: Text('Speech to text on the phone (MIT).')),
+        SettingRow(label: 'Phosphor Icons and Lucide', hint: Text('The icons (MIT, ISC).')),
+        SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word list (CC BY-SA 4.0).')),
+      ],
+    ),
+  ];
 }

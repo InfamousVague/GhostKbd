@@ -287,6 +287,14 @@ class SettingsStore extends ChangeNotifier {
         aiMessage = error ?? 'Trained. Your style profile is below.';
       });
 
+  /// The pages' More folds that are open (panes.dart `_more`), for this visit to Settings.
+  final Set<String> moreOpen = {};
+
+  void toggleMore(String id) {
+    if (!moreOpen.remove(id)) moreOpen.add(id);
+    notifyListeners();
+  }
+
   /// Typing profiles (TypingProfile.kt, docs/typing-profile.md): what the last import or export said.
   List<String> profileLines = const [];
   String? profileReport;

@@ -41,8 +41,8 @@ class ThemeEditor extends StatelessWidget {
                   minWidth: 140,
                   most: 3,
                   children: [
-                    for (final (id, name, colours) in themePresets) _ThemeCard(name: name, colours: colours, selected: chosen == id, onPress: () => store.set('theme_preset', id)),
-                    _ThemeCard(name: 'Your own', colours: own, selected: chosen == 'custom', onPress: () => store.set('theme_preset', 'custom')),
+                    for (final (id, name, colours) in themePresets) _ThemeCard(name: name, colours: colours, selected: chosen == id, onPress: () { store.set('theme_preset', id); store.setPlugin('themes', true); }),
+                    _ThemeCard(name: 'Your own', colours: own, selected: chosen == 'custom', onPress: () { store.set('theme_preset', 'custom'); store.setPlugin('themes', true); }),
                   ],
               ),
             ),
@@ -113,6 +113,7 @@ void _apply(SettingsStore store, {String? tint, String? accent, String? mode}) {
   );
   store.set('custom_theme', colours.map(_hex).join(','));
   store.set('theme_preset', 'custom');
+  store.setPlugin('themes', true);
 }
 
 Color? _parseColour(String text) {

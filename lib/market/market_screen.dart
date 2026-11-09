@@ -56,9 +56,9 @@ class _MarketScreenState extends State<MarketScreen> {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
-        final featured = catalogue.where((p) => p.soon == null).toList();
-        final shown = catalogue.where((p) => _filter == null || p.category == _filter).toList();
-        final categories = {for (final p in catalogue) p.category}.toList();
+        final featured = marketCatalogue.where((p) => p.soon == null).toList();
+        final shown = marketCatalogue.where((p) => _filter == null || p.category == _filter).toList();
+        final categories = {for (final p in marketCatalogue) p.category}.toList();
         return SettingsPage(
           title: 'Plugins',
           child: Column(
@@ -86,7 +86,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 ],
               ),
               SizedBox(height: t.space(6)),
-              MarketHeading(title: 'All plugins', meta: '${catalogue.length} · ${store.plugins.length} added', icon: LucideMore.slidersHorizontal),
+              MarketHeading(title: 'All plugins', meta: '${marketCatalogue.length} · ${marketCatalogue.where((p) => store.pluginOn(p.id)).length} added', icon: LucideMore.slidersHorizontal),
               Wrap(
                 spacing: t.space(2),
                 runSpacing: t.space(2),

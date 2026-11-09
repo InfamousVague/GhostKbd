@@ -364,6 +364,15 @@ const List<(String, String)> stockSounds = [
 ];
 
 
+/// Plugins that are part of every keyboard, switched on Settings' own pages (Typing, Look & feel, AI, Row tools)
+/// rather than offered in the Market.
+const Set<String> builtInPlugins = {
+  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito', 'mockingbird', 'ghostwriter',
+};
+
+/// What the Market offers: the add-ons that need setting up of their own.
+List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p];
+
 PluginManifest? pluginById(String id) {
   for (final plugin in catalogue) {
     if (plugin.id == id) return plugin;

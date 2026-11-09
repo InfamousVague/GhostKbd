@@ -91,7 +91,7 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
     final id = store.openRequests.value;
     if (id == null || !mounted) return;
     store.openRequests.value = null;
-    final section = settingsSections(store).where((s) => s.id == id).firstOrNull;
+    final section = everySection(settingsSections(store), store).where((s) => s.id == id).firstOrNull;
     if (section == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) pushSettings(context, (_) => SectionPage(section: section, store: store));

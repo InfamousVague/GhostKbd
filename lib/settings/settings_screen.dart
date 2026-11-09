@@ -15,7 +15,7 @@ import 'kit/settings_type.dart';
 /// One section: a row on the list and the page it opens.
 @immutable
 class SettingsSection {
-  const SettingsSection({required this.id, required this.label, required this.icon, required this.hue, required this.group, required this.page, this.summary, this.screen});
+  const SettingsSection({required this.id, required this.label, required this.icon, required this.hue, required this.group, required this.page, this.summary, this.screen, this.parts});
 
   final String id;
   final String label;
@@ -35,7 +35,15 @@ class SettingsSection {
 
   /// A screen of its own in place of a page of cards: the Market.
   final WidgetBuilder? screen;
+
+  /// Its parts, each a section of its own: listed under the page's own cards, as the home list lists sections, and
+  /// opening their pages (Ghostwriter's Your AI, Your style, What it can read…).
+  final List<SettingsSection> Function(SettingsStore store)? parts;
 }
+
+/// Every section and every part of one, for opening any of them by id.
+Iterable<SettingsSection> everySection(List<SettingsSection> sections, SettingsStore store) =>
+    sections.expand((s) => [s, ...everySection(s.parts?.call(store) ?? const [], store)]);
 
 /// The page every section and the Market stand on: the ground, the bar with the way back and the title, and the
 /// content scrolling under it.
@@ -144,7 +152,14 @@ class SectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: store,
-        builder: (context, _) => SettingsPage(title: section.label, hue: section.hue, child: PaneBody(children: section.page(context, store))),
+        builder: (context, _) => SettingsPage(
+          title: section.label,
+          hue: section.hue,
+          child: PaneBody(children: [
+            ...section.page(context, store),
+            if (section.parts != null) SettingsList(store: store, sections: section.parts!(store)),
+          ]),
+        ),
       );
 }
 
