@@ -115,10 +115,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var popupKeys = ""
         set(value) { if (field != value) { field = value; Layouts.custom = Layouts.parseCustom(value); rebuild(); invalidate() } }
 
-    /** Swipe typing's trail colours (SwipeTrail) and effect: fade, glow, neon, comet, sparkle. */
-    var swipeTrail = "theme"
-    var swipeEffect = "fade"
-
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
     var swipeTyping = false
 
@@ -326,65 +322,37 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     }
 
     /**
-     * Swipe typing's trail: the finger's path, in the trail's colours (a gradient from its tail to the finger) and
-     * with its effect: fade, glow, neon, comet or sparkle. [fade] (1 to 0) dims it as it lingers after a lift.
+     * Swipe typing's trail: the finger's path as one smooth stroke (quadratic curves through the midpoints of its
+     * points), in the accent, fading toward where it started. One path stroked once, so no joins or overlapping caps
+     * show. [fade] (1 to 0) dims it as it lingers after a lift.
      */
     private fun drawSwipe(canvas: Canvas, points: List<PointF>, fade: Float = 1f) {
         if (points.size < 2) return
-        val colours = SwipeTrail.colours(swipeTrail, theme)
-        val effect = swipeEffect
-        stroke.strokeCap = Paint.Cap.ROUND
-        val span = if (effect == "comet") 60 else 120
-        val from = maxOf(1, points.size - span)
-        val n = (points.size - from).toFloat()
-        fun pass(width: (Float) -> Float, alpha: (Float) -> Float, colour: ((Float) -> Int)? = null) {
-            for (i in from until points.size) {
-                val f = (i - from + 1f) / n
-                stroke.color = colour?.invoke(f) ?: SwipeTrail.at(colours, f)
-                stroke.alpha = (alpha(f) * fade * 255).toInt().coerceIn(0, 255)
-                stroke.strokeWidth = width(f)
-                canvas.drawLine(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, stroke)
-            }
+        val from = maxOf(0, points.size - 160)
+        val tail = points[from]
+        val head = points.last()
+        trail.reset()
+        trail.moveTo(tail.x, tail.y)
+        for (i in from + 1 until points.size) {
+            val p = points[i - 1]; val q = points[i]
+            trail.quadTo(p.x, p.y, (p.x + q.x) / 2f, (p.y + q.y) / 2f)
         }
-        when (effect) {
-            "glow" -> {
-                pass({ dp(14f + 8f * it) }, { 0.10f * it })
-                pass({ dp(8f + 4f * it) }, { 0.22f * it })
-                pass({ dp(3f + 2.5f * it) }, { 0.5f + 0.5f * it })
-            }
-            "neon" -> {
-                pass({ dp(12f) }, { 0.16f * it })
-                pass({ dp(6f) }, { 0.45f * it })
-                pass({ dp(2f) }, { 0.6f + 0.4f * it }, { 0xFFFFFFFF.toInt() })
-            }
-            "comet" -> {
-                pass({ dp(1f + 13f * it * it) }, { 0.15f + 0.85f * it })
-                val head = points.last()
-                fill.color = SwipeTrail.at(colours, 1f)
-                fill.alpha = (fade * 90).toInt()
-                canvas.drawCircle(head.x, head.y, dp(14f), fill)
-                fill.alpha = 255
-            }
-            "sparkle" -> {
-                pass({ dp(2.5f + 3f * it) }, { 0.35f + 0.65f * it })
-                // A scatter of twinkling stars along the recent path, each placed and timed by its point's index.
-                val now = android.os.SystemClock.uptimeMillis()
-                for (i in from until points.size step 3) {
-                    val f = (i - from + 1f) / n
-                    val seed = i * 2654435761L
-                    val ox = ((seed shr 3) % 21 - 10).toFloat()
-                    val oy = ((seed shr 9) % 21 - 10).toFloat()
-                    val twinkle = 0.5f + 0.5f * sin((now / 90.0 + i).toFloat())
-                    fill.color = if (i % 2 == 0) 0xFFFFFFFF.toInt() else SwipeTrail.at(colours, f)
-                    fill.alpha = (f * twinkle * fade * 255).toInt().coerceIn(0, 255)
-                    canvas.drawCircle(points[i].x + dp(ox), points[i].y + dp(oy), dp(1f + 1.6f * f * twinkle), fill)
-                }
-                fill.alpha = 255
-                if (fade >= 1f) postInvalidateOnAnimation()
-            }
-            else -> pass({ dp(2.5f + 3.5f * it) }, { 0.35f + 0.65f * it })
-        }
-        stroke.alpha = 255
+        trail.lineTo(head.x, head.y)
+        val accent = theme.accent and 0x00FFFFFF
+        val strong = ((fade * 235).toInt().coerceIn(0, 255) shl 24) or accent
+        val faint = ((fade * 40).toInt().coerceIn(0, 255) shl 24) or accent
+        trailPaint.strokeWidth = dp(5f)
+        trailPaint.shader = if (kotlin.math.hypot(head.x - tail.x, head.y - tail.y) < dp(4f)) null
+            else android.graphics.LinearGradient(tail.x, tail.y, head.x, head.y, faint, strong, android.graphics.Shader.TileMode.CLAMP)
+        trailPaint.color = strong
+        canvas.drawPath(trail, trailPaint)
+    }
+
+    private val trail = Path()
+    private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
     }
 
     /** The last swipe's path, fading out for a moment after the finger lifts. */
@@ -842,6 +810,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 val t = touch ?: return true
                 val i = event.findPointerIndex(t.pointerId)
                 if (i < 0) return true
+                // A swipe takes the points Android batched between frames too, so its trail follows the finger closely.
+                t.swipe?.let { path -> for (h in 0 until event.historySize) addSwipePoint(path, event.getHistoricalX(i, h), event.getHistoricalY(i, h)) }
                 move(t, event.getX(i), event.getY(i))
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
@@ -885,7 +855,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 }
             }
             KeyType.CHAR -> {
-                t.swipe?.let { it.add(PointF(x, y)); invalidate(); return }
+                t.swipe?.let { addSwipePoint(it, x, y); invalidate(); return }
                 // Swipe typing: a slide of most of a key's width from a letter starts spelling a word.
                 if (swipeTyping && page == Page.LETTERS && t.panel == null && t.firstKey.text.length == 1 && t.firstKey.text[0].isLetter() &&
                     kotlin.math.hypot(x - t.downX, y - t.downY) > t.rect.width() * 0.9f
@@ -910,6 +880,13 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             }
             else -> Unit
         }
+    }
+
+    /** A point on a swipe's path, unless it is within a hair of the last (jitter that would kink the curve). */
+    private fun addSwipePoint(path: ArrayList<PointF>, x: Float, y: Float) {
+        val last = path.lastOrNull()
+        if (last != null && kotlin.math.hypot(x - last.x, y - last.y) < dp(1.5f)) return
+        path.add(PointF(x, y))
     }
 
     private fun onLongPress(t: Touch) {

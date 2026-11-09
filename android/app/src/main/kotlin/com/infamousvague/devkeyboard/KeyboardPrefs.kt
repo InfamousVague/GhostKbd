@@ -34,14 +34,10 @@ class KeyboardPrefs(context: Context) {
     /** The person's own long-press keys: "a=á à â" a line (Layouts.parseCustom). */
     val popupKeys: String get() = prefs.getString(POPUP_KEYS, "")!!
 
-    /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
-    /** Swipe typing's trail (Themes › Swipe trail): its colours (a SwipeTrail preset, "theme" the accent) and effect. */
     /** The plugin row's icon pack (RowIcons.PACKS). */
     val iconPack: String get() = prefs.getString(ICON_PACK, "lucide")!!
 
-    val swipeTrail: String get() = prefs.getString(SWIPE_TRAIL, "theme")!!
-    val swipeEffect: String get() = prefs.getString(SWIPE_EFFECT, "fade")!!
-
+    /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
     val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
     val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
 
@@ -131,9 +127,7 @@ class KeyboardPrefs(context: Context) {
         const val GIPHY_KEY = "giphy_key"
         const val POPUP_KEYS = "popup_keys"
         const val WHISPER_MODEL = "whisper_model"
-        const val SWIPE_TRAIL = "swipe_trail"
         const val ICON_PACK = "icon_pack"
-        const val SWIPE_EFFECT = "swipe_effect"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -164,9 +158,7 @@ class KeyboardPrefs(context: Context) {
             GIPHY_KEY to "",
             POPUP_KEYS to "",
             WHISPER_MODEL to "base.en",
-            SWIPE_TRAIL to "theme",
             ICON_PACK to "lucide",
-            SWIPE_EFFECT to "fade",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#7CC4FA",
             "theme_accent" to "",

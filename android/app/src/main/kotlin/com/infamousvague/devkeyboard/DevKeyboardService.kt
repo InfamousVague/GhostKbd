@@ -173,10 +173,6 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.popupKeys = prefs.popupKeys
-        // The trail's own colours need the themes plugin too; without it the trail takes the theme's accent.
-        val themed = Plugins.isOn(prefs, Plugins.THEMES)
-        view.swipeTrail = if (themed) prefs.swipeTrail else "theme"
-        view.swipeEffect = if (themed) prefs.swipeEffect else "fade"
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
