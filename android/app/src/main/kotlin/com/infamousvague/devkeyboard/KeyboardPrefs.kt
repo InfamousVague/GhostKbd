@@ -97,6 +97,21 @@ class KeyboardPrefs(context: Context) {
     /** Ghostwriter searches Ghost.md's notes: Ghost.md on this phone, else the online connector once signed in. */
     val ghostwriterNotes: Boolean get() = bool(GHOSTWRITER_NOTES)
 
+    /**
+     * Swipe typing, the clipboard, undo and redo and emoji joined autocorrect as plugins on by default (0.8.5, Matt:
+     * "enable clipboard manager and undo and redo in the default settings as well as swipe texting and emoji"). A
+     * keyboard that already had its own list gets them added once; removed after that, they stay removed.
+     */
+    fun addNewDefaults() {
+        if (prefs.getBoolean("defaults_085", false)) return
+        if (prefs.contains(PLUGINS)) {
+            val now = plugins.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            val next = (now + listOf("swipe", "clipboard", "undo", "emoji")).distinct()
+            prefs.edit().putString(PLUGINS, Plugins.ALL.filter { it in next }.joinToString(",")).apply()
+        }
+        prefs.edit().putBoolean("defaults_085", true).apply()
+    }
+
     /** The added plugins' ids, comma-separated (Plugins.kt). */
     val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
 
@@ -246,7 +261,7 @@ class KeyboardPrefs(context: Context) {
             "theme_accent" to "",
             "theme_mode" to "dark",
             LEARNED_WORDS to "",
-            PLUGINS to "autocorrect",
+            PLUGINS to "autocorrect,swipe,clipboard,undo,emoji",
             THEME_PRESET to "ghost",
             CUSTOM_THEME to "#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED",
             ONBOARDED to false,

@@ -5,7 +5,7 @@ package com.infamousvague.devkeyboard
  * model (its lib/plugins/types.dart). Which are added is one setting, [KeyboardPrefs.PLUGINS], a comma-separated list
  * of ids the settings app writes and the keyboard reads; each plugin's own settings are keys of their own.
  *
- * - `autocorrect` (Autocorrect.kt): fixes a misspelled word as it is finished. Added by default.
+ * - `autocorrect` (Autocorrect.kt): fixes a misspelled word as it is finished. On by default, with swipe, clipboard, undo and emoji.
  * - `dictation` (Dictation.kt, Whisper.kt, WhisperModel.kt): whisper.cpp speech to text on the phone, from a mic
  *   key beside the space bar. Adding it downloads its model and asks for the microphone.
  * - `themes` (KeyboardTheme.kt): preset colour themes, and one of the person's own.

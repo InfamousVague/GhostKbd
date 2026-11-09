@@ -60,7 +60,7 @@ class SettingsStore extends ChangeNotifier {
     'terminal_everywhere': false,
     'sound_volume': '35',
     'stock_sound': 'bamboo',
-    'plugins': 'autocorrect',
+    'plugins': 'autocorrect,swipe,clipboard,undo,emoji',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,

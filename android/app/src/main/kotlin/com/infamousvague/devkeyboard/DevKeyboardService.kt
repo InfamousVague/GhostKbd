@@ -113,6 +113,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onCreate() {
         super.onCreate()
         prefs = KeyboardPrefs(this)
+        prefs.addNewDefaults()
         prefs.prefs.registerOnSharedPreferenceChangeListener(this)
         autocorrect = Autocorrect(this)
         autocorrect.setLanguages(prefs.languages)

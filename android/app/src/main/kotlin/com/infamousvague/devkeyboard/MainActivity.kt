@@ -93,6 +93,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Updater.addListener(onUpdate)
+        KeyboardPrefs(this).addNewDefaults()
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         openAt = intent?.getStringExtra(EXTRA_OPEN)
