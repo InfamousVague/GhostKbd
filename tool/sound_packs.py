@@ -76,6 +76,15 @@ SOUNDS = {
 }
 # The arcade and bubble packs are sounds rather than keys; the thock is asked for by its sound, not a click.
 SPECIAL = {
+    # v2: v1 came out "garbly" (Matt): several little hits and a rattle in each. Asked for one clean impact.
+    'marble': {
+        'key1': 'one single clean tap of a glass marble on a polished stone tile, one impact only, deep and glassy, no bounce, no rattle, close mic, dry, isolated',
+        'key2': 'a single glass marble set down firmly on smooth marble stone, one solid tock, no bounce, no rolling, dry, isolated',
+        'key3': 'one short deep glassy tock, a marble keyboard keystroke, a single clean impact, no rattle, dry, isolated',
+        'space': 'one deeper rounder glassy tock, a heavy marble set on stone, single impact, no bounce, dry, isolated',
+        'delete': 'one lighter softer glassy tick, a single marble tap, no bounce, dry, isolated',
+        'enter': 'one full satisfying deep glassy tock, a single heavy marble impact on stone, no bounce, no rattle, dry, isolated',
+    },
     'thock': {
         'key1': 'one deep muffled thock, a low pitched round knock like a marble dropped on a wooden desk, short, no click, no rattle, close mic, dry, isolated',
         'key2': 'a single low soft thock of a heavily lubed linear mechanical keyboard key bottoming out, deep and muted, no clack, dry, isolated',
@@ -117,11 +126,13 @@ def refine() -> None:
 # What a pack needs beyond WARM: the thock loses its click and rattle (everything over 2.4 kHz, a dip at 1.6 kHz)
 # and gains weight around 160 Hz, dropped a little in pitch.
 PACK_FILTERS = {
+    # Marbly: kept to its first impact (anything after 130 ms faded), the gargle around 900 Hz and the fizz eased.
+    'marble': 'afade=t=out:st=0.07:d=0.06,lowpass=f=4200,equalizer=f=900:t=q:w=1.4:g=-5,bass=g=4:f=180:w=0.7,volume=4dB,',
     'thock': 'lowpass=f=2400,lowpass=f=2400,equalizer=f=1600:t=q:w=1:g=-7,bass=g=6:f=160:w=0.7,asetrate=44100*0.92,aresample=44100,volume=8dB,',
 }
 
 # A pack is made again when its number here is higher than the one it was made at (its folder's .version).
-PACK_VERSIONS = {'thock': 2}
+PACK_VERSIONS = {'thock': 2, 'marble': 2}
 
 
 def key() -> str:
