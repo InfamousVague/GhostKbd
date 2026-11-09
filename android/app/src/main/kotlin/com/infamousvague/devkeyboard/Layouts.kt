@@ -125,6 +125,9 @@ object Layouts {
     /** Where Gboard has its comma: the developer page's key (long-press: settings). */
     private val devKey = Key(KeyType.MODE, label = "{ }", page = Page.DEV, pill = false)
 
+    /** The same key on the developer page, where it goes back: a second tap of { } (or a double tap) is the letters. */
+    private val devBack = Key(KeyType.MODE, label = "{ }", page = Page.LETTERS, pill = false)
+
     private fun bottomRow(modeLabel: String, modePage: Page, second: Key = comma) = KeyRow(
         listOf(
             // Gboard's, measured: ?123 and enter a key and a half, space five keys.
@@ -197,7 +200,7 @@ object Layouts {
                     snip("#", "#", "#!/"), snip("@", "@"), snip("~", "~", "`", "^"),
                 ) + delete,
         ),
-        bottomRow("ABC", Page.LETTERS),
+        bottomRow("ABC", Page.LETTERS, devBack),
     )
 
     /** ?123: digits, the common symbols, and =\< for the rest. */

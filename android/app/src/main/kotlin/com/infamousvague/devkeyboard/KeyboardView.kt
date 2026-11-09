@@ -442,7 +442,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             KeyType.MODE -> {
                 label.typeface = medium
                 label.textSize = sp(15f)
-                label.color = theme.text
+                // On the developer page its { } key is lit: it is the page's way back.
+                label.color = if (page == Page.DEV && key.label == "{ }") theme.accent else theme.text
                 drawCentered(canvas, key.label, cx, cy)
             }
             KeyType.SPACE -> Unit
@@ -832,7 +833,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 timer.postDelayed(repeatDelete, 400)
             }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT -> timer.postDelayed(longPress, longPressMs)
-            KeyType.MODE -> if (t.key.page == Page.DEV) timer.postDelayed(longPress, longPressMs)
+            KeyType.MODE -> if (t.key.label == "{ }") timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
         invalidate()
