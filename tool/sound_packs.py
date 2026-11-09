@@ -75,7 +75,7 @@ NAMES = {
 }
 
 # Sounds every keyboard has, without the plugin (Settings > Key press > Sound): Bamboo, as "Thock" (2026-11-08).
-STOCK = {'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong'}
+STOCK = {'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong', 'felt': 'Felt mallet', 'velvet': 'Velvet', 'button': 'Button'}
 
 # v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.
 VERSIONS = {pack: 3 for pack in NAMES}

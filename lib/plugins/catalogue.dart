@@ -311,7 +311,15 @@ const List<(String, String, int)> backlightColours = [
 ];
 
 /// Settings › Sounds' stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
-const List<(String, String)> stockSounds = [('bamboo', 'Thock'), ('geiger', 'Geiger counter'), ('ping-pong', 'Ping pong'), ('system', 'Android’s')];
+const List<(String, String)> stockSounds = [
+  ('bamboo', 'Thock'),
+  ('geiger', 'Geiger counter'),
+  ('ping-pong', 'Ping pong'),
+  ('felt', 'Felt mallet'),
+  ('velvet', 'Velvet'),
+  ('button', 'Button'),
+  ('system', 'Android’s'),
+];
 
 /// The sounds plugin's packs (android SoundPacks.kt).
 const List<(String, String)> soundPacks = [('droplet', 'Droplet'), ('felt', 'Felt mallet'), ('paper', 'Paper')];

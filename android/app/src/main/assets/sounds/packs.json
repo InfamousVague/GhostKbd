@@ -4,10 +4,6 @@
   "name": "Droplet"
  },
  {
-  "id": "felt",
-  "name": "Felt mallet"
- },
- {
   "id": "paper",
   "name": "Paper"
  },
@@ -76,10 +72,6 @@
   "name": "River stone"
  },
  {
-  "id": "velvet",
-  "name": "Velvet"
- },
- {
   "id": "clay",
   "name": "Clay"
  },
@@ -114,9 +106,5 @@
  {
   "id": "zipper",
   "name": "Zipper"
- },
- {
-  "id": "button",
-  "name": "Button"
  }
 ]
