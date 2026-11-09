@@ -5,6 +5,8 @@ android/app/src/main/assets/sounds/<pack>/ (key1..3, space, delete, enter). Soun
 
 The key comes from ELEVENLABS_API_KEY or ~/.elevenlabs-key, never printed. A pack already made is left alone; pass
 --again to make every pack anew. Run by .github/workflows/sounds.yml.
+
+Re-run: the ElevenLabs key is now in the Prod environment (2026-11-08).
 """
 import json, os, pathlib, subprocess, sys, tempfile, urllib.request
 

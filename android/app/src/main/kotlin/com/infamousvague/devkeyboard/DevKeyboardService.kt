@@ -49,6 +49,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     private var row: PluginRow? = null
     private var gifPanel: GifPanel? = null
+    private var emojiPanel: EmojiPanel? = null
+    /** Where a plugin's panel goes, over the keys: the GIF results or the emoji. */
+    private var panelHost: android.widget.FrameLayout? = null
     private val rowHandler = Handler(Looper.getMainLooper())
     private val refreshTask = Runnable { runCatching { refreshRow() }.onFailure { android.util.Log.e("GhostKeyboard", "row refresh failed", it) } }
 
@@ -119,10 +122,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val view = KeyboardView(this, this)
         val strip = PluginRow(this, onSettings = { onOpenSettings() }, onHide = { onHideKeyboard() })
         val panel = GifPanel(this) { pickGif(it) }
+        val emoji = EmojiPanel(this) { commitEmoji(it) }
+        val host = android.widget.FrameLayout(this).apply {
+            addView(panel, android.widget.FrameLayout.LayoutParams(-1, -1))
+            addView(emoji, android.widget.FrameLayout.LayoutParams(-1, -1))
+        }
         keyboard = view
         row = strip
         gifPanel = panel
-        val frame = KeyboardFrame(this, view, strip, panel)
+        emojiPanel = emoji
+        panelHost = host
+        val frame = KeyboardFrame(this, view, strip, host)
         applySettings()
         return frame
     }
@@ -155,7 +165,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs(); showingClips = false; ctrlOn = false; altOn = false }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; ctrlOn = false; altOn = false }
         scheduleRow()
         keyboard?.let { view ->
             if (!restarting) view.reset()
@@ -199,6 +209,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
+        emojiPanel?.theme = theme
+        if (!Plugins.isOn(prefs, Plugins.EMOJI)) closeEmoji()
         if (!Plugins.isOn(prefs, Plugins.GIFS)) closeGifs()
         scheduleRow()
         view.keyBorders = prefs.keyBorders
@@ -246,6 +258,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onText(text: String, caretBack: Int) {
         if (gifMode == GifMode.TYPING) { gifQuery += text; scheduleRow(); return }
+        if (emojiMode == GifMode.TYPING) { emojiQuery += text; scheduleRow(); return }
         val ic = currentInputConnection ?: return
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
         if ((ctrlOn || altOn) && text.length == 1 && sendWithModifiers(text[0])) return
@@ -264,6 +277,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ic.commitText(text, 1)
         // A pair's cursor goes inside it: commitText can only leave it before or after what it typed.
         if (caretBack > 0) moveCursorBy(ic, -caretBack)
+        if (text == "]") learnGhostMd()
     }
 
     /** Moves the cursor [delta] characters, from where it is now in the editor (not where onUpdateSelection last said). */
@@ -341,6 +355,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDelete() {
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
+        if (emojiMode == GifMode.TYPING) { if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if (lastCorrection != null && undoCorrection(ic, keepSeparator = false)) return
@@ -359,8 +374,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
     }
 
+    /** In Ghost.md, the [[links]] and #tags just finished are kept for completing them later. */
+    private fun learnGhostMd() {
+        if (!Plugins.isOn(prefs, Plugins.GHOSTMD) || incognito || !AppContext.isGhostMd(currentInputEditorInfo?.packageName)) return
+        currentInputConnection?.getTextBeforeCursor(160, 0)?.toString()?.let { GhostMd.learnFrom(this, "$it ") }
+    }
+
     override fun onSpace() {
         if (gifMode == GifMode.TYPING) { gifQuery += " "; scheduleRow(); return }
+        if (emojiMode == GifMode.TYPING) { emojiQuery += " "; scheduleRow(); return }
+        learnGhostMd()
         val ic = currentInputConnection ?: return
         lastSwipe = null
         val now = System.currentTimeMillis()
@@ -384,6 +407,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onEnter() {
         if (gifMode == GifMode.TYPING) { searchGifs(); return }
+        if (emojiMode == GifMode.TYPING) { browseEmoji(); return }
         val info = currentInputEditorInfo
         val ic = currentInputConnection ?: return
         lastSpaceAt = 0L
@@ -495,6 +519,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         super.onFinishInputView(finishingInput)
         if (dictation.listening) dictation.stop()
         closeGifs()
+        closeEmoji()
         inlineViews = emptyList()
         lastSwipe = null
     }
@@ -522,6 +547,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val strip = row ?: return
         if (strip.visibility != View.VISIBLE) return
         val items = ArrayList<RowItem>()
+        if (emojiMode != GifMode.OFF) {
+            val typing = emojiMode == GifMode.TYPING
+            items += RowItem("emoji-back", icon = RowIcon.BACK) { if (typing) browseEmoji() else closeEmoji() }
+            items += RowItem("emoji-query", label = if (typing) "$emojiQuery|" else "Search emoji", icon = RowIcon.SEARCH, chip = true) { typeEmojiSearch() }
+            if (typing) Emoji.search(emojiQuery, 40).forEach { e ->
+                val shown = e.toned(prefs.emojiSkin)
+                items += RowItem("emoji-$shown", label = shown) { commitEmoji(shown) }
+            }
+            strip.setItems(items)
+            return
+        }
         if (gifMode != GifMode.OFF) {
             items += RowItem("gif-back", icon = RowIcon.BACK) { if (gifMode == GifMode.TYPING) searchGifs() else closeGifs() }
             val typing = gifMode == GifMode.TYPING
@@ -550,6 +586,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             strip.setItems(middleBold(items))
             return
         }
+        currentInputConnection?.let { ic -> if (selStart == selEnd && contextual(ic, items)) { strip.setItems(items); return } }
         if (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions && autocorrectAllowed()) {
             val ic = currentInputConnection
             val correction = lastCorrection
@@ -565,6 +602,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     s.words.forEachIndexed { i, w ->
                         items += RowItem("s-$i-$w", label = w, bold = i == 0 && (s.fix != null || s.typedIsWord), wide = true) { pickSuggestion(word, w) }
                     }
+                    // pizza → 🍕: an emoji for the word, tapped in after it.
+                    if (Plugins.isOn(prefs, Plugins.EMOJI) && prefs.emojiSuggest) Emoji.forWord(word).forEach { e ->
+                        val shown = e.toned(prefs.emojiSkin)
+                        items += RowItem("se-$shown", label = shown, wide = true) { currentInputConnection?.commitText(" $shown", 1); Emoji.used(this, shown); scheduleRow() }
+                    }
                 }
             }
         }
@@ -579,6 +621,28 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun tools(): List<RowItem> {
         val items = ArrayList<RowItem>()
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
+        val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
+        val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
+        // Selected text in another app: to Ghost.md as a note.
+        if (ghost && !inGhost && selStart != selEnd) {
+            currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
+                items += RowItem("ghost-save", label = "Save to Ghost.md", bold = true, chip = true) {
+                    if (!GhostMd.save(this, selected)) android.widget.Toast.makeText(this, "Ghost.md isn’t on this phone", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        if (ghost && inGhost) {
+            items += RowItem("g-link", label = "[[ ]]", chip = true) { insertSnippet("[[¦]]") }
+            items += RowItem("g-tag", label = "#", chip = true) { insertSnippet("#") }
+            items += RowItem("g-task", label = "☐", chip = true) { linePrefix("- [ ] ") }
+            items += RowItem("g-today", label = "Today", chip = true) { insertSnippet("[[" + java.time.LocalDate.now() + "]]") }
+            items += RowItem("g-callout", label = "Callout", chip = true) { insertSnippet("> [!note] ¦") }
+            items += RowItem("g-table", label = "Table", chip = true) { insertSnippet("| ¦ |  |\n| --- | --- |\n|  |  |") }
+            items += RowItem("g-math", label = "∑ Math", chip = true) { insertSnippet("$$\n¦\n$$") }
+            items += RowItem("g-diagram", label = "Diagram", chip = true) { insertSnippet("```mermaid\n¦\n```") }
+            items += RowItem("g-divider", label = "—", chip = true) { insertSnippet("\n---\n") }
+            items += RowItem("g-voice", label = "Voice note", chip = true) { GhostMd.voice(this) }
+        }
         if (Plugins.isOn(prefs, Plugins.INCOGNITO)) {
             items += RowItem("incognito-$incognito", label = if (incognito) "Incognito on" else "Incognito", bold = incognito, chip = true) {
                 incognitoOn = !incognitoOn; scheduleRow()
@@ -612,7 +676,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("md-task", label = "☐", chip = true) { linePrefix("- [ ] ") }
             items += RowItem("md-quote", label = "❝", chip = true) { linePrefix("> ") }
             // Ghost.md's own: a link to another note.
-            if (AppContext.isGhostMd(currentInputEditorInfo?.packageName)) items += RowItem("md-wiki", label = "[[ ]]", chip = true) { wrap("[[", "]]") }
+            if (!ghost && inGhost) items += RowItem("md-wiki", label = "[[ ]]", chip = true) { wrap("[[", "]]") }
         }
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
             items += RowItem("undo", label = "↶ Undo", chip = true) { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
@@ -621,6 +685,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
         }
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", label = "Clipboard", chip = true) { showingClips = true; scheduleRow() }
+        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", label = "😀 Emoji", chip = true) { openEmoji() }
         if (Plugins.isOn(prefs, Plugins.GIFS)) items += RowItem("gifs", label = "GIFs", icon = RowIcon.GIF, chip = true) { openGifs() }
         if (Plugins.isOn(prefs, Plugins.PASSWORDS) && isPassword(currentInputEditorInfo)) {
             items += RowItem("passwords-hint", label = "Logins appear here", icon = RowIcon.KEY)
@@ -700,6 +765,115 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ic.commitText(prefix, 1)
         if (back > 0) moveCursorBy(ic, back)
         ic.endBatchEdit()
+    }
+
+    /**
+     * What the text just before the cursor asks for, before suggestions: a :shortcode's emoji, and in Ghost.md a
+     * [[link]]'s note titles or a #tag's tags. True when it filled [items].
+     */
+    private fun contextual(ic: InputConnection, items: ArrayList<RowItem>): Boolean {
+        val before = ic.getTextBeforeCursor(200, 0)?.toString() ?: return false
+        if (Plugins.isOn(prefs, Plugins.EMOJI)) {
+            SHORTCODE.find(before)?.let { m ->
+                val code = m.groupValues[1]
+                val found = Emoji.search(code, 30)
+                if (found.isNotEmpty()) {
+                    found.forEach { e ->
+                        val shown = e.toned(prefs.emojiSkin)
+                        items += RowItem("sc-$shown", label = shown) { replaceBefore(":$code", shown); Emoji.used(this, shown) }
+                    }
+                    return true
+                }
+            }
+        }
+        if (Plugins.isOn(prefs, Plugins.GHOSTMD) && AppContext.isGhostMd(currentInputEditorInfo?.packageName)) {
+            WIKI_OPEN.find(before)?.let { m ->
+                val q = m.groupValues[1]
+                GhostMd.titles(this, q).forEach { t -> items += RowItem("note-$t", label = t, chip = true) { replaceBefore(q, "$t]]") } }
+                if (q.isNotBlank() && items.none { (it.label as? String).equals(q, ignoreCase = true) }) {
+                    items += RowItem("note-new-$q", label = "New: $q", chip = true) { replaceBefore(q, "$q]]") }
+                }
+                if (items.isEmpty()) items += RowItem("note-none", label = "Type a note’s name")
+                return true
+            }
+            TAG_OPEN.find(before)?.let { m ->
+                val q = m.groupValues[1]
+                val tags = GhostMd.tags(this, q)
+                if (tags.isNotEmpty()) {
+                    tags.forEach { t -> items += RowItem("tag-$t", label = "#$t", chip = true) { replaceBefore(q, "$t ") } }
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /** Replaces [old], just before the cursor, with [new]. */
+    private fun replaceBefore(old: String, new: String) {
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        if (old.isNotEmpty() && ic.getTextBeforeCursor(old.length, 0)?.toString() == old) ic.deleteSurroundingText(old.length, 0)
+        ic.commitText(new, 1)
+        ic.endBatchEdit()
+        scheduleRow()
+    }
+
+    /** A snippet with a ¦ where the cursor goes. */
+    private fun insertSnippet(snippet: String) {
+        val ic = currentInputConnection ?: return
+        val caret = snippet.indexOf('¦')
+        val text = snippet.replace("¦", "")
+        ic.beginBatchEdit()
+        ic.commitText(text, 1)
+        if (caret >= 0) moveCursorBy(ic, -(text.length - caret))
+        ic.endBatchEdit()
+    }
+
+    // --- emoji (the emoji plugin) -----------------------------------------------------------------------------------
+
+    private var emojiMode = GifMode.OFF
+    private var emojiQuery = ""
+
+    private fun showPanel(panel: View?) {
+        gifPanel?.visibility = if (panel === gifPanel) View.VISIBLE else View.GONE
+        emojiPanel?.visibility = if (panel === emojiPanel) View.VISIBLE else View.GONE
+        panelHost?.visibility = if (panel == null) View.GONE else View.VISIBLE
+    }
+
+    private fun openEmoji() {
+        closeGifs()
+        showingClips = false
+        emojiMode = GifMode.BROWSING
+        emojiQuery = ""
+        showPanel(emojiPanel)
+        Emoji.load(this) { emojiPanel?.show(Emoji.recent(this), prefs.emojiSkin) }
+        scheduleRow()
+    }
+
+    private fun browseEmoji() {
+        emojiMode = GifMode.BROWSING
+        showPanel(emojiPanel)
+        emojiPanel?.show(Emoji.recent(this), prefs.emojiSkin)
+        scheduleRow()
+    }
+
+    private fun typeEmojiSearch() {
+        emojiMode = GifMode.TYPING
+        emojiQuery = ""
+        showPanel(null)
+        scheduleRow()
+    }
+
+    private fun closeEmoji() {
+        if (emojiMode == GifMode.OFF) return
+        emojiMode = GifMode.OFF
+        showPanel(null)
+        scheduleRow()
+    }
+
+    private fun commitEmoji(emoji: String) {
+        currentInputConnection?.commitText(emoji, 1)
+        if (!incognito) Emoji.used(this, emoji)
     }
 
     /** Gboard's arrangement: with three suggestions, the pick sits in the middle. */
@@ -824,9 +998,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     // --- GIFs (the gifs plugin) -------------------------------------------------------------------------------------
 
     private fun openGifs() {
+        closeEmoji()
+        showingClips = false
         gifMode = GifMode.BROWSING
         gifQuery = ""
-        gifPanel?.visibility = View.VISIBLE
+        showPanel(gifPanel)
         runGifSearch()
         scheduleRow()
     }
@@ -834,20 +1010,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun closeGifs() {
         if (gifMode == GifMode.OFF) return
         gifMode = GifMode.OFF
-        gifPanel?.visibility = View.GONE
+        showPanel(null)
         scheduleRow()
     }
 
     /** The search chip tapped: the panel steps aside and the keys type the search. */
     private fun typeGifSearch() {
         gifMode = GifMode.TYPING
-        gifPanel?.visibility = View.GONE
+        showPanel(null)
         scheduleRow()
     }
 
     private fun searchGifs() {
         gifMode = GifMode.BROWSING
-        gifPanel?.visibility = View.VISIBLE
+        showPanel(gifPanel)
         runGifSearch()
         scheduleRow()
     }
@@ -885,6 +1061,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     companion object {
         /** Punctuation that finishes a word, and so runs autocorrect on it before it is typed. */
         private const val WORD_ENDS = ".,!?"
+
+        /** ":smi" just typed, after a space or at the start: the emoji plugin's shortcode search. */
+        private val SHORTCODE = Regex("(?:^|\\s):([a-z0-9_+-]{2,30})$")
+        /** "[[Not" just typed in Ghost.md: the start of a link to a note. */
+        private val WIKI_OPEN = Regex("\\[\\[([^\\[\\]\\n|]{0,60})$")
+        /** "#ide" just typed in Ghost.md, after a space or at a line's start: a tag. */
+        private val TAG_OPEN = Regex("(?:^|\\s)#([\\p{L}\\p{N}_/-]{1,40})$")
 
         /** What a pair key closes with: typed in front of the same character, it steps over it. */
         private const val CLOSERS = ")]}>\"'`"

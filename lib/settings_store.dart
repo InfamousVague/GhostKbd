@@ -46,6 +46,8 @@ class SettingsStore extends ChangeNotifier {
     'popup_keys': '',
     'icon_pack': 'lucide',
     'split_keyboard': true,
+    'emoji_skin': '0',
+    'emoji_suggest': true,
     'markdown_everywhere': false,
     'terminal_everywhere': false,
     'sound_pack': 'mechanical',

@@ -11,6 +11,8 @@ argument, never printed.
 
     python3 tool/onboarding_voice.py
     python3 tool/onboarding_voice.py --page welcome --again
+
+Re-run: the ElevenLabs key is now in the Prod environment (2026-11-08).
 """
 from __future__ import annotations
 

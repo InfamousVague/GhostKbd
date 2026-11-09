@@ -258,6 +258,33 @@ const List<PluginManifest> catalogue = [
     adds: ['Five sound packs'],
     hasPage: true,
   ),
+  PluginManifest(
+    id: 'emoji',
+    name: 'Emoji',
+    line: 'Every emoji, searchable, up to Unicode’s newest.',
+    description:
+        'An emoji panel with tabs and your recent ones, and a search that knows names, keywords and shortcodes: every emoji in '
+        'Emoji 18.0, Unicode’s latest (those your phone’s font can draw). Type :shortcode for emoji in the row, and get an emoji '
+        'offered for the word you type (pizza 🍕). A skin tone of your choice.',
+    category: PluginCategory.typing,
+    hue: 'yellow',
+    icon: LucideMore.smile,
+    adds: ['An emoji panel and search', ':shortcodes', 'Emoji for the word you type'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'ghostmd',
+    name: 'Ghost.md',
+    line: 'Your notes and the keyboard, working together.',
+    description:
+        'In Ghost.md: [[ offers your notes’ titles and # your tags, and Ghost.md’s blocks (callouts, tables, math, diagrams, '
+        'today’s date, tasks, voice notes) are a tap away. Everywhere else: select text and save it to Ghost.md as a note.',
+    category: PluginCategory.tools,
+    hue: 'cyan',
+    icon: Lucide.ghost,
+    adds: ['[[note]] and #tag completion in Ghost.md', 'Ghost.md’s blocks in the row', 'Save a selection to Ghost.md from any app'],
+    hasPage: true,
+  ),
 ];
 
 /// The sounds plugin's packs (android SoundPacks.kt).

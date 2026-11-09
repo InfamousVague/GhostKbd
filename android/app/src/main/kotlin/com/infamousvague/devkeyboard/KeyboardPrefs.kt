@@ -44,6 +44,10 @@ class KeyboardPrefs(context: Context) {
     /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
     val split: Boolean get() = bool(SPLIT)
 
+    /** The emoji plugin's skin tone (0 none, 1 light to 5 dark), and emoji offered for the word typed. */
+    val emojiSkin: Int get() = prefs.getString(EMOJI_SKIN, "0")!!.toIntOrNull() ?: 0
+    val emojiSuggest: Boolean get() = bool(EMOJI_SUGGEST)
+
     /** The plugin row's icon pack (RowIcons.PACKS). */
     val iconPack: String get() = prefs.getString(ICON_PACK, "lucide")!!
 
@@ -139,6 +143,8 @@ class KeyboardPrefs(context: Context) {
         const val WHISPER_MODEL = "whisper_model"
         const val ICON_PACK = "icon_pack"
         const val SPLIT = "split_keyboard"
+        const val EMOJI_SKIN = "emoji_skin"
+        const val EMOJI_SUGGEST = "emoji_suggest"
         const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
         const val TERMINAL_EVERYWHERE = "terminal_everywhere"
         const val SOUND_PACK = "sound_pack"
@@ -174,6 +180,8 @@ class KeyboardPrefs(context: Context) {
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
             SPLIT to true,
+            EMOJI_SKIN to "0",
+            EMOJI_SUGGEST to true,
             MARKDOWN_EVERYWHERE to false,
             TERMINAL_EVERYWHERE to false,
             SOUND_PACK to "mechanical",

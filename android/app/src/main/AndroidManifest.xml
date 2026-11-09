@@ -63,6 +63,11 @@
     </application>
 
     <queries>
+        <!-- The Ghost.md plugin: whether Ghost.md is on this phone, to save to it and read the titles it shares. -->
+        <package android:name="com.mattssoftware.glyph" />
+        <package android:name="com.mattssoftware.glyph.flutter" />
+        <package android:name="com.mattssoftware.glyph.perf" />
+        <provider android:authorities="com.mattssoftware.glyph.keyboard" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

@@ -112,6 +112,10 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'incognito', label: 'Incognito', icon: _icon(Lucide.eyeOff), hue: 'purple', group: 'plugins', summary: (s) => 'A switch in the row', page: _incognito),
       if (store.pluginOn('sounds'))
         SettingsSection(id: 'sounds', label: 'Sound packs', icon: _icon(Lucide.volume2), hue: 'coral', group: 'plugins', summary: (s) => soundPacks.where((p) => p.$1 == s.choice('sound_pack')).firstOrNull?.$2 ?? '', page: _sounds),
+      if (store.pluginOn('emoji'))
+        SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
+      if (store.pluginOn('ghostmd'))
+        SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => s.flag('tap_log') ? 'Tap log is on' : 'Tap log', page: _developer),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: (s) => 'Ghost Keyboard ${s.update['current'] ?? ''}'.trim(), page: _about),
@@ -482,6 +486,39 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
     PaneSection(children: [SettingRow(label: 'Remove Sound packs', onPress: () => store.setPlugin('sounds', false))]),
   ];
 }
+
+List<Widget> _emoji(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'emoji',
+      icon: LucideMore.smile,
+      title: 'Emoji',
+      meta: 'Every emoji in Emoji 18.0, Unicode’s latest, that your phone can draw.',
+      settings: [
+        _choice(store, 'emoji_skin', 'Skin tone', const {'0': '✋', '1': '✋🏻', '2': '✋🏼', '3': '✋🏽', '4': '✋🏾', '5': '✋🏿'}),
+        _toggle(store, 'emoji_suggest', 'Emoji for the word you type', 'Type pizza and 🍕 is offered in the row; tap it to add it after the word.'),
+      ],
+      how: const [
+        ('The panel', 'Tap 😀 Emoji in the row: tabs for each group, your recent ones first.'),
+        ('Search', 'Tap Search emoji and type: names, keywords and shortcodes all match. The results fill the row.'),
+        (':shortcodes', 'Type : and a few letters (:fire) anywhere and the matching emoji appear in the row.'),
+        ('Newest emoji', 'Emoji your phone’s font doesn’t have yet are hidden rather than shown as boxes; they appear when Android updates its font.'),
+      ],
+    );
+
+List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'ghostmd',
+      icon: Lucide.ghost,
+      title: 'Ghost.md',
+      meta: 'Your notes and the keyboard, working together.',
+      how: const [
+        ('[[ links', 'In Ghost.md, type [[ and your notes’ titles fill the row; tap one to finish the link, or New to make one.'),
+        ('# tags', 'Type # and a letter for the tags you use.'),
+        ('Blocks', 'Callout, Table, Math, Diagram, Today, ☐ and — insert Ghost.md’s own blocks; Voice note opens Ghost.md’s recorder.'),
+        ('Save to Ghost.md', 'In any other app, select text: Save to Ghost.md sends it there as a note.'),
+        ('Where titles come from', 'The links and tags you type in Ghost.md are remembered on this phone. When Ghost.md shares its whole list with the keyboard, every note shows.'),
+      ],
+    );
 
 List<Widget> _dictation(BuildContext context, SettingsStore store) {
   final d = store.dictation;
