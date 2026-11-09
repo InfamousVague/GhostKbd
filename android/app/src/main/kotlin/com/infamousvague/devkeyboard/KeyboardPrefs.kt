@@ -48,9 +48,6 @@ class KeyboardPrefs(context: Context) {
     val emojiSkin: Int get() = prefs.getString(EMOJI_SKIN, "0")!!.toIntOrNull() ?: 0
     val emojiSuggest: Boolean get() = bool(EMOJI_SUGGEST)
 
-    /** The plugin row's icon pack (RowIcons.PACKS). */
-    val iconPack: String get() = prefs.getString(ICON_PACK, "lucide")!!
-
     /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
     val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
     val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
@@ -139,7 +136,6 @@ class KeyboardPrefs(context: Context) {
         const val SUGGESTIONS = "suggestions"
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
-        const val ICON_PACK = "icon_pack"
         const val SPLIT = "split_keyboard"
         /** Settings › Developer shows once the version number in About is tapped five times. */
         const val DEVELOPER = "developer"
@@ -177,7 +173,6 @@ class KeyboardPrefs(context: Context) {
             SUGGESTIONS to true,
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
-            ICON_PACK to "lucide",
             SPLIT to true,
             DEVELOPER to false,
             EMOJI_SKIN to "0",

@@ -510,16 +510,13 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         canvas.drawText(text, cx, cy - (m.ascent + m.descent) / 2, label)
     }
 
-    /** The chosen icon pack (Look & layout › Icons): the keys' icons and the row's. */
-    var iconPack = "lucide"
-        set(value) { if (field != value) { field = value; invalidate() } }
     private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    /** [icon] from the chosen pack, [size] across, centred on (cx, cy). */
+    /** [icon] (Phosphor's), [size] across, centred on (cx, cy). */
     private fun drawPackIcon(canvas: Canvas, icon: RowIcon, cx: Float, cy: Float, size: Float, color: Int, filled: Boolean = false) {
         canvas.save()
         canvas.translate(cx - size / 2, cy - size / 2)
-        IconDrawable.drawGlyph(canvas, RowIcons.icon(iconPack, icon), size, color, iconPaint, filled)
+        IconDrawable.drawGlyph(canvas, RowIcons.icon(icon), size, color, iconPaint, filled)
         canvas.restore()
     }
 

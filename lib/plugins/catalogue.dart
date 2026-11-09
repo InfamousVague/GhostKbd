@@ -319,11 +319,3 @@ const List<(String, String, List<int>)> themePresets = [
   ('retro', 'Retro', [0xFF34302B, 0xFFE9E1CD, 0xFFA8A190, 0xFFD9542B, 0xFF2E2A24]),
 ];
 
-/// The plugin row's icon packs (android RowIcons.kt): id, name, and a line on how it draws.
-const List<(String, String, String)> rowIconPacks = [
-  ('lucide', 'Lucide', 'Clean, even outlines. Ghost.md’s own.'),
-  ('tabler', 'Tabler', 'Outlines a touch rounder and airier.'),
-  ('phosphor', 'Phosphor', 'Friendly shapes with a duotone fill.'),
-  ('material', 'Material Symbols', 'Google’s, as Android draws them.'),
-  ('remix', 'Remix', 'Crisp, slightly geometric outlines.'),
-];

@@ -43,7 +43,6 @@ class SettingsStore extends ChangeNotifier {
     'theme_tint': '#51FCFB',
     'theme_accent': '',
     'theme_mode': 'dark',
-    'icon_pack': 'lucide',
     'split_keyboard': true,
     'emoji_skin': '0',
     'emoji_suggest': true,

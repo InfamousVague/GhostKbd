@@ -52,10 +52,6 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     var theme: KeyboardTheme = KeyboardTheme.LIGHT
         set(value) { field = value; restyle() }
 
-    /** The icon pack the row's icons come from (RowIcons.PACKS). */
-    var iconPack = "lucide"
-        set(value) { if (field != value) { field = value; settings.pack = value; hide.pack = value; restyle() } }
-
     var showHide = false
         set(value) { field = value; hide.visibility = if (value) VISIBLE else GONE }
 
@@ -104,7 +100,6 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private fun makeView(item: RowItem): View {
         if (item.icon != null && item.label == null) {
             return IconButton(context, item.icon).apply {
-                pack = iconPack
                 color = theme.toolbarIcon
                 minimumWidth = dp(44f)
                 setOnClickListener { tap(item) }
@@ -124,7 +119,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             isClickable = item.onTap != null
             setOnClickListener { tap(item) }
             if (item.icon != null) {
-                setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f), iconPack), null, null, null)
+                setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f)), null, null, null)
                 compoundDrawablePadding = dp(6f)
             }
         }
@@ -157,8 +152,6 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private class IconButton(context: Context, val icon: RowIcon) : View(context) {
         var color = 0xFF444746.toInt()
             set(value) { field = value; invalidate() }
-        var pack = "lucide"
-            set(value) { field = value; drawer.pack = value; invalidate() }
         private val drawer = IconDrawable(icon, color, 0)
 
         init {
@@ -186,7 +179,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
  * The row's icons, from the chosen icon pack (RowIcons.kt, Ghost.md's packs): drawn on the 24 grid at whatever size
  * the bounds give, in Ghost.md's look, outlines with a wash inside: the icon's body filled at a third of the ink.
  */
-class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int, var pack: String = "lucide") : android.graphics.drawable.Drawable() {
+class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int) : android.graphics.drawable.Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
 
     init { if (size > 0) setBounds(0, 0, size, size) }
@@ -196,7 +189,7 @@ class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int, var pack:
         if (b.width() <= 0) return
         canvas.save()
         canvas.translate(b.left.toFloat(), b.top.toFloat())
-        drawGlyph(canvas, RowIcons.icon(pack, icon), b.width().toFloat(), ink, paint)
+        drawGlyph(canvas, RowIcons.icon(icon), b.width().toFloat(), ink, paint)
         canvas.restore()
     }
 

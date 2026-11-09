@@ -110,7 +110,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
         // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
-        prefs.prefs.edit().remove("popup_keys").remove("tap_log").apply()
+        prefs.prefs.edit().remove("popup_keys").remove("tap_log").remove("icon_pack").apply()
         deleteFile("tap_log.txt")
     }
 
@@ -209,12 +209,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.split = prefs.split
-        view.iconPack = prefs.iconPack
         // The chosen pack, made ready before the first key needs it.
         if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.sound) SoundPacks.prepare(this, prefs.soundPack)
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
-        row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
+        row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
         emojiPanel?.theme = theme
         if (!Plugins.isOn(prefs, Plugins.EMOJI)) closeEmoji()
