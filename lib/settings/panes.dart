@@ -508,8 +508,8 @@ String _aiSummary(SettingsStore s) {
 const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
 
 String _rowSummary(SettingsStore s) {
-  final on = _rowIds.where(s.pluginOn).length;
-  return on == 0 ? 'None' : '$on of ${_rowIds.length} on';
+  final on = _rowIds.where(s.pluginOn).length + (s.flag('arrow_keys') ? 1 : 0);
+  return on == 0 ? 'None' : '$on of ${_rowIds.length + 1} on';
 }
 
 // --- Typing -------------------------------------------------------------------------------------------------------
@@ -805,6 +805,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
     PaneSection(
       footer: const Text('Buttons in the row above the keys, whenever you aren’t mid-word.'),
       children: [
+        _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.'),
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.'),
         _plugin(store, 'undo', 'Undo and redo', 'Back and forward arrows.'),
         _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.'),

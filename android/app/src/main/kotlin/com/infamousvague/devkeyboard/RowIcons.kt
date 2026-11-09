@@ -5,9 +5,11 @@ package com.infamousvague.devkeyboard
 
 /** One icon on the 24 grid: [paths] stroked ([lines]) or filled, and [wash] filled under them at [washAlpha]. */
 /** [box] is the size of its drawing's square, [ox] and [oy] where that square starts (Material draws on 0 -960 960 960). */
-class PackIcon(val lines: Boolean, val paths: List<String>, val wash: List<String>, val washAlpha: Float, val box: Float = 24f, val ox: Float = 0f, val oy: Float = 0f)
+class PackIcon(val lines: Boolean, val paths: List<String>, val wash: List<String>, val washAlpha: Float, val box: Float = 24f, val ox: Float = 0f, val oy: Float = 0f, val rotate: Float = 0f)
 
 object RowIcons {
+
+    private fun caret(rotate: Float) = PackIcon(false, listOf("M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"), listOf("M160,48V208L80,128Z"), 0.2f, 256.0f, 0.0f, 0.0f, rotate)
 
     /** The keyboard's icons are Phosphor's (regular, with its duotone wash), 2026-11-08. */
     fun icon(icon: RowIcon): PackIcon = KEYS["phosphor" to icon] ?: GLYPHS.getValue("phosphor").getValue(icon)
@@ -18,6 +20,11 @@ object RowIcons {
             Triple("phosphor", RowIcon.MIC, PackIcon(false, listOf("M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"), listOf("M168,64v64a40,40,0,0,1-40,40h0a40,40,0,0,1-40-40V64a40,40,0,0,1,40-40h0A40,40,0,0,1,168,64Z"), 0.2f, 256.0f, 0.0f, 0.0f)),
             Triple("phosphor", RowIcon.DELETE, PackIcon(false, listOf("M216,40H68.53a16.08,16.08,0,0,0-13.72,7.77L9.14,123.88a8,8,0,0,0,0,8.24l45.67,76.11A16.08,16.08,0,0,0,68.53,216H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM61.67,204.12,68.53,200h0ZM216,200H68.53l-43.2-72,43.2-72H216ZM106.34,146.34,124.69,128l-18.35-18.34a8,8,0,0,1,11.32-11.32L136,116.69l18.34-18.35a8,8,0,0,1,11.32,11.32L147.31,128l18.35,18.34a8,8,0,0,1-11.32,11.32L136,139.31l-18.34,18.35a8,8,0,0,1-11.32-11.32Z"), listOf("M224,56V200a8,8,0,0,1-8,8H68.53a8,8,0,0,1-6.86-3.88L16,128,61.67,51.88A8,8,0,0,1,68.53,48H216A8,8,0,0,1,224,56Z"), 0.2f, 256.0f, 0.0f, 0.0f)),
             Triple("phosphor", RowIcon.SHIFT, PackIcon(false, listOf("M229.66,114.34l-96-96a8,8,0,0,0-11.32,0l-96,96A8,8,0,0,0,32,128H72v80a16,16,0,0,0,16,16h80a16,16,0,0,0,16-16V128h40a8,8,0,0,0,5.66-13.66ZM176,112a8,8,0,0,0-8,8v88H88V120a8,8,0,0,0-8-8H51.31L128,35.31,204.69,112Z"), listOf("M224,120H176v88a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V120H32l96-96Z"), 0.2f, 256.0f, 0.0f, 0.0f)),
+            // The arrow keys: Phosphor's caret-left (regular, duotone wash), turned for the other three.
+            Triple("phosphor", RowIcon.CARET_LEFT, caret(0f)),
+            Triple("phosphor", RowIcon.CARET_UP, caret(90f)),
+            Triple("phosphor", RowIcon.CARET_RIGHT, caret(180f)),
+            Triple("phosphor", RowIcon.CARET_DOWN, caret(270f)),
             Triple("phosphor", RowIcon.ENTER, PackIcon(false, listOf("M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"), listOf("M96,128v96L48,176Z"), 0.2f, 256.0f, 0.0f, 0.0f)),
     ).associate { (pack, icon, glyph) -> (pack to icon) to glyph }
 

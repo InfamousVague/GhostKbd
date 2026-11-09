@@ -98,6 +98,8 @@ class KeyboardPrefs(context: Context) {
     val ghostwriterNotes: Boolean get() = bool(GHOSTWRITER_NOTES)
     /** Adaptive keys: draw the heatmap of mistakes and moved aims over the keys. */
     val adaptiveMap: Boolean get() = bool(ADAPTIVE_MAP)
+    /** Arrow keys pinned at the end of the row above the keys, SwiftKey's way. */
+    val arrowKeys: Boolean get() = bool(ARROW_KEYS)
 
     /**
      * Swipe typing, the clipboard, undo and redo and emoji joined autocorrect as plugins on by default (0.8.5, Matt:
@@ -220,6 +222,7 @@ class KeyboardPrefs(context: Context) {
         const val GHOSTWRITER_TYPING = "ghostwriter_typing"
         const val GHOSTWRITER_NOTES = "ghostwriter_notes"
         const val ADAPTIVE_MAP = "adaptive_map"
+        const val ARROW_KEYS = "arrow_keys"
 
         /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
         private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
@@ -281,6 +284,7 @@ class KeyboardPrefs(context: Context) {
             GHOSTWRITER_TYPING to true,
             GHOSTWRITER_NOTES to true,
             ADAPTIVE_MAP to false,
+            ARROW_KEYS to false,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

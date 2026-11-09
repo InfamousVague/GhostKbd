@@ -20,7 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** The small drawn icons the plugin row's buttons use. */
-enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER }
+enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER, CARET_LEFT, CARET_RIGHT, CARET_UP, CARET_DOWN }
 
 /**
  * One thing a plugin puts in the row above the keys.
@@ -50,7 +50,7 @@ class RowItem(
  * button stays at its start, and a hide button at its end when the old toolbar setting is on.
  */
 @SuppressLint("ViewConstructor")
-class PluginRow(context: Context, private val onSettings: () -> Unit, private val onHide: () -> Unit) : LinearLayout(context) {
+class PluginRow(context: Context, private val onSettings: () -> Unit, private val onHide: () -> Unit, private val onArrow: (Int) -> Unit = {}) : LinearLayout(context) {
     var theme: KeyboardTheme = KeyboardTheme.LIGHT
         set(value) { field = value; restyle() }
 
@@ -59,6 +59,38 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
     private val settings = IconButton(context, RowIcon.SETTINGS).apply { setOnClickListener { onSettings() } }
     private val hide = IconButton(context, RowIcon.HIDE).apply { setOnClickListener { onHide() }; visibility = GONE }
+
+    /**
+     * Arrow keys (Settings › Row tools › Arrow keys), SwiftKey's way: ← ↑ ↓ → pinned at the row's end, there whatever
+     * the row is showing, each moving the cursor and repeating while held.
+     */
+    var showArrows = false
+        set(value) { field = value; arrows.visibility = if (value) VISIBLE else GONE }
+    private val arrowButtons = listOf(
+        RowIcon.CARET_LEFT to android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+        RowIcon.CARET_UP to android.view.KeyEvent.KEYCODE_DPAD_UP,
+        RowIcon.CARET_DOWN to android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+        RowIcon.CARET_RIGHT to android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+    ).map { (icon, code) -> IconButton(context, icon).also { repeating(it) { onArrow(code) } } }
+    private val arrows = LinearLayout(context).apply {
+        orientation = HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        visibility = GONE
+        for (b in arrowButtons) addView(b, LayoutParams(dp(36f), LayoutParams.MATCH_PARENT))
+    }
+
+    /** [action] on touch, then again and again while held: 400 ms before the first repeat, then every 50 ms. */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun repeating(view: View, action: () -> Unit) {
+        val again = object : Runnable { override fun run() { action(); view.postDelayed(this, 50) } }
+        view.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { v.isPressed = true; action(); v.postDelayed(again, 400) }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> { v.isPressed = false; v.removeCallbacks(again) }
+            }
+            true
+        }
+    }
     private val scroll = HorizontalScrollView(context).apply {
         isHorizontalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
@@ -73,6 +105,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         scroll.addView(strip, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
         addView(settings, LayoutParams(dp(44f), LayoutParams.MATCH_PARENT))
         addView(scroll, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        addView(arrows, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
         addView(hide, LayoutParams(dp(44f), LayoutParams.MATCH_PARENT))
         restyle()
     }
@@ -85,7 +118,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
-        val wideWidth = ((scroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(44f))) / wideCount)
+        val room = scroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(44f))
+        // Too narrow to read (the arrow keys take part of the row): three across, and the rest scroll.
+        val wideWidth = if (room / wideCount < dp(80f)) room / 3 else room / wideCount
         for (item in next) {
             val v = item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item)
             val lp = if (item.fill) LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f) else LinearLayout.LayoutParams(
@@ -145,6 +180,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         setBackgroundColor(theme.background)
         settings.color = theme.toolbarIcon
         hide.color = theme.toolbarIcon
+        arrowButtons.forEach { it.color = theme.toolbarIcon }
         val now = items
         items = emptyList()
         setItems(now)
@@ -202,6 +238,7 @@ class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int) : android
          */
         fun drawGlyph(canvas: Canvas, glyph: PackIcon, size: Float, ink: Int, paint: Paint, filled: Boolean = false) {
             canvas.save()
+            if (glyph.rotate != 0f) canvas.rotate(glyph.rotate, size / 2f, size / 2f)
             val s = size / glyph.box
             canvas.scale(s, s)
             canvas.translate(-glyph.ox, -glyph.oy)

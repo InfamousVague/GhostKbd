@@ -146,7 +146,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onCreateInputView(): View {
         val view = KeyboardView(this, this)
-        val strip = PluginRow(this, onSettings = { onOpenSettings() }, onHide = { onHideKeyboard() })
+        val strip = PluginRow(this, onSettings = { onOpenSettings() }, onHide = { onHideKeyboard() }, onArrow = { code -> arrow(code) })
         val panel = GifPanel(this) { pickGif(it) }
         val emoji = EmojiPanel(this) { commitEmoji(it) }
         val host = android.widget.FrameLayout(this).apply {
@@ -248,9 +248,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val pack = soundToPlay()
             if (pack != null) SoundPacks.prepare(this, pack)
         }
-        val rowShown = prefs.toolbar || usesRow()
+        val rowShown = prefs.toolbar || usesRow() || prefs.arrowKeys
         view.pluginRow = rowShown
-        row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
+        row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
         emojiPanel?.theme = theme
         if (!Plugins.isOn(prefs, Plugins.EMOJI)) closeEmoji()
@@ -990,6 +990,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun remember(text: String) {
         aiAnswers.addFirst(text)
         while (aiAnswers.size > 6) aiAnswers.removeLast()
+    }
+
+    /** An arrow key in the row: the cursor moves as a real arrow key moves it, with the key's haptic and sound. */
+    private fun arrow(code: Int) {
+        finishTyping()
+        wordTouches.clear(); takenTouch = null; lastSwipe = null; lastCorrection = null
+        keyFeedback(KeyType.CHAR)
+        sendKey(code)
     }
 
     // --- adaptive keys -----------------------------------------------------------------------------------------------
