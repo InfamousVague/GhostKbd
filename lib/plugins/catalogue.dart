@@ -248,14 +248,14 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'sounds',
     name: 'Sound packs',
-    line: 'Over fifty key sounds, from thocky switches to snow and chess pieces.',
+    line: 'Thirty soft, subtle key sounds, from droplets to felt and river stones.',
     description:
-        'Key sounds made with ElevenLabs: a clicky mechanical board, a deep thock, a typewriter, bubble pops and 8-bit blips. '
+        'Soft key sounds made with ElevenLabs: droplets, felt mallets, paper, river stones, seashells, twigs and more, each cut from a real recording. '
         'They play when Sound is on in Settings › Sounds.',
     category: PluginCategory.sound,
     hue: 'coral',
     icon: Lucide.volume2,
-    adds: ['Over fifty sound packs'],
+    adds: ['Thirty subtle sound packs'],
     hasPage: true,
   ),
   PluginManifest(
@@ -311,16 +311,10 @@ const List<(String, String, int)> backlightColours = [
 ];
 
 /// Settings › Sounds' stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
-const List<(String, String)> stockSounds = [('bamboo', 'Thock'), ('geiger', 'Geiger counter'), ('system', 'Android’s')];
+const List<(String, String)> stockSounds = [('bamboo', 'Thock'), ('geiger', 'Geiger counter'), ('ping-pong', 'Ping pong'), ('system', 'Android’s')];
 
 /// The sounds plugin's packs (android SoundPacks.kt).
-const List<(String, String)> soundPacks = [
-  ('mechanical', 'Clicky mechanical'),
-  ('thock', 'Deep thock'),
-  ('typewriter', 'Typewriter'),
-  ('bubble', 'Bubble pop'),
-  ('arcade', '8-bit arcade'),
-];
+const List<(String, String)> soundPacks = [('droplet', 'Droplet'), ('felt', 'Felt mallet'), ('paper', 'Paper')];
 
 PluginManifest? pluginById(String id) {
   for (final plugin in catalogue) {

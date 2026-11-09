@@ -53,7 +53,7 @@ class SettingsStore extends ChangeNotifier {
     'emoji_suggest': true,
     'markdown_everywhere': false,
     'terminal_everywhere': false,
-    'sound_pack': 'mechanical',
+    'sound_pack': 'droplet',
     'sound_volume': '35',
     'stock_sound': 'bamboo',
     'sound_source': 'stock',

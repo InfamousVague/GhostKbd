@@ -36,7 +36,7 @@ class KeyboardPrefs(context: Context) {
     val terminalEverywhere: Boolean get() = bool(TERMINAL_EVERYWHERE)
 
     /** The sounds plugin's pack (assets/sounds/packs.json). */
-    val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
+    val soundPack: String get() = prefs.getString(SOUND_PACK, "droplet")!!
 
     /** Key press › Sound, without the sounds plugin: a stock sound (SoundPacks.STOCK) or "system", Android's. */
     val stockSound: String get() = prefs.getString(STOCK_SOUND, "bamboo")!!
@@ -203,7 +203,7 @@ class KeyboardPrefs(context: Context) {
             EMOJI_SUGGEST to true,
             MARKDOWN_EVERYWHERE to false,
             TERMINAL_EVERYWHERE to false,
-            SOUND_PACK to "mechanical",
+            SOUND_PACK to "droplet",
             SOUND_VOLUME to "35",
             STOCK_SOUND to "bamboo",
             SOUND_SOURCE to "stock",

@@ -16,7 +16,7 @@ object SoundPacks {
      * The stock sounds: every keyboard has them, without the plugin (Settings › Key press › Sound), id to name. More
      * are brought in over time; "system" is Android's own.
      */
-    val STOCK = linkedMapOf("bamboo" to "Thock", "geiger" to "Geiger counter")
+    val STOCK = linkedMapOf("bamboo" to "Thock", "geiger" to "Geiger counter", "ping-pong" to "Ping pong")
 
     /** Pack id to its name, in Settings' order, from assets/sounds/packs.json (tool/sound_packs.py writes it). */
     fun packs(context: Context): LinkedHashMap<String, String> {
@@ -25,7 +25,7 @@ object SoundPacks {
             val a = org.json.JSONArray(context.assets.open("sounds/packs.json").bufferedReader().readText())
             for (i in 0 until a.length()) a.getJSONObject(i).let { out[it.getString("id")] = it.getString("name") }
         }
-        if (out.isEmpty()) out += linkedMapOf("mechanical" to "Clicky mechanical", "thock" to "Deep thock", "typewriter" to "Typewriter", "bubble" to "Bubble pop", "arcade" to "8-bit arcade")
+        
         return out
     }
 

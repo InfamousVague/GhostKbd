@@ -20,91 +20,68 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'android/app/src/main/assets/sounds'
 
 # The boards: what they are and how they sound, in the words switch reviews use.
-BOARDS = {
-    'mechanical': 'a mechanical keyboard with clicky blue switches and ABS keycaps: a crisp, bright click on every press',
-    'thock': 'a custom gasket-mount mechanical keyboard with lubed linear switches, thick PBT keycaps and foam inside: a deep, muted, low-pitched thock',
-    'typewriter': 'a vintage manual typewriter: soft metal typebars striking paper on the platen',
-    'holy-panda': 'a custom keyboard with tactile Holy Panda switches: a rounded, poppy sound with a pronounced tactile bump',
-    'topre': 'a Topre electro-capacitive keyboard, rubber domes over conical springs: soft, cushioned, rounded thocks',
-    'buckling-spring': 'an IBM Model M buckling spring keyboard: a firm click with a faint metallic spring ping',
-    'alps': 'a vintage keyboard with white Alps clicky switches: a crisp, slightly scratchy, raspy click',
-    'box-jade': 'a keyboard with thick clicky box switches with a click bar: a sharp, solid, chunky click',
-    'creamy': 'a keyboard with smooth, well-lubed linear switches and POM keycaps: a soft, creamy, smooth tok',
-    'marble': 'a custom keyboard with a marbly sound profile: glassy, rounded, deep toks like marbles set on stone',
-    'laptop': 'a thin laptop keyboard with scissor switches: quiet, light, plasticky taps',
-    'silent': 'a keyboard with silent linear switches with dampened stems: very soft, muted, rubbery taps',
-    'wood': 'a keyboard with a walnut wooden case and wooden keycaps: warm, hollow, woody knocks',
-    'ceramic': 'a keyboard with ceramic keycaps: high, glassy, clean clacks',
-    'terminal': 'a 1980s computer terminal keyboard with heavy mechanical switches: solid, plasticky clacks',
-    'red-linear': 'a keyboard with light red linear switches and thin ABS keycaps: light, smooth, slightly high-pitched clacks',
-    'ink': 'a keyboard with heavy smooth black linear switches in an aluminium case: deep, clean, full clacks',
-}
+# The boards (keyboard recordings) were retired on 2026-11-09: "far too keyboard like and not subtle enough" (Matt).
+# The machinery for them stays for another try: a pack here is asked for typing on that board.
+BOARDS: dict = {}
 
 # Packs that are a sound rather than a board.
 SOUNDS = {
-    'bubble': 'soft small bubble pops',
-    'arcade': 'short 8-bit video game blips',
-    'piano': 'very short staccato muted piano notes, each damped instantly by a felt',
-    'raindrop': 'single water drops plipping into a still pool',
-    'woodblock': 'soft taps on a small woodblock',
-    'kalimba': 'very short muted kalimba plucks, each tine stopped by a finger at once',
-    'glass': 'light fingertip taps on a wine glass',
-    'scifi': 'subtle futuristic interface blips',
-    'pencil': 'a pencil tip tapping paper on a desk',
-    'cardboard': 'fingertip taps on an empty cardboard box',
-    'pebble': 'a small pebble tapping a smooth stone',
-    'bubble-wrap': 'single bubble wrap bubbles popping',
-    'phone-tick': 'soft smartphone touchscreen keyboard ticks',
-    # 2026-11-08, Matt: "more sounds that are not keyboard sounds and are more unique". Short, percussive things,
-    # so each one cuts cleanly from the next.
-    'chopsticks': 'two wooden chopsticks clicking together',
-    'shutter': 'a vintage film camera shutter clicking',
+    # The stock sounds (Settings > Sounds), kept from the first sets.
     'bamboo': 'knocks on a hollow bamboo stalk',
-    'coin': 'a coin tapped on a wooden table',
-    'ice': 'ice cubes clinking against a glass',
-    'popcorn': 'single popcorn kernels popping',
-    'cork': 'small corks popping out of tiny bottles',
-    'pen': 'a retractable ballpoint pen clicking',
-    'castanets': 'castanet clacks',
-    'snap': 'crisp finger snaps',
-    'finger-drum': 'fingertips tapping a muted tom drum',
-    'leaves': 'single crunches of dry autumn leaves',
-    'snow': 'single steps crunching fresh snow',
     'geiger': 'a Geiger counter clicking',
-    'mahjong': 'mahjong tiles clacking together',
-    'chess': 'wooden chess pieces set down on a board',
     'ping-pong': 'a ping pong ball bouncing on a table',
-    'clock': 'a mechanical clock ticking',
-    'switch': 'a light switch flicked',
-    'rotary': 'an old rotary phone dial clicking',
-    'dominoes': 'dominoes clacking down',
-    'stapler': 'a stapler stapling paper',
+    # 2026-11-09, Matt: "a fresh list of 30 new distinct and subtle sounds". Small, soft, short things.
+    'droplet': 'tiny soft water droplets',
+    'felt': 'soft felt mallet taps on a wooden tabletop',
+    'paper': 'fingertip taps on a sheet of thick paper',
+    'soft-pop': 'tiny soft mouth pops',
+    'marimba': 'very short muted marimba taps, each damped at once',
+    'sand': 'small pebbles dropped onto damp sand',
+    'linen': 'tiny soft fingertip taps on linen fabric',
+    'corkboard': 'fingertip taps on a cork board',
+    'eraser': 'a soft rubber eraser tapped on a desk',
+    'seed': 'single seeds dropped into a ceramic bowl',
+    'leaf': 'a single small leaf flicked with a finger',
+    'blip': 'tiny underwater bubble blips',
+    'latch': 'a small plastic latch closing gently',
+    'balsa': 'fingertip knocks on a thin balsa wood panel',
+    'bead': 'small glass beads dropped on a felt mat',
+    'frost': 'very soft crisp ticks, like frost cracking',
+    'card': 'a playing card flicked once',
+    'page': 'a single quick soft flick of a book page',
+    'stone': 'a smooth river stone set gently on another',
+    'velvet': 'fingertip taps on a velvet cushion, soft thuds',
+    'clay': 'fingertip taps on an unglazed clay pot',
+    'shell': 'a small seashell tapped against another',
+    'block': 'soft wooden tocks of a tiny toy block',
+    'rain-leaf': 'raindrops landing on a broad leaf',
+    'pluck': 'very short muted guitar string plucks, damped instantly',
+    'heartbeat': 'soft low single thumps like a muffled heartbeat',
+    'sparkle': 'very short tiny high sparkle ticks, no ringing',
+    'twig': 'a thin dry twig snapping softly',
+    'zipper': 'a single soft click of a zipper tooth',
+    'button': 'a soft cloth-covered button pressed',
 }
 
 # Every pack's name in Settings, in its order.
 NAMES = {
-    'mechanical': 'Clicky mechanical', 'thock': 'Deep thock', 'typewriter': 'Typewriter', 'bubble': 'Bubble pop',
-    'arcade': '8-bit arcade', 'holy-panda': 'Tactile pop', 'topre': 'Cushioned thock', 'buckling-spring': 'Buckling spring',
-    'alps': 'Vintage click', 'box-jade': 'Heavy click', 'creamy': 'Creamy', 'marble': 'Marbly', 'laptop': 'Laptop',
-    'silent': 'Silent', 'wood': 'Wooden', 'ceramic': 'Ceramic', 'terminal': 'Terminal clack', 'red-linear': 'Light linear',
-    'ink': 'Deep linear', 'piano': 'Muted piano', 'raindrop': 'Raindrops', 'woodblock': 'Woodblock', 'kalimba': 'Kalimba',
-    'glass': 'Glass', 'scifi': 'Sci-fi', 'pencil': 'Pencil', 'cardboard': 'Cardboard', 'pebble': 'Pebbles',
-    'bubble-wrap': 'Bubble wrap', 'phone-tick': 'Phone tick',
-    'chopsticks': 'Chopsticks', 'shutter': 'Camera shutter', 'bamboo': 'Bamboo', 'coin': 'Coin', 'ice': 'Ice',
-    'popcorn': 'Popcorn', 'cork': 'Corks', 'pen': 'Pen click', 'castanets': 'Castanets', 'snap': 'Finger snaps',
-    'finger-drum': 'Finger drum', 'leaves': 'Autumn leaves', 'snow': 'Snow', 'geiger': 'Geiger counter',
-    'mahjong': 'Mahjong', 'chess': 'Chess', 'ping-pong': 'Ping pong', 'clock': 'Clockwork', 'switch': 'Light switch',
-    'rotary': 'Rotary dial', 'dominoes': 'Dominoes', 'stapler': 'Stapler',
+    'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong',
+    'droplet': 'Droplet', 'felt': 'Felt mallet', 'paper': 'Paper', 'soft-pop': 'Soft pop', 'marimba': 'Muted marimba',
+    'sand': 'Sand', 'linen': 'Linen', 'corkboard': 'Corkboard', 'eraser': 'Eraser', 'seed': 'Seed', 'leaf': 'Leaf',
+    'blip': 'Bubble blip', 'latch': 'Latch', 'balsa': 'Balsa', 'bead': 'Glass bead', 'frost': 'Frost', 'card': 'Card flick',
+    'page': 'Page', 'stone': 'River stone', 'velvet': 'Velvet', 'clay': 'Clay', 'shell': 'Seashell', 'block': 'Toy block',
+    'rain-leaf': 'Rain on a leaf', 'pluck': 'Muted pluck', 'heartbeat': 'Heartbeat', 'sparkle': 'Sparkle', 'twig': 'Twig',
+    'zipper': 'Zipper', 'button': 'Button',
 }
 
 # Sounds every keyboard has, without the plugin (Settings > Key press > Sound): Bamboo, as "Thock" (2026-11-08).
-STOCK = {'bamboo': 'Thock', 'geiger': 'Geiger counter'}
+STOCK = {'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong'}
 
 # v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.
-# Cardboard (liked as it was) and Kalimba (its notes ring into each other, so it can't be cut) keep v1.
-VERSIONS = {pack: (1 if pack in ('cardboard', 'kalimba') else 3) for pack in NAMES}
+VERSIONS = {pack: 3 for pack in NAMES}
 
-QUIET = 'Close-up recording in a quiet room, natural and realistic, not exaggerated, no music, no voices, no reverb.'
+QUIET = ('Close-up recording in a quiet room, very soft, gentle and subtle, natural and realistic, not exaggerated, '
+         'no music, no voices, no reverb.')
 
 
 def prompts(pack: str) -> dict:
@@ -201,7 +178,7 @@ def typical(x: list, spans: list, n: int) -> list:
 
 def write(samples: list, dest: pathlib.Path) -> None:
     """A stroke as a pack's file: faded in over 2 ms and out over its last 40%, cleaned of rumble and fizz, at a
-    modest, even level (peaks at -15 dBFS) so no pack is loud next to another."""
+    soft, even level (peaks at -18 dBFS) so no pack is loud next to another."""
     n = len(samples)
     fade_in, fade_out = int(RATE * 0.002), max(1, int(n * 0.4))
     shaped = []
@@ -211,7 +188,7 @@ def write(samples: list, dest: pathlib.Path) -> None:
             g *= ((n - i) / fade_out) ** 2
         shaped.append(v * g)
     peak = max(1e-6, max(abs(v) for v in shaped))
-    target = 10 ** (-15 / 20)
+    target = 10 ** (-18 / 20)
     shaped = [v * target / peak for v in shaped]
     with tempfile.TemporaryDirectory() as d:
         wav = pathlib.Path(d, 'x.wav')

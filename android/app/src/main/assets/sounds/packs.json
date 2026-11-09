@@ -1,202 +1,122 @@
 [
  {
-  "id": "mechanical",
-  "name": "Clicky mechanical"
+  "id": "droplet",
+  "name": "Droplet"
  },
  {
-  "id": "thock",
-  "name": "Deep thock"
+  "id": "felt",
+  "name": "Felt mallet"
  },
  {
-  "id": "typewriter",
-  "name": "Typewriter"
+  "id": "paper",
+  "name": "Paper"
  },
  {
-  "id": "bubble",
-  "name": "Bubble pop"
+  "id": "soft-pop",
+  "name": "Soft pop"
  },
  {
-  "id": "arcade",
-  "name": "8-bit arcade"
+  "id": "marimba",
+  "name": "Muted marimba"
  },
  {
-  "id": "holy-panda",
-  "name": "Tactile pop"
+  "id": "sand",
+  "name": "Sand"
  },
  {
-  "id": "topre",
-  "name": "Cushioned thock"
+  "id": "linen",
+  "name": "Linen"
  },
  {
-  "id": "buckling-spring",
-  "name": "Buckling spring"
+  "id": "corkboard",
+  "name": "Corkboard"
  },
  {
-  "id": "alps",
-  "name": "Vintage click"
+  "id": "eraser",
+  "name": "Eraser"
  },
  {
-  "id": "box-jade",
-  "name": "Heavy click"
+  "id": "seed",
+  "name": "Seed"
  },
  {
-  "id": "creamy",
-  "name": "Creamy"
+  "id": "leaf",
+  "name": "Leaf"
  },
  {
-  "id": "marble",
-  "name": "Marbly"
+  "id": "blip",
+  "name": "Bubble blip"
  },
  {
-  "id": "laptop",
-  "name": "Laptop"
+  "id": "latch",
+  "name": "Latch"
  },
  {
-  "id": "silent",
-  "name": "Silent"
+  "id": "balsa",
+  "name": "Balsa"
  },
  {
-  "id": "wood",
-  "name": "Wooden"
+  "id": "bead",
+  "name": "Glass bead"
  },
  {
-  "id": "ceramic",
-  "name": "Ceramic"
+  "id": "frost",
+  "name": "Frost"
  },
  {
-  "id": "terminal",
-  "name": "Terminal clack"
+  "id": "card",
+  "name": "Card flick"
  },
  {
-  "id": "red-linear",
-  "name": "Light linear"
+  "id": "page",
+  "name": "Page"
  },
  {
-  "id": "ink",
-  "name": "Deep linear"
+  "id": "stone",
+  "name": "River stone"
  },
  {
-  "id": "piano",
-  "name": "Muted piano"
+  "id": "velvet",
+  "name": "Velvet"
  },
  {
-  "id": "raindrop",
-  "name": "Raindrops"
+  "id": "clay",
+  "name": "Clay"
  },
  {
-  "id": "woodblock",
-  "name": "Woodblock"
+  "id": "shell",
+  "name": "Seashell"
  },
  {
-  "id": "kalimba",
-  "name": "Kalimba"
+  "id": "block",
+  "name": "Toy block"
  },
  {
-  "id": "glass",
-  "name": "Glass"
+  "id": "rain-leaf",
+  "name": "Rain on a leaf"
  },
  {
-  "id": "scifi",
-  "name": "Sci-fi"
+  "id": "pluck",
+  "name": "Muted pluck"
  },
  {
-  "id": "pencil",
-  "name": "Pencil"
+  "id": "heartbeat",
+  "name": "Heartbeat"
  },
  {
-  "id": "cardboard",
-  "name": "Cardboard"
+  "id": "sparkle",
+  "name": "Sparkle"
  },
  {
-  "id": "pebble",
-  "name": "Pebbles"
+  "id": "twig",
+  "name": "Twig"
  },
  {
-  "id": "bubble-wrap",
-  "name": "Bubble wrap"
+  "id": "zipper",
+  "name": "Zipper"
  },
  {
-  "id": "phone-tick",
-  "name": "Phone tick"
- },
- {
-  "id": "chopsticks",
-  "name": "Chopsticks"
- },
- {
-  "id": "shutter",
-  "name": "Camera shutter"
- },
- {
-  "id": "coin",
-  "name": "Coin"
- },
- {
-  "id": "ice",
-  "name": "Ice"
- },
- {
-  "id": "popcorn",
-  "name": "Popcorn"
- },
- {
-  "id": "cork",
-  "name": "Corks"
- },
- {
-  "id": "pen",
-  "name": "Pen click"
- },
- {
-  "id": "castanets",
-  "name": "Castanets"
- },
- {
-  "id": "snap",
-  "name": "Finger snaps"
- },
- {
-  "id": "finger-drum",
-  "name": "Finger drum"
- },
- {
-  "id": "leaves",
-  "name": "Autumn leaves"
- },
- {
-  "id": "snow",
-  "name": "Snow"
- },
- {
-  "id": "mahjong",
-  "name": "Mahjong"
- },
- {
-  "id": "chess",
-  "name": "Chess"
- },
- {
-  "id": "ping-pong",
-  "name": "Ping pong"
- },
- {
-  "id": "clock",
-  "name": "Clockwork"
- },
- {
-  "id": "switch",
-  "name": "Light switch"
- },
- {
-  "id": "rotary",
-  "name": "Rotary dial"
- },
- {
-  "id": "dominoes",
-  "name": "Dominoes"
- },
- {
-  "id": "stapler",
-  "name": "Stapler"
+  "id": "button",
+  "name": "Button"
  }
 ]
