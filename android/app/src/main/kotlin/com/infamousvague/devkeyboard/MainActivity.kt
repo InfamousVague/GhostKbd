@@ -146,11 +146,7 @@ class MainActivity : FlutterActivity() {
                         SoundPacks.packs(this@MainActivity).filter { SoundPacks.available(this@MainActivity, it.key) }.map { mapOf("id" to it.key, "name" to it.value) },
                     )
                     "sampleSound" -> {
-                        SoundPacks.sample(this@MainActivity, prefs.soundPack, prefs.soundFilters, prefs.soundVolume.coerceAtLeast(0.15f))
-                        result.success(null)
-                    }
-                    "previewSound" -> {
-                        SoundPacks.preview(this@MainActivity, prefs.soundPack, prefs.soundFilters, call.argument<String>("kind") ?: "key", prefs.soundVolume.coerceAtLeast(0.15f))
+                        SoundPacks.sample(this@MainActivity, prefs.soundPack, prefs.soundVolume.coerceAtLeast(0.15f))
                         result.success(null)
                     }
                     "dictationState" -> result.success(dictationState())

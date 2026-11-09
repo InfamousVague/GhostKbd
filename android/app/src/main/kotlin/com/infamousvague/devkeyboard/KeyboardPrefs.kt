@@ -41,9 +41,6 @@ class KeyboardPrefs(context: Context) {
     /** The sounds plugin's pack (assets/sounds/packs.json). */
     val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
 
-    /** Each kind of key sound's filters, as JSON (SoundPacks.parse). */
-    val soundFilters: String get() = prefs.getString(SOUND_FILTERS, "")!!
-
     /** How loud key sounds play, 0 to 1 (the setting keeps a percentage). */
     val soundVolume: Float get() = (prefs.getString(SOUND_VOLUME, "35")!!.toFloatOrNull() ?: 35f).coerceIn(0f, 100f) / 100f
 
@@ -155,7 +152,6 @@ class KeyboardPrefs(context: Context) {
         const val TERMINAL_EVERYWHERE = "terminal_everywhere"
         const val SOUND_PACK = "sound_pack"
         const val SOUND_VOLUME = "sound_volume"
-        const val SOUND_FILTERS = "sound_filters"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -194,7 +190,6 @@ class KeyboardPrefs(context: Context) {
             TERMINAL_EVERYWHERE to false,
             SOUND_PACK to "mechanical",
             SOUND_VOLUME to "35",
-            SOUND_FILTERS to "",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",

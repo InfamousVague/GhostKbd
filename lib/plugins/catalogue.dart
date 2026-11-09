@@ -255,7 +255,7 @@ const List<PluginManifest> catalogue = [
     category: PluginCategory.sound,
     hue: 'coral',
     icon: Lucide.volume2,
-    adds: ['Thirty sound packs', 'Filters for each sound'],
+    adds: ['Thirty sound packs'],
     hasPage: true,
   ),
   PluginManifest(

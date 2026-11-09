@@ -107,6 +107,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
         Updater.backgroundCheck(this)
         clipboard.addPrimaryClipChangedListener(onClip)
+        // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
+        prefs.prefs.edit().remove("sound_filters").apply()
     }
 
     override fun onDestroy() {
@@ -206,8 +208,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.popupKeys = prefs.popupKeys
         view.split = prefs.split
         view.iconPack = prefs.iconPack
-        // The chosen pack, filtered as set, made ready before the first key needs it.
-        if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.sound) SoundPacks.prepare(this, prefs.soundPack, prefs.soundFilters)
+        // The chosen pack, made ready before the first key needs it.
+        if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.sound) SoundPacks.prepare(this, prefs.soundPack)
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
@@ -462,7 +464,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             vibrator.vibrate(effect)
         }
         val volume = prefs.soundVolume
-        if (prefs.sound && volume > 0f && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, prefs.soundFilters, key.type, volume))) {
+        if (prefs.sound && volume > 0f && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, key.type, volume))) {
             val fx = when (key.type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
                 KeyType.SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
