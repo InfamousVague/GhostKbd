@@ -472,7 +472,7 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
     PaneSection(
       title: 'Pack',
       footer: Text(store.flag('sound')
-          ? (here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
+          ? (here.isNotEmpty ? 'Tap a pack to hear a few seconds of typing in it.' : here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
           : 'Turn on Sound in Key press to hear them.'),
       children: [
         for (final (id, name) in here.isEmpty ? soundPacks : here)
@@ -480,7 +480,11 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
             label: name,
             hint: here.isEmpty ? const Text('Coming in an update') : null,
             icon: store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
-            onPress: () => store.set('sound_pack', id),
+            // Choosing a pack plays a few seconds of typing in it.
+            onPress: () async {
+              await store.set('sound_pack', id);
+              if (here.isNotEmpty) store.sampleSound();
+            },
           ),
         if (!store.flag('sound')) _toggle(store, 'sound', 'Sound on key press'),
       ],

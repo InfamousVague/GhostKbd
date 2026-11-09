@@ -258,6 +258,15 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
+  /// A few seconds of typing in the chosen pack, filters and all.
+  Future<void> sampleSound() async {
+    try {
+      await _channel.invokeMethod<void>('sampleSound');
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   /// The sound packs in this build, as (id, name), in order (assets/sounds/packs.json).
   List<(String, String)> soundPacksHere = const [];
   static List<(String, String)> _packs(List<Object?>? raw) => [

@@ -157,6 +157,35 @@ object SoundPacks {
         prepare(context, pack, filters) { playNamed(if (kind == "key") "key1" else kind, volume) }
     }
 
+    /**
+     * A few seconds of typing in [pack]: a word, a space, a slip deleted, another word, enter, at a typist's uneven
+     * pace, so a pack can be judged as it will sound in use rather than one click at a time.
+     */
+    fun sample(context: Context, pack: String, filters: String, volume: Float) {
+        sampleRun++
+        val run = sampleRun
+        prepare(context, pack, filters) {
+            val script = "kkkkk_kkkkdkk_kkkkkkk_kkke"
+            var at = 0L
+            val rnd = java.util.Random(7)
+            for (c in script) {
+                at += when (c) { '_' -> 150L; 'd' -> 260L; 'e' -> 220L; else -> 85L } + rnd.nextInt(60)
+                main.postDelayed({
+                    if (run != sampleRun) return@postDelayed
+                    when (c) {
+                        '_' -> playNamed("space", volume)
+                        'd' -> playNamed("delete", volume)
+                        'e' -> playNamed("enter", volume)
+                        else -> playNamed("key${(round++ % 3) + 1}", volume)
+                    }
+                }, at)
+            }
+        }
+    }
+
+    /** The sample playing now: a newer one stops an older one's remaining keys. */
+    @Volatile private var sampleRun = 0
+
     fun release() { pool?.release(); pool = null; loaded = null; ids.clear() }
 
     // --- signal ---------------------------------------------------------------------------------------------------
