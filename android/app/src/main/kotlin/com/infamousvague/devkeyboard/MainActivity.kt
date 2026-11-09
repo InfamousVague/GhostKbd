@@ -143,6 +143,10 @@ class MainActivity : FlutterActivity() {
                     "clipboardState" -> result.success(mapOf("count" to ClipHistory.all(this@MainActivity).size))
                     "clearClipboard" -> { ClipHistory.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
                     "soundPacks" -> result.success(SoundPacks.PACKS.keys.filter { SoundPacks.available(this@MainActivity, it) })
+                    "previewSound" -> {
+                        SoundPacks.preview(this@MainActivity, prefs.soundPack, prefs.soundFilters, call.argument<String>("kind") ?: "key", prefs.soundVolume.coerceAtLeast(0.15f))
+                        result.success(null)
+                    }
                     "dictationState" -> result.success(dictationState())
                     "downloadModel" -> {
                         val id = call.argument<String>("id")

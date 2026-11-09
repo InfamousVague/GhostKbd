@@ -15,6 +15,7 @@ import '../plugins/catalogue.dart';
 import '../settings_store.dart';
 import 'kit/settings_kit.dart';
 import 'settings_screen.dart';
+import 'sound_shaper.dart';
 import 'theme_editor.dart';
 
 Widget _icon(LucideIcon icon) => AppIcon(icon, size: 18, strokeWidth: 2.1);
@@ -489,6 +490,7 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(children: [_volume(store)]),
+    if (store.flag('sound')) SoundShaper(store: store),
     PaneSection(children: [SettingRow(label: 'Remove Sound packs', onPress: () => store.setPlugin('sounds', false))]),
   ];
 }

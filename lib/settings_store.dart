@@ -52,6 +52,7 @@ class SettingsStore extends ChangeNotifier {
     'terminal_everywhere': false,
     'sound_pack': 'mechanical',
     'sound_volume': '35',
+    'sound_filters': '',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
@@ -243,6 +244,15 @@ class SettingsStore extends ChangeNotifier {
       await _channel.invokeMethod<Object>('clearClipboard');
       clipCount = 0;
       notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// Plays one kind of key sound (key, space, delete, enter) as the keyboard will, filters and all.
+  Future<void> previewSound(String kind) async {
+    try {
+      await _channel.invokeMethod<void>('previewSound', {'kind': kind});
     } on MissingPluginException {
       return;
     }
