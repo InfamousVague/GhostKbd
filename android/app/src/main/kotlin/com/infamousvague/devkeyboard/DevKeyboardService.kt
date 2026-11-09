@@ -65,6 +65,24 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var gifMode = GifMode.OFF
     private var gifQuery = ""
 
+    /** The terminal plugin's sticky modifiers: on until the next key, which they are sent with. */
+    private var ctrlOn = false
+    private var altOn = false
+
+    /** The clipboard plugin: the row showing the history instead of its usual things. */
+    private var showingClips = false
+
+    /** The incognito plugin's switch, and the field asking for no learning (EditorInfo's flag) either way. */
+    private var incognitoOn = false
+    private val incognito: Boolean get() =
+        (Plugins.isOn(prefs, Plugins.INCOGNITO) && incognitoOn) ||
+            (currentInputEditorInfo?.let { it.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0 } == true)
+
+    private val clipboard by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager }
+    private val onClip = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) { ClipHistory.record(this, clipboard); scheduleRow() }
+    }
+
     private val audio by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private val vibrator: Vibrator by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -85,9 +103,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
         Updater.backgroundCheck(this)
+        clipboard.addPrimaryClipChangedListener(onClip)
     }
 
     override fun onDestroy() {
+        runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
+        SoundPacks.release()
         WhisperModel.removeListener(onModel)
         dictation.release()
         prefs.prefs.unregisterOnSharedPreferenceChangeListener(this)
@@ -134,7 +155,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs() }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); showingClips = false; ctrlOn = false; altOn = false }
         scheduleRow()
         keyboard?.let { view ->
             if (!restarting) view.reset()
@@ -225,6 +246,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onText(text: String, caretBack: Int) {
         if (gifMode == GifMode.TYPING) { gifQuery += text; scheduleRow(); return }
         val ic = currentInputConnection ?: return
+        // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
+        if ((ctrlOn || altOn) && text.length == 1 && sendWithModifiers(text[0])) return
         lastSpaceAt = 0L
         // A letter straight after a swiped word starts a new word: a space first, as Gboard does.
         if (lastSwipe != null && text.length == 1 && text[0].isLetterOrDigit()) ic.commitText(" ", 1)
@@ -310,8 +333,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ic.commitText(if (keepSeparator) typed + separator else typed, 1)
         ic.endBatchEdit()
         lastSpaceAt = 0L
-        prefs.learn(typed)
-        autocorrect.setLearned(prefs.learnedWords)
+        if (!incognito) { prefs.learn(typed); autocorrect.setLearned(prefs.learnedWords) }
         scheduleRow()
         return true
     }
@@ -411,7 +433,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
             vibrator.vibrate(effect)
         }
-        if (prefs.sound) {
+        if (prefs.sound && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, key.type))) {
             val fx = when (key.type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
                 KeyType.SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
@@ -481,7 +503,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            Plugins.isOn(prefs, Plugins.SWIPE) || Plugins.isOn(prefs, Plugins.PASSWORDS) || Plugins.isOn(prefs, Plugins.GIFS)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO)
+                .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
     private fun scheduleRow() {
@@ -504,6 +527,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val label = if (typing) "$gifQuery|" else gifQuery.ifEmpty { "Search GIPHY" }
             items += RowItem("gif-query", label = label, icon = RowIcon.SEARCH, chip = true) { typeGifSearch() }
             if (typing) items += RowItem("gif-go", icon = RowIcon.SEARCH) { searchGifs() }
+            strip.setItems(items)
+            return
+        }
+        if (showingClips) {
+            items += RowItem("clips-back", icon = RowIcon.BACK) { showingClips = false; scheduleRow() }
+            val clips = ClipHistory.all(this)
+            if (clips.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
+            for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
+            if (clips.isNotEmpty()) items += RowItem("clips-clear", label = "Clear") { ClipHistory.clear(this); scheduleRow() }
             strip.setItems(items)
             return
         }
@@ -535,13 +567,138 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 }
             }
         }
-        if (items.isEmpty()) {
-            if (Plugins.isOn(prefs, Plugins.GIFS)) items += RowItem("gifs", label = "GIFs", icon = RowIcon.GIF, chip = true) { openGifs() }
-            if (Plugins.isOn(prefs, Plugins.PASSWORDS) && isPassword(currentInputEditorInfo)) {
-                items += RowItem("passwords-hint", label = "Logins appear here", icon = RowIcon.KEY)
+        if (items.isEmpty()) items += tools()
+        strip.setItems(middleBold(items))
+    }
+
+    /**
+     * The plugins' buttons, shown when nothing is being typed: incognito's state, a just-copied clip, terminal keys
+     * and markdown (in the apps they suit, or everywhere), undo and redo, the clipboard, GIFs.
+     */
+    private fun tools(): List<RowItem> {
+        val items = ArrayList<RowItem>()
+        val app = AppContext.kind(currentInputEditorInfo?.packageName)
+        if (Plugins.isOn(prefs, Plugins.INCOGNITO)) {
+            items += RowItem("incognito-$incognito", label = if (incognito) "Incognito on" else "Incognito", bold = incognito, chip = true) {
+                incognitoOn = !incognitoOn; scheduleRow()
             }
         }
-        strip.setItems(middleBold(items))
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) {
+            ClipHistory.fresh?.takeIf { System.currentTimeMillis() - it.at < 90_000 }?.let { clip ->
+                items += RowItem("fresh-${clip.at}", label = preview(clip.text), bold = true, chip = true) { pasteClip(clip.text) }
+            }
+        }
+        if (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL)) {
+            items += RowItem("esc", label = "Esc", chip = true) { sendKey(KeyEvent.KEYCODE_ESCAPE) }
+            items += RowItem("tab", label = "Tab", chip = true) { sendKey(KeyEvent.KEYCODE_TAB) }
+            items += RowItem("ctrl-$ctrlOn", label = "Ctrl", bold = ctrlOn, chip = true) { ctrlOn = !ctrlOn; scheduleRow() }
+            items += RowItem("alt-$altOn", label = "Alt", bold = altOn, chip = true) { altOn = !altOn; scheduleRow() }
+            items += RowItem("left", label = "←", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
+            items += RowItem("up", label = "↑", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_UP) }
+            items += RowItem("down", label = "↓", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
+            items += RowItem("right", label = "→", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
+            for (c in listOf("|", "~", "/", "-", "&&", ">")) items += RowItem("t$c", label = c, chip = true) { currentInputConnection?.commitText(c, 1) }
+        }
+        if (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN)) {
+            items += RowItem("md-b", label = "B", bold = true, chip = true) { wrap("**", "**") }
+            items += RowItem("md-i", label = "I", chip = true) { wrap("_", "_") }
+            items += RowItem("md-s", label = "S̶", chip = true) { wrap("~~", "~~") }
+            items += RowItem("md-code", label = "</>", chip = true) { wrap("`", "`") }
+            items += RowItem("md-block", label = "```", chip = true) { wrap("```\n", "\n```") }
+            items += RowItem("md-link", label = "Link", chip = true) { link() }
+            items += RowItem("md-h", label = "#", chip = true) { linePrefix("# ") }
+            items += RowItem("md-list", label = "•", chip = true) { linePrefix("- ") }
+            items += RowItem("md-task", label = "☐", chip = true) { linePrefix("- [ ] ") }
+            items += RowItem("md-quote", label = "❝", chip = true) { linePrefix("> ") }
+            // Ghost.md's own: a link to another note.
+            if (AppContext.isGhostMd(currentInputEditorInfo?.packageName)) items += RowItem("md-wiki", label = "[[ ]]", chip = true) { wrap("[[", "]]") }
+        }
+        if (Plugins.isOn(prefs, Plugins.UNDO)) {
+            items += RowItem("undo", label = "↶ Undo", chip = true) { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
+            items += RowItem("redo", label = "↷ Redo", chip = true) {
+                sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
+            }
+        }
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", label = "Clipboard", chip = true) { showingClips = true; scheduleRow() }
+        if (Plugins.isOn(prefs, Plugins.GIFS)) items += RowItem("gifs", label = "GIFs", icon = RowIcon.GIF, chip = true) { openGifs() }
+        if (Plugins.isOn(prefs, Plugins.PASSWORDS) && isPassword(currentInputEditorInfo)) {
+            items += RowItem("passwords-hint", label = "Logins appear here", icon = RowIcon.KEY)
+        }
+        return items
+    }
+
+    /** A clip as a chip shows it: one line, cut short. */
+    private fun preview(text: String): String {
+        val line = text.replace(Regex("\\s+"), " ").trim()
+        return if (line.length > 28) line.take(27) + "…" else line
+    }
+
+    private fun pasteClip(text: String) {
+        currentInputConnection?.commitText(text, 1)
+        ClipHistory.fresh = null
+        showingClips = false
+        scheduleRow()
+    }
+
+    /** A key press with modifiers, as a hardware keyboard sends it: what terminals and undo listen for. */
+    private fun sendKey(code: Int, meta: Int = 0) {
+        val ic = currentInputConnection ?: return
+        val now = android.os.SystemClock.uptimeMillis()
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, meta))
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, meta))
+    }
+
+    /** [c] sent with the sticky Ctrl and Alt, then both let go. False for a character with no key of its own. */
+    private fun sendWithModifiers(c: Char): Boolean {
+        val code = when {
+            c in 'a'..'z' || c in 'A'..'Z' -> KeyEvent.KEYCODE_A + (c.lowercaseChar() - 'a')
+            c in '0'..'9' -> KeyEvent.KEYCODE_0 + (c - '0')
+            c == '[' -> KeyEvent.KEYCODE_LEFT_BRACKET
+            c == ']' -> KeyEvent.KEYCODE_RIGHT_BRACKET
+            c == '\\' -> KeyEvent.KEYCODE_BACKSLASH
+            c == ' ' -> KeyEvent.KEYCODE_SPACE
+            else -> return false
+        }
+        var meta = 0
+        if (ctrlOn) meta = meta or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        if (altOn) meta = meta or KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON
+        sendKey(code, meta)
+        ctrlOn = false; altOn = false
+        scheduleRow()
+        return true
+    }
+
+    /** Markdown around the selection, or an empty pair with the cursor inside it. */
+    private fun wrap(open: String, close: String) {
+        val ic = currentInputConnection ?: return
+        val selected = ic.getSelectedText(0)?.toString().orEmpty()
+        ic.beginBatchEdit()
+        ic.commitText(open + selected + close, 1)
+        if (selected.isEmpty()) moveCursorBy(ic, -close.length)
+        ic.endBatchEdit()
+    }
+
+    /** A link: the selection becomes its words, and the cursor waits where the address goes. */
+    private fun link() {
+        val ic = currentInputConnection ?: return
+        val selected = ic.getSelectedText(0)?.toString().orEmpty()
+        ic.beginBatchEdit()
+        if (selected.isEmpty()) { ic.commitText("[]()", 1); moveCursorBy(ic, -3) }
+        else { ic.commitText("[$selected]()", 1); moveCursorBy(ic, -1) }
+        ic.endBatchEdit()
+    }
+
+    /** [prefix] at the start of the cursor's line (a heading, a list item, a quote). */
+    private fun linePrefix(prefix: String) {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty()
+        val lineStart = before.lastIndexOf('\n') + 1
+        val back = before.length - lineStart
+        ic.beginBatchEdit()
+        if (back > 0) moveCursorBy(ic, -back)
+        ic.commitText(prefix, 1)
+        if (back > 0) moveCursorBy(ic, back)
+        ic.endBatchEdit()
     }
 
     /** Gboard's arrangement: with three suggestions, the pick sits in the middle. */
@@ -580,8 +737,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The typed word tapped in quotes: keep it as it is, learn it, and finish it with a space. */
     private fun keepTyped(word: String) {
         val ic = currentInputConnection ?: return
-        prefs.learn(word)
-        autocorrect.setLearned(prefs.learnedWords)
+        if (!incognito) { prefs.learn(word); autocorrect.setLearned(prefs.learnedWords) }
         ic.commitText(" ", 1)
         lastCorrection = null
         lastSpaceAt = System.currentTimeMillis()

@@ -100,6 +100,18 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
       if (store.pluginOn('gifs'))
         SettingsSection(id: 'gifs', label: 'GIFs', icon: _icon(Lucide.image), hue: 'orange', group: 'plugins', summary: (s) => 'GIPHY search', page: _gifs),
+      if (store.pluginOn('markdown'))
+        SettingsSection(id: 'markdown', label: 'Markdown', icon: _icon(Lucide.hash), hue: 'indigo', group: 'plugins', summary: (s) => s.flag('markdown_everywhere') ? 'Everywhere' : 'In notes apps', page: _markdown),
+      if (store.pluginOn('terminal'))
+        SettingsSection(id: 'terminal', label: 'Terminal mode', icon: _icon(Lucide.terminal), hue: 'slate', group: 'plugins', summary: (s) => s.flag('terminal_everywhere') ? 'Everywhere' : 'In terminal apps', page: _terminal),
+      if (store.pluginOn('clipboard'))
+        SettingsSection(id: 'clipboard', label: 'Clipboard history', icon: _icon(Lucide.clipboardPaste), hue: 'amber', group: 'plugins', summary: (s) => '${s.clipCount} saved', page: _clipboard),
+      if (store.pluginOn('undo'))
+        SettingsSection(id: 'undo', label: 'Undo and redo', icon: _icon(Lucide.undo2), hue: 'blue', group: 'plugins', summary: (s) => 'In the row', page: _undo),
+      if (store.pluginOn('incognito'))
+        SettingsSection(id: 'incognito', label: 'Incognito', icon: _icon(Lucide.eyeOff), hue: 'purple', group: 'plugins', summary: (s) => 'A switch in the row', page: _incognito),
+      if (store.pluginOn('sounds'))
+        SettingsSection(id: 'sounds', label: 'Sound packs', icon: _icon(Lucide.volume2), hue: 'coral', group: 'plugins', summary: (s) => soundPacks.where((p) => p.$1 == s.choice('sound_pack')).firstOrNull?.$2 ?? '', page: _sounds),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => s.flag('tap_log') ? 'Tap log is on' : 'Tap log', page: _developer),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: (s) => 'Ghost Keyboard ${s.update['current'] ?? ''}'.trim(), page: _about),
@@ -371,6 +383,103 @@ List<Widget> _gifs(BuildContext context, SettingsStore store) {
 String _megabytes(Object? bytes) {
   final b = (bytes as num?)?.toDouble() ?? 0;
   return b >= 1e9 ? '${(b / 1e9).toStringAsFixed(1)} GB' : '${(b / 1e6).round()} MB';
+}
+
+List<Widget> _rowPluginPage(SettingsStore store, {required String id, required LucideIcon icon, required String title, required String meta, List<Widget> settings = const [], required List<(String, String)> how}) => [
+      PaneHero(glyph: AppIcon(icon, size: 24), title: title, meta: Text(meta), status: const PaneHeroStatus('On')),
+      if (settings.isNotEmpty) PaneSection(children: settings),
+      PaneSection(title: 'How it works', children: [for (final (label, hint) in how) SettingRow(label: label, hint: Text(hint))]),
+      PaneSection(children: [SettingRow(label: 'Remove $title', onPress: () => store.setPlugin(id, false))]),
+    ];
+
+List<Widget> _markdown(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'markdown',
+      icon: Lucide.hash,
+      title: 'Markdown',
+      meta: 'Bold, code, links and lists a tap above the keys.',
+      settings: [_toggle(store, 'markdown_everywhere', 'Everywhere', 'Off: only in notes apps (Ghost.md, Obsidian, Joplin, Markor, Notion, GitHub…).')],
+      how: const [
+        ('Wraps the selection', 'Select words and tap B: they become **bold**. With nothing selected the cursor waits inside the pair.'),
+        ('Line buttons', '# • ☐ ❝ go at the start of the line you are on.'),
+        ('In Ghost.md', 'A [[ ]] button links to another note.'),
+      ],
+    );
+
+List<Widget> _terminal(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'terminal',
+      icon: Lucide.terminal,
+      title: 'Terminal mode',
+      meta: 'Esc, Tab, Ctrl, Alt and arrows for SSH and Termux.',
+      settings: [_toggle(store, 'terminal_everywhere', 'Everywhere', 'Off: only in terminal apps (Termux, Termius, JuiceSSH, ConnectBot…).')],
+      how: const [
+        ('Sticky Ctrl and Alt', 'Tap Ctrl (it turns bold), then a letter: Ctrl+C, Ctrl+D, Ctrl+R. They let go after one key.'),
+        ('Keys', 'Esc, Tab and the arrows are sent as real key presses, which terminals and vim read.'),
+      ],
+    );
+
+List<Widget> _clipboard(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'clipboard',
+      icon: Lucide.clipboardPaste,
+      title: 'Clipboard history',
+      meta: '${store.clipCount} of your last 25 copies are saved on this phone.',
+      settings: [SettingRow(label: 'Clear the history', onPress: store.clipCount == 0 ? null : store.clearClipboard)],
+      how: const [
+        ('Paste', 'Tap Clipboard in the row, then any copy. Something just copied waits as the first chip for a minute and a half.'),
+        ('What it skips', 'Copies Android marks sensitive (password managers), and anything copied while incognito.'),
+        ('Only while it is your keyboard', 'Android lets just the keyboard in use read the clipboard, so copies made under another keyboard are not seen.'),
+      ],
+    );
+
+List<Widget> _undo(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'undo',
+      icon: Lucide.undo2,
+      title: 'Undo and redo',
+      meta: 'Take back the last edit, or put it back.',
+      how: const [
+        ('In the row', 'Undo and Redo show whenever you are not mid-word.'),
+        ('Where it works', 'Android’s own text fields and most editors. A few apps ignore Ctrl+Z; there, nothing happens.'),
+      ],
+    );
+
+List<Widget> _incognito(BuildContext context, SettingsStore store) => _rowPluginPage(
+      store,
+      id: 'incognito',
+      icon: Lucide.eyeOff,
+      title: 'Incognito',
+      meta: 'Type without the keyboard learning or remembering anything.',
+      how: const [
+        ('The switch', 'Tap Incognito in the row; it reads “Incognito on” in bold until you tap it again.'),
+        ('What stops', 'Learning words when you undo a fix or keep what you typed, and the clipboard history.'),
+        ('On by itself', 'Fields that ask for privacy, like a browser’s private tab, are incognito whatever the switch says.'),
+      ],
+    );
+
+List<Widget> _sounds(BuildContext context, SettingsStore store) {
+  final here = store.soundPacksHere;
+  return [
+    PaneHero(glyph: AppIcon(Lucide.volume2, size: 24), title: 'Sound packs', meta: const Text('Key sounds made with ElevenLabs.'), status: const PaneHeroStatus('On')),
+    PaneSection(
+      title: 'Pack',
+      footer: Text(store.flag('sound')
+          ? (here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
+          : 'Turn on Sound in Key press to hear them.'),
+      children: [
+        for (final (id, name) in soundPacks)
+          SettingRow(
+            label: name,
+            hint: here.contains(id) ? null : const Text('Coming in an update'),
+            icon: store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+            onPress: () => store.set('sound_pack', id),
+          ),
+        if (!store.flag('sound')) _toggle(store, 'sound', 'Sound on key press'),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Sound packs', onPress: () => store.setPlugin('sounds', false))]),
+  ];
 }
 
 List<Widget> _dictation(BuildContext context, SettingsStore store) {

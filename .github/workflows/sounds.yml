@@ -1,0 +1,35 @@
+# The sounds plugin's packs: ElevenLabs makes each key sound (tool/sound_packs.py) and the files are committed to main,
+# so the app ships them. Runs when the script changes. Secret (Prod environment): ELEVENLABS_API_KEY.
+name: Sounds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tool/sound_packs.py', '.github/workflows/sounds.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  sounds:
+    runs-on: ubuntu-latest
+    environment: Prod
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make the key sounds
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -z "$ELEVENLABS_API_KEY" ]; then echo "::error::Add ELEVENLABS_API_KEY to the Prod environment's secrets"; exit 1; fi
+          sudo apt-get install -y -qq ffmpeg > /dev/null || true
+          python3 tool/sound_packs.py
+      - name: Commit the sounds
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/app/src/main/assets/sounds
+          git diff --cached --quiet && { echo "Nothing new."; exit 0; }
+          git commit -m "Key sounds for the sounds plugin, from tool/sound_packs.py"
+          git pull --rebase -q origin main
+          git push

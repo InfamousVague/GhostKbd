@@ -16,7 +16,9 @@ enum PluginCategory {
   voice('Voice'),
   look('Look'),
   security('Passwords'),
-  media('Media');
+  media('Media'),
+  tools('Tools'),
+  sound('Sound');
 
   const PluginCategory(this.label);
   final String label;
@@ -177,6 +179,94 @@ const List<PluginManifest> catalogue = [
     adds: ['A GIF button in the row above the keys', 'GIPHY search'],
     hasPage: true,
   ),
+  PluginManifest(
+    id: 'markdown',
+    name: 'Markdown',
+    line: 'Bold, code, links and lists a tap above the keys.',
+    description:
+        'Buttons in the row for bold, italic, strikethrough, code, code blocks, links, headings, lists, tasks and quotes. '
+        'They wrap what you selected, or leave the cursor inside an empty pair. They show in notes apps (Ghost.md, '
+        'Obsidian, Joplin, Markor, GitHub…) on their own, and everywhere if you like. In Ghost.md, a [[ ]] button links notes.',
+    category: PluginCategory.tools,
+    hue: 'indigo',
+    icon: Lucide.hash,
+    adds: ['Markdown buttons in the row', 'A [[note link]] button in Ghost.md'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'terminal',
+    name: 'Terminal mode',
+    line: 'Esc, Tab, Ctrl, Alt and arrows for SSH and Termux.',
+    description:
+        'The keys a terminal needs and a phone keyboard lacks: Esc, Tab, sticky Ctrl and Alt (tap Ctrl, then C for Ctrl+C), '
+        'arrow keys, and | ~ / - && >. They show in terminal apps (Termux, Termius, JuiceSSH, ConnectBot…) on their own, '
+        'and everywhere if you like.',
+    category: PluginCategory.tools,
+    hue: 'slate',
+    icon: Lucide.terminal,
+    adds: ['Terminal keys in the row'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'clipboard',
+    name: 'Clipboard history',
+    line: 'Your last 25 copies, a tap away.',
+    description:
+        'Everything you copy while Ghost Keyboard is your keyboard, newest first, in the row: tap to paste. Something '
+        'you just copied waits as the row\'s first chip. Kept on your phone only, and never what Android marks sensitive '
+        '(password managers\' copies) or anything copied while incognito.',
+    category: PluginCategory.tools,
+    hue: 'amber',
+    icon: Lucide.clipboardPaste,
+    adds: ['A Clipboard button in the row', 'The last copy as a chip'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'undo',
+    name: 'Undo and redo',
+    line: 'Take back the last edit, or put it back.',
+    description: 'Undo and Redo buttons in the row, sent as Ctrl+Z and Ctrl+Shift+Z, which Android\'s text fields and most editors understand.',
+    category: PluginCategory.tools,
+    hue: 'blue',
+    icon: Lucide.undo2,
+    adds: ['Undo and Redo in the row'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'incognito',
+    name: 'Incognito',
+    line: 'Type without the keyboard learning or remembering anything.',
+    description:
+        'A switch in the row. While it is on, nothing is learned from your typing and nothing copied joins the clipboard '
+        'history. Fields that ask for privacy (a browser\'s private tab) are incognito on their own, plugin or not.',
+    category: PluginCategory.security,
+    hue: 'purple',
+    icon: Lucide.eyeOff,
+    adds: ['An Incognito switch in the row'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'sounds',
+    name: 'Sound packs',
+    line: 'Clicky, thocky, typewriter, bubble or 8-bit key sounds.',
+    description:
+        'Key sounds made with ElevenLabs: a clicky mechanical board, a deep thock, a typewriter, bubble pops and 8-bit blips. '
+        'They play when Sound is on in Key press.',
+    category: PluginCategory.sound,
+    hue: 'coral',
+    icon: Lucide.volume2,
+    adds: ['Five sound packs'],
+    hasPage: true,
+  ),
+];
+
+/// The sounds plugin's packs (android SoundPacks.kt).
+const List<(String, String)> soundPacks = [
+  ('mechanical', 'Clicky mechanical'),
+  ('thock', 'Deep thock'),
+  ('typewriter', 'Typewriter'),
+  ('bubble', 'Bubble pop'),
+  ('arcade', '8-bit arcade'),
 ];
 
 PluginManifest? pluginById(String id) {

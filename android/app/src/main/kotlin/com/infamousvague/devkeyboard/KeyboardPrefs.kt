@@ -34,6 +34,13 @@ class KeyboardPrefs(context: Context) {
     /** The person's own long-press keys: "a=á à â" a line (Layouts.parseCustom). */
     val popupKeys: String get() = prefs.getString(POPUP_KEYS, "")!!
 
+    /** Markdown and terminal buttons in every app, rather than only the apps they suit (AppContext). */
+    val markdownEverywhere: Boolean get() = bool(MARKDOWN_EVERYWHERE)
+    val terminalEverywhere: Boolean get() = bool(TERMINAL_EVERYWHERE)
+
+    /** The sounds plugin's pack (SoundPacks.PACKS). */
+    val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
+
     /** The plugin row's icon pack (RowIcons.PACKS). */
     val iconPack: String get() = prefs.getString(ICON_PACK, "lucide")!!
 
@@ -128,6 +135,9 @@ class KeyboardPrefs(context: Context) {
         const val POPUP_KEYS = "popup_keys"
         const val WHISPER_MODEL = "whisper_model"
         const val ICON_PACK = "icon_pack"
+        const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
+        const val TERMINAL_EVERYWHERE = "terminal_everywhere"
+        const val SOUND_PACK = "sound_pack"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -159,6 +169,9 @@ class KeyboardPrefs(context: Context) {
             POPUP_KEYS to "",
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
+            MARKDOWN_EVERYWHERE to false,
+            TERMINAL_EVERYWHERE to false,
+            SOUND_PACK to "mechanical",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",

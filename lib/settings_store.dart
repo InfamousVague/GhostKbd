@@ -45,6 +45,9 @@ class SettingsStore extends ChangeNotifier {
     'theme_mode': 'dark',
     'popup_keys': '',
     'icon_pack': 'lucide',
+    'markdown_everywhere': false,
+    'terminal_everywhere': false,
+    'sound_pack': 'mechanical',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
@@ -159,6 +162,9 @@ class SettingsStore extends ChangeNotifier {
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
+      final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
+      clipCount = clips?['count'] as int? ?? 0;
+      soundPacksHere = [for (final p in await _channel.invokeListMethod<Object>('soundPacks') ?? const []) '$p'];
       final popups = await _channel.invokeListMethod<Object>('popupDefaults');
       if (popups != null) {
         popupDefaults = [
@@ -215,6 +221,39 @@ class SettingsStore extends ChangeNotifier {
   Future<void> downloadModelId(String id) => _dictationCall('downloadModel', {'id': id});
   Future<void> deleteModelId(String id) => _dictationCall('deleteModel', {'id': id});
   Future<void> setDictationLanguage(String code) => _dictationCall('setDictationLanguage', {'code': code});
+
+  /// The clipboard plugin's history: how many it holds, and clearing it.
+  int clipCount = 0;
+  Future<void> refreshClipboard() async {
+    try {
+      final r = await _channel.invokeMapMethod<String, Object>('clipboardState');
+      clipCount = r?['count'] as int? ?? 0;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> clearClipboard() async {
+    try {
+      await _channel.invokeMethod<Object>('clearClipboard');
+      clipCount = 0;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// The sound packs in this build (they arrive once the sounds workflow has made them).
+  List<String> soundPacksHere = const [];
+  Future<void> refreshSoundPacks() async {
+    try {
+      soundPacksHere = [for (final p in await _channel.invokeListMethod<Object>('soundPacks') ?? const []) '$p'];
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
 
   Future<void> _dictationCall(String method, Map<String, Object> args) async {
     try {

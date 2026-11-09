@@ -12,6 +12,9 @@ package com.infamousvague.devkeyboard
  * - `swipe` (Autocorrect.swipe, KeyboardView): glide across the letters to spell a word.
  * - `passwords` (DevKeyboardService's inline suggestions): the autofill service's logins in the plugin row.
  * - `gifs` (Gifs.kt): search GIPHY from the plugin row and send a GIF.
+ * - `markdown`, `terminal`, `clipboard`, `undo`, `incognito`: buttons in the plugin row (DevKeyboardService.refreshRow);
+ *   markdown and terminal show in the apps they suit (AppContext.kt) unless set to everywhere.
+ * - `sounds` (SoundPacks.kt): key sounds made with ElevenLabs.
  */
 object Plugins {
     const val AUTOCORRECT = "autocorrect"
@@ -20,7 +23,13 @@ object Plugins {
     const val SWIPE = "swipe"
     const val PASSWORDS = "passwords"
     const val GIFS = "gifs"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS)
+    const val MARKDOWN = "markdown"
+    const val TERMINAL = "terminal"
+    const val CLIPBOARD = "clipboard"
+    const val UNDO = "undo"
+    const val INCOGNITO = "incognito"
+    const val SOUNDS = "sounds"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, SOUNDS)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()
