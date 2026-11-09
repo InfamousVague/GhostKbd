@@ -1401,9 +1401,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (Giphy.key(prefs).isBlank()) { panel.showMessage("Add a GIPHY key in Settings › GIFs"); return }
         panel.showMessage(if (gifQuery.isBlank()) "Loading trending GIFs…" else "Searching…")
         val query = gifQuery
-        Giphy.search(prefs, query) { gifs ->
+        Giphy.search(prefs, query) { gifs, reason ->
             if (gifMode == GifMode.OFF || query != gifQuery) return@search
-            if (gifs == null) panel.showMessage("Couldn’t reach GIPHY") else panel.show(gifs)
+            if (gifs == null) panel.showMessage(reason ?: "Couldn’t reach GIPHY") else panel.show(gifs)
         }
     }
 

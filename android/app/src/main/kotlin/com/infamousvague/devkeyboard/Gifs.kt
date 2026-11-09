@@ -41,29 +41,67 @@ object Giphy {
     private val pool = Executors.newFixedThreadPool(4)
     private val main = Handler(Looper.getMainLooper())
 
-    fun key(prefs: KeyboardPrefs): String = prefs.giphyKey.ifBlank { BuildConfig.GIPHY_KEY }
+    /**
+     * The key to use. GIPHY keys are letters and digits only, so anything else a paste brings along (quotes, spaces,
+     * an invisible character from a web page) is dropped.
+     */
+    fun key(prefs: KeyboardPrefs): String = prefs.giphyKey.filter { it.isLetterOrDigit() }.ifBlank { BuildConfig.GIPHY_KEY }
 
-    /** Trending GIFs for an empty [query], else a search. [done] runs on the main thread, with null on a failure. */
-    fun search(prefs: KeyboardPrefs, query: String, done: (List<Gif>?) -> Unit) {
+    /** A failed request, with what the person should read. */
+    class GiphyError(message: String) : Exception(message)
+
+    /**
+     * Trending GIFs for an empty [query], else a search. [done] runs on the main thread with the GIFs, or with null
+     * and the reason it failed, in words for the panel.
+     */
+    fun search(prefs: KeyboardPrefs, query: String, done: (List<Gif>?, String?) -> Unit) {
         val key = key(prefs)
-        if (key.isBlank()) { done(null); return }
+        if (key.isBlank()) { done(null, "Add a GIPHY key in Settings › GIFs"); return }
         pool.execute {
             val result = runCatching {
                 val q = query.trim()
                 val url = if (q.isEmpty()) "https://api.giphy.com/v1/gifs/trending?api_key=$key&limit=30&rating=pg-13"
                 else "https://api.giphy.com/v1/gifs/search?api_key=$key&q=${URLEncoder.encode(q, "UTF-8")}&limit=30&rating=pg-13"
-                val data = JSONObject(String(fetch(url))).getJSONArray("data")
-                (0 until data.length()).mapNotNull { i ->
-                    val o = data.getJSONObject(i)
-                    val images = o.getJSONObject("images")
-                    val small = images.optJSONObject("fixed_width_small") ?: images.optJSONObject("fixed_width") ?: return@mapNotNull null
-                    val full = images.optJSONObject("downsized") ?: images.optJSONObject("original") ?: small
-                    val w = small.optString("width").toFloatOrNull() ?: 100f
-                    val h = small.optString("height").toFloatOrNull() ?: 100f
-                    Gif(o.getString("id"), small.getString("url"), full.getString("url"), o.optString("url"), if (h > 0) w / h else 1f)
-                }
-            }.getOrNull()
-            main.post { done(result) }
+                val body = fetchApi(url)
+                val data = runCatching { JSONObject(body).getJSONArray("data") }.getOrElse { throw GiphyError("GIPHY sent back something unexpected") }
+                // One odd result is skipped, not the whole search.
+                (0 until data.length()).mapNotNull { i -> runCatching { gif(data.getJSONObject(i)) }.getOrNull() }
+            }
+            result.exceptionOrNull()?.let { android.util.Log.w("Giphy", "search failed", it) }
+            val reason = result.exceptionOrNull()?.let { e ->
+                if (e is GiphyError) e.message else "Couldn’t reach GIPHY: ${if (e is java.io.IOException) "no connection" else e.javaClass.simpleName}"
+            }
+            main.post { done(result.getOrNull(), reason) }
+        }
+    }
+
+    private fun gif(o: JSONObject): Gif? {
+        val images = o.getJSONObject("images")
+        val small = images.optJSONObject("fixed_width_small") ?: images.optJSONObject("fixed_width") ?: return null
+        val full = images.optJSONObject("downsized") ?: images.optJSONObject("original") ?: small
+        val w = small.optString("width").toFloatOrNull() ?: 100f
+        val h = small.optString("height").toFloatOrNull() ?: 100f
+        return Gif(o.getString("id"), small.getString("url"), full.getString("url"), o.optString("url"), if (h > 0) w / h else 1f)
+    }
+
+    /** An API call's body, or a [GiphyError] saying in words why GIPHY refused it. */
+    private fun fetchApi(url: String): String {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 8000
+        c.readTimeout = 15000
+        c.setRequestProperty("User-Agent", "GhostKeyboard")
+        try {
+            val code = c.responseCode
+            if (code in 200..299) return c.inputStream.use { String(it.readBytes()) }
+            throw GiphyError(
+                when (code) {
+                    401, 403 -> "GIPHY turned down the key in Settings › GIFs. Check it is the API key (not an SDK key) and copied whole."
+                    429 -> "This GIPHY key has used up its searches for now (a beta key gets 100 an hour). Try again later."
+                    else -> "GIPHY answered with an error ($code). Try again in a moment."
+                },
+            )
+        } finally {
+            c.disconnect()
         }
     }
 
@@ -145,7 +183,7 @@ class GifPanel(context: Context, private val onPick: (Gif) -> Unit) : FrameLayou
 
     private val scroll = ScrollView(context).apply { isVerticalScrollBarEnabled = false }
     private val grid = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-    private val status = TextView(context).apply { gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
+    private val status = TextView(context).apply { gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setPadding(dp(24f), 0, dp(24f), 0) }
     private val credit = TextView(context).apply {
         text = "Powered by GIPHY"
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
