@@ -19,7 +19,7 @@ class SettingsStore extends ChangeNotifier {
   static const _channel = MethodChannel('dev_keyboard/settings');
 
   static const Map<String, Object> defaults = {
-    'theme': 'system',
+    'theme': 'dark',
     'number_row': false,
     'key_popup': true,
     'sound': false,
@@ -40,14 +40,14 @@ class SettingsStore extends ChangeNotifier {
     'learned_words': '',
     'suggestions': true,
     'giphy_key': '',
-    'theme_tint': '#7CC4FA',
+    'theme_tint': '#51FCFB',
     'theme_accent': '',
     'theme_mode': 'dark',
     'popup_keys': '',
     'icon_pack': 'lucide',
     'plugins': 'autocorrect',
-    'theme_preset': 'gboard',
-    'custom_theme': '#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3',
+    'theme_preset': 'ghost',
+    'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,
   };
 

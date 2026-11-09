@@ -27,14 +27,14 @@ class ThemeEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final chosen = store.choice('theme_preset');
+    final chosen = store.choice('theme_preset') == 'gboard' ? 'ghost' : store.choice('theme_preset');
     final own = _parse(store.choice('custom_theme'));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PaneSection(
           title: 'Presets',
-          description: const Text('Gboard follows Light or dark in Look & layout; the others are their own.'),
+          description: const Text('Ghost follows Light or dark in Look & layout; the others are their own.'),
           children: [
             SettingRowBox(
               child: MarketGrid(
@@ -99,7 +99,7 @@ class ThemeEditor extends StatelessWidget {
 }
 
 /// Swatches under the picker: the presets' accents and a few more.
-const _tints = ['#7CC4FA', '#8AB4F8', '#BD93F9', '#88C0D0', '#B58900', '#A6E22E', '#F28B82', '#F6AE2D', '#5B7CFA', '#2BB673'];
+const _tints = ['#51FCFB', '#7CC4FA', '#8AB4F8', '#BD93F9', '#88C0D0', '#B58900', '#A6E22E', '#F28B82', '#F6AE2D', '#5B7CFA', '#2BB673'];
 
 /// Writes the theme of one's own from its colour, accent and look, and chooses it.
 void _apply(SettingsStore store, {String? tint, String? accent, String? mode}) {

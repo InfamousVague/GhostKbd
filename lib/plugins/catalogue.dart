@@ -131,12 +131,12 @@ const List<PluginManifest> catalogue = [
     name: 'Themes',
     line: 'Colour the keyboard with a preset, or make a theme of your own.',
     description:
-        'Eight presets, from Glacier’s ice blue to Dracula, Nord and Solarized, and a theme of your own built from five '
-        'colours: the keyboard, its keys, the function keys, the accent and the letters.',
+        'Presets, from Glacier’s ice blue to Retro’s raised beige keycaps, and a theme of your own from one colour you '
+        'pick: the keys, the function keys and the letters are worked out from it.',
     category: PluginCategory.look,
     hue: 'magenta',
     icon: Lucide.palette,
-    adds: ['Nine preset themes, Retro’s raised keycaps among them', 'A theme of your own from one colour'],
+    adds: ['Preset themes, Retro’s raised keycaps among them', 'A theme of your own from one colour'],
     hasPage: true,
   ),
   PluginManifest(
@@ -195,14 +195,9 @@ String joinAnd(List<String> words) => switch (words.length) {
 
 /// The themes plugin's presets, the ids KeyboardTheme.kt keeps, with their names and five colours for a swatch.
 const List<(String, String, List<int>)> themePresets = [
-  ('gboard', 'Gboard', [0xFF1B1B1F, 0xFF3B3C40, 0xFF2A2B2F, 0xFFA8C7FA, 0xFFE3E3E3]),
+  ('ghost', 'Ghost', [0xFF0A0B0C, 0xFF232528, 0xFF16181A, 0xFF51FCFB, 0xFFE8EDED]),
   ('glacier', 'Glacier', [0xFF0E1621, 0xFF1D2A3A, 0xFF152030, 0xFF7CC4FA, 0xFFE6F1FB]),
   ('midnight', 'Midnight', [0xFF000000, 0xFF1A1A1A, 0xFF0D0D0D, 0xFF8AB4F8, 0xFFFFFFFF]),
-  ('dracula', 'Dracula', [0xFF21222C, 0xFF343746, 0xFF282A36, 0xFFBD93F9, 0xFFF8F8F2]),
-  ('nord', 'Nord', [0xFF2E3440, 0xFF434C5E, 0xFF3B4252, 0xFF88C0D0, 0xFFECEFF4]),
-  ('solarized', 'Solarized', [0xFF002B36, 0xFF0E4252, 0xFF073642, 0xFFB58900, 0xFFEEE8D5]),
-  ('monokai', 'Monokai', [0xFF1E1F1C, 0xFF3E3D32, 0xFF272822, 0xFFA6E22E, 0xFFF8F8F2]),
-  ('github', 'GitHub light', [0xFFF6F8FA, 0xFFFFFFFF, 0xFFD0D7DE, 0xFF0969DA, 0xFF1F2328]),
   ('paper', 'Paper', [0xFFF4EFE6, 0xFFFFFCF6, 0xFFE4DCCD, 0xFFB5522B, 0xFF2B2622]),
   ('retro', 'Retro', [0xFF34302B, 0xFFE9E1CD, 0xFFA8A190, 0xFFD9542B, 0xFF2E2A24]),
 ];

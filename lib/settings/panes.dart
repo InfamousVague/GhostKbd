@@ -91,7 +91,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
           icon: _icon(Lucide.palette),
           hue: 'magenta',
           group: 'plugins',
-          summary: (s) => s.choice('theme_preset') == 'custom' ? 'Your own theme' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Gboard'),
+          summary: (s) => s.choice('theme_preset') == 'custom' ? 'Your own theme' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost'),
           page: (context, store) => [ThemeEditor(store: store)],
         ),
       if (store.pluginOn('swipe'))
@@ -168,7 +168,7 @@ List<Widget> _look(BuildContext context, SettingsStore store) => [
             SettingRow(
               label: 'Colours',
               icon: AppIcon(Lucide.palette, size: 18),
-              value: Text(store.choice('theme_preset') == 'custom' ? 'Your own' : (themePresets.where((p) => p.$1 == store.choice('theme_preset')).firstOrNull?.$2 ?? 'Gboard')),
+              value: Text(store.choice('theme_preset') == 'custom' ? 'Your own' : (themePresets.where((p) => p.$1 == store.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost')),
               onPress: () => pushSettings(context, (_) => ListenableBuilder(listenable: store, builder: (context, _) => SettingsPage(title: 'Themes', hue: 'magenta', child: ThemeEditor(store: store)))),
             ),
         ],

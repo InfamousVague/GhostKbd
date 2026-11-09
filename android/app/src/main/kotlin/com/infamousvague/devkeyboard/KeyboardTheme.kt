@@ -31,35 +31,37 @@ data class KeyboardTheme(
             keyPressed = 0xFFD5D9E0.toInt(),
             functionKey = 0xFFCDD3DD.toInt(),
             functionKeyPressed = 0xFFB4BBC7.toInt(),
-            accent = 0xFF0B57D0.toInt(),
-            accentPressed = 0xFF0842A0.toInt(),
+            // The ghost's cyan, deepened to read on white.
+            accent = 0xFF008B8A.toInt(),
+            accentPressed = 0xFF006E6D.toInt(),
             onAccent = 0xFFFFFFFF.toInt(),
             text = 0xFF1F1F1F.toInt(),
             hint = 0xFF5F6368.toInt(),
             popup = 0xFFFFFFFF.toInt(),
-            popupSelected = 0xFF0B57D0.toInt(),
+            popupSelected = 0xFF008B8A.toInt(),
             onPopupSelected = 0xFFFFFFFF.toInt(),
             popupShadow = 0x33000000,
             toolbarIcon = 0xFF444746.toInt(),
             dark = false,
         )
 
+        /** Ghost Keyboard's own look: nearly black, keys a step up from it, and the ghost's cyan, #51FCFB. */
         val DARK = KeyboardTheme(
-            background = 0xFF1B1B1F.toInt(),
-            key = 0xFF3B3C40.toInt(),
-            keyPressed = 0xFF55575C.toInt(),
-            functionKey = 0xFF2A2B2F.toInt(),
-            functionKeyPressed = 0xFF44464B.toInt(),
-            accent = 0xFFA8C7FA.toInt(),
-            accentPressed = 0xFF8AB4F8.toInt(),
-            onAccent = 0xFF062E6F.toInt(),
-            text = 0xFFE3E3E3.toInt(),
-            hint = 0xFF9AA0A6.toInt(),
-            popup = 0xFF46474C.toInt(),
-            popupSelected = 0xFFA8C7FA.toInt(),
-            onPopupSelected = 0xFF062E6F.toInt(),
-            popupShadow = 0x66000000,
-            toolbarIcon = 0xFFC4C7C5.toInt(),
+            background = 0xFF0A0B0C.toInt(),
+            key = 0xFF232528.toInt(),
+            keyPressed = 0xFF383B3F.toInt(),
+            functionKey = 0xFF16181A.toInt(),
+            functionKeyPressed = 0xFF2C2F33.toInt(),
+            accent = 0xFF51FCFB.toInt(),
+            accentPressed = 0xFF2ED8D7.toInt(),
+            onAccent = 0xFF00302F.toInt(),
+            text = 0xFFE8EDED.toInt(),
+            hint = 0xFF8A9393.toInt(),
+            popup = 0xFF2C2F33.toInt(),
+            popupSelected = 0xFF51FCFB.toInt(),
+            onPopupSelected = 0xFF00302F.toInt(),
+            popupShadow = 0x80000000.toInt(),
+            toolbarIcon = 0xFFB9C4C4.toInt(),
             dark = true,
         )
 
@@ -67,7 +69,7 @@ data class KeyboardTheme(
         fun resolve(context: Context, prefs: KeyboardPrefs): KeyboardTheme {
             if (Plugins.isOn(prefs, Plugins.THEMES)) {
                 when (val preset = prefs.themePreset) {
-                    "gboard" -> Unit
+                    "ghost", "gboard" -> Unit
                     "custom" -> parseCustom(prefs.customTheme)?.let { return it }
                     else -> PRESETS[preset]?.let { return it }
                 }
@@ -115,11 +117,6 @@ data class KeyboardTheme(
         val PRESETS: Map<String, KeyboardTheme> = mapOf(
             "glacier" to fromBase(0xFF0E1621.toInt(), 0xFF1D2A3A.toInt(), 0xFF152030.toInt(), 0xFF7CC4FA.toInt(), 0xFFE6F1FB.toInt()),
             "midnight" to fromBase(0xFF000000.toInt(), 0xFF1A1A1A.toInt(), 0xFF0D0D0D.toInt(), 0xFF8AB4F8.toInt(), 0xFFFFFFFF.toInt()),
-            "dracula" to fromBase(0xFF21222C.toInt(), 0xFF343746.toInt(), 0xFF282A36.toInt(), 0xFFBD93F9.toInt(), 0xFFF8F8F2.toInt()),
-            "nord" to fromBase(0xFF2E3440.toInt(), 0xFF434C5E.toInt(), 0xFF3B4252.toInt(), 0xFF88C0D0.toInt(), 0xFFECEFF4.toInt()),
-            "solarized" to fromBase(0xFF002B36.toInt(), 0xFF0E4252.toInt(), 0xFF073642.toInt(), 0xFFB58900.toInt(), 0xFFEEE8D5.toInt()),
-            "monokai" to fromBase(0xFF1E1F1C.toInt(), 0xFF3E3D32.toInt(), 0xFF272822.toInt(), 0xFFA6E22E.toInt(), 0xFFF8F8F2.toInt()),
-            "github" to fromBase(0xFFF6F8FA.toInt(), 0xFFFFFFFF.toInt(), 0xFFD0D7DE.toInt(), 0xFF0969DA.toInt(), 0xFF1F2328.toInt()),
             "paper" to fromBase(0xFFF4EFE6.toInt(), 0xFFFFFCF6.toInt(), 0xFFE4DCCD.toInt(), 0xFFB5522B.toInt(), 0xFF2B2622.toInt()),
             // A beige mechanical board: cream caps, grey modifiers, a red-orange enter, on a dark case.
             "retro" to fromBase(0xFF34302B.toInt(), 0xFFE9E1CD.toInt(), 0xFFA8A190.toInt(), 0xFFD9542B.toInt(), 0xFF2E2A24.toInt())

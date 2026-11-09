@@ -136,7 +136,7 @@ class KeyboardPrefs(context: Context) {
         const val ONBOARDED = "onboarded"
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
-            THEME to "system",
+            THEME to "dark",
             NUMBER_ROW to false,
             KEY_POPUP to true,
             SOUND to false,
@@ -160,13 +160,13 @@ class KeyboardPrefs(context: Context) {
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
             DICTATION_LANGUAGE to "auto",
-            "theme_tint" to "#7CC4FA",
+            "theme_tint" to "#51FCFB",
             "theme_accent" to "",
             "theme_mode" to "dark",
             LEARNED_WORDS to "",
             PLUGINS to "autocorrect",
-            THEME_PRESET to "gboard",
-            CUSTOM_THEME to "#1B1B1F,#3B3C40,#2A2B2F,#A8C7FA,#E3E3E3",
+            THEME_PRESET to "ghost",
+            CUSTOM_THEME to "#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED",
             ONBOARDED to false,
         )
     }
