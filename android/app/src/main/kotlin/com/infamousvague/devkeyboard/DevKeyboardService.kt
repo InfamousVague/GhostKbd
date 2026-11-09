@@ -196,7 +196,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        AppProfiles.seen(this, prefs, info.packageName)
+        runCatching { AppProfiles.seen(this, prefs, info.packageName) }
         applySettings()
         row?.updateBadge = Updater.waiting(this)
         selStart = info.initialSelStart
@@ -322,7 +322,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val ic = currentInputConnection ?: return
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
         if ((ctrlOn || altOn) && text.length == 1 && sendWithModifiers(text[0])) return
-        if (statsOn()) TypingStats.typed(this, text)
+        stats { TypingStats.typed(this, text) }
         lastSpaceAt = 0L
         // A letter straight after a swiped word starts a new word: a space first, as Gboard does.
         if (lastSwipe != null && text.length == 1 && text[0].isLetterOrDigit()) ic.commitText(" ", 1)
@@ -392,7 +392,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!after.isNullOrEmpty() && (after[0].isLetterOrDigit() || after[0] == '\'')) return false
         val fixed = autocorrect.correct(word) ?: return false
         adaptiveCorrected(word, fixed)
-        if (statsOn()) TypingStats.correction(this)
+        stats { TypingStats.correction(this) }
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)
         ic.commitText(fixed + separator, 1)
@@ -427,7 +427,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
-        if (statsOn()) TypingStats.backspace(this)
+        stats { TypingStats.backspace(this) }
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if (lastCorrection != null && undoCorrection(ic, keepSeparator = false)) return
         // Backspace straight after a swiped word takes the whole word, as Gboard does.
@@ -462,7 +462,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         learnGhostMd()
         snapshotDraft()
         val ic = currentInputConnection ?: return
-        if (statsOn()) TypingStats.typed(this, " ")
+        stats { TypingStats.typed(this, " ") }
         lastSwipe = null
         val now = System.currentTimeMillis()
         if (prefs.doubleSpacePeriod && now - lastSpaceAt < 1000) {
@@ -501,7 +501,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastCorrection = null
         lastSwipe = null
         snapshotDraft()
-        if (statsOn()) TypingStats.typed(this, "\n")
+        stats { TypingStats.typed(this, "\n") }
         if (info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
             val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
             if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
@@ -570,6 +570,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** Typing stats count here: switched on, and never in a password field or while incognito. */
     private fun statsOn(): Boolean = prefs.typingStats && !incognito && !isPassword(currentInputEditorInfo)
+
+    /** Counts something for the stats where they are on. Counting must never cost a keystroke: a failure is dropped. */
+    private inline fun stats(count: () -> Unit) {
+        if (statsOn()) runCatching(count)
+    }
 
     override fun onShiftChanged() = Unit
 
@@ -659,7 +664,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         super.onFinishInputView(finishingInput)
         finishTyping()
         flushDraft()
-        TypingStats.flush(this)
+        runCatching { TypingStats.flush(this) }
         if (dictation.listening) dictation.stop()
         closeGifs()
         closeEmoji()
@@ -1403,7 +1408,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
         val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
         ic.commitText(lead + words[0], 1)
-        if (statsOn()) TypingStats.swiped(this, words[0])
+        stats { TypingStats.swiped(this, words[0]) }
         // The word's letters light in turn, as if typed along the path (never in a password field).
         if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(words[0])
         lastCorrection = null
