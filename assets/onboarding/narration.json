@@ -1,0 +1,57 @@
+{
+  "made": "tool/onboarding_voice.py",
+  "voice": {
+    "id": "cgSgspJ2msm6clMCkdW9",
+    "name": "Jessica"
+  },
+  "files": {
+    "welcome": {
+      "words": "4b92b466e4da7038",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 63990
+    },
+    "enable": {
+      "words": "a73faf2c87baf13b",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 92620
+    },
+    "choose": {
+      "words": "0b8917084f6156dd",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 63363
+    },
+    "code": {
+      "words": "4addde19136fb13c",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 136924
+    },
+    "voice": {
+      "words": "b2b2cfae7a8ac9a8",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 86978
+    },
+    "plugins": {
+      "words": "456350b6110a861a",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 97845
+    },
+    "look": {
+      "words": "86dcc59e9b8fddd5",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 64617
+    },
+    "start": {
+      "words": "4f4b3c7eedebef6f",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 56885
+    }
+  }
+}
