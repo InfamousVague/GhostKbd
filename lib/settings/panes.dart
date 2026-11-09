@@ -191,6 +191,7 @@ List<Widget> _look(BuildContext context, SettingsStore store) => [
           _choice(store, 'key_height', 'Key height', const {'short': 'Short', 'normal': 'Normal', 'tall': 'Tall'}),
           _toggle(store, 'key_borders', 'Key borders', 'A shape behind every key. Off is Gboard’s look: only ?123, space and enter have one.'),
           _toggle(store, 'number_row', 'Number row', 'Digits in a row of their own above the letters.'),
+          _toggle(store, 'split_keyboard', 'Split on wide screens', 'Unfolded, or on a tablet: the keys in two halves with the middle open, a phone’s key size each side.'),
           _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
           _toggle(store, 'toolbar', 'Toolbar', 'A strip above the keys with settings and hide. Long-press { } opens settings either way.'),
         ],

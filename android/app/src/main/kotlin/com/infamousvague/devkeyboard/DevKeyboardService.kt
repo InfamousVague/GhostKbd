@@ -194,6 +194,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.popupKeys = prefs.popupKeys
+        view.split = prefs.split
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.iconPack = prefs.iconPack; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }

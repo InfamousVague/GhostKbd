@@ -115,6 +115,10 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var popupKeys = ""
         set(value) { if (field != value) { field = value; Layouts.custom = Layouts.parseCustom(value); rebuild(); invalidate() } }
 
+    /** Split the keys in two on a wide screen (Settings › Look & layout). */
+    var split = true
+        set(value) { if (field != value) { field = value; layoutKeys(); invalidate() } }
+
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
     var swipeTyping = false
 
@@ -266,14 +270,28 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         keyRects.clear()
         if (width == 0) return
         val units = rows.maxOf { it.units }
-        val unit = (width - sidePad * 2) / units
+        // Split on a wide screen (an unfolded foldable, a tablet), as Gboard does: each half keeps a phone's key size
+        // and the middle is left open for the thumbs. Keys whose centre is left of the middle go left, the rest right;
+        // a key across the middle (the space bar) becomes two, one in each half.
+        val gap = if (split && width / resources.displayMetrics.density >= SPLIT_MIN_DP) width * SPLIT_GAP else 0f
+        val unit = (width - sidePad * 2 - gap) / units
+        val mid = sidePad + units * unit / 2
         val rowH = keysHeight / rows.size
         var y = keysTop
         for (row in rows) {
             var x = sidePad + row.inset * unit + (units - row.units) * unit / 2
             for (key in row.keys) {
                 val w = key.width * unit
-                keyRects += key to RectF(x, y, x + w, y + rowH)
+                val left = x; val right = x + w
+                when {
+                    gap == 0f -> keyRects += key to RectF(left, y, right, y + rowH)
+                    key.width >= 2f && left < mid && right > mid -> {
+                        keyRects += key to RectF(left, y, mid, y + rowH)
+                        keyRects += key to RectF(mid + gap, y, right + gap, y + rowH)
+                    }
+                    (left + right) / 2 <= mid + 0.01f -> keyRects += key to RectF(left, y, right, y + rowH)
+                    else -> keyRects += key to RectF(left + gap, y, right + gap, y + rowH)
+                }
                 x += w
             }
             y += rowH
@@ -997,6 +1015,10 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     }
 
     companion object {
+        /** Wider than this (dp), the keys split: an unfolded foldable's inner screen is 670 or more, a phone 430 or less. */
+        const val SPLIT_MIN_DP = 600f
+        /** The open middle of a split keyboard, as a share of its width. */
+        const val SPLIT_GAP = 0.3f
         /**
          * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
          * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps

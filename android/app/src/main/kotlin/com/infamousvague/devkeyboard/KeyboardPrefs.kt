@@ -41,6 +41,9 @@ class KeyboardPrefs(context: Context) {
     /** The sounds plugin's pack (SoundPacks.PACKS). */
     val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
 
+    /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
+    val split: Boolean get() = bool(SPLIT)
+
     /** The plugin row's icon pack (RowIcons.PACKS). */
     val iconPack: String get() = prefs.getString(ICON_PACK, "lucide")!!
 
@@ -135,6 +138,7 @@ class KeyboardPrefs(context: Context) {
         const val POPUP_KEYS = "popup_keys"
         const val WHISPER_MODEL = "whisper_model"
         const val ICON_PACK = "icon_pack"
+        const val SPLIT = "split_keyboard"
         const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
         const val TERMINAL_EVERYWHERE = "terminal_everywhere"
         const val SOUND_PACK = "sound_pack"
@@ -169,6 +173,7 @@ class KeyboardPrefs(context: Context) {
             POPUP_KEYS to "",
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
+            SPLIT to true,
             MARKDOWN_EVERYWHERE to false,
             TERMINAL_EVERYWHERE to false,
             SOUND_PACK to "mechanical",
