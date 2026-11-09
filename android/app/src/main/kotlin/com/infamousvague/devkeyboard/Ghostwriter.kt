@@ -51,8 +51,10 @@ object Ghostwriter {
             // Debug builds only: the key "debug-echo" answers without any AI, to try the typing and the row.
             if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
                 Thread.sleep(800)
-                return@launch "Shipped the PostHog waitlist events today: signups now fire waitlist_joined with the source, " +
-                    "and the funnel shows up on the growth dashboard. Next up, wiring the referral step."
+                // Says which notes the prompt carried, so a test can see they arrived.
+                val notes = system.substringAfter("THEIR NOTES", "").substringBefore("THEIR GITHUB").lines()
+                    .filter { it.startsWith("--- ") }.joinToString("; ") { it.removePrefix("--- ") }
+                return@launch "Shipped the PostHog waitlist events today. (debug: notes ${notes.ifEmpty { "none" }})"
             }
             AiClient.complete(prefs, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
         }
@@ -97,6 +99,17 @@ object Ghostwriter {
                 .onFailure { githubNote = it.message }.getOrDefault(emptyList())
         } else emptyList()
         val words = GitHubCommits.keywords(request)
+        // Ghost.md's notes that match: from Ghost.md on this phone, else online through its connector.
+        var notesFrom = "Ghost.md on this phone"
+        var notesNote: String? = null
+        val notes: List<Pair<String, String>> = if (prefs.ghostwriterNotes && words.isNotEmpty()) {
+            val local = GhostMd.search(context, words.joinToString(" "), 6).map { it.title to it.body.ifBlank { it.snippet } }
+            if (local.isNotEmpty() || !GhostOnline.signedIn(context)) local else {
+                notesFrom = "Ghost.md (online)"
+                runCatching { GhostOnline.search(context, words).map { it.title to (it.body ?: it.snippet) } }
+                    .onFailure { notesNote = it.message }.getOrDefault(emptyList())
+            }
+        } else emptyList()
         val system = buildString {
             append(
                 """
@@ -104,8 +117,8 @@ object Ghostwriter {
                 between << and >>; the text you write replaces it, so write the text itself, as them, in their voice.
                 - If the request names something to write ("engineering standup tldr", "decline politely"), write it.
                 - If it is a question ("why does X happen"), write the answer they would put in this field.
-                - Facts about them (their work, plans, people, what they did) come from their GitHub commits, past
-                  messages, clipboard and the text around the request. Work updates come from the commits: say what
+                - Facts about them (their work, plans, people, what they did) come from their notes, GitHub
+                  commits, past messages, clipboard and the text around the request. Work updates come from the commits: say what
                   changed and why in plain words, grouped sensibly, without hashes or file lists. Public facts (news, results, dates, figures, how things
                   work) you may look up on the web when you have search: do, rather than guess or leave them out.
                   Never invent specifics. Leave a short [bracketed blank] only for a fact you could not find.
@@ -119,6 +132,18 @@ object Ghostwriter {
             if (memory.isNotEmpty()) {
                 append("\n\nTHEIR PAST MESSAGES (most relevant first; their memory, for facts and voice)\n")
                 memory.forEach { append("---\n").append(it.text).append('\n') }
+            }
+            if (notes.isNotEmpty()) {
+                append("\nTHEIR NOTES from ").append(notesFrom).append(" matching ").append(words.joinToString(", ")).append(" (best first)\n")
+                var left = 9000
+                for ((title, body) in notes) {
+                    if (left <= 0) break
+                    val part = body.take(left.coerceAtMost(2500))
+                    left -= part.length
+                    append("--- ").append(title).append('\n').append(part).append('\n')
+                }
+            } else if (notesNote != null) {
+                append("\n(Their Ghost.md notes couldn't be searched: ").append(notesNote).append(")\n")
             }
             if (commits.isNotEmpty()) {
                 append("\nTHEIR GITHUB COMMITS matching ").append(words.joinToString(", ")).append(" (newest first; what they and their AI agents actually changed)\n")

@@ -94,6 +94,8 @@ class KeyboardPrefs(context: Context) {
     val githubToken: String get() = prefs.getString(GITHUB_TOKEN, "")!!
     /** The AI types its answer out key by key; off, it appears at once. */
     val ghostwriterTyping: Boolean get() = bool(GHOSTWRITER_TYPING)
+    /** Ghostwriter searches Ghost.md's notes: Ghost.md on this phone, else the online connector once signed in. */
+    val ghostwriterNotes: Boolean get() = bool(GHOSTWRITER_NOTES)
 
     /** The added plugins' ids, comma-separated (Plugins.kt). */
     val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
@@ -199,6 +201,7 @@ class KeyboardPrefs(context: Context) {
         const val GHOSTWRITER_GITHUB = "ghostwriter_github"
         const val GITHUB_TOKEN = "github_token"
         const val GHOSTWRITER_TYPING = "ghostwriter_typing"
+        const val GHOSTWRITER_NOTES = "ghostwriter_notes"
 
         /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
         private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
@@ -258,6 +261,7 @@ class KeyboardPrefs(context: Context) {
             GHOSTWRITER_GITHUB to true,
             GITHUB_TOKEN to "",
             GHOSTWRITER_TYPING to true,
+            GHOSTWRITER_NOTES to true,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

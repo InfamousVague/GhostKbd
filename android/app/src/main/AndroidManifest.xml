@@ -25,6 +25,13 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+            <!-- Back from Ghost.md's sign-in page (GhostOnline.kt). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ghostkbd" android:host="ghost-md" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -68,6 +75,7 @@
         <package android:name="com.mattssoftware.glyph.flutter" />
         <package android:name="com.mattssoftware.glyph.perf" />
         <provider android:authorities="com.mattssoftware.glyph.keyboard" />
+        <provider android:authorities="com.mattssoftware.glyph.flutter.keyboard" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

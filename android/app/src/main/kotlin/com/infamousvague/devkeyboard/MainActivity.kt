@@ -67,6 +67,22 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.getStringExtra(EXTRA_OPEN)?.let { channel?.invokeMethod("open", it) }
+        signedIn(intent)
+    }
+
+    /** The browser back from Ghost.md's sign-in page (GhostOnline.REDIRECT): swap the code for tokens, then tell Settings. */
+    private fun signedIn(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "ghostkbd" || uri.host != "ghost-md") return
+        intent.data = null
+        Thread {
+            val error = runCatching { GhostOnline.finish(this, uri) }.exceptionOrNull()?.message
+            runOnUiThread {
+                channel?.invokeMethod("aiChanged", error)
+                android.widget.Toast.makeText(this, error ?: "Signed in to Ghost.md", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }.start()
+        openAt = "ghostwriter"
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -80,6 +96,7 @@ class MainActivity : FlutterActivity() {
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         openAt = intent?.getStringExtra(EXTRA_OPEN)
+        signedIn(intent)
         // Automatic updates: look each time the app opens, and install what is found.
         if (KeyboardPrefs(this).autoUpdate) Updater.check(this, install = true)
     }
@@ -191,6 +208,12 @@ class MainActivity : FlutterActivity() {
                     "mockingbirdTrain" -> Mockingbird.train(this@MainActivity) { error ->
                         runOnUiThread { result.success(aiState() + mapOf("trainError" to error)) }
                     }
+                    "ghostSignIn" -> background(result) {
+                        val url = GhostOnline.signInUrl(this@MainActivity)
+                        runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                        null
+                    }
+                    "ghostSignOut" -> background(result) { GhostOnline.signOut(this@MainActivity); aiState() }
                     "githubCheck" -> background(result) {
                         val token = prefs.githubToken.trim()
                         if (token.isEmpty()) throw GitHubCommits.GitHubError("Paste a GitHub token first")
@@ -227,6 +250,8 @@ class MainActivity : FlutterActivity() {
             "profile" to profile?.let { mapOf("text" to it.text, "at" to it.at, "samples" to it.samples, "provider" to it.provider, "model" to it.model) },
             "training" to Mockingbird.training,
             "error" to Mockingbird.lastError,
+            "ghostInstalled" to (GhostMd.installed(this) != null),
+            "ghostOnline" to GhostOnline.signedIn(this),
         )
     }
 

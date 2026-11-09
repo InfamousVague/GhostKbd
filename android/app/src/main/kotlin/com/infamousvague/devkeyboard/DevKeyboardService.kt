@@ -490,7 +490,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onShiftChanged() = Unit
 
-    override fun onKeyFeedback(key: Key) {
+    override fun onKeyFeedback(key: Key) = keyFeedback(key.type)
+
+    /** A key's haptic and sound, as Settings has them: for the finger's presses and Ghostwriter's typing alike. */
+    private fun keyFeedback(type: KeyType) {
         if (prefs.vibrate) {
             // Medium is Gboard's feel; tick alone was too faint.
             val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -509,8 +512,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val volume = prefs.soundVolume
         // The stock sound chosen in Settings › Sounds, else Android's.
         val pack = soundToPlay()
-        if (prefs.sound && volume > 0f && !(pack != null && SoundPacks.play(this, pack, key.type, volume))) {
-            val fx = when (key.type) {
+        if (prefs.sound && volume > 0f && !(pack != null && SoundPacks.play(this, pack, type, volume))) {
+            val fx = when (type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
                 KeyType.SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
                 KeyType.ENTER -> AudioManager.FX_KEYPRESS_RETURN
@@ -991,6 +994,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ic.commitText(chunk, 1)
         keyboard?.ghostPress(chunk.last(), holdMs = 60)
         val last = chunk.last()
+        // The key's haptic and sound, where Settings has them on, as if a finger pressed it.
+        keyFeedback(when (last) { ' ' -> KeyType.SPACE; '\n' -> KeyType.ENTER; else -> KeyType.CHAR })
         val pause = when (last) {
             '.', '!', '?', '\n' -> 140L
             ',', ';', ':' -> 70L

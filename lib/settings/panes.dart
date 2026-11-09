@@ -654,6 +654,19 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(
+      title: 'Ghost.md notes',
+      footer: const Text('For a request like <<what did we decide about pricing>>: your notes that match go with it. Ghost.md on this phone is asked first, with nothing going online; turn it off in Ghost.md under Settings › AI › Ghost Keyboard. Signed in here, the notes are also searched online through Ghost.md’s connector when the phone has none that match.'),
+      children: [
+        _toggle(store, 'ghostwriter_notes', 'Search my Ghost.md notes'),
+        SettingRow(label: 'On this phone', value: Text(store.ai['ghostInstalled'] == true ? 'Ghost.md found' : 'Ghost.md not installed')),
+        if (store.ai['ghostOnline'] == true)
+          SettingRow(label: 'Online: signed in', hint: const Text('Signing out ends the session on Ghost.md’s server too.'), value: const Text('Sign out'), onPress: store.aiBusy ? null : store.ghostSignOut)
+        else
+          SettingRow(label: 'Sign in to Ghost.md online', hint: const Text('Opens Ghost.md’s sign-in page in your browser. Your password stays in that page.'), onPress: store.aiBusy ? null : store.ghostSignIn),
+        if (store.ghostMessage != null) SettingRow(label: store.ghostMessage!),
+      ],
+    ),
+    PaneSection(
       title: 'GitHub',
       footer: const Text('For <<posthog updates we made>>: the request’s words are searched in the commit messages of your repositories and your organizations’, newest first. A classic token with the repo scope, or a fine-grained one with Contents: read, from github.com/settings/tokens. Kept on your phone.'),
       children: [

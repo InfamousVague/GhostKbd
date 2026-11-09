@@ -13,9 +13,36 @@ import android.net.Uri
  * - Everywhere else: selected text goes to Ghost.md as a new note (its share sheet), in a tap.
  */
 object GhostMd {
-    /** What Ghost.md shares with the keyboard, where it does: a "title" column, and a "tag" column. */
-    val TITLES: Uri = Uri.parse("content://com.mattssoftware.glyph.keyboard/titles")
-    val TAGS: Uri = Uri.parse("content://com.mattssoftware.glyph.keyboard/tags")
+    /**
+     * What Ghost.md shares with the keyboard (its KeyboardNotes.kt), at `<its package>.keyboard`: note titles, tags,
+     * and a search of the notes for Ghostwriter. It answers only this keyboard, signed with its release key.
+     */
+    private fun base(context: Context) = "content://${installed(context) ?: AppContext.GHOST_MD.first()}.keyboard"
+    private val TITLES get() = "titles"
+    private val TAGS get() = "tags"
+
+    /** A note Ghost.md found for a search: its title, the lines round the match, and its start. */
+    data class Found(val title: String, val snippet: String, val body: String)
+
+    /**
+     * Ghost.md's notes matching [query] (its words, each counting), best first, from Ghost.md on this phone. Empty
+     * when Ghost.md isn't here, is an older build, or has Settings › AI › Ghost Keyboard off.
+     */
+    fun search(context: Context, query: String, limit: Int = 6): List<Found> {
+        if (query.isBlank()) return emptyList()
+        // Every Ghost.md build on the phone, until one answers: an older build beside a newer one has no search.
+        for (pkg in AppContext.GHOST_MD.filter { context.packageManager.getLaunchIntentForPackage(it) != null }) {
+            val found = runCatching {
+                val uri = Uri.parse("content://$pkg.keyboard/search").buildUpon().appendQueryParameter("q", query).appendQueryParameter("limit", "$limit").build()
+                context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                    val t = c.getColumnIndex("title"); val s = c.getColumnIndex("snippet"); val b = c.getColumnIndex("body")
+                    if (t < 0) emptyList() else buildList { while (c.moveToNext()) add(Found(c.getString(t).orEmpty(), if (s >= 0) c.getString(s).orEmpty() else "", if (b >= 0) c.getString(b).orEmpty() else "")) }
+                } ?: emptyList()
+            }.getOrDefault(emptyList())
+            if (found.isNotEmpty()) return found
+        }
+        return emptyList()
+    }
 
     private const val FILE = "ghostmd_learned"
 
@@ -23,8 +50,8 @@ object GhostMd {
     fun installed(context: Context): String? =
         AppContext.GHOST_MD.firstOrNull { context.packageManager.getLaunchIntentForPackage(it) != null }
 
-    private fun query(context: Context, uri: Uri, column: String): List<String> = runCatching {
-        context.contentResolver.query(uri, arrayOf(column), null, null, null)?.use { c ->
+    private fun query(context: Context, path: String, column: String): List<String> = runCatching {
+        context.contentResolver.query(Uri.parse("${base(context)}/$path"), arrayOf(column), null, null, null)?.use { c ->
             val i = c.getColumnIndex(column)
             if (i < 0) emptyList() else buildList { while (c.moveToNext()) c.getString(i)?.let { add(it) } }
         } ?: emptyList()

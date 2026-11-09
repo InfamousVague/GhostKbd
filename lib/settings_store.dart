@@ -12,6 +12,10 @@ class SettingsStore extends ChangeNotifier {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
       if (call.method == 'dictationChanged') _setDictation(call.arguments);
+      if (call.method == 'aiChanged') {
+        ghostMessage = call.arguments as String?;
+        await refreshAi();
+      }
       if (call.method == 'open' && call.arguments is String) openRequests.value = call.arguments as String;
     });
   }
@@ -71,6 +75,7 @@ class SettingsStore extends ChangeNotifier {
     'ghostwriter_github': true,
     'github_token': '',
     'ghostwriter_typing': true,
+    'ghostwriter_notes': true,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -264,6 +269,20 @@ class SettingsStore extends ChangeNotifier {
         final error = r is Map ? r['trainError'] as String? : null;
         aiMessage = error ?? 'Trained. Your style profile is below.';
       });
+
+  /// Ghostwriter's Ghost.md notes online: signing in opens the browser on Ghost.md's page; the answer comes back
+  /// through `aiChanged`.
+  String? ghostMessage;
+
+  Future<void> ghostSignIn() => _aiAction(() async {
+        await _channel.invokeMethod<Object>('ghostSignIn');
+        ghostMessage = 'Finish signing in in your browser.';
+      }, onError: (m) => ghostMessage = m);
+
+  Future<void> ghostSignOut() => _aiAction(() async {
+        _setAi(await _channel.invokeMethod<Object>('ghostSignOut'));
+        ghostMessage = 'Signed out of Ghost.md.';
+      }, onError: (m) => ghostMessage = m);
 
   /// Ghostwriter's GitHub: whose token it is and the owners searched, once checked.
   String? githubMessage;
