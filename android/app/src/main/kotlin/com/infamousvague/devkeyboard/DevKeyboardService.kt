@@ -125,6 +125,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autocorrect = Autocorrect(this)
         autocorrect.setLanguages(prefs.languages)
         autocorrect.setLearned(prefs.learnedWords)
+        autocorrect.setSlang(prefs.slang)
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
@@ -234,6 +235,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun applySettings() {
         autocorrect.setLanguages(prefs.languages)
         autocorrect.setLearned(prefs.learnedWords)
+        autocorrect.setSlang(prefs.slang)
         val view = keyboard ?: return
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme

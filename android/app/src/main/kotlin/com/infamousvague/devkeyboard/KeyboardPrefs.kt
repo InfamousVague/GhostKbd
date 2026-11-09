@@ -100,6 +100,8 @@ class KeyboardPrefs(context: Context) {
     val adaptiveMap: Boolean get() = bool(ADAPTIVE_MAP)
     /** Arrow keys pinned at the end of the row above the keys, SwiftKey's way. */
     val arrowKeys: Boolean get() = bool(ARROW_KEYS)
+    /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
+    val slang: Boolean get() = bool(SLANG)
 
     /**
      * Swipe typing, the clipboard, undo and redo and emoji joined autocorrect as plugins on by default (0.8.5, Matt:
@@ -223,6 +225,7 @@ class KeyboardPrefs(context: Context) {
         const val GHOSTWRITER_NOTES = "ghostwriter_notes"
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
+        const val SLANG = "slang"
 
         /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
         private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
@@ -285,6 +288,7 @@ class KeyboardPrefs(context: Context) {
             GHOSTWRITER_NOTES to true,
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
+            SLANG to true,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

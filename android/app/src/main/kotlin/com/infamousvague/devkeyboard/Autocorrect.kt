@@ -25,6 +25,16 @@ class Autocorrect(context: Context) {
     @Volatile private var folded: Map<String, String> = emptyMap()
     @Volatile private var contractions: Map<String, String> = emptyMap()
     @Volatile private var learned: Set<String> = emptySet()
+    /** Texting slang (assets/dict/en_slang.txt) while its switch is on: left alone, and offered as you type. */
+    @Volatile private var slang: Set<String> = emptySet()
+    @Volatile private var slangOn = false
+    private val slangList: Set<String> by lazy {
+        runCatching {
+            app.assets.open("dict/en_slang.txt").bufferedReader().useLines { lines ->
+                lines.map { it.trim().lowercase() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+            }
+        }.getOrDefault(emptySet())
+    }
     /** Every word, sorted, for completions: a prefix's words are one run of it. */
     @Volatile private var sorted: Array<String> = emptyArray()
     /** Swipe typing's index: words by their (accent-free) first and last letters, "hello" under "ho". */
@@ -86,6 +96,20 @@ class Autocorrect(context: Context) {
     /** Words the person has kept: never corrected, and targets for correcting slips of them. */
     fun setLearned(words: Set<String>) { learned = words }
 
+    /** Texting slang on or off (Matt, 2026-11-09: "add slang options to autocorrect like sybau and lmfao and ts"). */
+    fun setSlang(on: Boolean) {
+        if (on == slangOn) return
+        slangOn = on
+        if (!on) { slang = emptySet(); return }
+        thread(name = "autocorrect-slang", isDaemon = true) { if (slangOn) slang = slangList }
+    }
+
+    /** A word autocorrect never changes: one the person kept, or slang while that is on. */
+    private fun kept(lower: String) = lower in learned || lower in slang
+
+    /** How common a slang word counts, for ranking it among completions: its list frequency, else fairly common. */
+    private fun slangZipf(word: String) = maxOf(words[word] ?: 0f, SLANG_ZIPF)
+
     /** What [typed] should become, or null to leave it. [typed] is letters and apostrophes only. */
     fun correct(typed: String): String? {
         if (!ready || typed.isEmpty() || typed.length > 24) return null
@@ -94,7 +118,7 @@ class Autocorrect(context: Context) {
         // camelCase, iOS, McDonald: a capital after the first letter is deliberate.
         if (typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase()
-        if (lower in learned) return null
+        if (kept(lower)) return null
         val fixed = best(lower) ?: return null
         val cased = recase(typed, fixed)
         return if (cased == typed) null else cased
@@ -110,8 +134,8 @@ class Autocorrect(context: Context) {
         if (!ready || typed.isEmpty() || typed.length > 24) return Suggestions(emptyList(), null, false)
         val lower = typed.lowercase()
         val words = words
-        val isWord = lower in learned || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower)
-        val fix = if (lower in learned) null else best(lower)
+        val isWord = kept(lower) || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower)
+        val fix = if (kept(lower)) null else best(lower)
         val out = LinkedHashSet<String>()
         fix?.let { out += recase(typed, it) }
         if (isWord) out += recase(typed, contractions[lower]?.let(::capitalI) ?: capitalI(lower))
@@ -122,10 +146,11 @@ class Autocorrect(context: Context) {
         var scanned = 0
         while (lo < arr.size && arr[lo].startsWith(lower) && scanned < 30_000) {
             val cand = arr[lo]
-            if (cand != lower) top += cand to (words[cand] ?: 0f)
+            if (cand != lower) top += cand to (if (cand in slang) slangZipf(cand) else words[cand] ?: 0f)
             lo++; scanned++
         }
         for (l in learned) if (l.startsWith(lower) && l != lower) top += l to LEARNED_ZIPF
+        for (l in slang) if (l.startsWith(lower) && l != lower && !words.containsKey(l)) top += l to SLANG_ZIPF
         top.sortByDescending { it.second }
         for ((cand, _) in top) { if (out.size >= 5) break; out += recase(typed, capitalI(cand)) }
         return Suggestions(out.toList(), fix?.let { recase(typed, it) }, isWord)
@@ -280,6 +305,8 @@ class Autocorrect(context: Context) {
         private const val ALPHABET = "abcdefghijklmnopqrstuvwxyz"
         /** A learned word counts as moderately common (about one in 30,000 words) when a slip lands near it. */
         private const val LEARNED_ZIPF = 4.0f
+        /** Slang ranks as about one in 50,000 words among completions; it is never a target for correcting a slip. */
+        private const val SLANG_ZIPF = 3.7f
 
         /** [word] without its accents: é → e, ñ → n, ß → ss. */
         fun fold(word: String): String =

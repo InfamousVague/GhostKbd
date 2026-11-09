@@ -549,6 +549,7 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
     PaneSection(children: [
       _toggle(store, 'autocorrect', 'Correct on its own', 'Off: it only suggests.'),
       _toggle(store, 'suggestions', 'Suggestions above the keys'),
+      _toggle(store, 'slang', 'Texting slang', 'Leaves lmfao, ngl, ts, sybau and the like alone, and suggests them.'),
     ]),
     PaneSection(
       title: 'Languages',

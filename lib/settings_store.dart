@@ -93,6 +93,7 @@ class SettingsStore extends ChangeNotifier {
     'ghostwriter_notes': true,
     'adaptive_map': false,
     'arrow_keys': false,
+    'slang': true,
   };
 
   final Map<String, Object> _values = {...defaults};
