@@ -49,6 +49,7 @@ class SettingsStore extends ChangeNotifier {
     'backlight_colour': 'accent',
     'backlight_strength': 'medium',
     'backlight_mode': 'brighten',
+    'backlight_fade': 'medium',
     'emoji_skin': '0',
     'emoji_suggest': true,
     'markdown_everywhere': false,

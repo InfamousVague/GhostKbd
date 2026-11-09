@@ -560,7 +560,9 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
     PaneSection(
       children: [
         _choice(store, 'backlight_strength', store.choice('backlight_mode') == 'dim' ? 'How dark' : 'Brightness', const {'low': 'Low', 'medium': 'Medium', 'high': 'High'}),
+        _choice(store, 'backlight_fade', 'Fade', const {'fast': 'Fast', 'medium': 'Medium', 'slow': 'Slow'}),
       ],
+      footer: const Text('Fade is how long a key stays lit after you press it: about half a second, a second, or two.'),
     ),
     ],
   ];

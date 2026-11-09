@@ -211,8 +211,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.split = prefs.split
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
         view.backlight = if (!prefs.backlight || isPassword(currentInputEditorInfo)) null else view.backlight?.takeIf {
-            it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode
-        } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength), prefs.backlightMode)
+            it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode &&
+                it.fade == Backlight.fadeOf(prefs.backlightFade)
+        } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength), prefs.backlightMode, Backlight.fadeOf(prefs.backlightFade))
         // The chosen pack, made ready before the first key needs it.
         if (prefs.sound) {
             val pack = soundToPlay()

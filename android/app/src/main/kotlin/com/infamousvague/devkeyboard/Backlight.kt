@@ -20,7 +20,11 @@ import kotlin.math.sin
  * their opacity); the strength is how far.
  * KeyboardView asks for each key's [light] while drawing, and keeps drawing while [animating].
  */
-class Backlight(val effect: String, val colour: String, val strength: Float, val mode: String = "brighten") {
+class Backlight(val effect: String, val colour: String, val strength: Float, val mode: String = "brighten", val fade: Float = 1f) {
+    /** How long a lit key lingers and a ripple runs, by Settings › Backlight › Fade ([fadeOf]). */
+    private val fadeMs = (FADE_MS * fade).toLong()
+    private val rippleS = RIPPLE_S * fade
+
     /** Dim: the effect darkens keys (legends too) rather than lighting them. */
     val dims get() = mode == "dim"
 
@@ -53,18 +57,18 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
     /** How lit the key [id] at (x, y) is, 0 to 1, on a board [width] wide. */
     fun light(id: String, x: Float, y: Float, width: Float, now: Long): Float {
         val since = presses[id]?.let { now - it } ?: Long.MAX_VALUE
-        val flare = if (since < FADE_MS) (1f - since / FADE_MS.toFloat()).let { it * it } else 0f
+        val flare = if (since < fadeMs) (1f - since / fadeMs.toFloat()).let { it * it } else 0f
         return when (effect) {
             "ripple" -> {
                 var sum = flare
                 val ring = width * 0.07f
                 for ((rx, ry, t) in ripples) {
                     val age = (now - t) / 1000f
-                    if (age > RIPPLE_S) continue
+                    if (age > rippleS) continue
                     val r = age * width * 0.6f
                     val d = hypot(x - rx, y - ry)
                     val off = (d - r) / ring
-                    sum += exp(-off * off) * (1f - age / RIPPLE_S)
+                    sum += exp(-off * off) * (1f - age / rippleS)
                 }
                 sum.coerceAtMost(1f)
             }
@@ -100,9 +104,9 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
     /** Whether anything is still moving, so the keyboard keeps drawing frames. */
     fun animating(now: Long): Boolean = when (effect) {
         "rainbow", "starlight", "breathe" -> true
-        "ripple" -> ripples.any { now - it.third < RIPPLE_S * 1000 } || presses.values.any { now - it < FADE_MS }
-        "heatmap" -> heat.isNotEmpty() || presses.values.any { now - it < FADE_MS }
-        else -> presses.values.any { now - it < FADE_MS }
+        "ripple" -> ripples.any { now - it.third < rippleS * 1000 } || presses.values.any { now - it < fadeMs }
+        "heatmap" -> heat.isNotEmpty() || presses.values.any { now - it < fadeMs }
+        else -> presses.values.any { now - it < fadeMs }
     }
 
     /** Effects that only change slowly can draw at a gentle rate (ms between frames), saving battery. */
@@ -118,5 +122,7 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
             "warm" to 0xFFFF8A3D.toInt(), "violet" to 0xFFB47CFF.toInt(), "rose" to 0xFFFF5C8A.toInt(), "white" to 0xFFFFFFFF.toInt(),
         )
         fun strengthOf(id: String) = when (id) { "low" -> 0.35f; "high" -> 0.9f; else -> 0.6f }
+        /** Settings › Backlight › Fade: a lit key lingers 0.6 s (fast), 1.2 s (medium) or 2.4 s (slow), a ripple in step. */
+        fun fadeOf(id: String) = when (id) { "fast" -> 0.5f; "slow" -> 2f; else -> 1f }
     }
 }
