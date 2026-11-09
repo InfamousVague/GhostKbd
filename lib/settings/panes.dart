@@ -51,15 +51,6 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         page: _setup,
       ),
       SettingsSection(id: 'look', label: 'Look & layout', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _look),
-      SettingsSection(
-        id: 'popups',
-        label: 'Long-press keys',
-        icon: _icon(LucideMore.keyboard),
-        hue: 'amber',
-        group: 'keyboard',
-        summary: (s) => s.popupKeys.isEmpty ? 'As they ship' : '${s.popupKeys.length} of your own',
-        page: _popups,
-      ),
       SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: (s) => s.flag('auto_caps') ? 'Capitals, full stops, cursor control' : 'No auto-capitals', page: _typing),
       SettingsSection(
         id: 'keypress',
@@ -212,36 +203,6 @@ List<Widget> _look(BuildContext context, SettingsStore store) => [
     ];
 
 // --- Typing -------------------------------------------------------------------------------------------------------
-
-List<Widget> _popups(BuildContext context, SettingsStore store) {
-  final own = store.popupKeys;
-  return [
-    PaneHero(glyph: AppIcon(LucideMore.keyboard, size: 24), title: 'Long-press keys', meta: const Text('What pops up when you hold a key, and its small corner character.')),
-    PaneSection(
-      title: 'Letters and the full stop',
-      footer: const Text('Type the choices with spaces between them, then press enter. The first one is the corner character. Leave it empty for no popup.'),
-      children: [
-        for (final p in store.popupDefaults)
-          SettingRow(
-            label: p.key,
-            hint: own.containsKey(p.key) ? const Text('Your own') : null,
-            layout: SettingRowLayout.stacked,
-            control: GlacierInput(
-              key: ValueKey('popup-${p.key}-${store.popupFor(p.key).join(' ')}'),
-              size: GlacierFieldSize.sm,
-              defaultValue: store.popupFor(p.key).join(' '),
-              placeholder: 'No popup',
-              ariaLabel: 'Long-press choices for ${p.key}',
-              onSubmitted: (text) => store.setPopup(p.key, text.split(' ').where((a) => a.isNotEmpty).toList()),
-            ),
-          ),
-        if (store.popupDefaults.isEmpty) const SettingRow(label: 'Open this on your phone to change them'),
-      ],
-    ),
-    if (own.isNotEmpty)
-      PaneSection(children: [SettingRow(label: 'Put them all back as they ship', onPress: () => store.set('popup_keys', ''))]),
-  ];
-}
 
 List<Widget> _typing(BuildContext context, SettingsStore store) => [
       PaneSection(

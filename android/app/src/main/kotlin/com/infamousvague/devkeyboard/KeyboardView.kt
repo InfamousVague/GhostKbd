@@ -111,10 +111,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var pluginRow = false
         set(value) { if (field != value) { field = value; requestLayout(); invalidate() } }
 
-    /** Settings › Long-press keys, as KeyboardPrefs keeps it. */
-    var popupKeys = ""
-        set(value) { if (field != value) { field = value; Layouts.custom = Layouts.parseCustom(value); rebuild(); invalidate() } }
-
     /** Split the keys in two on a wide screen (Settings › Look & layout). */
     var split = true
         set(value) { if (field != value) { field = value; layoutKeys(); invalidate() } }

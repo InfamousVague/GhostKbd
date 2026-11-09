@@ -109,6 +109,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         clipboard.addPrimaryClipChangedListener(onClip)
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
+        // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
+        prefs.prefs.edit().remove("popup_keys").apply()
     }
 
     override fun onDestroy() {
@@ -205,7 +207,6 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
-        view.popupKeys = prefs.popupKeys
         view.split = prefs.split
         view.iconPack = prefs.iconPack
         // The chosen pack, made ready before the first key needs it.

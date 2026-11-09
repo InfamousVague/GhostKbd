@@ -31,8 +31,6 @@ class KeyboardPrefs(context: Context) {
     /** The GIF plugin: a GIPHY key of the person's own, used instead of the build's. */
     val giphyKey: String get() = prefs.getString(GIPHY_KEY, "")!!
 
-    /** The person's own long-press keys: "a=á à â" a line (Layouts.parseCustom). */
-    val popupKeys: String get() = prefs.getString(POPUP_KEYS, "")!!
 
     /** Markdown and terminal buttons in every app, rather than only the apps they suit (AppContext). */
     val markdownEverywhere: Boolean get() = bool(MARKDOWN_EVERYWHERE)
@@ -142,7 +140,6 @@ class KeyboardPrefs(context: Context) {
         const val LANGUAGES = "languages"
         const val SUGGESTIONS = "suggestions"
         const val GIPHY_KEY = "giphy_key"
-        const val POPUP_KEYS = "popup_keys"
         const val WHISPER_MODEL = "whisper_model"
         const val ICON_PACK = "icon_pack"
         const val SPLIT = "split_keyboard"
@@ -180,7 +177,6 @@ class KeyboardPrefs(context: Context) {
             LANGUAGES to "en",
             SUGGESTIONS to true,
             GIPHY_KEY to "",
-            POPUP_KEYS to "",
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
             SPLIT to true,

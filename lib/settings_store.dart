@@ -43,7 +43,6 @@ class SettingsStore extends ChangeNotifier {
     'theme_tint': '#51FCFB',
     'theme_accent': '',
     'theme_mode': 'dark',
-    'popup_keys': '',
     'icon_pack': 'lucide',
     'split_keyboard': true,
     'emoji_skin': '0',
@@ -123,32 +122,6 @@ class SettingsStore extends ChangeNotifier {
     return set('languages', autocorrectLanguages.keys.where(now.contains).join(','));
   }
 
-  /// The letters page's long-press popups as they ship (Layouts.defaultPopups), in QWERTY order.
-  List<({String key, List<String> alts})> popupDefaults = const [];
-
-  /// The person's own popups, by key: "a=á à â" a line, the keyboard's format.
-  Map<String, List<String>> get popupKeys => {
-        for (final line in choice('popup_keys').split('\n'))
-          // A line is at least "k=": shorter (the empty setting's one blank line) is skipped, as indexOf past the end throws.
-          if (line.length >= 2 && line.indexOf('=', 1) > 0)
-            line.substring(0, line.indexOf('=', 1)): line.substring(line.indexOf('=', 1) + 1).split(' ').where((a) => a.isNotEmpty).toList(),
-      };
-
-  /// What [key]'s popup offers now: the person's own, else as it ships.
-  List<String> popupFor(String key) => popupKeys[key] ?? popupDefaults.where((p) => p.key == key).firstOrNull?.alts ?? const [];
-
-  /// Sets [key]'s popup; null puts it back as it ships.
-  Future<void> setPopup(String key, List<String>? alts) {
-    final now = popupKeys;
-    final shipped = popupDefaults.where((p) => p.key == key).firstOrNull?.alts;
-    if (alts == null || (shipped != null && alts.join(' ') == shipped.join(' '))) {
-      now.remove(key);
-    } else {
-      now[key] = alts;
-    }
-    return set('popup_keys', [for (final e in now.entries) '${e.key}=${e.value.join(' ')}'].join('\n'));
-  }
-
   /// Words autocorrect keeps as typed: learned when a fix is undone, or added here.
   List<String> get learnedWords => choice('learned_words').split('\n').map((w) => w.trim()).where((w) => w.isNotEmpty).toList();
   Future<void> setLearned(String word, bool keep) {
@@ -169,12 +142,6 @@ class SettingsStore extends ChangeNotifier {
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
       soundPacksHere = _packs(await _channel.invokeListMethod<Object>('soundPacks'));
-      final popups = await _channel.invokeListMethod<Object>('popupDefaults');
-      if (popups != null) {
-        popupDefaults = [
-          for (final p in popups.whereType<Map>()) (key: p['key'] as String, alts: [for (final a in (p['alts'] as List? ?? const [])) a as String]),
-        ];
-      }
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
