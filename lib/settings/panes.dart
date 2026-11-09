@@ -641,6 +641,14 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
       children: [
         _toggle(store, 'ghostwriter_auto', 'Fill when I type >>', 'Off: tap Fill in the row when the cursor is on a request.'),
         _toggle(store, 'ghostwriter_memory', 'Answer from my past messages', store.pluginOn('mockingbird') ? 'The samples Mockingbird keeps that share the request’s words.' : 'Add Mockingbird to keep samples; until then only the field’s own text.'),
+        _toggle(
+          store,
+          'ghostwriter_web',
+          'Look things up online',
+          const {'anthropic', 'openai', 'gemini', 'openrouter'}.contains(store.choice('ai_provider'))
+              ? 'News, results, dates and figures are searched for with your provider’s own web search, instead of left as [blanks].'
+              : 'Your provider has no web search: switch to Claude, OpenAI, Gemini or OpenRouter for this.',
+        ),
         _toggle(store, 'ghostwriter_clipboard', 'Read my recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies go with the request.' : 'Needs the Clipboard history plugin.'),
       ],
     ),
@@ -650,6 +658,7 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
       children: const [
         SettingRow(label: '<<engineering standup tldr>>', hint: Text('Something to write: it writes it, from what you have typed lately.')),
         SettingRow(label: '<<why do the metrics not fire on signup>>', hint: Text('A question: it writes the answer you would give. Facts it doesn’t have become [blanks] to fill.')),
+        SettingRow(label: '<<summary of the 2026 election>>', hint: Text('Public facts: with Look things up online, it searches the web first.')),
         SettingRow(label: 'While it writes', hint: Text('The row shows Writing… with ✕ to stop. Keep typing elsewhere and the answer waits in the row to insert.')),
         SettingRow(label: 'Never', hint: Text('In password fields or while incognito.')),
       ],

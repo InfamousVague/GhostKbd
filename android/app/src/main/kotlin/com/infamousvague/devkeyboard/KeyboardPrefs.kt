@@ -87,6 +87,8 @@ class KeyboardPrefs(context: Context) {
     val ghostwriterAuto: Boolean get() = bool(GHOSTWRITER_AUTO)
     val ghostwriterMemory: Boolean get() = bool(GHOSTWRITER_MEMORY)
     val ghostwriterClipboard: Boolean get() = bool(GHOSTWRITER_CLIPBOARD)
+    /** Ghostwriter may look facts up online, with the provider's own search (AiClient.SEARCHES). */
+    val ghostwriterWeb: Boolean get() = bool(GHOSTWRITER_WEB)
 
     /** The added plugins' ids, comma-separated (Plugins.kt). */
     val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
@@ -188,6 +190,7 @@ class KeyboardPrefs(context: Context) {
         const val GHOSTWRITER_AUTO = "ghostwriter_auto"
         const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
         const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
+        const val GHOSTWRITER_WEB = "ghostwriter_web"
 
         /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
         private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
@@ -243,6 +246,7 @@ class KeyboardPrefs(context: Context) {
             GHOSTWRITER_AUTO to true,
             GHOSTWRITER_MEMORY to true,
             GHOSTWRITER_CLIPBOARD to false,
+            GHOSTWRITER_WEB to true,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

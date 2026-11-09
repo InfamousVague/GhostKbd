@@ -67,6 +67,7 @@ class SettingsStore extends ChangeNotifier {
     'ghostwriter_auto': true,
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
+    'ghostwriter_web': true,
   };
 
   final Map<String, Object> _values = {...defaults};

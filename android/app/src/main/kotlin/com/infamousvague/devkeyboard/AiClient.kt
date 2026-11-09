@@ -53,16 +53,23 @@ object AiClient {
     /** Whether the AI is set up enough to try. */
     fun ready(prefs: KeyboardPrefs) = runCatching { setup(prefs) }.isSuccess
 
+    /** Providers whose API can search the web itself: Claude, OpenAI, Gemini and OpenRouter. */
+    val SEARCHES = setOf("anthropic", "openai", "gemini", "openrouter")
+
+    fun canSearch(prefs: KeyboardPrefs) = provider(prefs.aiProvider).id in SEARCHES
+
     /**
      * One request: [system] instructions and the [user] message, back as plain text. [effort] is "low" for quick
-     * fills and "medium" for heavier work; providers that take no such setting ignore it.
+     * fills and "medium" for heavier work; providers that take no such setting ignore it. [webSearch] lets the model
+     * look things up online with its provider's own search, where the provider has one ([SEARCHES]).
      */
-    fun complete(prefs: KeyboardPrefs, system: String, user: String, maxTokens: Int, effort: String = "low"): String {
+    fun complete(prefs: KeyboardPrefs, system: String, user: String, maxTokens: Int, effort: String = "low", webSearch: Boolean = false): String {
         val s = setup(prefs)
+        val search = webSearch && s.provider.id in SEARCHES
         return when (s.provider.wire) {
-            Wire.ANTHROPIC -> anthropic(s, system, user, maxTokens, effort)
-            Wire.GEMINI -> gemini(s, system, user, maxTokens)
-            Wire.OPENAI -> openAi(s, system, user, maxTokens)
+            Wire.ANTHROPIC -> anthropic(s, system, user, maxTokens, effort, search)
+            Wire.GEMINI -> gemini(s, system, user, maxTokens, search)
+            Wire.OPENAI -> if (search && s.provider.id == "openai") openAiResponses(s, system, user, maxTokens) else openAi(s, system, user, maxTokens, search)
         }.trim().ifEmpty { throw AiError("The AI sent back nothing") }
     }
 
@@ -98,28 +105,51 @@ object AiClient {
         if (beta) put("anthropic-beta", "server-side-fallback-2026-07-01")
     }
 
-    private fun anthropic(s: Setup, system: String, user: String, maxTokens: Int, effort: String): String {
+    /** Claude's web search: the filtering version on the models that take it, the basic one on the others. */
+    private fun anthropicSearchTool(model: String): JSONObject {
+        val dynamic = Regex("^claude-(opus-5|opus-4-[678]|sonnet-5|sonnet-4-6|fable-5)").containsMatchIn(model)
+        return JSONObject().put("type", if (dynamic) "web_search_20260209" else "web_search_20250305").put("name", "web_search").put("max_uses", 5)
+    }
+
+    private fun anthropic(s: Setup, system: String, user: String, maxTokens: Int, effort: String, search: Boolean): String {
         val fallback = s.model in FALLBACK_MODELS
+        val messages = JSONArray().put(JSONObject().put("role", "user").put("content", user))
         val body = JSONObject()
             .put("model", s.model)
             .put("max_tokens", maxTokens)
             .put("system", system)
-            .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", user)))
+            .put("messages", messages)
         // Effort steers how long the model thinks: low keeps a fill quick. Claude 5-family models take it.
         if (Regex("^claude-(opus|sonnet|haiku|fable)-5").containsMatchIn(s.model)) body.put("output_config", JSONObject().put("effort", effort))
         if (fallback) body.put("fallbacks", "default")
-        val o = request("POST", "${s.base}/messages", anthropicHeaders(s, fallback), body)
-        if (o.optString("stop_reason") == "refusal") throw AiError("Claude declined this one")
-        return o.optJSONArray("content").objects().filter { it.optString("type") == "text" }.joinToString("") { it.optString("text") }
+        if (search) body.put("tools", JSONArray().put(anthropicSearchTool(s.model)))
+        val text = StringBuilder()
+        // A long search can pause the turn: send the conversation back as it stands and Claude carries on.
+        repeat(4) {
+            val o = request("POST", "${s.base}/messages", anthropicHeaders(s, fallback), body)
+            if (o.optString("stop_reason") == "refusal") throw AiError("Claude declined this one")
+            val content = o.optJSONArray("content") ?: JSONArray()
+            if (o.optString("stop_reason") != "pause_turn") {
+                // Only the text after the last search is the answer; anything before it is Claude narrating its search.
+                val blocks = content.objects()
+                val lastTool = blocks.indexOfLast { it.optString("type") != "text" && it.optString("type") != "thinking" }
+                blocks.drop(lastTool + 1).filter { it.optString("type") == "text" }.forEach { text.append(it.optString("text")) }
+                return text.toString()
+            }
+            messages.put(JSONObject().put("role", "assistant").put("content", content))
+        }
+        throw AiError("The search took too long")
     }
 
     // --- Gemini -------------------------------------------------------------------------------------------------------
 
-    private fun gemini(s: Setup, system: String, user: String, maxTokens: Int): String {
+    private fun gemini(s: Setup, system: String, user: String, maxTokens: Int, search: Boolean): String {
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
             .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", user)))))
             .put("generationConfig", JSONObject().put("maxOutputTokens", maxTokens))
+        // Grounding with Google Search: Gemini decides when to look something up.
+        if (search) body.put("tools", JSONArray().put(JSONObject().put("google_search", JSONObject())))
         val o = request("POST", "${s.base}/models/${s.model}:generateContent", mapOf("x-goog-api-key" to s.key), body)
         val candidate = o.optJSONArray("candidates")?.optJSONObject(0) ?: throw AiError(o.optJSONObject("promptFeedback")?.optString("blockReason")?.let { "Gemini blocked it ($it)" } ?: "Gemini sent back nothing")
         return candidate.optJSONObject("content")?.optJSONArray("parts").objects().joinToString("") { it.optString("text") }
@@ -133,7 +163,22 @@ object AiClient {
         if (s.provider.id == "openrouter") { put("X-Title", "Ghost Keyboard"); put("HTTP-Referer", "https://attack.fm/devkeyboard/") }
     }
 
-    private fun openAi(s: Setup, system: String, user: String, maxTokens: Int): String {
+    /** OpenAI with web search: its Responses API, where the search tool lives. */
+    private fun openAiResponses(s: Setup, system: String, user: String, maxTokens: Int): String {
+        val body = JSONObject()
+            .put("model", s.model)
+            .put("instructions", system)
+            .put("input", user)
+            .put("max_output_tokens", maxTokens)
+            .put("tools", JSONArray().put(JSONObject().put("type", "web_search")))
+        val o = request("POST", "${s.base}/responses", bearer(s), body)
+        o.optString("output_text").takeIf { it.isNotBlank() }?.let { return it }
+        return o.optJSONArray("output").objects().filter { it.optString("type") == "message" }
+            .flatMap { it.optJSONArray("content").objects() }.filter { it.optString("type") == "output_text" }
+            .joinToString("") { it.optString("text") }
+    }
+
+    private fun openAi(s: Setup, system: String, user: String, maxTokens: Int, search: Boolean = false): String {
         val body = JSONObject()
             .put("model", s.model)
             .put("messages", JSONArray()
@@ -141,6 +186,8 @@ object AiClient {
                 .put(JSONObject().put("role", "user").put("content", user)))
         // OpenAI's reasoning models want max_completion_tokens; the others still read max_tokens.
         body.put(if (s.provider.id == "openai") "max_completion_tokens" else "max_tokens", maxTokens)
+        // OpenRouter's web plugin searches for any model it routes to.
+        if (search && s.provider.id == "openrouter") body.put("plugins", JSONArray().put(JSONObject().put("id", "web")))
         val o = request("POST", "${s.base}/chat/completions", bearer(s), body)
         return o.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content").orEmpty()
     }

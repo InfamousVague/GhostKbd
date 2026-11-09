@@ -48,7 +48,7 @@ object Ghostwriter {
         val appContext = context.applicationContext
         return launch(Job(ids.incrementAndGet(), request, tag), done) {
             val (system, user) = prompt(appContext, prefs, request, before, after, app)
-            AiClient.complete(prefs, system, user, maxTokens = 4000, effort = "low")
+            AiClient.complete(prefs, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
         }
     }
 
@@ -91,12 +91,14 @@ object Ghostwriter {
                 between << and >>; the text you write replaces it, so write the text itself, as them, in their voice.
                 - If the request names something to write ("engineering standup tldr", "decline politely"), write it.
                 - If it is a question ("why does X happen"), write the answer they would put in this field.
-                - Ground facts in their past messages, their clipboard and the text around the request. Never invent
-                  specifics (names, numbers, dates, causes, links). Where a needed fact is missing, leave a short
-                  [bracketed blank] for them to fill instead of guessing.
+                - Facts about them (their work, plans, people, what they did) come from their past messages, their
+                  clipboard and the text around the request. Public facts (news, results, dates, figures, how things
+                  work) you may look up on the web when you have search: do, rather than guess or leave them out.
+                  Never invent specifics. Leave a short [bracketed blank] only for a fact you could not find.
                 - Fit the field: in a chat app keep it as short and casual as their texts; elsewhere match their
                   writing. Use the field's language. Continue naturally from the text before the request.
-                - Reply with the replacement text only: no quotes, no preface, no explanation of what you did.
+                - Reply with the replacement text only: no quotes, no preface, no sources, citations or links unless
+                  asked for, and no explanation of what you did or searched.
                 """.trimIndent(),
             )
             append("\n\n").append(Mockingbird.voiceSection(context))
