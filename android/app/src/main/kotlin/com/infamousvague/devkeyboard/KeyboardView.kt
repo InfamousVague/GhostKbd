@@ -31,7 +31,8 @@ interface KeyboardListener {
     fun onEnter()
     fun onCursor(steps: Int)
     fun onShiftChanged()
-    fun onKeyFeedback(key: Key)
+    /** A key's sound and, unless [haptic] is false (a held backspace's repeats), its vibration. */
+    fun onKeyFeedback(key: Key, haptic: Boolean = true)
     fun onShowPicker()
     fun onOpenSettings()
     fun onHideKeyboard()
@@ -55,7 +56,7 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onEnter() = guard("onEnter") { inner.onEnter() }
     override fun onCursor(steps: Int) = guard("onCursor") { inner.onCursor(steps) }
     override fun onShiftChanged() = guard("onShiftChanged") { inner.onShiftChanged() }
-    override fun onKeyFeedback(key: Key) = guard("onKeyFeedback") { inner.onKeyFeedback(key) }
+    override fun onKeyFeedback(key: Key, haptic: Boolean) = guard("onKeyFeedback") { inner.onKeyFeedback(key, haptic) }
     override fun onShowPicker() = guard("onShowPicker") { inner.onShowPicker() }
     override fun onOpenSettings() = guard("onOpenSettings") { inner.onOpenSettings() }
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
@@ -855,6 +856,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         override fun run() {
             val t = touch ?: return
             if (t.key.type != KeyType.DELETE) return
+            // A sound for each character a held backspace takes (Matt, 2026-11-09); the buzz stays on the first press.
+            listener.onKeyFeedback(t.key, haptic = false)
             listener.onDelete()
             timer.postDelayed(this, 50)
         }

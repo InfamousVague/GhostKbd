@@ -512,11 +512,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onShiftChanged() = Unit
 
-    override fun onKeyFeedback(key: Key) = keyFeedback(key.type)
+    override fun onKeyFeedback(key: Key, haptic: Boolean) = keyFeedback(key.type, haptic)
 
     /** A key's haptic and sound, as Settings has them: for the finger's presses and Ghostwriter's typing alike. */
-    private fun keyFeedback(type: KeyType) {
-        if (prefs.vibrate) {
+    private fun keyFeedback(type: KeyType, haptic: Boolean = true) {
+        if (haptic && prefs.vibrate) {
             // Medium is Gboard's feel; tick alone was too faint.
             val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 VibrationEffect.createPredefined(
