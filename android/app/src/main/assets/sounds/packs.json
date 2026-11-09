@@ -118,5 +118,93 @@
  {
   "id": "phone-tick",
   "name": "Phone tick"
+ },
+ {
+  "id": "chopsticks",
+  "name": "Chopsticks"
+ },
+ {
+  "id": "shutter",
+  "name": "Camera shutter"
+ },
+ {
+  "id": "bamboo",
+  "name": "Bamboo"
+ },
+ {
+  "id": "coin",
+  "name": "Coin"
+ },
+ {
+  "id": "ice",
+  "name": "Ice"
+ },
+ {
+  "id": "popcorn",
+  "name": "Popcorn"
+ },
+ {
+  "id": "cork",
+  "name": "Corks"
+ },
+ {
+  "id": "pen",
+  "name": "Pen click"
+ },
+ {
+  "id": "castanets",
+  "name": "Castanets"
+ },
+ {
+  "id": "snap",
+  "name": "Finger snaps"
+ },
+ {
+  "id": "finger-drum",
+  "name": "Finger drum"
+ },
+ {
+  "id": "leaves",
+  "name": "Autumn leaves"
+ },
+ {
+  "id": "snow",
+  "name": "Snow"
+ },
+ {
+  "id": "geiger",
+  "name": "Geiger counter"
+ },
+ {
+  "id": "mahjong",
+  "name": "Mahjong"
+ },
+ {
+  "id": "chess",
+  "name": "Chess"
+ },
+ {
+  "id": "ping-pong",
+  "name": "Ping pong"
+ },
+ {
+  "id": "clock",
+  "name": "Clockwork"
+ },
+ {
+  "id": "switch",
+  "name": "Light switch"
+ },
+ {
+  "id": "rotary",
+  "name": "Rotary dial"
+ },
+ {
+  "id": "dominoes",
+  "name": "Dominoes"
+ },
+ {
+  "id": "stapler",
+  "name": "Stapler"
  }
 ]
