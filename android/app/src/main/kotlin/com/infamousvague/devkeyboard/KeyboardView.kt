@@ -121,6 +121,25 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
 
     private fun lightId(key: Key) = "${key.type}|${key.text}|${key.label}"
 
+    /** Lights a swiped word's letters when the backlight is off (it is null): a quick reactive flare. */
+    private val wordLight = Backlight("reactive", "accent", 0.85f)
+    private val lightNow get() = backlight ?: wordLight
+
+    /**
+     * Swipe typing: the word's letters light one after another, 55 ms apart, as if typed along the path, through the
+     * backlight's own effect (or a reactive flare when the backlight is off).
+     */
+    fun lightWord(word: String) {
+        val letters = Autocorrect.fold(word.lowercase())
+        letters.forEachIndexed { i, c ->
+            val rect = keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text == c.toString() } ?: return@forEachIndexed
+            postDelayed({
+                lightNow.press(lightId(rect.first), rect.second.centerX(), rect.second.centerY(), android.os.SystemClock.uptimeMillis())
+                invalidate()
+            }, i * 55L)
+        }
+    }
+
     /**
      * The backlight on a key's legend, as a real board's shine-through legends: brightening blends the light's colour
      * into the label and icon, dimming fades them. Set on the legend's paints for the one key, cleared after; the key
@@ -346,13 +365,13 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         val now = android.os.SystemClock.uptimeMillis()
         for ((key, rect) in keyRects) {
             // The backlight tints this key's legend only: its label, hint and icon paints, not its face.
-            val lit = backlight?.let { legendLight(key, face(rect), it, now) }
+            val lit = lightNow.let { if (it === wordLight && !wordLight.animating(now)) null else legendLight(key, face(rect), it, now) }
             label.colorFilter = lit; iconPaint.colorFilter = lit; stroke.colorFilter = lit
             drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
         }
         label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
-        backlight?.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
+        lightNow.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
         touch?.swipe?.let { drawSwipe(canvas, it) }
         fadingSwipe?.let { path ->
             val f = 1f - (android.os.SystemClock.uptimeMillis() - fadingSince) / 280f

@@ -958,6 +958,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
         val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
         ic.commitText(lead + words[0], 1)
+        // The word's letters light in turn, as if typed along the path (never in a password field).
+        if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(words[0])
         lastCorrection = null
         lastSpaceAt = 0L
         lastSwipe = SwipeState(lead, words[0], words)
@@ -974,6 +976,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ic.commitText(swipe.lead + word, 1)
         ic.endBatchEdit()
         swipe.word = word
+        if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(word)
         scheduleRow()
     }
 
