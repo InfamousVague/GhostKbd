@@ -1,0 +1,122 @@
+[
+ {
+  "id": "mechanical",
+  "name": "Clicky mechanical"
+ },
+ {
+  "id": "thock",
+  "name": "Deep thock"
+ },
+ {
+  "id": "typewriter",
+  "name": "Typewriter"
+ },
+ {
+  "id": "bubble",
+  "name": "Bubble pop"
+ },
+ {
+  "id": "arcade",
+  "name": "8-bit arcade"
+ },
+ {
+  "id": "holy-panda",
+  "name": "Tactile pop"
+ },
+ {
+  "id": "topre",
+  "name": "Cushioned thock"
+ },
+ {
+  "id": "buckling-spring",
+  "name": "Buckling spring"
+ },
+ {
+  "id": "alps",
+  "name": "Vintage click"
+ },
+ {
+  "id": "box-jade",
+  "name": "Heavy click"
+ },
+ {
+  "id": "creamy",
+  "name": "Creamy"
+ },
+ {
+  "id": "marble",
+  "name": "Marbly"
+ },
+ {
+  "id": "laptop",
+  "name": "Laptop"
+ },
+ {
+  "id": "silent",
+  "name": "Silent"
+ },
+ {
+  "id": "wood",
+  "name": "Wooden"
+ },
+ {
+  "id": "ceramic",
+  "name": "Ceramic"
+ },
+ {
+  "id": "terminal",
+  "name": "Terminal clack"
+ },
+ {
+  "id": "red-linear",
+  "name": "Light linear"
+ },
+ {
+  "id": "ink",
+  "name": "Deep linear"
+ },
+ {
+  "id": "piano",
+  "name": "Muted piano"
+ },
+ {
+  "id": "raindrop",
+  "name": "Raindrops"
+ },
+ {
+  "id": "woodblock",
+  "name": "Woodblock"
+ },
+ {
+  "id": "kalimba",
+  "name": "Kalimba"
+ },
+ {
+  "id": "glass",
+  "name": "Glass"
+ },
+ {
+  "id": "scifi",
+  "name": "Sci-fi"
+ },
+ {
+  "id": "pencil",
+  "name": "Pencil"
+ },
+ {
+  "id": "cardboard",
+  "name": "Cardboard"
+ },
+ {
+  "id": "pebble",
+  "name": "Pebbles"
+ },
+ {
+  "id": "bubble-wrap",
+  "name": "Bubble wrap"
+ },
+ {
+  "id": "phone-tick",
+  "name": "Phone tick"
+ }
+]
