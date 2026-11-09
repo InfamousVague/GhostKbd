@@ -698,8 +698,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (!ghost && inGhost) items += RowItem("md-wiki", label = "[[ ]]", chip = true) { wrap("[[", "]]") }
         }
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
-            items += RowItem("undo", label = "↶ Undo", chip = true) { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
-            items += RowItem("redo", label = "↷ Redo", chip = true) {
+            items += RowItem("undo", icon = RowIcon.BACK, chip = true) { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
+            items += RowItem("redo", icon = RowIcon.FORWARD, chip = true) {
                 sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
             }
         }

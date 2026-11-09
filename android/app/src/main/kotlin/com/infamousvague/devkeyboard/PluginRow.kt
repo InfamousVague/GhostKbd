@@ -20,7 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** The small drawn icons the plugin row's buttons use. */
-enum class RowIcon { SETTINGS, HIDE, GIF, BACK, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER }
+enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER }
 
 /**
  * One thing a plugin puts in the row above the keys.
