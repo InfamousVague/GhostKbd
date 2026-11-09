@@ -97,8 +97,12 @@ NAMES = {
     'rotary': 'Rotary dial', 'dominoes': 'Dominoes', 'stapler': 'Stapler',
 }
 
+# Sounds every keyboard has, without the plugin (Settings > Key press > Sound): Bamboo, as "Thock" (2026-11-08).
+STOCK = {'bamboo': 'Thock'}
+
 # v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.
-VERSIONS = {pack: (1 if pack == 'cardboard' else 3) for pack in NAMES}
+# Cardboard (liked as it was) and Kalimba (its notes ring into each other, so it can't be cut) keep v1.
+VERSIONS = {pack: (1 if pack in ('cardboard', 'kalimba') else 3) for pack in NAMES}
 
 QUIET = 'Close-up recording in a quiet room, natural and realistic, not exaggerated, no music, no voices, no reverb.'
 
@@ -238,7 +242,8 @@ def make(api_key: str, pack: str) -> None:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / 'packs.json').write_text(json.dumps([{'id': k, 'name': v} for k, v in NAMES.items()], indent=1) + '\n')
+    # The plugin's list leaves out the stock sounds, which Key press offers without it (SoundPacks.STOCK).
+    (OUT / 'packs.json').write_text(json.dumps([{'id': k, 'name': v} for k, v in NAMES.items() if k not in STOCK], indent=1) + '\n')
     again = '--again' in sys.argv
     api_key = key()
     failed = []

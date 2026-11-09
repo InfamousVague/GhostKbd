@@ -12,6 +12,12 @@ import android.os.Looper
  * through a SoundPool, loaded once per pack, so a key's sound starts the instant the finger lands.
  */
 object SoundPacks {
+    /**
+     * The stock sounds: every keyboard has them, without the plugin (Settings › Key press › Sound), id to name. More
+     * are brought in over time; "system" is Android's own.
+     */
+    val STOCK = linkedMapOf("bamboo" to "Thock")
+
     /** Pack id to its name, in Settings' order, from assets/sounds/packs.json (tool/sound_packs.py writes it). */
     fun packs(context: Context): LinkedHashMap<String, String> {
         val out = LinkedHashMap<String, String>()
@@ -61,19 +67,20 @@ object SoundPacks {
     /** Plays [pack]'s sound for [type]; false where it isn't ready, so the caller can fall back to Android's. */
     fun play(context: Context, pack: String, type: KeyType, volume: Float = 0.35f): Boolean {
         if (loaded != pack) { prepare(context, pack); return false }
-        val name = when (type) {
-            KeyType.SPACE -> "space"
-            KeyType.DELETE -> "delete"
-            KeyType.ENTER -> "enter"
-            else -> "key${(round++ % 3) + 1}"
+        // Backspace and enter are the key's own sound, pitched: a little lower for backspace, lower still for enter,
+        // so a pack sounds like one board (2026-11-08). Space keeps its own, longer stroke.
+        return when (type) {
+            KeyType.SPACE -> playNamed("space", volume)
+            KeyType.DELETE -> playNamed("key1", volume, 0.9f)
+            KeyType.ENTER -> playNamed("key2", volume, 0.8f)
+            else -> playNamed("key${(round++ % 3) + 1}", volume)
         }
-        return playNamed(name, volume)
     }
 
-    private fun playNamed(name: String, volume: Float): Boolean {
+    private fun playNamed(name: String, volume: Float, pitch: Float? = null): Boolean {
         val id = ids[name] ?: ids["key1"] ?: return false
         // A touch of pitch wobble, so a run of keys doesn't sound like one sample.
-        val rate = if (name.startsWith("key")) 0.97f + (round % 4) * 0.02f else 1f
+        val rate = pitch ?: if (name.startsWith("key")) 0.97f + (round % 4) * 0.02f else 1f
         pool?.play(id, volume, volume, 1, 0, rate)
         return true
     }
@@ -95,8 +102,8 @@ object SoundPacks {
                     if (run != sampleRun) return@postDelayed
                     when (c) {
                         '_' -> playNamed("space", volume)
-                        'd' -> playNamed("delete", volume)
-                        'e' -> playNamed("enter", volume)
+                        'd' -> playNamed("key1", volume, 0.9f)
+                        'e' -> playNamed("key2", volume, 0.8f)
                         else -> playNamed("key${(round++ % 3) + 1}", volume)
                     }
                 }, at)

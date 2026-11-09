@@ -218,6 +218,17 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
           _toggle(store, 'vibrate', 'Vibrate on key press'),
           if (store.flag('vibrate')) _choice(store, 'haptics', 'Vibration strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
           _toggle(store, 'sound', 'Sound on key press'),
+          if (store.flag('sound') && !store.pluginOn('sounds'))
+            for (final (id, name) in stockSounds)
+              SettingRow(
+                label: name,
+                icon: store.choice('stock_sound') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+                onPress: () async {
+                  await store.set('stock_sound', id);
+                  if (id != 'system') store.sampleSound(id);
+                },
+              ),
+          if (store.flag('sound') && store.pluginOn('sounds')) const SettingRow(label: 'Sound', hint: Text('Chosen in Sound packs.')),
           if (store.flag('sound')) _volume(store),
         ],
       ),

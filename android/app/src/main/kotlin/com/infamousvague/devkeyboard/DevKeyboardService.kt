@@ -210,7 +210,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.split = prefs.split
         // The chosen pack, made ready before the first key needs it.
-        if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.sound) SoundPacks.prepare(this, prefs.soundPack)
+        if (prefs.sound) {
+            val pack = if (Plugins.isOn(prefs, Plugins.SOUNDS)) prefs.soundPack else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
+            if (pack != null) SoundPacks.prepare(this, pack)
+        }
         val rowShown = prefs.toolbar || usesRow()
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
@@ -464,7 +467,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             vibrator.vibrate(effect)
         }
         val volume = prefs.soundVolume
-        if (prefs.sound && volume > 0f && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, key.type, volume))) {
+        // The plugin's pack where it is added, else the stock sound chosen in Key press, else Android's.
+        val pack = if (Plugins.isOn(prefs, Plugins.SOUNDS)) prefs.soundPack else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
+        if (prefs.sound && volume > 0f && !(pack != null && SoundPacks.play(this, pack, key.type, volume))) {
             val fx = when (key.type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
                 KeyType.SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR

@@ -287,6 +287,9 @@ const List<PluginManifest> catalogue = [
   ),
 ];
 
+/// Key press's stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
+const List<(String, String)> stockSounds = [('bamboo', 'Thock'), ('system', 'Android’s')];
+
 /// The sounds plugin's packs (android SoundPacks.kt).
 const List<(String, String)> soundPacks = [
   ('mechanical', 'Clicky mechanical'),

@@ -50,6 +50,7 @@ class SettingsStore extends ChangeNotifier {
     'terminal_everywhere': false,
     'sound_pack': 'mechanical',
     'sound_volume': '35',
+    'stock_sound': 'bamboo',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
@@ -207,9 +208,9 @@ class SettingsStore extends ChangeNotifier {
   }
 
   /// A few seconds of typing in the chosen pack, filters and all.
-  Future<void> sampleSound() async {
+  Future<void> sampleSound([String? pack]) async {
     try {
-      await _channel.invokeMethod<void>('sampleSound');
+      await _channel.invokeMethod<void>('sampleSound', {if (pack != null) 'pack': pack});
     } on MissingPluginException {
       return;
     }
