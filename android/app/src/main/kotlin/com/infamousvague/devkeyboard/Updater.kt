@@ -35,6 +35,8 @@ object Updater {
     private const val ACTION_INSTALLED = "com.infamousvague.devkeyboard.INSTALL_STATUS"
     private const val PREFS = "dev_keyboard_updates"
     private const val CHECKED_AT = "checked_at"
+    /** The newest release a check has seen, so the keyboard can badge its cog until it is installed. */
+    private const val LATEST_CODE = "latest_code"
     private const val BACKGROUND_EVERY_MS = 12 * 60 * 60 * 1000L
 
     data class Release(val version: String, val code: Long, val sha256: String, val bytes: Long, val url: String)
@@ -100,6 +102,7 @@ object Updater {
             try {
                 app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(CHECKED_AT, System.currentTimeMillis()).apply()
                 val release = fetchRelease()
+                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(LATEST_CODE, release.code.toLong()).apply()
                 if (release.code <= currentCode(app)) {
                     set(State(phase = "upToDate"))
                     return@execute
@@ -114,14 +117,21 @@ object Updater {
         }
     }
 
-    /** The keyboard service's look, at most twice a day, when automatic updates are on. */
+    /**
+     * The keyboard service's look, at most twice a day: installs where automatic updates are on, and otherwise only
+     * notes the release, so the cog's badge can say one is waiting.
+     */
     fun backgroundCheck(context: Context) {
         val app = context.applicationContext
-        if (isDebuggable(app) || !KeyboardPrefs(app).autoUpdate) return
+        if (isDebuggable(app)) return
         val last = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(CHECKED_AT, 0L)
         if (System.currentTimeMillis() - last < BACKGROUND_EVERY_MS) return
-        check(app, install = true, silentOnly = true)
+        check(app, install = KeyboardPrefs(app).autoUpdate, silentOnly = true)
     }
+
+    /** Whether a release newer than this build has been seen (Matt, 2026-11-09: a badge on the settings cog). */
+    fun waiting(context: Context): Boolean =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(LATEST_CODE, 0L) > currentCode(context)
 
     /** The settings app's "Update now": install the release already found (or look again first). */
     fun installNow(context: Context) {

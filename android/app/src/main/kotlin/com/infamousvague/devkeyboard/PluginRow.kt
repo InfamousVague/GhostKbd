@@ -58,6 +58,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         set(value) { field = value; hide.visibility = if (value) VISIBLE else GONE }
 
     private val settings = IconButton(context, RowIcon.SETTINGS).apply { setOnClickListener { onSettings() } }
+
+    /** A dot on the cog, in the theme's accent, while an update is waiting. */
+    var updateBadge = false
+        set(value) { field = value; settings.badge = value }
     private val hide = IconButton(context, RowIcon.HIDE).apply { setOnClickListener { onHide() }; visibility = GONE }
 
     /**
@@ -179,6 +183,8 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private fun restyle() {
         setBackgroundColor(theme.background)
         settings.color = theme.toolbarIcon
+        settings.badgeColor = theme.accent
+        settings.badgeRing = theme.background
         hide.color = theme.toolbarIcon
         arrowButtons.forEach { it.color = theme.toolbarIcon }
         val now = items
@@ -190,7 +196,12 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private class IconButton(context: Context, val icon: RowIcon) : View(context) {
         var color = 0xFF444746.toInt()
             set(value) { field = value; invalidate() }
+        var badge = false
+            set(value) { field = value; invalidate() }
+        var badgeColor = 0xFF008B8A.toInt()
+        var badgeRing = 0
         private val drawer = IconDrawable(icon, color, 0)
+        private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
 
         init {
             isClickable = true
@@ -209,6 +220,16 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             drawer.ink = color
             drawer.setBounds(((width - s) / 2).toInt(), ((height - s) / 2).toInt(), ((width + s) / 2).toInt(), ((height + s) / 2).toInt())
             drawer.draw(canvas)
+            if (badge) {
+                // Top right of the glyph, ringed in the row's ground so it reads apart from the cog's teeth.
+                val r = s * 0.2f
+                val cx = (width + s) / 2 - r * 0.6f
+                val cy = (height - s) / 2 + r * 0.6f
+                dot.color = badgeRing
+                canvas.drawCircle(cx, cy, r + s * 0.08f, dot)
+                dot.color = badgeColor
+                canvas.drawCircle(cx, cy, r, dot)
+            }
         }
     }
 }

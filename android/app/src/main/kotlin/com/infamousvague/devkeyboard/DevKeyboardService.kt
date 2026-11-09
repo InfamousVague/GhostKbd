@@ -41,6 +41,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private lateinit var autocorrect: Autocorrect
     private val dictation by lazy { Dictation(this) }
     private val onModel: (WhisperModel.State) -> Unit = { applySettings() }
+    /** The cog's update badge follows the updater: on when a check finds a release, off once it is installed. */
+    private val onUpdate: (Updater.State) -> Unit = { row?.updateBadge = Updater.waiting(this) }
 
     /** The last autocorrection, while backspace can still undo it: the word as typed, what replaced it, and the separator. */
     private var lastCorrection: Triple<String, String, String>? = null
@@ -126,6 +128,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
+        Updater.addListener(onUpdate)
         Updater.backgroundCheck(this)
         clipboard.addPrimaryClipChangedListener(onClip)
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
@@ -139,6 +142,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SoundPacks.release()
         WhisperModel.removeListener(onModel)
+        Updater.removeListener(onUpdate)
         dictation.release()
         prefs.prefs.unregisterOnSharedPreferenceChangeListener(this)
         super.onDestroy()
@@ -186,6 +190,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         applySettings()
+        row?.updateBadge = Updater.waiting(this)
         selStart = info.initialSelStart
         selEnd = info.initialSelEnd
         lastSpaceAt = 0L
