@@ -530,12 +530,12 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
 List<Widget> _backlight(BuildContext context, SettingsStore store) {
   final t = context.tokens;
   return [
-    PaneHero(glyph: AppIcon(Lucide.sparkles, size: 24), title: 'Backlight', meta: const Text('Keys lit from behind, reacting as you type. Try it in the field below.'), status: const PaneHeroStatus('On')),
+    PaneHero(glyph: AppIcon(Lucide.sparkles, size: 24), title: 'Backlight', meta: const Text('Letters lit from behind, reacting as you type. Try it in the field below.'), status: const PaneHeroStatus('On')),
     PaneSection(
       children: [
         SettingRowBox(
           child: GlacierSegmentedControl(
-            options: const [GlacierSegmentedOption(value: 'brighten', label: Text('Brighten keys')), GlacierSegmentedOption(value: 'dim', label: Text('Dim keys'))],
+            options: const [GlacierSegmentedOption(value: 'brighten', label: Text('Brighten')), GlacierSegmentedOption(value: 'dim', label: Text('Dim'))],
             value: store.choice('backlight_mode'),
             onValueChange: (v) => store.set('backlight_mode', v),
             fullWidth: true,
@@ -545,8 +545,8 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
         ),
       ],
       footer: Text(store.choice('backlight_mode') == 'dim'
-          ? 'The effect darkens the keys it touches, legends and all, then they come back.'
-          : 'The effect lights the keys it touches, in the colour below, then they fade.'),
+          ? 'Like shine-through keycaps: the letters the effect touches fade, then come back. The keys stay as they are.'
+          : 'Like shine-through keycaps: the letters the effect touches take on the colour below, then fade back. The keys stay as they are.'),
     ),
     PaneSection(
       title: 'Effect',

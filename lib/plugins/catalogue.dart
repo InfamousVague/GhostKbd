@@ -288,9 +288,9 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'backlight',
     name: 'Backlight',
-    line: 'Keys lit from behind, reacting as you type.',
+    line: 'Letters lit from behind, reacting as you type.',
     description:
-        'An RGB mechanical keyboard’s backlight for your phone: keys that glow and fade as you press them, ripples that run '
+        'An RGB mechanical keyboard’s shine-through legends for your phone: letters that glow and fade as you press them, ripples that run '
         'out from each key, a heatmap of the keys you use, a rainbow wave, twinkling starlight or a slow breath. In your '
         'theme’s accent, a colour of your own, or a rainbow.',
     category: PluginCategory.look,

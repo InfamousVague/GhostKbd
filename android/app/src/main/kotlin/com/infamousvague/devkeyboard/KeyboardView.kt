@@ -118,33 +118,30 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     /** The backlight plugin's light, or null without it. */
     var backlight: Backlight? = null
         set(value) { field = value; invalidate() }
-    private val glow = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private fun lightId(key: Key) = "${key.type}|${key.text}|${key.label}"
 
-    /** The light behind a key's face: a soft halo, then the face itself lit, under its label. */
-    private fun drawBacklight(canvas: Canvas, key: Key, f: RectF, light: Backlight, now: Long) {
-        if (light.dims) return
-        val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now)
-        if (i <= 0.01f) return
-        val c = light.colourAt(f.centerX(), width.toFloat(), now, theme.accent, i)
-        val a = (i * light.strength * 255).toInt().coerceIn(0, 255)
-        glow.color = c
-        glow.alpha = a / 3
-        val halo = dp(3f)
-        canvas.drawRoundRect(RectF(f.left - halo, f.top - halo, f.right + halo, f.bottom + halo), keyRadius + halo, keyRadius + halo, glow)
-        glow.alpha = a
-        canvas.drawRoundRect(f, keyRadius, keyRadius, glow)
-    }
-
-    /** Dim mode: the effect darkens the key, over its label, toward the board's background. */
-    private fun drawDimmed(canvas: Canvas, key: Key, f: RectF, light: Backlight, now: Long) {
-        val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now)
-        if (i <= 0.01f) return
-        glow.color = theme.background
-        glow.alpha = (i * light.strength * 255).toInt().coerceIn(0, 255)
-        val pad = dp(1f)
-        canvas.drawRoundRect(RectF(f.left - pad, f.top - pad, f.right + pad, f.bottom + pad), keyRadius, keyRadius, glow)
+    /**
+     * The backlight on a key's legend, as a real board's shine-through legends: brightening blends the light's colour
+     * into the label and icon, dimming fades them. Set on the legend's paints for the one key, cleared after; the key
+     * itself is drawn as ever.
+     */
+    private fun legendLight(key: Key, f: RectF, light: Backlight, now: Long): android.graphics.ColorFilter? {
+        val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now) * light.strength
+        if (i <= 0.01f) return null
+        val t = i.coerceIn(0f, 1f)
+        val m = if (light.dims) {
+            // Fade the legend toward a fifth of its strength.
+            floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f - t * 0.8f, 0f)
+        } else {
+            // On the enter key's accent pill the accent would vanish: blend it toward the label's own light instead.
+            if (key.type == KeyType.ENTER) return null
+            val c = light.colourAt(f.centerX(), width.toFloat(), now, theme.accent, t)
+            val r = android.graphics.Color.red(c) * t; val g = android.graphics.Color.green(c) * t; val b = android.graphics.Color.blue(c) * t
+            val k = 1f - t
+            floatArrayOf(k, 0f, 0f, 0f, r, 0f, k, 0f, 0f, g, 0f, 0f, k, 0f, b, 0f, 0f, 0f, 1f, 0f)
+        }
+        return android.graphics.ColorMatrixColorFilter(m)
     }
 
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
@@ -346,10 +343,14 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         fill.color = theme.background
         canvas.drawRect(0f, if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
         if (showToolbar && !pluginRow) drawToolbar(canvas)
+        val now = android.os.SystemClock.uptimeMillis()
         for ((key, rect) in keyRects) {
+            // The backlight tints this key's legend only: its label, hint and icon paints, not its face.
+            val lit = backlight?.let { legendLight(key, face(rect), it, now) }
+            label.colorFilter = lit; iconPaint.colorFilter = lit; stroke.colorFilter = lit
             drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
-            backlight?.takeIf { it.dims }?.let { drawDimmed(canvas, key, face(rect), it, android.os.SystemClock.uptimeMillis()) }
         }
+        label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
         backlight?.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
         touch?.swipe?.let { drawSwipe(canvas, it) }
@@ -468,7 +469,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 else -> if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
             }
         }
-        backlight?.let { drawBacklight(canvas, key, f, it, android.os.SystemClock.uptimeMillis()) }
         val cx = f.centerX(); val cy = f.centerY()
         when (key.type) {
             KeyType.CHAR -> {

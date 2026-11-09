@@ -6,7 +6,8 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 /**
- * The backlight plugin: the keys lit from behind, as RGB mechanical keyboards are, reacting as you type.
+ * The backlight plugin: the keys' legends lit from behind, as shine-through keycaps on RGB mechanical keyboards are,
+ * reacting as you type. Only the legends change (KeyboardView.legendLight), never the keys themselves.
  *
  * - reactive: the key pressed glows and fades over half a second, the classic per-key light.
  * - ripple: a ring of light runs out from each key pressed and dims as it goes.
@@ -15,8 +16,8 @@ import kotlin.math.sin
  * - starlight: keys twinkle at random; a key pressed flares.
  * - breathe: the board breathes softly; a key pressed flares.
  *
- * It brightens the keys (lit in the theme's primary colour, a fixed colour or a rainbow) or dims them; the strength
- * is how far.
+ * It brightens the legends (blending in the theme's primary colour, a fixed colour or a rainbow) or dims them (fading
+ * their opacity); the strength is how far.
  * KeyboardView asks for each key's [light] while drawing, and keeps drawing while [animating].
  */
 class Backlight(val effect: String, val colour: String, val strength: Float, val mode: String = "brighten") {
