@@ -41,8 +41,27 @@ class KeyboardPrefs(context: Context) {
     /** How loud key sounds play, 0 to 1 (the setting keeps a percentage). */
     val soundVolume: Float get() = (prefs.getString(SOUND_VOLUME, "35")!!.toFloatOrNull() ?: 35f).coerceIn(0f, 100f) / 100f
 
-    /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
+    /** Split the keys on a wide screen (an unfolded foldable, a tablet): the old switch, read where [wideLayout] was never chosen. */
     val split: Boolean get() = bool(SPLIT)
+
+    /**
+     * Foldable layouts (0.9.0): the keys on a wide screen (an unfolded foldable, a tablet). "split" (two halves, a
+     * phone's key size each), "full" (edge to edge), or a phone-sized board docked "left", "center" or "right" for one
+     * thumb. A keyboard set up before 0.9.0 keeps what its Split switch said.
+     */
+    val wideLayout: String get() = prefs.getString(WIDE_LAYOUT, null) ?: if (split) "split" else "full"
+
+    /** One-handed typing on a phone: "off", or the keys narrowed toward the "left" or "right" thumb. */
+    val oneHanded: String get() = prefs.getString(ONE_HANDED, DEFAULTS[ONE_HANDED] as String)!!
+
+    /** Cursor control: sliding left from backspace deletes a word at a time. */
+    val deleteSwipe: Boolean get() = bool(DELETE_SWIPE)
+
+    /** Typing stats: speed and accuracy counted on this phone (TypingStats.kt). */
+    val typingStats: Boolean get() = bool(TYPING_STATS)
+
+    /** The Rewrite plugin: the language its Translate goes to, as the person wrote it. */
+    val rewriteLanguage: String get() = prefs.getString(REWRITE_LANGUAGE, DEFAULTS[REWRITE_LANGUAGE] as String)!!
 
     /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
     val backlight: Boolean get() = bool(BACKLIGHT)
@@ -147,9 +166,10 @@ class KeyboardPrefs(context: Context) {
 
     /** Every setting with its current value, defaults filled in: what the settings app reads. */
     fun all(): Map<String, Any> = DEFAULTS.mapValues { (key, default) ->
-        when (default) {
-            is Boolean -> prefs.getBoolean(key, default)
-            is String -> prefs.getString(key, default)!!
+        when {
+            key == WIDE_LAYOUT -> wideLayout
+            default is Boolean -> prefs.getBoolean(key, default)
+            default is String -> prefs.getString(key, default)!!
             else -> default
         }
     }
@@ -226,6 +246,13 @@ class KeyboardPrefs(context: Context) {
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
         const val SLANG = "slang"
+        const val WIDE_LAYOUT = "wide_layout"
+        const val ONE_HANDED = "one_handed"
+        const val DELETE_SWIPE = "delete_swipe"
+        const val TYPING_STATS = "typing_stats"
+        const val REWRITE_LANGUAGE = "rewrite_language"
+        /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
+        const val PREVIEW_OPEN = "preview_open"
 
         /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
         private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
@@ -289,6 +316,12 @@ class KeyboardPrefs(context: Context) {
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
             SLANG to true,
+            WIDE_LAYOUT to "split",
+            ONE_HANDED to "off",
+            DELETE_SWIPE to true,
+            TYPING_STATS to true,
+            REWRITE_LANGUAGE to "Spanish",
+            PREVIEW_OPEN to false,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

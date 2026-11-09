@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 /// [defaults] only covers the first frame before they arrive (and runs off-device, where there is no channel).
 class SettingsStore extends ChangeNotifier {
   SettingsStore() {
+    current = this;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
@@ -36,6 +37,9 @@ class SettingsStore extends ChangeNotifier {
   }
 
   static const _channel = MethodChannel('dev_keyboard/settings');
+
+  /// The app's one store, for the parts every page shares that are built without it (the live preview at a page's foot).
+  static SettingsStore? current;
 
   static const Map<String, Object> defaults = {
     'theme': 'dark',
@@ -94,6 +98,12 @@ class SettingsStore extends ChangeNotifier {
     'adaptive_map': false,
     'arrow_keys': false,
     'slang': true,
+    'wide_layout': 'split',
+    'one_handed': 'off',
+    'delete_swipe': true,
+    'typing_stats': true,
+    'rewrite_language': 'Spanish',
+    'preview_open': false,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -188,6 +198,8 @@ class SettingsStore extends ChangeNotifier {
       clipCount = clips?['count'] as int? ?? 0;
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
+      await refreshStats();
+      await refreshProfiles();
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -349,6 +361,58 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
+  /// Typing stats (TypingStats.kt): `today` (chars, words, wpm, accuracy, slips, corrections, swipes, minutes),
+  /// `week` (seven of day, words, wpm, oldest first), `all` (words, wpm, accuracy, days, minutes) and `topKeys`.
+  Map<String, Object?> stats = const {};
+
+  Future<void> refreshStats() => _statsCall('statsState');
+  Future<void> resetStats() => _statsCall('statsReset');
+
+  Future<void> _statsCall(String method) async {
+    try {
+      final r = await _channel.invokeMethod<Object>(method);
+      if (r is! Map) return;
+      final next = r.map((k, v) => MapEntry('$k', v as Object?));
+      // The page asks every couple of seconds while it is open: only a change redraws it.
+      if ('$next' == '$stats') return;
+      stats = next;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// Per-app profiles (AppProfiles.kt): `profiles` (package, label, values) and `recent` (package, label), the apps
+  /// typed in lately that have none.
+  Map<String, Object?> profiles = const {'profiles': [], 'recent': []};
+
+  List<AppProfile> get appProfiles => _apps(profiles['profiles']);
+  List<AppProfile> get recentApps => _apps(profiles['recent']);
+
+  static List<AppProfile> _apps(Object? raw) => [
+        for (final p in (raw as List? ?? const []))
+          if (p is Map)
+            AppProfile('${p['package']}', '${p['label']}', {for (final e in ((p['values'] as Map?) ?? const {}).entries) '${e.key}': e.value == true}),
+      ];
+
+  Future<void> refreshProfiles() => _profileCall('profilesState', const {});
+  Future<void> addProfile(String package) => _profileCall('profileAdd', {'package': package});
+  Future<void> removeProfile(String package) => _profileCall('profileRemove', {'package': package});
+
+  /// Sets one of a profile's settings on or off; null gives it back to Settings.
+  Future<void> setProfile(String package, String key, bool? value) => _profileCall('profileSet', {'package': package, 'key': key, if (value != null) 'value': value});
+
+  Future<void> _profileCall(String method, Map<String, Object> args) async {
+    try {
+      final r = await _channel.invokeMethod<Object>(method, args);
+      if (r is! Map) return;
+      profiles = r.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   /// Ghostwriter's Ghost.md notes online: signing in opens the browser on Ghost.md's page; the answer comes back
   /// through `aiChanged`.
   String? ghostMessage;
@@ -452,6 +516,16 @@ class SettingsStore extends ChangeNotifier {
     selected = nextSelected;
     notifyListeners();
   }
+}
+
+/// An app with a profile, or one typed in lately: its package, its name, and what its profile sets (on or off; a
+/// setting it leaves alone is absent).
+@immutable
+class AppProfile {
+  const AppProfile(this.package, this.label, this.values);
+  final String package;
+  final String label;
+  final Map<String, bool> values;
 }
 
 /// The languages autocorrect has a dictionary for (android/app/src/main/assets/dict).

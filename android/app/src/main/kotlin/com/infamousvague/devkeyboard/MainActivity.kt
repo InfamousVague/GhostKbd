@@ -160,6 +160,8 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // The live preview at the foot of Settings: the keyboard's own view, drawn in the app (KeyboardPreview.kt).
+        flutterEngine.platformViewsController.registry.registerViewFactory(KeyboardPreviewFactory.VIEW_TYPE, KeyboardPreviewFactory())
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev_keyboard/settings").apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -283,6 +285,22 @@ class MainActivity : FlutterActivity() {
                             .putExtra(Intent.EXTRA_TITLE, "ghost-typing-profile.json")
                         runCatching { startActivityForResult(save, REQUEST_EXPORT) }
                         result.success(null)
+                    }
+                    "statsState" -> result.success(TypingStats.state(this@MainActivity))
+                    "statsReset" -> { TypingStats.reset(this@MainActivity); result.success(TypingStats.state(this@MainActivity)) }
+                    "profilesState" -> result.success(AppProfiles.state(prefs))
+                    "profileAdd" -> {
+                        AppProfiles.add(this@MainActivity, prefs, call.argument<String>("package") ?: "")
+                        result.success(AppProfiles.state(prefs))
+                    }
+                    "profileSet" -> {
+                        // "value" is true, false, or absent to give the setting back to Settings.
+                        AppProfiles.set(prefs, call.argument<String>("package") ?: "", call.argument<String>("key") ?: "", call.argument<Boolean>("value"))
+                        result.success(AppProfiles.state(prefs))
+                    }
+                    "profileRemove" -> {
+                        AppProfiles.remove(prefs, call.argument<String>("package") ?: "")
+                        result.success(AppProfiles.state(prefs))
                     }
                     "adaptiveState" -> result.success(adaptiveState())
                     "adaptiveReset" -> { AdaptiveKeys.get(this@MainActivity).reset(); result.success(adaptiveState()) }

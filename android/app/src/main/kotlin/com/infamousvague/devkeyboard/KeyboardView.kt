@@ -40,6 +40,12 @@ interface KeyboardListener {
     fun onMic()
     /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
+    /** Cursor control: a slide left from backspace takes the word before the cursor. */
+    fun onDeleteWord() {}
+    /** Cursor control: a slide up or down from the space bar moves the cursor [lines] lines (negative is up). */
+    fun onCursorLine(lines: Int) {}
+    /** The empty side of a docked or one-handed keyboard was tapped: the keys should move to [side] ("left" or "right"). */
+    fun onDock(side: String, wide: Boolean) {}
 }
 
 /**
@@ -62,6 +68,9 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
     override fun onMic() = guard("onMic") { inner.onMic() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
+    override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
+    override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
+    override fun onDock(side: String, wide: Boolean) = guard("onDock") { inner.onDock(side, wide) }
 }
 
 enum class ShiftState { OFF, ON, LOCKED }
@@ -77,7 +86,9 @@ enum class EnterIcon { RETURN, SEARCH, GO, SEND, NEXT, PREVIOUS, DONE }
  * are no popup windows to manage.
  */
 @SuppressLint("ViewConstructor")
-class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
+class KeyboardView(context: Context, host: KeyboardListener, private val embedded: Boolean = false) : View(context) {
+    // [embedded]: drawn inside the settings app as its live preview (KeyboardPreview.kt) rather than as the input
+    // method's view: a short strip above the keys in place of the see-through room, and no room for Android's buttons.
     private val listener: KeyboardListener = SafeListener(host)
 
     // --- settings ---------------------------------------------------------------------------------------------------
@@ -88,6 +99,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var showHints = true
         set(value) { field = value; invalidate() }
     var spaceCursor = true
+    /** Cursor control: sliding left from backspace deletes whole words. */
+    var deleteSwipe = true
     var longPressMs = 300L
 
     /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
@@ -112,9 +125,32 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var pluginRow = false
         set(value) { if (field != value) { field = value; requestLayout(); invalidate() } }
 
-    /** Split the keys in two on a wide screen (Settings › Look & layout). */
-    var split = true
+    /**
+     * Foldable layouts (Settings › Look & feel › Layout). On a wide screen (an unfolded foldable, a tablet): "split" in
+     * two, "full" width, or a phone-sized board docked "left", "center" or "right".
+     */
+    var wideLayout = "split"
         set(value) { if (field != value) { field = value; layoutKeys(); invalidate() } }
+
+    /** One-handed typing on a phone: "off", or the keys narrowed toward the "left" or "right" thumb. */
+    var oneHanded = "off"
+        set(value) { if (field != value) { field = value; layoutKeys(); invalidate() } }
+
+    /** Where the keys stand across the view: all of it, or less when they are docked to a side or one-handed. */
+    private var areaLeft = 0f
+    private var areaRight = 0f
+    private val isWide get() = width / resources.displayMetrics.density >= SPLIT_MIN_DP
+
+    /**
+     * A docked or one-handed keyboard's empty side: its middle and its name, where the keys go when it is tapped.
+     * Null when the keys fill the width or stand in the middle.
+     */
+    private fun dockFlip(): Pair<Float, String>? = when {
+        areaRight - areaLeft >= width - 1f -> null
+        areaLeft <= 0.5f -> (areaRight + width) / 2f to "right"
+        areaRight >= width - 0.5f -> areaLeft / 2f to "left"
+        else -> null
+    }
 
     /** The adaptive keys plugin's learned aims, or null without it; and whether its heatmap is drawn over the keys. */
     var adaptive: AdaptiveKeys? = null
@@ -289,7 +325,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
     /** Room above the keyboard for the key preview and long-press panels, see-through and not touchable there. */
-    private val previewSpace get() = dp(rowHeightDp * 1.3f)
+    private val previewSpace get() = if (embedded) dp(EMBEDDED_TOP_DP) else dp(rowHeightDp * 1.3f)
     /** Where the keyboard itself starts, below [previewSpace]: the service tells Android only this part is the IME. */
     val keyboardTop get() = previewSpace
     // Gboard leaves 24dp above the first row's keys (this, and the key's own 6dp of row gap).
@@ -319,7 +355,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             } else {
                 @Suppress("DEPRECATION") insets.systemWindowInsetBottom
             }
-            if (bottom != navInset) { navInset = bottom; requestLayout() }
+            if (!embedded && bottom != navInset) { navInset = bottom; requestLayout() }
             insets
         }
     }
@@ -334,6 +370,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
      * Read from the window itself each layout, so it is right however the insets were dispatched.
      */
     private fun bottomInset(): Int {
+        if (embedded) return 0
         val insets = rootWindowInsets ?: return navInset
         val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             maxOf(
@@ -362,13 +399,30 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         // Split on a wide screen (an unfolded foldable, a tablet), as Gboard does: each half keeps a phone's key size
         // and the middle is left open for the thumbs. Keys whose centre is left of the middle go left, the rest right;
         // a key across the middle (the space bar) becomes two, one in each half.
-        val gap = if (split && width / resources.displayMetrics.density >= SPLIT_MIN_DP) width * SPLIT_GAP else 0f
-        val unit = (width - sidePad * 2 - gap) / units
-        val mid = sidePad + units * unit / 2
+        var gap = 0f
+        var areaW = width.toFloat()
+        var left = 0f
+        if (isWide) {
+            when (wideLayout) {
+                "split" -> gap = width * SPLIT_GAP
+                // A phone's keyboard on the big screen, under one thumb or in the middle.
+                "left", "center", "right" -> {
+                    areaW = min(width.toFloat(), dp(COMPACT_DP))
+                    left = when (wideLayout) { "left" -> 0f; "right" -> width - areaW; else -> (width - areaW) / 2f }
+                }
+            }
+        } else if (oneHanded == "left" || oneHanded == "right") {
+            areaW = width * ONE_HANDED_SHARE
+            left = if (oneHanded == "right") width - areaW else 0f
+        }
+        areaLeft = left
+        areaRight = left + areaW
+        val unit = (areaW - sidePad * 2 - gap) / units
+        val mid = left + sidePad + units * unit / 2
         val rowH = keysHeight / rows.size
         var y = keysTop
         for (row in rows) {
-            var x = sidePad + row.inset * unit + (units - row.units) * unit / 2
+            var x = left + sidePad + row.inset * unit + (units - row.units) * unit / 2
             for (key in row.keys) {
                 val w = key.width * unit
                 val left = x; val right = x + w
@@ -407,7 +461,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         fill.color = theme.background
-        canvas.drawRect(0f, if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
+        canvas.drawRect(0f, if (embedded) 0f else if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
         if (showToolbar && !pluginRow) drawToolbar(canvas)
         val now = android.os.SystemClock.uptimeMillis()
         for ((key, rect) in keyRects) {
@@ -417,6 +471,18 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true || ghostKey?.first === key)
         }
         label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
+        // A docked or one-handed keyboard: a chevron on its empty side, which moves the keys there when tapped.
+        dockFlip()?.let { (cx, side) ->
+            val cy = keysTop + keysHeight / 2
+            val d = if (side == "right") 1f else -1f
+            stroke.color = theme.hint
+            stroke.strokeWidth = dp(2.2f)
+            path.reset()
+            path.moveTo(cx - d * dp(5f), cy - dp(10f))
+            path.lineTo(cx + d * dp(5f), cy)
+            path.lineTo(cx - d * dp(5f), cy + dp(10f))
+            canvas.drawPath(path, stroke)
+        }
         if (adaptiveMap && page == Page.LETTERS) adaptive?.let { drawAdaptive(canvas, it) }
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
         lightNow.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
@@ -844,6 +910,11 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         var longPressed = false
         var cursorAnchor = downX
         var cursorMoved = false
+        /** Cursor control: where the next line step is measured from, as the finger slides up or down from space. */
+        var lineAnchor = downY
+        /** Cursor control: where the next word is measured from, as the finger slides left from backspace. */
+        var wordAnchor = downX
+        var wordsDeleted = false
         /** Swipe typing: the path so far, once the finger has slid far enough to be spelling a word. */
         var swipe: ArrayList<PointF>? = null
     }
@@ -872,6 +943,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
      */
     private fun keyAt(rawX: Float, rawY: Float): Pair<Key, RectF>? {
         if (rawY < keysTop) return null
+        // Docked or one-handed: the empty side is not a key (a little past the keys' edge still is).
+        if (rawX < areaLeft - dp(DOCK_SLACK_DP) || rawX > areaRight + dp(DOCK_SLACK_DP)) return null
         val (x, y) = if (page == Page.LETTERS) {
             val (ox, oy) = letterCorrection(rawX, rawY)
             (rawX - ox) to (rawY - oy).coerceAtLeast(keysTop + 1f)
@@ -956,6 +1029,10 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                     if (dictation == DictationPhase.LISTENING && event.actionMasked == MotionEvent.ACTION_DOWN) listener.onMic()
                     return true
                 }
+                if (event.actionMasked == MotionEvent.ACTION_DOWN && (x < areaLeft - dp(DOCK_SLACK_DP) || x > areaRight + dp(DOCK_SLACK_DP))) {
+                    dockFlip()?.let { (_, side) -> performHapticFeedback(KEYBOARD_TAP); listener.onDock(side, isWide) }
+                    return true
+                }
                 val (key, rect) = keyAt(x, y) ?: return true
                 press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second })
             }
@@ -1006,6 +1083,27 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                     val steps = (dx / step).toInt()
                     t.cursorAnchor += steps * step
                     listener.onCursor(steps)
+                }
+                // Up or down from the space bar moves by lines: a longer pull than a character's, so a sideways slide
+                // that drifts does not jump lines.
+                val lineStep = dp(30f)
+                val dy = y - t.lineAnchor
+                if (abs(dy) >= lineStep && (t.cursorMoved || abs(y - t.downY) > dp(34f))) {
+                    if (!t.cursorMoved) { t.cursorMoved = true; timer.removeCallbacks(longPress) }
+                    val lines = (dy / lineStep).toInt()
+                    t.lineAnchor += lines * lineStep
+                    listener.onCursorLine(lines)
+                }
+            }
+            KeyType.DELETE -> if (deleteSwipe) {
+                // Gboard's word delete: slide left from backspace and each stretch of the slide takes a word.
+                val step = dp(26f)
+                val dx = t.wordAnchor - x
+                if (dx >= step && (t.wordsDeleted || t.downX - x > dp(30f))) {
+                    if (!t.wordsDeleted) { t.wordsDeleted = true; timer.removeCallbacks(repeatDelete) }
+                    val words = (dx / step).toInt()
+                    t.wordAnchor -= words * step
+                    repeat(words) { listener.onKeyFeedback(t.key, haptic = false); listener.onDeleteWord() }
                 }
             }
             KeyType.CHAR -> {
@@ -1141,6 +1239,14 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         const val SPLIT_MIN_DP = 600f
         /** The open middle of a split keyboard, as a share of its width. */
         const val SPLIT_GAP = 0.3f
+        /** A docked keyboard on a wide screen is this wide (dp): a phone's keyboard, in reach of one thumb. */
+        const val COMPACT_DP = 400f
+        /** One-handed on a phone: the keys take this share of the width, on the thumb's side. */
+        const val ONE_HANDED_SHARE = 0.8f
+        /** A touch this far (dp) past a docked keyboard's edge still means its nearest key. */
+        private const val DOCK_SLACK_DP = 14f
+        /** The strip above the keys of the preview in Settings (dp), where a key's popup shows. */
+        const val EMBEDDED_TOP_DP = 40f
         /**
          * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
          * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps

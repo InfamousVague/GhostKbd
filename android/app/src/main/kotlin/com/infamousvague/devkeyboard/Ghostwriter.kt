@@ -32,7 +32,7 @@ object Ghostwriter {
     }
 
     /** A request in flight: [tag] is the text the answer replaces (the <<tag>>, or the selection for a rewrite). */
-    class Job(val id: Int, val request: String, val tag: String, val selection: Boolean = false) {
+    class Job(val id: Int, val request: String, val tag: String, val selection: Boolean = false, val mode: String? = null) {
         @Volatile var result: String? = null
         @Volatile var error: String? = null
         @Volatile var cancelled = false
@@ -67,6 +67,10 @@ object Ghostwriter {
             Mockingbird.rewrite(appContext, prefs, selected, app)
         }
     }
+
+    /** The Rewrite plugin: the [selected] text rewritten as [mode] asks, to replace the selection. */
+    fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
+        launch(Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
     private fun launch(job: Job, done: (Job) -> Unit, work: () -> String): Job {
         worker.execute {

@@ -77,6 +77,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The clipboard plugin: the row showing the history instead of its usual things. */
     private var showingClips = false
 
+    /** The Rewrite plugin: the row showing its choices (Fix, Shorter, Formal…). */
+    private var showingRewrite = false
+
+    /** Per-app profiles: the profile of the app being typed in, or null where it has none (AppProfiles.kt). */
+    private var profile: AppProfiles.Profile? = null
+
     /** Ghostwriter's <<request>> or Mockingbird's rewrite in flight, or its answer waiting to be placed. */
     private var aiJob: Ghostwriter.Job? = null
 
@@ -100,7 +106,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The incognito plugin's switch, and the field asking for no learning (EditorInfo's flag) either way. */
     private var incognitoOn = false
     private val incognito: Boolean get() =
-        (Plugins.isOn(prefs, Plugins.INCOGNITO) && incognitoOn) ||
+        (Plugins.isOn(prefs, Plugins.INCOGNITO) && incognitoOn) || profile?.flag("incognito") == true ||
             (currentInputEditorInfo?.let { it.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0 } == true)
 
     private val clipboard by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager }
@@ -190,6 +196,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        AppProfiles.seen(this, prefs, info.packageName)
         applySettings()
         row?.updateBadge = Updater.waiting(this)
         selStart = info.initialSelStart
@@ -198,7 +205,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastCorrection = null
         lastSwipe = null
         wordTouches.clear(); takenTouch = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null }
         scheduleRow()
         keyboard?.let { view ->
             if (!restarting) view.reset()
@@ -236,13 +243,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autocorrect.setLanguages(prefs.languages)
         autocorrect.setLearned(prefs.learnedWords)
         autocorrect.setSlang(prefs.slang)
+        profile = AppProfiles.of(prefs, currentInputEditorInfo?.packageName)
         val view = keyboard ?: return
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
-        view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
+        view.configure(profile?.flag("number_row") ?: prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
-        view.split = prefs.split
+        view.wideLayout = prefs.wideLayout
+        view.oneHanded = prefs.oneHanded
+        view.deleteSwipe = prefs.deleteSwipe
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
         view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this) else null
         view.adaptiveMap = Plugins.isOn(prefs, Plugins.ADAPTIVE) && prefs.adaptiveMap
@@ -255,7 +265,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val pack = soundToPlay()
             if (pack != null) SoundPacks.prepare(this, pack)
         }
-        val rowShown = prefs.toolbar || usesRow() || prefs.arrowKeys
+        val rowShown = prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
@@ -312,6 +322,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val ic = currentInputConnection ?: return
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
         if ((ctrlOn || altOn) && text.length == 1 && sendWithModifiers(text[0])) return
+        if (statsOn()) TypingStats.typed(this, text)
         lastSpaceAt = 0L
         // A letter straight after a swiped word starts a new word: a space first, as Gboard does.
         if (lastSwipe != null && text.length == 1 && text[0].isLetterOrDigit()) ic.commitText(" ", 1)
@@ -366,7 +377,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * when it typed the separator itself. Words in code-shaped text (after @ # / . _ - or a digit) are left alone.
      */
     private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean {
-        if (!autocorrectAllowed() || !prefs.autocorrect) return false
+        if (!autocorrectAllowed() || !(profile?.flag("autocorrect") ?: prefs.autocorrect)) return false
         val before = ic.getTextBeforeCursor(48, 0)?.toString() ?: return false
         var start = before.length
         while (start > 0 && (before[start - 1].isLetter() || before[start - 1] == '\'')) start--
@@ -381,6 +392,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!after.isNullOrEmpty() && (after[0].isLetterOrDigit() || after[0] == '\'')) return false
         val fixed = autocorrect.correct(word) ?: return false
         adaptiveCorrected(word, fixed)
+        if (statsOn()) TypingStats.correction(this)
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)
         ic.commitText(fixed + separator, 1)
@@ -415,6 +427,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
+        if (statsOn()) TypingStats.backspace(this)
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if (lastCorrection != null && undoCorrection(ic, keepSeparator = false)) return
         // Backspace straight after a swiped word takes the whole word, as Gboard does.
@@ -449,6 +462,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         learnGhostMd()
         snapshotDraft()
         val ic = currentInputConnection ?: return
+        if (statsOn()) TypingStats.typed(this, " ")
         lastSwipe = null
         val now = System.currentTimeMillis()
         if (prefs.doubleSpacePeriod && now - lastSpaceAt < 1000) {
@@ -487,6 +501,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastCorrection = null
         lastSwipe = null
         snapshotDraft()
+        if (statsOn()) TypingStats.typed(this, "\n")
         if (info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
             val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
             if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
@@ -516,6 +531,45 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val to = (from + move).coerceAtLeast(0)
         ic.setSelection(to, to)
     }
+
+    /** Cursor control: a slide left from backspace takes the word before the cursor (or the selection). */
+    override fun onDeleteWord() {
+        finishTyping()
+        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null
+        if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.trimEnd().substringBeforeLast(' ', ""); scheduleRow(); return }
+        if (emojiMode == GifMode.TYPING) { emojiQuery = emojiQuery.trimEnd().substringBeforeLast(' ', ""); scheduleRow(); return }
+        val ic = currentInputConnection ?: return
+        lastSpaceAt = 0L
+        if (!ic.getSelectedText(0).isNullOrEmpty()) { ic.commitText("", 1); return }
+        val before = ic.getTextBeforeCursor(96, 0)?.toString().orEmpty()
+        if (before.isEmpty()) return
+        var i = before.length
+        while (i > 0 && before[i - 1].isWhitespace()) i--
+        if (i > 0) {
+            if (before[i - 1].isLetterOrDigit()) {
+                while (i > 0 && (before[i - 1].isLetterOrDigit() || before[i - 1] == '\'')) i--
+            } else {
+                // A symbol or an emoji goes on its own, both halves of it where it is a surrogate pair.
+                i -= if (Character.isLowSurrogate(before[i - 1]) && i >= 2) 2 else 1
+            }
+        }
+        ic.deleteSurroundingText(before.length - i, 0)
+    }
+
+    /** Cursor control: a slide up or down from the space bar moves by lines, as the arrow keys do. */
+    override fun onCursorLine(lines: Int) {
+        finishTyping()
+        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null
+        repeat(abs(lines)) { sendKey(if (lines < 0) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN) }
+    }
+
+    /** The empty side of a docked or one-handed keyboard was tapped: the keys move there, and Settings follows. */
+    override fun onDock(side: String, wide: Boolean) {
+        prefs.set(if (wide) KeyboardPrefs.WIDE_LAYOUT else KeyboardPrefs.ONE_HANDED, side)
+    }
+
+    /** Typing stats count here: switched on, and never in a password field or while incognito. */
+    private fun statsOn(): Boolean = prefs.typingStats && !incognito && !isPassword(currentInputEditorInfo)
 
     override fun onShiftChanged() = Unit
 
@@ -605,6 +659,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         super.onFinishInputView(finishingInput)
         finishTyping()
         flushDraft()
+        TypingStats.flush(this)
         if (dictation.listening) dictation.stop()
         closeGifs()
         closeEmoji()
@@ -617,7 +672,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -662,6 +717,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (clips.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
             for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
             if (clips.isNotEmpty()) items += RowItem("clips-clear", label = "Clear") { ClipHistory.clear(this); scheduleRow() }
+            strip.setItems(items)
+            return
+        }
+        if (showingRewrite) {
+            items += RowItem("rw-back", icon = RowIcon.BACK) { showingRewrite = false; scheduleRow() }
+            for (mode in Rewrite.modes(prefs)) items += RowItem("rw-${mode.id}-${mode.label}", label = mode.label, chip = true) { rewriteWith(mode) }
             strip.setItems(items)
             return
         }
@@ -719,6 +780,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("voice", label = "✦ In my voice", bold = true, chip = true) { rewriteSelection(selected) }
             }
         }
+        // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
+        if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
+            items += RowItem("rewrite", label = "✦ Rewrite", bold = selStart != selEnd, chip = true) { showingRewrite = true; scheduleRow() }
+        }
         // Selected text in another app: to Ghost.md as a note.
         if (ghost && !inGhost && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
@@ -749,7 +814,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("fresh-${clip.at}", label = preview(clip.text), bold = true, chip = true) { pasteClip(clip.text) }
             }
         }
-        if (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL)) {
+        // An app's profile decides for that app; without one, the plugin's own rule (the apps it suits, or everywhere).
+        if (profile?.flag("terminal") ?: (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL))) {
             items += RowItem("esc", label = "Esc", chip = true) { sendKey(KeyEvent.KEYCODE_ESCAPE) }
             items += RowItem("tab", label = "Tab", chip = true) { sendKey(KeyEvent.KEYCODE_TAB) }
             items += RowItem("ctrl-$ctrlOn", label = "Ctrl", bold = ctrlOn, chip = true) { ctrlOn = !ctrlOn; scheduleRow() }
@@ -760,7 +826,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("right", label = "→", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
             for (c in listOf("|", "~", "/", "-", "&&", ">")) items += RowItem("t$c", label = c, chip = true) { currentInputConnection?.commitText(c, 1) }
         }
-        if (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN)) {
+        if (profile?.flag("markdown") ?: (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN))) {
             items += RowItem("md-b", label = "B", bold = true, chip = true) { wrap("**", "**") }
             items += RowItem("md-i", label = "I", chip = true) { wrap("_", "_") }
             items += RowItem("md-s", label = "S̶", chip = true) { wrap("~~", "~~") }
@@ -960,6 +1026,33 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /** The Rewrite plugin: [mode] done to the selection, or to everything in the field when nothing is selected. */
+    private fun rewriteWith(mode: Rewrite.Mode) {
+        showingRewrite = false
+        val ic = currentInputConnection
+        if (ic == null || !aiAllowed()) { scheduleRow(); return }
+        var selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected.isBlank()) {
+            ic.performContextMenuAction(android.R.id.selectAll)
+            selected = ic.getSelectedText(0)?.toString().orEmpty()
+        }
+        if (selected.isBlank()) { scheduleRow(); return }
+        startRewrite(selected, mode)
+    }
+
+    private fun startRewrite(selected: String, mode: Rewrite.Mode) {
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.rewriteAs(prefs, selected, mode) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /** There is something in the field to rewrite: text beside the cursor, or a selection. */
+    private fun fieldHasText(): Boolean {
+        if (selStart != selEnd) return true
+        val ic = currentInputConnection ?: return false
+        return !ic.getTextBeforeCursor(1, 0).isNullOrEmpty() || !ic.getTextAfterCursor(1, 0).isNullOrEmpty()
+    }
+
     /** An answer came back: it replaces its tag (or the selection) where that is still there; if not, it waits in the row. */
     private fun onAiDone(job: Ghostwriter.Job) {
         if (job !== aiJob) return
@@ -1130,7 +1223,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("ai-err-${job.id}", label = "✦ ${job.error}", chip = true, fill = true) { onOpenSettings() }
                 items += RowItem("ai-retry-${job.id}", label = "Retry", bold = true, chip = true) {
                     aiJob = null
-                    if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    val mode = Rewrite.mode(prefs, job.mode)
+                    if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
                     scheduleRow()
                 }
                 items += dismiss
@@ -1309,6 +1403,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
         val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
         ic.commitText(lead + words[0], 1)
+        if (statsOn()) TypingStats.swiped(this, words[0])
         // The word's letters light in turn, as if typed along the path (never in a password field).
         if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(words[0])
         lastCorrection = null

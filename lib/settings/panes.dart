@@ -2,6 +2,8 @@
 /// a [PaneSection] per card, a [SettingRow] per setting.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
@@ -55,6 +57,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
       SettingsSection(id: 'ai', label: 'AI', icon: _icon(Lucide.sparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),
       SettingsSection(id: 'rowtools', label: 'Row tools', icon: _icon(Lucide.clipboardPaste), hue: 'amber', group: 'keyboard', summary: _rowSummary, page: _rowToolsPage),
+      SettingsSection(id: 'apps', label: 'Per-app profiles', icon: _icon(Lucide.smartphone), hue: 'cyan', group: 'keyboard', summary: _appsSummary, page: _appsPage, parts: _appsParts),
       SettingsSection(
         id: 'market',
         label: 'Plugins',
@@ -73,6 +76,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'magenta', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbirdPage, parts: _mockingbirdParts),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
+      if (store.pluginOn('rewrite'))
+        SettingsSection(id: 'rewrite', label: 'Rewrite', icon: _icon(Lucide.penLine), hue: 'mint', group: 'plugins', summary: _rewriteSummary, page: _rewritePage, parts: (s) => [_aiProviderPart()]),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
@@ -512,7 +517,7 @@ String _typingSummary(SettingsStore s) =>
 
 String _aiSummary(SettingsStore s) {
   if (s.ai['ready'] != true) return 'Add an AI key';
-  return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter'].join(', ');
+  return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter', if (s.pluginOn('rewrite')) 'Rewrite'].join(', ');
 }
 
 String _mockingbirdSummary(SettingsStore s) =>
@@ -536,7 +541,8 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
           _plugin(store, 'adaptive', 'Adaptive keys', 'Learns where you aim and the keys you slip onto, and moves their edges to fit.'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
-          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor'),
+          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines.'),
+          _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
         ],
       ),
     ];
@@ -546,6 +552,7 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
         _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys tuned, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+      _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
       _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
     ];
 
@@ -617,14 +624,14 @@ List<Widget> _lookPage(BuildContext context, SettingsStore store) => [
 List<SettingsSection> _lookParts(SettingsStore store) => [
       _part('colours', 'Colours', Lucide.palette, 'magenta', (s) => s.pluginOn('themes') ? (s.choice('theme_preset') == 'custom' ? 'Your own' : (themePresets.where((p) => p.$1 == s.choice('theme_preset')).firstOrNull?.$2 ?? 'Ghost')) : 'Standard', (context, store) => [ThemeEditor(store: store)]),
       _part('backlight', 'Backlight', Lucide.sparkles, 'purple', (s) => s.flag('backlight') ? (backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? 'On') : 'Off', _backlight),
-      _part('keys', 'Keys', LucideMore.keyboard, 'indigo', (s) => [if (s.flag('number_row')) 'Number row', if (s.flag('split_keyboard')) 'split when wide', if (s.flag('hints')) 'hints'].join(', ').ifEmptyThen('Plain'), _keysPart),
+      _part('keys', 'Keys', LucideMore.keyboard, 'indigo', (s) => [if (s.flag('number_row')) 'Number row', if (s.flag('hints')) 'hints', if (s.flag('key_borders')) 'borders'].join(', ').ifEmptyThen('Plain'), _keysPart),
+      _part('layout', 'Layout', Lucide.laptop, 'cyan', _layoutSummary, _layoutPart),
       _part('keypress', 'Key press & sound', Lucide.volume2, 'amber', (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('sound')) (stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'sound')].join(', ').ifEmptyThen('Silent'), _keyPressPart),
     ];
 
 List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
       PaneSection(children: [
         _toggle(store, 'number_row', 'Number row'),
-        _toggle(store, 'split_keyboard', 'Split on wide screens', 'Unfolded or on a tablet: two halves, a phone’s key size each.'),
         _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
         _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
         _toggle(store, 'key_borders', 'Key borders'),
@@ -662,18 +669,20 @@ List<Widget> _keyPressPart(BuildContext context, SettingsStore store) => [
 List<Widget> _aiPage(BuildContext context, SettingsStore store) {
   final mb = store.pluginOn('mockingbird');
   final gw = store.pluginOn('ghostwriter');
+  final rw = store.pluginOn('rewrite');
   final ready = store.ai['ready'] == true;
   return [
     PaneHero(
       glyph: AppIcon(Lucide.sparkles, size: 24),
       title: ready ? 'Ready' : 'Add an AI key',
-      meta: const Text('Your AI key, shared by the AI plugins: Mockingbird and Ghostwriter. Your own key, straight to the provider.'),
+      meta: const Text('Your AI key, shared by the AI plugins: Mockingbird, Ghostwriter and Rewrite. Your own key, straight to the provider.'),
       status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
     ),
-    if (!mb || !gw)
+    if (!mb || !gw || !rw)
       PaneSection(title: 'AI plugins', children: [
         if (!mb) SettingRow(label: 'Mockingbird', icon: AppIcon(LucideMore.bird, size: 18), hint: const Text('Learns how you write and text. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
         if (!gw) SettingRow(label: 'Ghostwriter', icon: AppIcon(LucideMore.wandSparkles, size: 18), hint: const Text('Writes <<what you ask for>> in any app. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
+        if (!rw) SettingRow(label: 'Rewrite', icon: AppIcon(Lucide.penLine, size: 18), hint: const Text('Fixes, shortens, restyles or translates what you wrote. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
       ]),
   ];
 }
@@ -959,5 +968,310 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
         SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word list (CC BY-SA 4.0).')),
       ],
     ),
+  ];
+}
+
+// --- Typing stats (0.9.0) -----------------------------------------------------------------------------------------
+
+Map<Object?, Object?> _statsOf(SettingsStore s, String part) => s.stats[part] is Map ? s.stats[part] as Map : const {};
+
+int _stat(Map<Object?, Object?> m, String key) => (m[key] as num?)?.toInt() ?? 0;
+
+String _statsSummary(SettingsStore s) {
+  if (!s.flag('typing_stats')) return 'Off';
+  final today = _statsOf(s, 'today');
+  final wpm = _stat(today, 'wpm');
+  final words = _stat(today, 'words');
+  if (words == 0) return 'Nothing typed today';
+  return [if (wpm > 0) '$wpm words a minute', '$words words today'].join(', ');
+}
+
+/// Asks the keyboard for its counts while the stats page is open, so typing in the field below shows as it happens.
+class _StatsPoll extends StatefulWidget {
+  const _StatsPoll({required this.store, required this.child});
+  final SettingsStore store;
+  final Widget child;
+
+  @override
+  State<_StatsPoll> createState() => _StatsPollState();
+}
+
+class _StatsPollState extends State<_StatsPoll> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.store.refreshStats();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) => widget.store.refreshStats());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// The last seven days as bars: each as tall as its words against the busiest day's, with the day under it.
+class _WeekBars extends StatelessWidget {
+  const _WeekBars({required this.week});
+  final List<Map<Object?, Object?>> week;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    var most = 1;
+    for (final d in week) {
+      if (_stat(d, 'words') > most) most = _stat(d, 'words');
+    }
+    const tall = 72.0;
+    final small = TextStyle(fontSize: 11, color: t.color('app-ink-3'));
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < week.length; i++)
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_stat(week[i], 'words') == 0 ? '' : '${_stat(week[i], 'words')}', maxLines: 1, style: small),
+                SizedBox(height: t.space(1)),
+                Container(
+                  height: 3 + (tall - 3) * _stat(week[i], 'words') / most,
+                  margin: EdgeInsets.symmetric(horizontal: t.space(1)),
+                  decoration: BoxDecoration(
+                    color: i == week.length - 1 ? settingsHue(t) : settingsHueWash(t),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                SizedBox(height: t.space(1)),
+                Text('${week[i]['day'] ?? ''}', maxLines: 1, style: small),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+List<Widget> _statsPart(BuildContext context, SettingsStore store) {
+  final on = store.flag('typing_stats');
+  final today = _statsOf(store, 'today');
+  final all = _statsOf(store, 'all');
+  final week = [for (final d in (store.stats['week'] as List? ?? const [])) if (d is Map) d];
+  final top = [for (final k in (store.stats['topKeys'] as List? ?? const [])) '$k'];
+  final wpm = _stat(today, 'wpm');
+  final words = _stat(today, 'words');
+  String speed(int n) => n == 0 ? '—' : '$n wpm';
+  String percent(int n) => n == 0 ? '—' : '$n%';
+  return [
+    _StatsPoll(
+      store: store,
+      child: PaneHero(
+        glyph: AppIcon(Lucide.gauge, size: 24),
+        title: !on ? 'Typing stats are off' : (wpm > 0 ? '$wpm words a minute' : (words == 0 ? 'Nothing typed today' : '$words words today')),
+        meta: Text(!on ? 'Nothing is being counted.' : (words == 0 ? 'Type in the field below to see it count.' : '$words words in ${_stat(today, 'minutes')} minutes of typing today.')),
+        status: PaneHeroStatus(on ? 'Counting' : 'Off'),
+      ),
+    ),
+    PaneSection(
+      title: 'Today',
+      footer: const Text('Accuracy is how much of what you typed stood: a backspace straight after a key, or an autocorrect fix, is a slip.'),
+      children: [
+        SettingRow(label: 'Speed', value: Text(speed(wpm))),
+        SettingRow(label: 'Accuracy', value: Text(percent(_stat(today, 'accuracy')))),
+        SettingRow(label: 'Words', value: Text('$words')),
+        SettingRow(label: 'Fixed by autocorrect', value: Text('${_stat(today, 'corrections')}')),
+        SettingRow(label: 'Words swiped', value: Text('${_stat(today, 'swipes')}')),
+      ],
+    ),
+    if (week.isNotEmpty) PaneSection(title: 'Last 7 days', footer: const Text('Words typed each day.'), children: [SettingRowBox(child: _WeekBars(week: week))]),
+    PaneSection(
+      title: 'Last 30 days',
+      children: [
+        SettingRow(label: 'Speed', value: Text(speed(_stat(all, 'wpm')))),
+        SettingRow(label: 'Accuracy', value: Text(percent(_stat(all, 'accuracy')))),
+        SettingRow(label: 'Words', value: Text('${_stat(all, 'words')} over ${_stat(all, 'days')} ${_stat(all, 'days') == 1 ? 'day' : 'days'}')),
+        if (top.isNotEmpty) SettingRow(label: 'Busiest keys', hint: Text(top.join('  ·  '))),
+      ],
+    ),
+    PaneSection(
+      footer: const Text('Counts only, never what you typed. Kept on this phone for 30 days and sent nowhere. Nothing is counted in password fields or while incognito.'),
+      children: [
+        _toggle(store, 'typing_stats', 'Count my typing'),
+        SettingRow(label: 'Reset stats', onPress: _stat(all, 'words') == 0 && words == 0 ? null : store.resetStats),
+      ],
+    ),
+  ];
+}
+
+// --- Layout: foldables and one-handed (0.9.0) -------------------------------------------------------------------------
+
+String _layoutSummary(SettingsStore s) {
+  final wide = wideLayouts.where((l) => l.$1 == s.choice('wide_layout')).firstOrNull?.$2 ?? 'Split';
+  final hand = s.choice('one_handed');
+  return ['$wide when unfolded', if (hand != 'off') 'one-handed $hand'].join(', ');
+}
+
+List<Widget> _layoutPart(BuildContext context, SettingsStore store) => [
+      PaneSection(
+        title: 'Unfolded and on tablets',
+        footer: const Text('For screens 600 points wide or more: a foldable’s inner screen, a tablet, most phones on their side. Docked, tap the arrow on the empty side to move the keys across.'),
+        children: [
+          for (final (id, name, line) in wideLayouts)
+            SettingRow(
+              label: name,
+              hint: Text(line),
+              icon: store.choice('wide_layout') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+              onPress: () => store.set('wide_layout', id),
+            ),
+        ],
+      ),
+      PaneSection(
+        title: 'On a phone',
+        footer: const Text('The keys narrow toward one thumb. Tap the arrow on the empty side to switch hands. Open the preview below to see it.'),
+        children: [_choice(store, 'one_handed', 'One-handed', const {'off': 'Off', 'left': 'Left hand', 'right': 'Right hand'})],
+      ),
+    ];
+
+// --- Per-app profiles (0.9.0) -----------------------------------------------------------------------------------------
+
+String _appsSummary(SettingsStore s) {
+  final n = s.appProfiles.length;
+  return n == 0 ? 'The same in every app' : (n == 1 ? s.appProfiles.single.label : '$n apps');
+}
+
+/// What a profile can set (android AppProfiles.FIELDS): its key, its name, and a line on it.
+const List<(String, String, String)> _profileFields = [
+  ('number_row', 'Number row', 'Digits above the letters.'),
+  ('autocorrect', 'Correct on its own', 'Off: autocorrect only suggests in this app.'),
+  ('terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows in the row.'),
+  ('markdown', 'Markdown buttons', 'Bold, code, links and lists in the row.'),
+];
+
+String _profileSummary(AppProfile p) {
+  final set = [
+    for (final (key, name, _) in _profileFields)
+      if (p.values.containsKey(key)) '$name ${p.values[key]! ? 'on' : 'off'}',
+    if (p.values['incognito'] == true) 'Always incognito',
+  ];
+  return set.isEmpty ? 'Follows your settings' : set.join(', ');
+}
+
+List<Widget> _appsPage(BuildContext context, SettingsStore store) {
+  final n = store.appProfiles.length;
+  final recent = store.recentApps;
+  return [
+    PaneHero(
+      glyph: AppIcon(Lucide.smartphone, size: 24),
+      title: 'Per-app profiles',
+      meta: const Text('The number row, autocorrect, terminal keys, markdown buttons and incognito, set for one app. Whatever a profile leaves alone follows your settings.'),
+      status: PaneHeroStatus(n == 0 ? 'None yet' : (n == 1 ? '1 app' : '$n apps')),
+    ),
+    PaneSection(
+      title: 'Add a profile',
+      footer: const Text('The apps you typed in lately with Ghost Keyboard. Only their names are kept, on this phone.'),
+      children: [
+        if (recent.isEmpty) const SettingRow(label: 'No apps to add yet', hint: Text('Type something in an app with Ghost Keyboard, then come back.')),
+        for (final app in recent)
+          SettingRow(label: app.label, hint: Text(app.package), icon: AppIcon(LucideMore.circlePlus, size: 18), onPress: () => store.addProfile(app.package)),
+      ],
+    ),
+  ];
+}
+
+List<SettingsSection> _appsParts(SettingsStore store) => [
+      for (final p in store.appProfiles)
+        _part('app-${p.package}', p.label, Lucide.smartphone, 'cyan', (s) => _profileSummary(s.appProfiles.where((x) => x.package == p.package).firstOrNull ?? p), (context, store) => _appProfilePage(context, store, p.package)),
+    ];
+
+/// One setting of a profile: as Settings has it, or forced on or off for this app.
+SettingRow _profileChoice(SettingsStore store, AppProfile p, String key, String label, String hint, {bool offToo = true}) => SettingRow(
+      label: label,
+      hint: Text(hint),
+      layout: SettingRowLayout.stacked,
+      control: GlacierSegmentedControl(
+        options: [
+          const GlacierSegmentedOption(value: 'default', label: Text('As Settings')),
+          const GlacierSegmentedOption(value: 'on', label: Text('On')),
+          if (offToo) const GlacierSegmentedOption(value: 'off', label: Text('Off')),
+        ],
+        value: !p.values.containsKey(key) ? 'default' : (p.values[key]! ? 'on' : (offToo ? 'off' : 'default')),
+        onValueChange: (v) => store.setProfile(p.package, key, v == 'default' ? null : v == 'on'),
+        fullWidth: true,
+        size: GlacierSegmentedSize.sm,
+        ariaLabel: label,
+      ),
+    );
+
+List<Widget> _appProfilePage(BuildContext context, SettingsStore store, String package) {
+  final p = store.appProfiles.where((x) => x.package == package).firstOrNull;
+  if (p == null) return [const PaneSection(children: [SettingRow(label: 'This profile was removed')])];
+  return [
+    PaneSection(
+      footer: Text('Only while you type in ${p.label} (${p.package}). “As Settings” follows the rest of Settings.'),
+      children: [for (final (key, name, line) in _profileFields) _profileChoice(store, p, key, name, line)],
+    ),
+    PaneSection(
+      children: [_profileChoice(store, p, 'incognito', 'Incognito', 'On: nothing typed in this app is learned, counted or kept.', offToo: false)],
+    ),
+    PaneSection(
+      children: [
+        SettingRow(
+          label: 'Remove this profile',
+          onPress: () {
+            store.removeProfile(package);
+            Navigator.of(context).maybePop();
+          },
+        ),
+      ],
+    ),
+  ];
+}
+
+// --- Rewrite (0.9.0) ----------------------------------------------------------------------------------------------
+
+String _rewriteSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : 'Fix, shorten, restyle, translate into ${s.choice('rewrite_language')}';
+
+List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  final language = store.choice('rewrite_language');
+  return [
+    PaneHero(
+      glyph: AppIcon(Lucide.penLine, size: 24),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Tap Rewrite in the row above the keys, then how: it works on what you selected, or on the whole field, and replaces it.'),
+      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+    ),
+    PaneSection(
+      title: 'Translate into',
+      footer: const Text('Any language, written however you like: Spanish, Deutsch, 日本語. Press enter to keep it.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('rewrite-language-$language'),
+            defaultValue: language,
+            placeholder: 'Spanish',
+            ariaLabel: 'Language to translate into',
+            onSubmitted: (text) => store.set('rewrite_language', text.trim().isEmpty ? 'Spanish' : text.trim()),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'How it works',
+      children: [
+        const SettingRow(label: 'Fix', hint: Text('Spelling, grammar and punctuation. Nothing else changes.')),
+        const SettingRow(label: 'Shorter', hint: Text('The same thing in fewer words.')),
+        const SettingRow(label: 'Formal, Casual, Friendlier', hint: Text('The tone changes; the meaning and the facts stay.')),
+        SettingRow(label: '→ $language', hint: const Text('Translated, keeping names, links and code as they are.')),
+        const SettingRow(label: 'Never', hint: Text('In password fields or while incognito.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Rewrite', onPress: () => store.setPlugin('rewrite', false))]),
   ];
 }

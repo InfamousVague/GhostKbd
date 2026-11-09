@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
 import '../settings_store.dart';
+import 'keyboard_preview.dart';
 import 'kit/settings_icons.dart';
 import 'kit/settings_kit.dart';
 import 'settings_search.dart';
@@ -109,7 +110,7 @@ class SettingsPage extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-            child: _TryBar(gutter: gutter, bottom: MediaQuery.viewInsetsOf(context).bottom > 0 ? t.space(2) : t.space(2) + pad.bottom),
+            child: _TryBar(gutter: gutter, typing: MediaQuery.viewInsetsOf(context).bottom > 0, safeBottom: pad.bottom),
           ),
         ],
       ),
@@ -119,22 +120,43 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-/// The try-the-keyboard field pinned to the foot of every settings page.
+/// The foot of every settings page: a field to try the keyboard in, a Preview button beside it, and under them, while
+/// the preview is open and the real keyboard is away, the keyboard itself drawn live (keyboard_preview.dart).
 class _TryBar extends StatelessWidget {
-  const _TryBar({required this.gutter, required this.bottom});
+  const _TryBar({required this.gutter, required this.typing, required this.safeBottom});
   final double gutter;
-  final double bottom;
+
+  /// The real keyboard is up: the preview steps aside for it.
+  final bool typing;
+
+  /// The room Android's own buttons take under the page.
+  final double safeBottom;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(color: t.color('glacier-bg'), border: Border(top: BorderSide(color: t.color('app-rule')))),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, bottom),
-        child: const GlacierInput(placeholder: 'Try the keyboard here', ariaLabel: 'Try the keyboard', size: GlacierFieldSize.md),
-      ),
-    );
+    final store = SettingsStore.current;
+    Widget bar(bool previewing) => DecoratedBox(
+          decoration: BoxDecoration(color: t.color('glacier-bg'), border: Border(top: BorderSide(color: t.color('app-rule')))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, typing || previewing ? t.space(2) : t.space(2) + safeBottom),
+                child: Row(
+                  children: [
+                    const Expanded(child: GlacierInput(placeholder: 'Try the keyboard here', ariaLabel: 'Try the keyboard', size: GlacierFieldSize.md)),
+                    if (store != null) ...[SizedBox(width: t.space(2)), KeyboardPreviewButton(store: store)],
+                  ],
+                ),
+              ),
+              if (previewing && store != null) ...[KeyboardPreview(store: store), SizedBox(height: safeBottom)],
+            ],
+          ),
+        );
+    if (store == null) return bar(false);
+    return ListenableBuilder(listenable: store, builder: (context, _) => bar(store.flag('preview_open') && !typing));
   }
 }
 

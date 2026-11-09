@@ -313,6 +313,26 @@ const List<PluginManifest> catalogue = [
     hasPage: true,
   ),
   PluginManifest(
+    id: 'rewrite',
+    name: 'Rewrite',
+    line: 'Fix, shorten, restyle or translate what you wrote, in place.',
+    description:
+        'A Rewrite button in the row above the keys. Tap it, then Fix (spelling, grammar and punctuation, nothing else), '
+        'Shorter, Formal, Casual, Friendlier, or Translate into the language you choose. It works on the text you '
+        'selected, or on the whole field when nothing is selected, and the answer replaces it; undo puts yours back. '
+        'It uses the AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter or your own server) '
+        'with your own key, straight from your phone. Never in password fields or while incognito.',
+    category: PluginCategory.tools,
+    hue: 'mint',
+    icon: Lucide.penLine,
+    adds: ['A Rewrite button in the row', 'Fix, Shorter, Formal, Casual, Friendlier', 'Translate into any language'],
+    permissions: [
+      PluginPermission(Permission.network, 'To send the text you chose to rewrite to the AI you choose, with your own key.'),
+    ],
+    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hasPage: true,
+  ),
+  PluginManifest(
     id: 'adaptive',
     name: 'Adaptive keys',
     line: 'Learns where you aim and the keys you hit by mistake, and moves the keys to fit.',
@@ -374,6 +394,18 @@ const Set<String> builtInPlugins = {
 
 /// What the Market offers: the add-ons that need setting up of their own.
 List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p];
+
+/// The plugins every keyboard has, as the Market's Installed tab lists them beside the added ones.
+List<PluginManifest> get builtInCatalogue => [for (final p in catalogue) if (builtInPlugins.contains(p.id)) p];
+
+/// Settings › Look & feel › Layout's choices for a wide screen (android KeyboardView.wideLayout): id, name, what it does.
+const List<(String, String, String)> wideLayouts = [
+  ('split', 'Split', 'Two halves, a phone’s key size each, with the middle open for your thumbs.'),
+  ('full', 'Full width', 'One keyboard from edge to edge, with wide keys.'),
+  ('left', 'Docked left', 'A phone-sized keyboard under your left thumb.'),
+  ('center', 'Centred', 'A phone-sized keyboard in the middle.'),
+  ('right', 'Docked right', 'A phone-sized keyboard under your right thumb.'),
+];
 
 PluginManifest? pluginById(String id) {
   for (final plugin in catalogue) {

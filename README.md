@@ -21,6 +21,22 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - Number/phone fields open on `?123`; toolbar with settings and hide
 - Settings: theme, key height, number row, symbol hints, auto-caps, double-space period, space-bar cursor, long-press delay, popup, vibrate, sound
 
+## 0.9.0
+
+- **Rewrite** (a Market plugin, `Rewrite.kt`): a Rewrite button in the row; Fix, Shorter, Formal, Casual, Friendlier or
+  Translate, on the selection or the whole field, with the person's own AI key.
+- **Typing stats** (`TypingStats.kt`, Settings › Typing › Typing stats): speed, accuracy, autocorrect's fixes, swiped
+  words and the busiest keys, a day at a time. Counts only, on the phone, never in password fields or incognito.
+- **Live preview** (`KeyboardPreview.kt`, `lib/settings/keyboard_preview.dart`): the Preview button at the foot of every
+  settings page draws the keyboard's own view in the app, following each setting as it changes.
+- **Cursor control**: slide left from backspace to delete word by word; slide up or down from the space bar to move
+  by lines (sideways still moves by characters).
+- **Per-app profiles** (`AppProfiles.kt`, Settings › Per-app profiles): the number row, autocorrect's own fixes,
+  terminal keys, markdown buttons and incognito, forced on or off for one app.
+- **Foldable layouts** (Settings › Look & feel › Layout): on a wide screen, split, full width, or a phone-sized board
+  docked left, centre or right; on a phone, one-handed left or right. Tap the arrow on the empty side to move the keys.
+- **Market**: two tabs, Installed (what is added, and the built-in plugins' switches) and Discover.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
