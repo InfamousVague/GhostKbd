@@ -458,14 +458,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
             vibrator.vibrate(effect)
         }
-        if (prefs.sound && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, key.type))) {
+        val volume = prefs.soundVolume
+        if (prefs.sound && volume > 0f && !(Plugins.isOn(prefs, Plugins.SOUNDS) && SoundPacks.play(this, prefs.soundPack, key.type, volume))) {
             val fx = when (key.type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
                 KeyType.SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
                 KeyType.ENTER -> AudioManager.FX_KEYPRESS_RETURN
                 else -> AudioManager.FX_KEYPRESS_STANDARD
             }
-            audio.playSoundEffect(fx, -1f)
+            audio.playSoundEffect(fx, volume)
         }
     }
 

@@ -15,9 +15,9 @@ OUT = ROOT / 'android/app/src/main/assets/sounds'
 
 # What each pack's keys sound like: one recording each, close-miked and dry, nothing else in it.
 PACKS = {
-    'mechanical': 'Cherry MX Blue mechanical keyboard',
-    'thock': 'deep thocky lubed linear mechanical keyboard with heavy keycaps',
-    'typewriter': 'vintage manual typewriter',
+    'mechanical': 'Cherry MX Brown tactile mechanical keyboard with thick PBT keycaps, warm and full, not tinny',
+    'thock': 'deep low-pitched thocky lubed linear mechanical keyboard with heavy keycaps on a dampened aluminium case, bassy and muted',
+    'typewriter': 'vintage manual typewriter, warm wooden desk, soft',
     'bubble': 'soft cartoon bubble',
     'arcade': '8-bit retro video game console',
 }
@@ -44,6 +44,23 @@ SPECIAL = {
 }
 
 
+# Warmer and quieter than ElevenLabs gives them: the rumble below 35 Hz and the fizz above 6.5 kHz gone, the body
+# around 140 Hz lifted, the harsh 3.5 kHz presence and the top end eased, then squeezed and held well under full
+# scale (peaks about -11 dBFS) so a run of keys is never piercing. The app's volume setting does the rest.
+WARM = ('highpass=f=35,lowpass=f=6500,bass=g=7:f=140:w=0.8,equalizer=f=3500:t=q:w=1.2:g=-6,treble=g=-4:f=6000,'
+        'acompressor=threshold=-20dB:ratio=3:attack=1:release=60,alimiter=limit=0.28:level=false')
+
+
+def refine() -> None:
+    """--refine: the packs already made, put through WARM again (for packs made before it existed)."""
+    for f in sorted(OUT.glob('*/*.ogg')):
+        tmp = f.with_suffix('.tmp.ogg')
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', str(f), '-af', WARM, '-ac', '1', '-ar', '44100',
+                        '-c:a', 'libvorbis', '-q:a', '5', str(tmp)], check=True)
+        tmp.replace(f)
+        print(f'refined {f.relative_to(OUT)}')
+
+
 def key() -> str:
     k = os.environ.get('ELEVENLABS_API_KEY', '').strip()
     if not k:
@@ -68,11 +85,14 @@ def trim(mp3: bytes, dest: pathlib.Path) -> None:
         src.flush()
         # Start at the sound (no lead-in silence), keep 250 ms, fade the tail, mono 44.1 kHz.
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src.name, '-af',
-                        'silenceremove=start_periods=1:start_threshold=-42dB,atrim=0:0.25,afade=t=out:st=0.17:d=0.08,loudnorm=I=-18:TP=-2',
+                        'silenceremove=start_periods=1:start_threshold=-42dB,atrim=0:0.25,afade=t=out:st=0.17:d=0.08,' + WARM,
                         '-ac', '1', '-ar', '44100', '-c:a', 'libvorbis', '-q:a', '4', str(dest)], check=True)
 
 
 def main() -> None:
+    if '--refine' in sys.argv:
+        refine()
+        return
     again = '--again' in sys.argv
     api_key = key()
     for pack, thing in PACKS.items():

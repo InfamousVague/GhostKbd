@@ -272,6 +272,7 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
           _toggle(store, 'vibrate', 'Vibrate on key press'),
           if (store.flag('vibrate')) _choice(store, 'haptics', 'Vibration strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
           _toggle(store, 'sound', 'Sound on key press'),
+          if (store.flag('sound')) _volume(store),
         ],
       ),
     ];
@@ -463,6 +464,10 @@ List<Widget> _incognito(BuildContext context, SettingsStore store) => _rowPlugin
       ],
     );
 
+/// Key sound volume, as a share of the phone's own: a whisper to loud.
+SettingRow _volume(SettingsStore store) =>
+    _choice(store, 'sound_volume', 'Volume', const {'10': 'Whisper', '20': 'Soft', '35': 'Medium', '55': 'Loud', '80': 'Max'}, 'How loud key sounds play, under your phone’s own volume.');
+
 List<Widget> _sounds(BuildContext context, SettingsStore store) {
   final here = store.soundPacksHere;
   return [
@@ -483,6 +488,7 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
         if (!store.flag('sound')) _toggle(store, 'sound', 'Sound on key press'),
       ],
     ),
+    PaneSection(children: [_volume(store)]),
     PaneSection(children: [SettingRow(label: 'Remove Sound packs', onPress: () => store.setPlugin('sounds', false))]),
   ];
 }

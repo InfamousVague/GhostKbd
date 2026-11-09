@@ -51,6 +51,7 @@ class SettingsStore extends ChangeNotifier {
     'markdown_everywhere': false,
     'terminal_everywhere': false,
     'sound_pack': 'mechanical',
+    'sound_volume': '35',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',

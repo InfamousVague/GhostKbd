@@ -41,6 +41,9 @@ class KeyboardPrefs(context: Context) {
     /** The sounds plugin's pack (SoundPacks.PACKS). */
     val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
 
+    /** How loud key sounds play, 0 to 1 (the setting keeps a percentage). */
+    val soundVolume: Float get() = (prefs.getString(SOUND_VOLUME, "35")!!.toFloatOrNull() ?: 35f).coerceIn(0f, 100f) / 100f
+
     /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
     val split: Boolean get() = bool(SPLIT)
 
@@ -148,6 +151,7 @@ class KeyboardPrefs(context: Context) {
         const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
         const val TERMINAL_EVERYWHERE = "terminal_everywhere"
         const val SOUND_PACK = "sound_pack"
+        const val SOUND_VOLUME = "sound_volume"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -185,6 +189,7 @@ class KeyboardPrefs(context: Context) {
             MARKDOWN_EVERYWHERE to false,
             TERMINAL_EVERYWHERE to false,
             SOUND_PACK to "mechanical",
+            SOUND_VOLUME to "35",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",
