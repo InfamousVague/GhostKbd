@@ -23,7 +23,6 @@ class KeyboardPrefs(context: Context) {
     val autoUpdate: Boolean get() = bool(AUTO_UPDATE)
     val keyBorders: Boolean get() = bool(KEY_BORDERS)
     val toolbar: Boolean get() = bool(TOOLBAR)
-    val tapLog: Boolean get() = bool(TAP_LOG)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -135,7 +134,6 @@ class KeyboardPrefs(context: Context) {
         const val KEY_BORDERS = "key_borders"
         const val TOOLBAR = "toolbar"
         const val HAPTICS = "haptics"
-        const val TAP_LOG = "tap_log"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
         const val SUGGESTIONS = "suggestions"
@@ -143,6 +141,8 @@ class KeyboardPrefs(context: Context) {
         const val WHISPER_MODEL = "whisper_model"
         const val ICON_PACK = "icon_pack"
         const val SPLIT = "split_keyboard"
+        /** Settings › Developer shows once the version number in About is tapped five times. */
+        const val DEVELOPER = "developer"
         const val EMOJI_SKIN = "emoji_skin"
         const val EMOJI_SUGGEST = "emoji_suggest"
         const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
@@ -172,7 +172,6 @@ class KeyboardPrefs(context: Context) {
             KEY_BORDERS to false,
             TOOLBAR to false,
             HAPTICS to "medium",
-            TAP_LOG to false,
             AUTOCORRECT to true,
             LANGUAGES to "en",
             SUGGESTIONS to true,
@@ -180,6 +179,7 @@ class KeyboardPrefs(context: Context) {
             WHISPER_MODEL to "base.en",
             ICON_PACK to "lucide",
             SPLIT to true,
+            DEVELOPER to false,
             EMOJI_SKIN to "0",
             EMOJI_SUGGEST to true,
             MARKDOWN_EVERYWHERE to false,

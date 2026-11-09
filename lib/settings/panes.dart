@@ -108,7 +108,9 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
-      SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => s.flag('tap_log') ? 'Tap log is on' : 'Tap log', page: _developer),
+      // Hidden until the version number in About is tapped five times.
+      if (store.flag('developer'))
+        SettingsSection(id: 'developer', label: 'Developer', icon: _icon(Lucide.terminal), hue: 'slate', group: 'app', summary: (s) => 'Versions and diagnostics', page: _developer),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: (s) => 'Ghost Keyboard ${s.update['current'] ?? ''}'.trim(), page: _about),
     ];
 
@@ -616,29 +618,31 @@ List<Widget> _updates(BuildContext context, SettingsStore store) {
 
 // --- Developer ----------------------------------------------------------------------------------------------------
 
-List<Widget> _developer(BuildContext context, SettingsStore store) => [
-      PaneSection(
-        title: 'Tap log',
-        footer: const Text('Where each tap lands and which key it typed, to tune the keyboard. Never in password fields. Turn it off when you’re done.'),
-        children: [
-          _toggle(store, 'tap_log', 'Tap log'),
-          SettingRow(
-            label: 'Copy tap log',
-            icon: AppIcon(Lucide.copy, size: 18),
-            onPress: () async {
-              final log = await store.tapLog();
-              await Clipboard.setData(ClipboardData(text: log.text));
-            },
-          ),
-          SettingRow(label: 'Clear tap log', icon: AppIcon(LucideMore.trash2, size: 18), onPress: store.clearTapLog),
-        ],
-      ),
-    ];
+List<Widget> _developer(BuildContext context, SettingsStore store) {
+  final u = store.update;
+  return [
+    PaneSection(
+      title: 'This build',
+      children: [
+        SettingRow(label: 'Version', value: Text('${u['current'] ?? '—'}')),
+        SettingRow(label: 'Keyboard', value: Text(store.enabled ? (store.selected ? 'On and in use' : 'On, not in use') : 'Not turned on')),
+        SettingRow(label: 'Plugins', hint: Text(store.plugins.join(', '))),
+        SettingRow(
+          label: 'Copy these details',
+          icon: AppIcon(Lucide.copy, size: 18),
+          onPress: () => Clipboard.setData(ClipboardData(text: 'Ghost Keyboard ${u['current'] ?? ''}\nplugins: ${store.plugins.join(', ')}\nsettings: ${store.settingsJson}')),
+        ),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Hide developer settings', onPress: () { store.set('developer', false); Navigator.of(context).maybePop(); })]),
+  ];
+}
 
 // --- About --------------------------------------------------------------------------------------------------------
 
 List<Widget> _about(BuildContext context, SettingsStore store) => [
-      PaneHero(glyph: AppIcon(LucideMore.keyboard, size: 24), title: 'Ghost Keyboard', meta: Text('Version ${store.update['current'] ?? '—'} · a keyboard for people who write code')),
+      PaneHero(glyph: AppIcon(LucideMore.keyboard, size: 24), title: 'Ghost Keyboard', meta: const Text('A keyboard for people who write code')),
+      PaneSection(children: [_VersionRow(store: store)]),
       PaneSection(
         children: [
           SettingRow(label: 'Watch the walkthrough again', icon: AppIcon(LucideMore.rocket, size: 18), onPress: () => openOnboarding(context, store, replay: true)),
@@ -656,3 +660,42 @@ List<Widget> _about(BuildContext context, SettingsStore store) => [
         ],
       ),
     ];
+
+/// About's version number. Tapped five times in a row it shows Settings › Developer, as Android's build number does.
+class _VersionRow extends StatefulWidget {
+  const _VersionRow({required this.store});
+  final SettingsStore store;
+
+  @override
+  State<_VersionRow> createState() => _VersionRowState();
+}
+
+class _VersionRowState extends State<_VersionRow> {
+  int _taps = 0;
+  DateTime _last = DateTime(0);
+
+  @override
+  Widget build(BuildContext context) {
+    final store = widget.store;
+    final unlocked = store.flag('developer');
+    final left = 5 - _taps;
+    return SettingRow(
+      label: 'Version',
+      value: Text('${store.update['current'] ?? '—'}'),
+      hint: unlocked ? const Text('Developer settings are on') : (_taps >= 2 ? Text('$left more ${left == 1 ? 'tap' : 'taps'} for developer settings') : null),
+      onPress: unlocked
+          ? null
+          : () {
+              final now = DateTime.now();
+              setState(() {
+                _taps = now.difference(_last) < const Duration(seconds: 2) ? _taps + 1 : 1;
+                _last = now;
+              });
+              if (_taps >= 5) {
+                HapticFeedback.mediumImpact();
+                store.set('developer', true);
+              }
+            },
+    );
+  }
+}

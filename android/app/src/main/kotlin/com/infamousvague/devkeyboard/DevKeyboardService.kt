@@ -110,7 +110,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
         // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
-        prefs.prefs.edit().remove("popup_keys").apply()
+        prefs.prefs.edit().remove("popup_keys").remove("tap_log").apply()
+        deleteFile("tap_log.txt")
     }
 
     override fun onDestroy() {
@@ -220,7 +221,6 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!Plugins.isOn(prefs, Plugins.GIFS)) closeGifs()
         scheduleRow()
         view.keyBorders = prefs.keyBorders
-        view.tapLog = prefs.tapLog && !isPassword(currentInputEditorInfo)
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints
         view.spaceCursor = prefs.spaceCursor

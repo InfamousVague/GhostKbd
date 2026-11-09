@@ -118,8 +118,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
     var swipeTyping = false
 
-    /** Settings › Developer › Tap log, and not in a password field (the service decides both). */
-    var tapLog = false
     private var numberRow = false
     private var showToolbar = false
     private var rowHeightDp = 60f
@@ -291,10 +289,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 x += w
             }
             y += rowH
-        }
-        if (tapLog) {
-            val d = resources.displayMetrics.density
-            TapLog.geometry(context, "w=${"%.1f".format(width / d)}dp rowH=${"%.1f".format(rowH / d)}dp correction=perkey-v1 density=${"%.2f".format(d)} page=$page numberRow=$numberRow")
         }
     }
 
@@ -931,8 +925,9 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             t.longPressed -> Unit
             else -> when (t.key.type) {
                 KeyType.CHAR -> {
-                    if (tapLog && page == Page.LETTERS) logTap(t)
                     commit(display(t.key.text))
+                    // A character key that names a page goes there after typing: the developer page's comma.
+                    t.key.page?.let { showPage(it) }
                 }
                 KeyType.SPACE -> if (!t.cursorMoved) listener.onSpace()
                 KeyType.ENTER -> listener.onEnter()
@@ -943,21 +938,6 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             }
         }
         invalidate()
-    }
-
-    private fun logTap(t: Touch) {
-        val d = resources.displayMetrics.density
-        fun px(v: Float) = "%.1f".format(v / d)
-        fun py(v: Float) = "%.1f".format((v - keysTop) / d)
-        val face = face(t.rect)
-        val dx = (t.downX - face.centerX()) / t.rect.width()
-        val dy = (t.downY - face.centerY()) / t.rect.height()
-        TapLog.add(
-            context,
-            "${t.key.text}  down=${px(t.downX)},${py(t.downY)}  up=${px(t.lastX)},${py(t.lastY)}  " +
-                "key=${t.key.text}@${px(face.centerX())},${py(face.centerY())}  d=${"%+.2f".format(dx)},${"%+.2f".format(dy)}  " +
-                "slid=${if (t.key !== t.firstKey) "yes" else "-"}  first=${t.firstKey.text.ifEmpty { t.firstKey.label }}",
-        )
     }
 
     private fun cancelTouch() {
