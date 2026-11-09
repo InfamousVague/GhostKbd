@@ -1,62 +1,63 @@
 #!/usr/bin/env python3
-"""The sounds plugin's packs: each key sound made with ElevenLabs' sound effects (POST /v1/sound-generation), then
-trimmed to its first quarter second with ffmpeg so it starts the instant it plays, and kept as Ogg Vorbis in
-android/app/src/main/assets/sounds/<pack>/ (key1..3, space, delete, enter). SoundPacks.kt plays them.
+"""The sounds plugin's packs, made with ElevenLabs' sound effects (POST /v1/sound-generation) and written as Ogg Vorbis
+to android/app/src/main/assets/sounds/<pack>/ (key1..3, space, delete, enter), with every pack's name in
+assets/sounds/packs.json. SoundPacks.kt plays them.
 
-The key comes from ELEVENLABS_API_KEY or ~/.elevenlabs-key, never printed. A pack already made is left alone; pass
---again to make every pack anew. Run by .github/workflows/sounds.yml.
+How (v3, 2026-11-08): ElevenLabs is far better at a recording of someone typing than at one isolated click, which
+came out exaggerated and alike from board to board. So for each pack it is asked for a few seconds of slow typing on
+that board (and of its space bar, enter key and backspace), described the way keyboard people describe switches:
+what the switch is, the keycaps and case, and the sound they make. The keystrokes are then cut out of each recording
+by their onsets, the most typical ones kept (not the loudest), each trimmed to its stroke, faded, gently cleaned up
+and brought to the same modest level. Packs that are a sound rather than a board (raindrops, kalimba) are asked for a
+slow series of that sound and cut the same way.
 
-Re-run: the ElevenLabs key is now in the Prod environment (2026-11-08).
+The key comes from ELEVENLABS_API_KEY or ~/.elevenlabs-key, never printed. A pack is made again when its number in
+VERSIONS is higher than the one in its folder's .version; --again remakes every pack. Run by .github/workflows/sounds.yml.
 """
-import json, os, pathlib, subprocess, sys, tempfile, urllib.request
+import json, os, pathlib, struct, subprocess, sys, tempfile, urllib.request, wave
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'android/app/src/main/assets/sounds'
 
-# What each pack's keys sound like: one recording each, close-miked and dry, nothing else in it.
-PACKS = {
-    'mechanical': 'Cherry MX Brown tactile mechanical keyboard with thick PBT keycaps, warm and full, not tinny',
-    'thock': 'deep thock of a heavily lubed linear switch bottoming out in a foam-dampened aluminium case with thick PBT keycaps',
-    'typewriter': 'vintage manual typewriter, warm wooden desk, soft',
-    'bubble': 'soft cartoon bubble',
-    'arcade': '8-bit retro video game console',
-    # 2026-11-08, Matt: "generate about 20-30 more sound packs so I can refine the good ones".
-    'holy-panda': 'Holy Panda tactile mechanical keyboard switch, a rounded poppy bump',
-    'topre': 'Topre electrocapacitive keyboard, a soft cushioned rounded thock',
-    'buckling-spring': '1980s buckling spring keyboard, a loud spring click with a little ping',
-    'alps': 'vintage Alps white mechanical switch, a crisp scratchy click',
-    'box-jade': 'thick clicky box mechanical switch, a sharp heavy click bar',
-    'creamy': 'creamy lubed linear switch with POM keycaps, a smooth soft tok',
-    'marble': 'marbly thock keyboard, like a glass marble tapping stone, deep and glassy',
-    'laptop': 'thin laptop chiclet keyboard, a quiet soft tap',
-    'silent': 'silent dampened linear switch, a very soft muffled tap',
-    'wood': 'wooden keycaps on a wooden keyboard case, a warm hollow knock',
-    'ceramic': 'ceramic keycaps on a mechanical keyboard, a clacky glassy tick',
-    'terminal': 'vintage 1980s computer terminal keyboard, a solid mechanical clack',
-    'red-linear': 'light smooth red linear mechanical switch, a gentle clack',
-    'ink': 'smooth heavy black linear mechanical switch, a deep clean clack',
+# The boards: what they are and how they sound, in the words switch reviews use.
+BOARDS = {
+    'mechanical': 'a mechanical keyboard with clicky blue switches and ABS keycaps: a crisp, bright click on every press',
+    'thock': 'a custom gasket-mount mechanical keyboard with lubed linear switches, thick PBT keycaps and foam inside: a deep, muted, low-pitched thock',
+    'typewriter': 'a vintage manual typewriter: soft metal typebars striking paper on the platen',
+    'holy-panda': 'a custom keyboard with tactile Holy Panda switches: a rounded, poppy sound with a pronounced tactile bump',
+    'topre': 'a Topre electro-capacitive keyboard, rubber domes over conical springs: soft, cushioned, rounded thocks',
+    'buckling-spring': 'an IBM Model M buckling spring keyboard: a firm click with a faint metallic spring ping',
+    'alps': 'a vintage keyboard with white Alps clicky switches: a crisp, slightly scratchy, raspy click',
+    'box-jade': 'a keyboard with thick clicky box switches with a click bar: a sharp, solid, chunky click',
+    'creamy': 'a keyboard with smooth, well-lubed linear switches and POM keycaps: a soft, creamy, smooth tok',
+    'marble': 'a custom keyboard with a marbly sound profile: glassy, rounded, deep toks like marbles set on stone',
+    'laptop': 'a thin laptop keyboard with scissor switches: quiet, light, plasticky taps',
+    'silent': 'a keyboard with silent linear switches with dampened stems: very soft, muted, rubbery taps',
+    'wood': 'a keyboard with a walnut wooden case and wooden keycaps: warm, hollow, woody knocks',
+    'ceramic': 'a keyboard with ceramic keycaps: high, glassy, clean clacks',
+    'terminal': 'a 1980s computer terminal keyboard with heavy mechanical switches: solid, plasticky clacks',
+    'red-linear': 'a keyboard with light red linear switches and thin ABS keycaps: light, smooth, slightly high-pitched clacks',
+    'ink': 'a keyboard with heavy smooth black linear switches in an aluminium case: deep, clean, full clacks',
 }
 
-# Packs that are a sound rather than a keyboard: one description, varied for each key the same way.
-SOUND_ONLY = {
-    'piano': 'soft felt piano hammer tapping a muted low string, a short dull note',
-    'raindrop': 'water drop plip into a still pool',
-    'woodblock': 'small woodblock tok struck with a soft mallet',
-    'kalimba': 'soft kalimba tine pluck, gentle and warm',
-    'glass': 'light fingertip tap on a wine glass, a short soft ting',
-    'scifi': 'futuristic soft user interface tap, a subtle digital blip',
-    'pencil': 'pencil tip tapping paper on a desk',
-    'cardboard': 'fingertip tap on an empty cardboard box',
-    'pebble': 'small pebble tapped on a smooth stone',
-    'bubble-wrap': 'single bubble wrap bubble popping',
-    'phone-tick': 'smartphone touchscreen keyboard tick, soft and subtle',
-}
-VARIANTS = {
-    'key1': 'one {s}', 'key2': 'a single, very slightly different {s}', 'key3': 'one quick {s}',
-    'space': 'one deeper, bigger {s}', 'delete': 'one softer, lighter {s}', 'enter': 'one fuller, more satisfying {s}',
+# Packs that are a sound rather than a board.
+SOUNDS = {
+    'bubble': 'soft small bubble pops',
+    'arcade': 'short 8-bit video game blips',
+    'piano': 'muted low piano notes, felt hammers on damped strings',
+    'raindrop': 'single water drops plipping into a still pool',
+    'woodblock': 'soft taps on a small woodblock',
+    'kalimba': 'gentle kalimba tine plucks',
+    'glass': 'light fingertip taps on a wine glass',
+    'scifi': 'subtle futuristic interface blips',
+    'pencil': 'a pencil tip tapping paper on a desk',
+    'cardboard': 'fingertip taps on an empty cardboard box',
+    'pebble': 'a small pebble tapping a smooth stone',
+    'bubble-wrap': 'single bubble wrap bubbles popping',
+    'phone-tick': 'soft smartphone touchscreen keyboard ticks',
 }
 
-# Every pack's name in Settings, in its order; written to assets/sounds/packs.json for the app.
+# Every pack's name in Settings, in its order.
 NAMES = {
     'mechanical': 'Clicky mechanical', 'thock': 'Deep thock', 'typewriter': 'Typewriter', 'bubble': 'Bubble pop',
     'arcade': '8-bit arcade', 'holy-panda': 'Tactile pop', 'topre': 'Cushioned thock', 'buckling-spring': 'Buckling spring',
@@ -66,73 +67,30 @@ NAMES = {
     'glass': 'Glass', 'scifi': 'Sci-fi', 'pencil': 'Pencil', 'cardboard': 'Cardboard', 'pebble': 'Pebbles',
     'bubble-wrap': 'Bubble wrap', 'phone-tick': 'Phone tick',
 }
-SOUNDS = {
-    'key1': 'a single {p} key press, one short crisp click, close mic, dry, no reverb, isolated',
-    'key2': 'one {p} key tap, a slightly different single short click, close mic, dry, isolated',
-    'key3': 'a single quick {p} keystroke, short click, close mic, dry, isolated',
-    'space': 'a single {p} space bar press, a deeper wider single thud, close mic, dry, isolated',
-    'delete': 'a single {p} backspace key press, short soft click, close mic, dry, isolated',
-    'enter': 'a single {p} enter key press, a firm satisfying single clack, close mic, dry, isolated',
-}
-# The arcade and bubble packs are sounds rather than keys; the thock is asked for by its sound, not a click.
-SPECIAL = {
-    # v2: v1 came out "garbly" (Matt): several little hits and a rattle in each. Asked for one clean impact.
-    'marble': {
-        'key1': 'one single clean tap of a glass marble on a polished stone tile, one impact only, deep and glassy, no bounce, no rattle, close mic, dry, isolated',
-        'key2': 'a single glass marble set down firmly on smooth marble stone, one solid tock, no bounce, no rolling, dry, isolated',
-        'key3': 'one short deep glassy tock, a marble keyboard keystroke, a single clean impact, no rattle, dry, isolated',
-        'space': 'one deeper rounder glassy tock, a heavy marble set on stone, single impact, no bounce, dry, isolated',
-        'delete': 'one lighter softer glassy tick, a single marble tap, no bounce, dry, isolated',
-        'enter': 'one full satisfying deep glassy tock, a single heavy marble impact on stone, no bounce, no rattle, dry, isolated',
-    },
-    'thock': {
-        'key1': 'one deep muffled thock, a low pitched round knock like a marble dropped on a wooden desk, short, no click, no rattle, close mic, dry, isolated',
-        'key2': 'a single low soft thock of a heavily lubed linear mechanical keyboard key bottoming out, deep and muted, no clack, dry, isolated',
-        'key3': 'one short deep creamy thock keystroke, low pitched, muted, no high frequencies, dry, isolated',
-        'space': 'one big deep hollow thock of a dampened keyboard space bar, very low and round, short, no rattle, dry, isolated',
-        'delete': 'one soft low thock, slightly lighter, muted, short, dry, isolated',
-        'enter': 'one deep heavy satisfying thock, low pitched and round, short, no click, dry, isolated',
-    },
-    'bubble': {
-        'key1': 'one tiny soft bubble pop, very short, dry, isolated', 'key2': 'a single small water bubble pop, short, dry, isolated',
-        'key3': 'one little bubble pop blip, short, dry, isolated', 'space': 'one bigger soft bubble pop, short, dry, isolated',
-        'delete': 'a short reverse bubble suck sound, dry, isolated', 'enter': 'a cheerful bright bubble pop with a tiny sparkle, short, dry, isolated',
-    },
-    'arcade': {
-        'key1': 'one short 8-bit chiptune blip, square wave, dry, isolated', 'key2': 'a single short 8-bit tick sound, dry, isolated',
-        'key3': 'one short retro video game select blip, dry, isolated', 'space': 'a single short low 8-bit bloop, dry, isolated',
-        'delete': 'a short descending 8-bit blip, dry, isolated', 'enter': 'a short bright 8-bit confirm chime, dry, isolated',
-    },
-}
+
+# v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.
+VERSIONS = {pack: (1 if pack == 'cardboard' else 3) for pack in NAMES}
+
+QUIET = 'Close-up recording in a quiet room, natural and realistic, not exaggerated, no music, no voices, no reverb.'
 
 
-# Warmer and quieter than ElevenLabs gives them: the rumble below 35 Hz and the fizz above 6.5 kHz gone, the body
-# around 140 Hz lifted, the harsh 3.5 kHz presence and the top end eased, then squeezed and held well under full
-# scale (peaks about -11 dBFS) so a run of keys is never piercing. The app's volume setting does the rest.
-WARM = ('highpass=f=35,lowpass=f=6500,bass=g=7:f=140:w=0.8,equalizer=f=3500:t=q:w=1.2:g=-6,treble=g=-4:f=6000,'
-        'acompressor=threshold=-20dB:ratio=3:attack=1:release=60,alimiter=limit=0.28:level=false')
-
-
-def refine() -> None:
-    """--refine: the packs already made, put through WARM again (for packs made before it existed)."""
-    for f in sorted(OUT.glob('*/*.ogg')):
-        tmp = f.with_suffix('.tmp.ogg')
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', str(f), '-af', WARM, '-ac', '1', '-ar', '44100',
-                        '-c:a', 'libvorbis', '-q:a', '5', str(tmp)], check=True)
-        tmp.replace(f)
-        print(f'refined {f.relative_to(OUT)}')
-
-
-# What a pack needs beyond WARM: the thock loses its click and rattle (everything over 2.4 kHz, a dip at 1.6 kHz)
-# and gains weight around 160 Hz, dropped a little in pitch.
-PACK_FILTERS = {
-    # Marbly: kept to its first impact (anything after 130 ms faded), the gargle around 900 Hz and the fizz eased.
-    'marble': 'afade=t=out:st=0.07:d=0.06,lowpass=f=4200,equalizer=f=900:t=q:w=1.4:g=-5,bass=g=4:f=180:w=0.7,volume=4dB,',
-    'thock': 'lowpass=f=2400,lowpass=f=2400,equalizer=f=1600:t=q:w=1:g=-7,bass=g=6:f=160:w=0.7,asetrate=44100*0.92,aresample=44100,volume=8dB,',
-}
-
-# A pack is made again when its number here is higher than the one it was made at (its folder's .version).
-PACK_VERSIONS = {'thock': 2, 'marble': 2}
+def prompts(pack: str) -> dict:
+    """What each recording asks for: the keys, the space bar, enter and backspace."""
+    if pack in BOARDS:
+        board = BOARDS[pack]
+        return {
+            'keys': f'Slow, relaxed typing on {board}. Single keystrokes with clear pauses between them. {QUIET}',
+            'space': f'The space bar of {board}, pressed slowly a few times with pauses: a slightly deeper, longer stroke. {QUIET}',
+            'enter': f'The enter key of {board}, pressed firmly a few times with pauses. {QUIET}',
+            'delete': f'The backspace key of {board}, pressed a few times with pauses. {QUIET}',
+        }
+    sound = SOUNDS[pack]
+    return {
+        'keys': f'A slow series of {sound}, one at a time with clear pauses between them, each short. {QUIET}',
+        'space': f'A slow series of slightly deeper, fuller {sound}, one at a time with pauses. {QUIET}',
+        'enter': f'A slow series of the most satisfying, rounded {sound}, one at a time with pauses. {QUIET}',
+        'delete': f'A slow series of softer, lighter {sound}, one at a time with pauses. {QUIET}',
+    }
 
 
 def key() -> str:
@@ -145,48 +103,133 @@ def key() -> str:
     return k
 
 
-def generate(api_key: str, text: str) -> bytes:
-    body = json.dumps({'text': text, 'duration_seconds': 0.5, 'prompt_influence': 0.7}).encode()
+def generate(api_key: str, text: str, seconds: float) -> bytes:
+    body = json.dumps({'text': text, 'duration_seconds': seconds, 'prompt_influence': 0.55}).encode()
     req = urllib.request.Request('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', data=body,
                                  headers={'xi-api-key': api_key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'})
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=180) as r:
         return r.read()
 
 
-def trim(mp3: bytes, dest: pathlib.Path, pack: str = '') -> None:
-    with tempfile.NamedTemporaryFile(suffix='.mp3') as src:
-        src.write(mp3)
-        src.flush()
-        # Start at the sound (no lead-in silence), keep 250 ms, fade the tail, mono 44.1 kHz.
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src.name, '-af',
-                        'silenceremove=start_periods=1:start_threshold=-42dB,atrim=0:0.25,afade=t=out:st=0.17:d=0.08,' + PACK_FILTERS.get(pack, '') + WARM,
-                        '-ac', '1', '-ar', '44100', '-c:a', 'libvorbis', '-q:a', '4', str(dest)], check=True)
+def pcm(mp3: bytes) -> list:
+    """The recording as mono floats at 44.1 kHz."""
+    with tempfile.TemporaryDirectory() as d:
+        src, dst = pathlib.Path(d, 'in.mp3'), pathlib.Path(d, 'out.wav')
+        src.write_bytes(mp3)
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', str(src), '-ac', '1', '-ar', '44100', '-c:a', 'pcm_s16le', str(dst)], check=True)
+        with wave.open(str(dst)) as w:
+            raw = w.readframes(w.getnframes())
+    return [s / 32768 for s in struct.unpack(f'<{len(raw) // 2}h', raw)]
+
+
+RATE = 44100
+
+
+def strokes(x: list) -> list:
+    """The keystrokes in a recording: (start, end) sample spans, found on a 5 ms envelope. A keystroke is often two
+    sounds (the press and, 50-80 ms on, the bottom-out), so a stroke only ends after 45 ms of quiet, and a new one
+    needs 60 ms of quiet before it; each runs at most 300 ms and keeps 30 ms of tail."""
+    hop = int(RATE * 0.005)
+    env = [max(abs(v) for v in x[i:i + hop]) for i in range(0, len(x) - hop, hop)]
+    if not env:
+        return []
+    peak = max(env)
+    floor = sorted(env)[len(env) // 5]  # the room between strokes
+    on = max(peak * 0.15, floor * 4)
+    off = max(on * 0.15, floor * 2)
+    spans, i = [], 0
+    while i < len(env):
+        # A rise, with the 60 ms before it (but its own first 10 ms of attack) quiet.
+        before = env[max(0, i - 14):max(0, i - 2)]
+        if env[i] >= on and (not before or max(before) < on * 0.5):
+            start = max(0, i - 2)
+            last_loud, j = i, i + 1
+            while j < len(env) and j - start < 60 and j - last_loud < 9:
+                if env[j] >= off:
+                    last_loud = j
+                j += 1
+            spans.append((start * hop, min(len(x), (last_loud + 6) * hop)))
+            i = j
+            continue
+        i += 1
+    return spans
+
+
+def typical(x: list, spans: list, n: int) -> list:
+    """The n strokes nearest the median loudness: the ordinary presses, not the slams or the grazes."""
+    if not spans:
+        return []
+    level = lambda s: max(abs(v) for v in x[s[0]:s[1]])
+    ranked = sorted(spans, key=level)
+    mid = len(ranked) // 2
+    picked = sorted(ranked, key=lambda s: abs(ranked.index(s) - mid))[:n]
+    return sorted(picked)
+
+
+def write(samples: list, dest: pathlib.Path) -> None:
+    """A stroke as a pack's file: faded in over 2 ms and out over its last 40%, cleaned of rumble and fizz, at a
+    modest, even level (peaks at -15 dBFS) so no pack is loud next to another."""
+    n = len(samples)
+    fade_in, fade_out = int(RATE * 0.002), max(1, int(n * 0.4))
+    shaped = []
+    for i, v in enumerate(samples):
+        g = min(1.0, i / fade_in) if fade_in else 1.0
+        if i > n - fade_out:
+            g *= ((n - i) / fade_out) ** 2
+        shaped.append(v * g)
+    peak = max(1e-6, max(abs(v) for v in shaped))
+    target = 10 ** (-15 / 20)
+    shaped = [v * target / peak for v in shaped]
+    with tempfile.TemporaryDirectory() as d:
+        wav = pathlib.Path(d, 'x.wav')
+        with wave.open(str(wav), 'wb') as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(RATE)
+            w.writeframes(struct.pack(f'<{len(shaped)}h', *[int(max(-1, min(1, v)) * 32767) for v in shaped]))
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', str(wav), '-af', 'highpass=f=40,lowpass=f=11000',
+                        '-c:a', 'libvorbis', '-q:a', '5', str(dest)], check=True)
+
+
+def make(api_key: str, pack: str) -> None:
+    folder = OUT / pack
+    folder.mkdir(parents=True, exist_ok=True)
+    asks = prompts(pack)
+    for take, seconds in (('keys', 5.0), ('space', 3.5), ('enter', 3.5), ('delete', 3.5)):
+        x = pcm(generate(api_key, asks[take], seconds))
+        found = strokes(x)
+        want = 3 if take == 'keys' else 1
+        picked = typical(x, found, want)
+        if len(picked) < want:
+            raise RuntimeError(f'{pack}/{take}: found {len(found)} strokes, wanted {want}')
+        names = ['key1', 'key2', 'key3'] if take == 'keys' else [take]
+        for name, (a, b) in zip(names, picked):
+            write(x[a:b], folder / f'{name}.ogg')
+            print(f'{pack}/{name}.ogg  ({(b - a) * 1000 // RATE} ms of {len(found)} strokes)')
+    (folder / '.version').write_text(str(VERSIONS[pack]))
 
 
 def main() -> None:
-    if '--refine' in sys.argv:
-        refine()
-        return
-    again = '--again' in sys.argv
-    api_key = key()
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / 'packs.json').write_text(json.dumps([{'id': k, 'name': v} for k, v in NAMES.items()], indent=1) + '\n')
-    for pack, thing in list(PACKS.items()) + [(k, None) for k in SOUND_ONLY]:
-        folder = OUT / pack
-        stamp = folder / '.version'
+    again = '--again' in sys.argv
+    api_key = key()
+    failed = []
+    for pack in NAMES:
+        stamp = OUT / pack / '.version'
         made_at = int(stamp.read_text().strip()) if stamp.exists() else 1
-        if folder.exists() and len(list(folder.glob('*.ogg'))) == len(SOUNDS) and not again and made_at >= PACK_VERSIONS.get(pack, 1):
-            print(f'{pack}: already made')
+        complete = len(list((OUT / pack).glob('*.ogg'))) == 6
+        if complete and not again and made_at >= VERSIONS[pack]:
+            print(f'{pack}: already made (v{made_at})')
             continue
-        folder.mkdir(parents=True, exist_ok=True)
-        for name, prompt in SOUNDS.items():
-            if pack in SOUND_ONLY:
-                text = VARIANTS[name].format(s=SOUND_ONLY[pack]) + ', very short, close mic, dry, no reverb, isolated'
-            else:
-                text = SPECIAL.get(pack, {}).get(name) or prompt.format(p=thing)
-            trim(generate(api_key, text), folder / f'{name}.ogg', pack)
-            print(f'{pack}/{name}.ogg')
-        stamp.write_text(str(PACK_VERSIONS.get(pack, 1)))
+        for attempt in range(3):  # a recording with too few clear strokes is asked for again
+            try:
+                make(api_key, pack)
+                break
+            except RuntimeError as e:
+                print(f'retry: {e}')
+        else:
+            failed.append(pack)
+    if failed:
+        print('Could not make: ' + ', '.join(failed))
 
 
 if __name__ == '__main__':
