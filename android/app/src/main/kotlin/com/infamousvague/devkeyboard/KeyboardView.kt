@@ -124,6 +124,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
 
     /** The light behind a key's face: a soft halo, then the face itself lit, under its label. */
     private fun drawBacklight(canvas: Canvas, key: Key, f: RectF, light: Backlight, now: Long) {
+        if (light.dims) return
         val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now)
         if (i <= 0.01f) return
         val c = light.colourAt(f.centerX(), width.toFloat(), now, theme.accent, i)
@@ -134,6 +135,16 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         canvas.drawRoundRect(RectF(f.left - halo, f.top - halo, f.right + halo, f.bottom + halo), keyRadius + halo, keyRadius + halo, glow)
         glow.alpha = a
         canvas.drawRoundRect(f, keyRadius, keyRadius, glow)
+    }
+
+    /** Dim mode: the effect darkens the key, over its label, toward the board's background. */
+    private fun drawDimmed(canvas: Canvas, key: Key, f: RectF, light: Backlight, now: Long) {
+        val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now)
+        if (i <= 0.01f) return
+        glow.color = theme.background
+        glow.alpha = (i * light.strength * 255).toInt().coerceIn(0, 255)
+        val pad = dp(1f)
+        canvas.drawRoundRect(RectF(f.left - pad, f.top - pad, f.right + pad, f.bottom + pad), keyRadius, keyRadius, glow)
     }
 
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
@@ -335,7 +346,10 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         fill.color = theme.background
         canvas.drawRect(0f, if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
         if (showToolbar && !pluginRow) drawToolbar(canvas)
-        for ((key, rect) in keyRects) drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
+        for ((key, rect) in keyRects) {
+            drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
+            backlight?.takeIf { it.dims }?.let { drawDimmed(canvas, key, face(rect), it, android.os.SystemClock.uptimeMillis()) }
+        }
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
         backlight?.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
         touch?.swipe?.let { drawSwipe(canvas, it) }

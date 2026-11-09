@@ -15,10 +15,14 @@ import kotlin.math.sin
  * - starlight: keys twinkle at random; a key pressed flares.
  * - breathe: the board breathes softly; a key pressed flares.
  *
- * The colour is the theme's accent, a fixed colour, or a rainbow across the board; the strength is how bright it gets.
+ * It brightens the keys (lit in the theme's primary colour, a fixed colour or a rainbow) or dims them; the strength
+ * is how far.
  * KeyboardView asks for each key's [light] while drawing, and keeps drawing while [animating].
  */
-class Backlight(val effect: String, val colour: String, val strength: Float) {
+class Backlight(val effect: String, val colour: String, val strength: Float, val mode: String = "brighten") {
+    /** Dim: the effect darkens keys (legends too) rather than lighting them. */
+    val dims get() = mode == "dim"
+
     private val presses = HashMap<String, Long>()
     private val ripples = ArrayDeque<Triple<Float, Float, Long>>()
     private val heat = HashMap<String, Float>()

@@ -311,9 +311,9 @@ const List<(String, String, String)> backlightEffects = [
   ('breathe', 'Breathing', 'The board breathes softly; presses flare.'),
 ];
 
-/// The backlight's colours: id, name, and its colour (0 for the theme's accent, -1 for the rainbow).
+/// The backlight's colours: id, name, and its colour (0 for the theme's primary colour, -1 for the rainbow).
 const List<(String, String, int)> backlightColours = [
-  ('accent', 'Accent', 0),
+  ('accent', 'Primary', 0),
   ('rainbow', 'Rainbow', -1),
   ('ghost', 'Ghost', 0xFF51FCFB),
   ('ice', 'Ice', 0xFF7FD8FF),

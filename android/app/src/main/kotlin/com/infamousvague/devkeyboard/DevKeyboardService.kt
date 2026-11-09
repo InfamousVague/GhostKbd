@@ -210,8 +210,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.split = prefs.split
         view.backlight = if (!Plugins.isOn(prefs, Plugins.BACKLIGHT)) null else view.backlight?.takeIf {
-            it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength)
-        } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength))
+            it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode
+        } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength), prefs.backlightMode)
         // The chosen pack, made ready before the first key needs it.
         if (prefs.sound) {
             val pack = soundToPlay()

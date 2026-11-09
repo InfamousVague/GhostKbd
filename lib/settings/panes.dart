@@ -532,6 +532,23 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
   return [
     PaneHero(glyph: AppIcon(Lucide.sparkles, size: 24), title: 'Backlight', meta: const Text('Keys lit from behind, reacting as you type. Try it in the field below.'), status: const PaneHeroStatus('On')),
     PaneSection(
+      children: [
+        SettingRowBox(
+          child: GlacierSegmentedControl(
+            options: const [GlacierSegmentedOption(value: 'brighten', label: Text('Brighten keys')), GlacierSegmentedOption(value: 'dim', label: Text('Dim keys'))],
+            value: store.choice('backlight_mode'),
+            onValueChange: (v) => store.set('backlight_mode', v),
+            fullWidth: true,
+            size: GlacierSegmentedSize.sm,
+            ariaLabel: 'Brighten or dim',
+          ),
+        ),
+      ],
+      footer: Text(store.choice('backlight_mode') == 'dim'
+          ? 'The effect darkens the keys it touches, legends and all, then they come back.'
+          : 'The effect lights the keys it touches, in the colour below, then they fade.'),
+    ),
+    PaneSection(
       title: 'Effect',
       children: [
         for (final (id, name, line) in backlightEffects)
@@ -543,9 +560,10 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
           ),
       ],
     ),
+    if (store.choice('backlight_mode') != 'dim')
     PaneSection(
       title: 'Colour',
-      footer: const Text('Accent is your theme’s; the heatmap runs cool to hot in it.'),
+      footer: const Text('Primary is your theme’s own colour; with the heatmap it runs cool to hot.'),
       children: [
         SettingRowBox(
           child: Wrap(
@@ -581,7 +599,7 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
     ),
     PaneSection(
       children: [
-        _choice(store, 'backlight_strength', 'Brightness', const {'low': 'Low', 'medium': 'Medium', 'high': 'High'}),
+        _choice(store, 'backlight_strength', store.choice('backlight_mode') == 'dim' ? 'How dark' : 'Brightness', const {'low': 'Low', 'medium': 'Medium', 'high': 'High'}),
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Remove Backlight', onPress: () => store.setPlugin('backlight', false))]),
