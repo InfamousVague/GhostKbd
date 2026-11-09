@@ -291,6 +291,13 @@ class SettingsStore extends ChangeNotifier {
   /// The pages' More folds that are open (panes.dart `_more`), for this visit to Settings.
   final Set<String> moreOpen = {};
 
+  /// Every More fold a page has drawn, and whether the search is reading the pages (every fold read open).
+  final Set<String> moreSeen = {};
+  bool indexing = false;
+
+  /// Opens every fold, so a setting the search found behind one is there to be scrolled to.
+  void openAllMore() => moreOpen.addAll(moreSeen);
+
   void toggleMore(String id) {
     if (!moreOpen.remove(id)) moreOpen.add(id);
     notifyListeners();

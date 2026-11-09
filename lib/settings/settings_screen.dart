@@ -4,12 +4,15 @@
 /// a page of their own join the list, as they do in Ghost.md.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
 import '../settings_store.dart';
 import 'kit/settings_icons.dart';
 import 'kit/settings_kit.dart';
+import 'settings_search.dart';
 import 'kit/settings_type.dart';
 
 /// One section: a row on the list and the page it opens.
@@ -48,12 +51,18 @@ Iterable<SettingsSection> everySection(List<SettingsSection> sections, SettingsS
 /// The page every section and the Market stand on: the ground, the bar with the way back and the title, and the
 /// content scrolling under it.
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key, required this.title, required this.child, this.hue, this.back = true});
+  const SettingsPage({super.key, required this.title, required this.child, this.hue, this.back = true, this.finder, this.seeking});
 
   final String title;
   final Widget child;
   final String? hue;
   final bool back;
+
+  /// The page's finder, where a page looks for a setting once it is drawn ([SectionPage.seek]); a fresh one otherwise.
+  final SettingsFinder? finder;
+
+  /// The setting being looked for: the page is then built whole in its first frame.
+  final String? seeking;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +115,7 @@ class SettingsPage extends StatelessWidget {
       ),
     );
     if (hue != null) page = GlacierScope(attrs: {'hue': hue!}, child: page);
-    return SettingsPaneScope(finder: SettingsFinder(), child: page);
+    return SettingsPaneScope(finder: finder ?? SettingsFinder(), whole: seeking != null, seeking: seeking, child: page);
   }
 }
 
@@ -142,17 +151,45 @@ Future<void> pushSettings(BuildContext context, WidgetBuilder builder) => Naviga
       ),
     );
 
-/// A section's page: its cards, staggered in as Ghost.md's arrive.
-class SectionPage extends StatelessWidget {
-  const SectionPage({super.key, required this.section, required this.store});
+/// A section's page: its cards, staggered in as Ghost.md's arrive. Opened from a search with [seek], the setting of that
+/// name is scrolled into view and lit once the page is drawn.
+class SectionPage extends StatefulWidget {
+  const SectionPage({super.key, required this.section, required this.store, this.seek});
 
   final SettingsSection section;
   final SettingsStore store;
+  final String? seek;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
+  State<SectionPage> createState() => _SectionPageState();
+}
+
+class _SectionPageState extends State<SectionPage> {
+  final _finder = SettingsFinder();
+
+  @override
+  void initState() {
+    super.initState();
+    final seek = widget.seek;
+    if (seek == null) return;
+    // Two frames: one to build the page whole, one for it to be laid out.
+    WidgetsBinding.instance.addPostFrameCallback((_) => WidgetsBinding.instance.addPostFrameCallback((_) {
+          final found = _finder.find(seek);
+          if (found == null || !mounted) return;
+          Scrollable.ensureVisible(found.context, alignment: 0.25, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+          found.light();
+        }));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final section = widget.section;
+    final store = widget.store;
+    return ListenableBuilder(
         listenable: store,
         builder: (context, _) => SettingsPage(
+          finder: _finder,
+          seeking: widget.seek,
           title: section.label,
           hue: section.hue,
           child: PaneBody(children: [
@@ -161,6 +198,82 @@ class SectionPage extends StatelessWidget {
           ]),
         ),
       );
+  }
+}
+
+/// Settings' home: a search field over the list of sections. While words are typed the list gives way to what they
+/// find (settings_search.dart): sections and settings, each with where it is, opening there.
+class SettingsHome extends StatefulWidget {
+  const SettingsHome({super.key, required this.store, required this.sections});
+
+  final SettingsStore store;
+  final List<SettingsSection> sections;
+
+  @override
+  State<SettingsHome> createState() => _SettingsHomeState();
+}
+
+class _SettingsHomeState extends State<SettingsHome> {
+  String _query = '';
+  final _field = TextEditingController();
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  /// Opens a hit: each section on its path in turn, the last looking for the setting.
+  Future<void> _open(SettingsHit hit) async {
+    final store = widget.store;
+    if (hit.setting != null) store.openAllMore();
+    for (var i = 0; i < hit.path.length; i++) {
+      final s = hit.path[i];
+      final last = i == hit.path.length - 1;
+      if (s.screen != null) {
+        unawaited(pushSettings(context, s.screen!));
+        return;
+      }
+      unawaited(pushSettings(context, (_) => SectionPage(section: s, store: store, seek: last ? hit.setting : null)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final store = widget.store;
+    final hits = _query.trim().isEmpty ? const <SettingsHit>[] : searchSettings(context, store, widget.sections, _query);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GlacierInput(
+          controller: _field,
+          type: GlacierInputType.search,
+          placeholder: 'Search settings',
+          ariaLabel: 'Search settings',
+          onChange: (text) => setState(() => _query = text),
+        ),
+        SizedBox(height: t.space(5)),
+        if (_query.trim().isEmpty)
+          SettingsList(store: store, sections: widget.sections)
+        else if (hits.isEmpty)
+          Padding(padding: EdgeInsets.all(t.space(4)), child: Text('Nothing called “${_query.trim()}”.', textAlign: TextAlign.center, style: pageText(t, t.fontSize('sm'), color: t.color('app-ink-2'))))
+        else
+          _Group(rows: [
+            for (var i = 0; i < hits.length; i++)
+              _SectionRow(
+                section: SettingsSection(id: '${hits[i].section.id}-hit', label: hits[i].setting ?? hits[i].section.label, icon: hits[i].section.icon, hue: hits[i].section.hue, group: '', page: hits[i].section.page),
+                summary: [
+                  (hits[i].setting == null ? hits[i].path.take(hits[i].path.length - 1) : hits[i].path).map((s) => s.label).join(' › '),
+                  if (hits[i].setting == null) hits[i].section.summary?.call(store) ?? '',
+                ].where((x) => x.isNotEmpty).join(' · '),
+                index: i,
+                onPress: () => _open(hits[i]),
+              ),
+          ]),
+      ],
+    );
+  }
 }
 
 /// The list of sections: the app's Settings home.

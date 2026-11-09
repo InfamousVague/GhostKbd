@@ -107,7 +107,7 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
         return SettingsPage(
           title: 'Ghost Keyboard',
           back: false,
-          child: SettingsList(store: store, sections: settingsSections(store)),
+          child: SettingsHome(store: store, sections: settingsSections(store)),
         );
       },
     );

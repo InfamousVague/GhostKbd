@@ -488,9 +488,14 @@ SettingRow _plugin(SettingsStore store, String id, String label, String hint) =>
     );
 
 /// Rarely changed settings: a More row that opens them in place, and Fewer to fold them again.
-List<Widget> _more(SettingsStore store, String id, List<Widget> sections) => store.moreOpen.contains(id)
-    ? [...sections, PaneSection(children: [SettingRow(label: 'Fewer settings', onPress: () => store.toggleMore(id))])]
-    : [PaneSection(children: [SettingRow(label: 'More settings', icon: AppIcon(LucideMore.slidersHorizontal, size: 18), onPress: () => store.toggleMore(id))])];
+List<Widget> _more(SettingsStore store, String id, List<Widget> sections) {
+  store.moreSeen.add(id);
+  // Read open while the search reads the pages, so what waits behind More is found too.
+  if (store.indexing || store.moreOpen.contains(id)) {
+    return [...sections, PaneSection(children: [SettingRow(label: 'Fewer settings', onPress: () => store.toggleMore(id))])];
+  }
+  return [PaneSection(children: [SettingRow(label: 'More settings', icon: AppIcon(LucideMore.slidersHorizontal, size: 18), onPress: () => store.toggleMore(id))])];
+}
 
 /// A part of a page: a section of its own in the page's list.
 SettingsSection _part(String id, String label, LucideIcon icon, String hue, String Function(SettingsStore) summary, List<Widget> Function(BuildContext, SettingsStore) page) =>
