@@ -439,6 +439,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (emojiMode == GifMode.TYPING) { browseEmoji(); return }
         val info = currentInputEditorInfo
         val ic = currentInputConnection ?: return
+        // Enter on a <<request>> (the cursor inside it, as the < > pair key leaves it) fills it rather than sending.
+        if (Plugins.isOn(prefs, Plugins.GHOSTWRITER) && aiAllowed() && aiJob?.running != true &&
+            Ghostwriter.tagAt(ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty(), ic.getTextAfterCursor(400, 0)?.toString().orEmpty()) != null
+        ) { fillAtCursor(); return }
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
@@ -820,9 +824,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private fun contextual(ic: InputConnection, items: ArrayList<RowItem>): Boolean {
         val before = ic.getTextBeforeCursor(200, 0)?.toString() ?: return false
-        if (Plugins.isOn(prefs, Plugins.GHOSTWRITER) && aiAllowed()) {
+        if (Plugins.isOn(prefs, Plugins.GHOSTWRITER)) {
             val after = ic.getTextAfterCursor(400, 0)?.toString().orEmpty()
-            Ghostwriter.tagAt(before, after)?.let { (request, _) ->
+            val tag = Ghostwriter.tagAt(before, after)
+            // Never silent: in a private field (a password, incognito, or an app that asks keyboards not to learn) say why.
+            if (!aiAllowed()) {
+                if (tag != null || FILL_OPEN.containsMatchIn(before)) {
+                    items += RowItem("fill-private", label = "✦ Ghostwriter is off in private fields", chip = true, fill = true)
+                    return true
+                }
+                return false
+            }
+            tag?.let { (request, _) ->
                 items += RowItem("fill-$request", label = "✦ Fill: ${preview(request)}", bold = true, chip = true, fill = true) { fillAtCursor() }
                 return true
             }

@@ -19,10 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 object Ghostwriter {
     /** A request just closed before the cursor: "…<<standup tldr>>". */
-    val CLOSED = Regex("<<([^\\s<>](?=[^<>\\n]*\\p{L})[^<>\\n]{1,399})>>$")
+    val CLOSED = Regex("<<(?=[^<>\\n]*\\p{L})([^<>\\n]{2,400})>>$")
 
     /** An unfilled request the cursor is inside or just after, within [text] around the cursor. */
-    private val ANY = Regex("<<([^\\s<>](?=[^<>\\n]*\\p{L})[^<>\\n]{1,399})>>")
+    private val ANY = Regex("<<(?=[^<>\\n]*\\p{L})([^<>\\n]{2,400})>>")
 
     /** The request the cursor is on, given the text [before] and [after] it: the request, and the whole tag. */
     fun tagAt(before: String, after: String): Pair<String, String>? {
