@@ -9,9 +9,9 @@ import kotlin.math.sin
  * The backlight (Settings › Backlight, on by default, off in password fields): the keys' legends lit from behind, as shine-through keycaps on RGB mechanical keyboards are,
  * reacting as you type. Only the legends change (KeyboardView.legendLight), never the keys themselves.
  *
- * - reactive: the key pressed glows and fades over half a second, the classic per-key light.
+ * - reactive: the key pressed glows and fades over about a second, the classic per-key light.
  * - ripple: a ring of light runs out from each key pressed and dims as it goes.
- * - heatmap: keys warm with use and cool over a quarter of a minute when left.
+ * - heatmap: keys warm with use and cool over half a minute when left.
  * - rainbow: a slow hue wave across the board; a key pressed flares.
  * - starlight: keys twinkle at random; a key pressed flares.
  * - breathe: the board breathes softly; a key pressed flares.
@@ -43,7 +43,7 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
 
     private fun cool(now: Long) {
         if (heatAt != 0L) {
-            val k = exp(-(now - heatAt) / 15_000.0).toFloat()
+            val k = exp(-(now - heatAt) / 30_000.0).toFloat()
             val it = heat.entries.iterator()
             while (it.hasNext()) { val e = it.next(); e.setValue(e.value * k); if (e.value < 0.02f) it.remove() }
         }
@@ -61,7 +61,7 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
                 for ((rx, ry, t) in ripples) {
                     val age = (now - t) / 1000f
                     if (age > RIPPLE_S) continue
-                    val r = age * width * 0.9f
+                    val r = age * width * 0.6f
                     val d = hypot(x - rx, y - ry)
                     val off = (d - r) / ring
                     sum += exp(-off * off) * (1f - age / RIPPLE_S)
@@ -109,8 +109,9 @@ class Backlight(val effect: String, val colour: String, val strength: Float, val
     fun frameDelay(): Long = when (effect) { "heatmap" -> 120L; "breathe" -> 50L; else -> 16L }
 
     companion object {
-        const val FADE_MS = 550L
-        const val RIPPLE_S = 0.9f
+        // Slowed 2026-11-09 (Matt): a lit key lingers about 1.2 s, a ripple runs 1.6 s.
+        const val FADE_MS = 1200L
+        const val RIPPLE_S = 1.6f
         /** The fixed colours, by id; the settings app lists the same (catalogue.dart backlightColours). */
         val COLOURS = mapOf(
             "ghost" to 0xFF51FCFB.toInt(), "ice" to 0xFF7FD8FF.toInt(), "phosphor" to 0xFF39FF88.toInt(),
