@@ -121,6 +121,16 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
+      if (store.pluginOn('backlight'))
+        SettingsSection(
+          id: 'backlight',
+          label: 'Backlight',
+          icon: _icon(Lucide.sparkles),
+          hue: 'purple',
+          group: 'plugins',
+          summary: (s) => backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? '',
+          page: _backlight,
+        ),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       // Hidden until the version number in About is tapped five times.
       if (store.flag('developer'))
@@ -516,6 +526,67 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
         ('Where titles come from', 'The links and tags you type in Ghost.md are remembered on this phone. When Ghost.md shares its whole list with the keyboard, every note shows.'),
       ],
     );
+
+List<Widget> _backlight(BuildContext context, SettingsStore store) {
+  final t = context.tokens;
+  return [
+    PaneHero(glyph: AppIcon(Lucide.sparkles, size: 24), title: 'Backlight', meta: const Text('Keys lit from behind, reacting as you type. Try it in the field below.'), status: const PaneHeroStatus('On')),
+    PaneSection(
+      title: 'Effect',
+      children: [
+        for (final (id, name, line) in backlightEffects)
+          SettingRow(
+            label: name,
+            hint: Text(line),
+            icon: store.choice('backlight_effect') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+            onPress: () => store.set('backlight_effect', id),
+          ),
+      ],
+    ),
+    PaneSection(
+      title: 'Colour',
+      footer: const Text('Accent is your theme’s; the heatmap runs cool to hot in it.'),
+      children: [
+        SettingRowBox(
+          child: Wrap(
+            spacing: t.space(3),
+            runSpacing: t.space(3),
+            children: [
+              for (final (id, name, colour) in backlightColours)
+                GlacierPressable(
+                  onPressed: () => store.set('backlight_colour', id),
+                  semanticLabel: name,
+                  builder: (context, state) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colour > 0 ? Color(colour) : (colour == 0 ? t.color('glacier-accent-solid') : null),
+                          gradient: colour == -1 ? const SweepGradient(colors: [Color(0xFFFF4D4D), Color(0xFFFFD84D), Color(0xFF4DFF88), Color(0xFF4DC3FF), Color(0xFFB04DFF), Color(0xFFFF4D4D)]) : null,
+                          border: Border.all(color: store.choice('backlight_colour') == id ? t.color('app-ink') : t.color('app-rule'), width: store.choice('backlight_colour') == id ? 2.5 : 1),
+                        ),
+                      ),
+                      SizedBox(height: t.space(1)),
+                      Text(name, style: TextStyle(fontSize: 12, color: t.color('glacier-text-muted'))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      children: [
+        _choice(store, 'backlight_strength', 'Brightness', const {'low': 'Low', 'medium': 'Medium', 'high': 'High'}),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Backlight', onPress: () => store.setPlugin('backlight', false))]),
+  ];
+}
 
 List<Widget> _dictation(BuildContext context, SettingsStore store) {
   final d = store.dictation;

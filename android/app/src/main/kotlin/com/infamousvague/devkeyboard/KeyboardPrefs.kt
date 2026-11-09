@@ -48,6 +48,11 @@ class KeyboardPrefs(context: Context) {
     /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
     val split: Boolean get() = bool(SPLIT)
 
+    /** The backlight plugin: its effect, colour and strength (Backlight.kt). */
+    val backlightEffect: String get() = prefs.getString(BACKLIGHT_EFFECT, "reactive")!!
+    val backlightColour: String get() = prefs.getString(BACKLIGHT_COLOUR, "accent")!!
+    val backlightStrength: String get() = prefs.getString(BACKLIGHT_STRENGTH, "medium")!!
+
     /** The emoji plugin's skin tone (0 none, 1 light to 5 dark), and emoji offered for the word typed. */
     val emojiSkin: Int get() = prefs.getString(EMOJI_SKIN, "0")!!.toIntOrNull() ?: 0
     val emojiSuggest: Boolean get() = bool(EMOJI_SUGGEST)
@@ -141,6 +146,9 @@ class KeyboardPrefs(context: Context) {
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
         const val SPLIT = "split_keyboard"
+        const val BACKLIGHT_EFFECT = "backlight_effect"
+        const val BACKLIGHT_COLOUR = "backlight_colour"
+        const val BACKLIGHT_STRENGTH = "backlight_strength"
         /** Settings › Developer shows once the version number in About is tapped five times. */
         const val DEVELOPER = "developer"
         const val EMOJI_SKIN = "emoji_skin"
@@ -181,6 +189,9 @@ class KeyboardPrefs(context: Context) {
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
             SPLIT to true,
+            BACKLIGHT_EFFECT to "reactive",
+            BACKLIGHT_COLOUR to "accent",
+            BACKLIGHT_STRENGTH to "medium",
             DEVELOPER to false,
             EMOJI_SKIN to "0",
             EMOJI_SUGGEST to true,

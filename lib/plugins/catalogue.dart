@@ -285,6 +285,43 @@ const List<PluginManifest> catalogue = [
     adds: ['[[note]] and #tag completion in Ghost.md', 'Ghost.md’s blocks in the row', 'Save a selection to Ghost.md from any app'],
     hasPage: true,
   ),
+  PluginManifest(
+    id: 'backlight',
+    name: 'Backlight',
+    line: 'Keys lit from behind, reacting as you type.',
+    description:
+        'An RGB mechanical keyboard’s backlight for your phone: keys that glow and fade as you press them, ripples that run '
+        'out from each key, a heatmap of the keys you use, a rainbow wave, twinkling starlight or a slow breath. In your '
+        'theme’s accent, a colour of your own, or a rainbow.',
+    category: PluginCategory.look,
+    hue: 'purple',
+    icon: Lucide.sparkles,
+    adds: ['Six lighting effects', 'Eight colours and a rainbow'],
+    hasPage: true,
+  ),
+];
+
+/// The backlight plugin's effects (android Backlight.kt): id, name, what it does.
+const List<(String, String, String)> backlightEffects = [
+  ('reactive', 'Reactive', 'The key you press glows, then fades.'),
+  ('ripple', 'Ripple', 'A ring of light runs out from each key.'),
+  ('heatmap', 'Heatmap', 'Keys warm with use and cool when left.'),
+  ('rainbow', 'Rainbow wave', 'A slow hue wave across the board; presses flare.'),
+  ('starlight', 'Starlight', 'Keys twinkle at random; presses flare.'),
+  ('breathe', 'Breathing', 'The board breathes softly; presses flare.'),
+];
+
+/// The backlight's colours: id, name, and its colour (0 for the theme's accent, -1 for the rainbow).
+const List<(String, String, int)> backlightColours = [
+  ('accent', 'Accent', 0),
+  ('rainbow', 'Rainbow', -1),
+  ('ghost', 'Ghost', 0xFF51FCFB),
+  ('ice', 'Ice', 0xFF7FD8FF),
+  ('phosphor', 'Phosphor', 0xFF39FF88),
+  ('warm', 'Warm', 0xFFFF8A3D),
+  ('violet', 'Violet', 0xFFB47CFF),
+  ('rose', 'Rose', 0xFFFF5C8A),
+  ('white', 'White', 0xFFFFFFFF),
 ];
 
 /// Settings › Sounds' stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
