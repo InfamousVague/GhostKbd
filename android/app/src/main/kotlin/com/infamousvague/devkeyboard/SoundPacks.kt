@@ -18,6 +18,14 @@ object SoundPacks {
      */
     val STOCK = linkedMapOf("bamboo" to "Thock", "geiger" to "Geiger counter", "ping-pong" to "Ping pong", "felt" to "Felt mallet", "velvet" to "Velvet", "button" to "Button")
 
+    private val main = Handler(Looper.getMainLooper())
+    private var pool: SoundPool? = null
+    /** The pack the pool holds. */
+    @Volatile private var loaded: String? = null
+    @Volatile private var preparing: String? = null
+    private val ids = HashMap<String, Int>()
+    private var round = 0
+
     /** Whether [pack]'s sounds are in this build. */
     fun available(context: Context, pack: String) =
         runCatching { context.assets.list("sounds/$pack")?.any { it.endsWith(".ogg") } == true }.getOrDefault(false)
