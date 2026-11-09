@@ -44,10 +44,10 @@ BOARDS = {
 SOUNDS = {
     'bubble': 'soft small bubble pops',
     'arcade': 'short 8-bit video game blips',
-    'piano': 'muted low piano notes, felt hammers on damped strings',
+    'piano': 'very short staccato muted piano notes, each damped instantly by a felt',
     'raindrop': 'single water drops plipping into a still pool',
     'woodblock': 'soft taps on a small woodblock',
-    'kalimba': 'gentle kalimba tine plucks',
+    'kalimba': 'very short muted kalimba plucks, each tine stopped by a finger at once',
     'glass': 'light fingertip taps on a wine glass',
     'scifi': 'subtle futuristic interface blips',
     'pencil': 'a pencil tip tapping paper on a desk',
@@ -55,6 +55,30 @@ SOUNDS = {
     'pebble': 'a small pebble tapping a smooth stone',
     'bubble-wrap': 'single bubble wrap bubbles popping',
     'phone-tick': 'soft smartphone touchscreen keyboard ticks',
+    # 2026-11-08, Matt: "more sounds that are not keyboard sounds and are more unique". Short, percussive things,
+    # so each one cuts cleanly from the next.
+    'chopsticks': 'two wooden chopsticks clicking together',
+    'shutter': 'a vintage film camera shutter clicking',
+    'bamboo': 'knocks on a hollow bamboo stalk',
+    'coin': 'a coin tapped on a wooden table',
+    'ice': 'ice cubes clinking against a glass',
+    'popcorn': 'single popcorn kernels popping',
+    'cork': 'small corks popping out of tiny bottles',
+    'pen': 'a retractable ballpoint pen clicking',
+    'castanets': 'castanet clacks',
+    'snap': 'crisp finger snaps',
+    'finger-drum': 'fingertips tapping a muted tom drum',
+    'leaves': 'single crunches of dry autumn leaves',
+    'snow': 'single steps crunching fresh snow',
+    'geiger': 'a Geiger counter clicking',
+    'mahjong': 'mahjong tiles clacking together',
+    'chess': 'wooden chess pieces set down on a board',
+    'ping-pong': 'a ping pong ball bouncing on a table',
+    'clock': 'a mechanical clock ticking',
+    'switch': 'a light switch flicked',
+    'rotary': 'an old rotary phone dial clicking',
+    'dominoes': 'dominoes clacking down',
+    'stapler': 'a stapler stapling paper',
 }
 
 # Every pack's name in Settings, in its order.
@@ -66,6 +90,11 @@ NAMES = {
     'ink': 'Deep linear', 'piano': 'Muted piano', 'raindrop': 'Raindrops', 'woodblock': 'Woodblock', 'kalimba': 'Kalimba',
     'glass': 'Glass', 'scifi': 'Sci-fi', 'pencil': 'Pencil', 'cardboard': 'Cardboard', 'pebble': 'Pebbles',
     'bubble-wrap': 'Bubble wrap', 'phone-tick': 'Phone tick',
+    'chopsticks': 'Chopsticks', 'shutter': 'Camera shutter', 'bamboo': 'Bamboo', 'coin': 'Coin', 'ice': 'Ice',
+    'popcorn': 'Popcorn', 'cork': 'Corks', 'pen': 'Pen click', 'castanets': 'Castanets', 'snap': 'Finger snaps',
+    'finger-drum': 'Finger drum', 'leaves': 'Autumn leaves', 'snow': 'Snow', 'geiger': 'Geiger counter',
+    'mahjong': 'Mahjong', 'chess': 'Chess', 'ping-pong': 'Ping pong', 'clock': 'Clockwork', 'switch': 'Light switch',
+    'rotary': 'Rotary dial', 'dominoes': 'Dominoes', 'stapler': 'Stapler',
 }
 
 # v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.

@@ -248,14 +248,14 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'sounds',
     name: 'Sound packs',
-    line: 'Thirty key sounds, from thocky switches to raindrops.',
+    line: 'Over fifty key sounds, from thocky switches to snow and chess pieces.',
     description:
         'Key sounds made with ElevenLabs: a clicky mechanical board, a deep thock, a typewriter, bubble pops and 8-bit blips. '
         'They play when Sound is on in Key press.',
     category: PluginCategory.sound,
     hue: 'coral',
     icon: Lucide.volume2,
-    adds: ['Thirty sound packs'],
+    adds: ['Over fifty sound packs'],
     hasPage: true,
   ),
   PluginManifest(

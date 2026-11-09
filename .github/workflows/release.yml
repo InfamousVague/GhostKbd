@@ -20,6 +20,11 @@ on:
   push:
     branches: [release]
     tags: ['v*']
+  # New key sounds ship on their own: once the Sounds workflow has made and committed them, main is released.
+  workflow_run:
+    workflows: [Sounds]
+    types: [completed]
+    branches: [main]
 
 concurrency:
   group: release
@@ -27,6 +32,8 @@ concurrency:
 
 jobs:
   release:
+    # After Sounds only when it succeeded (it runs only when tool/sound_packs.py changes, so each run is meant).
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     # The secrets live in the Prod environment.
     environment: Prod
