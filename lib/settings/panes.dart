@@ -70,18 +70,14 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         summary: (s) => s.flag('backlight') ? (backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? 'On') : 'Off',
         page: _backlight,
       ),
-      // The keys' sounds, stock ones included; the Sound packs plugin has its own page for its packs.
+      // The keys' sounds: the stock sounds, Android's own, and the volume.
       SettingsSection(
         id: 'sounds-stock',
         label: 'Sounds',
         icon: _icon(Lucide.volume2),
         hue: 'amber',
         group: 'keyboard',
-        summary: (s) => !s.flag('sound')
-            ? 'Off'
-            : s.pluginOn('sounds') && s.choice('sound_source') == 'pack'
-                ? 'From Sound packs'
-                : stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'On',
+        summary: (s) => !s.flag('sound') ? 'Off' : stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'On',
         page: _soundsStock,
       ),
       SettingsSection(
@@ -124,8 +120,6 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'undo', label: 'Undo and redo', icon: _icon(Lucide.undo2), hue: 'blue', group: 'plugins', summary: (s) => 'In the row', page: _undo),
       if (store.pluginOn('incognito'))
         SettingsSection(id: 'incognito', label: 'Incognito', icon: _icon(Lucide.eyeOff), hue: 'purple', group: 'plugins', summary: (s) => 'A switch in the row', page: _incognito),
-      if (store.pluginOn('sounds'))
-        SettingsSection(id: 'sounds', label: 'Sound packs', icon: _icon(Lucide.volume2), hue: 'coral', group: 'plugins', summary: (s) => [...s.soundPacksHere, ...soundPacks].where((p) => p.$1 == s.choice('sound_pack')).firstOrNull?.$2 ?? '', page: _sounds),
       if (store.pluginOn('emoji'))
         SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
@@ -249,24 +243,17 @@ List<Widget> _soundsStock(BuildContext context, SettingsStore store) => [
       if (store.flag('sound'))
         PaneSection(
           title: 'Sound',
-          footer: Text(store.pluginOn('sounds')
-              ? 'Tap one to hear it and use it. Choosing a pack in Sound packs uses that instead; whichever you chose last plays.'
-              : 'Tap one to hear it. More sounds join this list over time; the Sound packs plugin has dozens more.'),
+          footer: const Text('Tap one to hear it. More sounds join this list over time.'),
           children: [
             for (final (id, name) in stockSounds)
               SettingRow(
                 label: name,
-                icon: (!store.pluginOn('sounds') || store.choice('sound_source') == 'stock') && store.choice('stock_sound') == id
-                    ? AppIcon(Lucide.check, size: 18)
-                    : const SizedBox(width: 18),
+                icon: store.choice('stock_sound') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
                 onPress: () async {
                   await store.set('stock_sound', id);
-                  await store.set('sound_source', 'stock');
                   if (id != 'system') store.sampleSound(id);
                 },
               ),
-            if (store.pluginOn('sounds') && store.choice('sound_source') == 'pack')
-              SettingRow(label: 'Using a Sound packs pack', hint: Text(soundPacks.where((p) => p.$1 == store.choice('sound_pack')).firstOrNull?.$2 ?? store.choice('sound_pack'))),
           ],
         ),
       if (store.flag('sound')) PaneSection(children: [_volume(store)]),
@@ -462,36 +449,6 @@ List<Widget> _incognito(BuildContext context, SettingsStore store) => _rowPlugin
 /// Key sound volume, as a share of the phone's own: a whisper to loud.
 SettingRow _volume(SettingsStore store) =>
     _choice(store, 'sound_volume', 'Volume', const {'10': 'Whisper', '20': 'Soft', '35': 'Medium', '55': 'Loud', '80': 'Max'}, 'How loud key sounds play, under your phone’s own volume.');
-
-List<Widget> _sounds(BuildContext context, SettingsStore store) {
-  final here = store.soundPacksHere;
-  return [
-    PaneHero(glyph: AppIcon(Lucide.volume2, size: 24), title: 'Sound packs', meta: const Text('Key sounds made with ElevenLabs.'), status: const PaneHeroStatus('On')),
-    PaneSection(
-      title: 'Pack',
-      footer: Text(store.flag('sound')
-          ? (here.isNotEmpty ? 'Tap a pack to hear a few seconds of typing in it.' : here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
-          : 'Turn on Sound in Settings › Sounds to hear them.'),
-      children: [
-        for (final (id, name) in here.isEmpty ? soundPacks : here)
-          SettingRow(
-            label: name,
-            hint: here.isEmpty ? const Text('Coming in an update') : null,
-            icon: store.choice('sound_source') == 'pack' && store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
-            // Choosing a pack plays a few seconds of typing in it.
-            onPress: () async {
-              await store.set('sound_pack', id);
-              await store.set('sound_source', 'pack');
-              if (here.isNotEmpty) store.sampleSound();
-            },
-          ),
-        if (!store.flag('sound')) _toggle(store, 'sound', 'Sound on key press'),
-      ],
-    ),
-    PaneSection(children: [_volume(store)]),
-    PaneSection(children: [SettingRow(label: 'Remove Sound packs', onPress: () => store.setPlugin('sounds', false))]),
-  ];
-}
 
 List<Widget> _emoji(BuildContext context, SettingsStore store) => _rowPluginPage(
       store,

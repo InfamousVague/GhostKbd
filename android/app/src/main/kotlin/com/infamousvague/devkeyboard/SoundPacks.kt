@@ -7,7 +7,7 @@ import android.os.Handler
 import android.os.Looper
 
 /**
- * The sounds plugin: key sounds made with ElevenLabs' sound effects (tool/sound_packs.py, run by
+ * The keys' stock sounds (Settings › Sounds): made with ElevenLabs' sound effects (tool/sound_packs.py, run by
  * .github/workflows/sounds.yml), as assets/sounds/<pack>/key1..3, space, delete and enter (.ogg), played as made
  * through a SoundPool, loaded once per pack, so a key's sound starts the instant the finger lands.
  */
@@ -17,25 +17,6 @@ object SoundPacks {
      * are brought in over time; "system" is Android's own.
      */
     val STOCK = linkedMapOf("bamboo" to "Thock", "geiger" to "Geiger counter", "ping-pong" to "Ping pong", "felt" to "Felt mallet", "velvet" to "Velvet", "button" to "Button")
-
-    /** Pack id to its name, in Settings' order, from assets/sounds/packs.json (tool/sound_packs.py writes it). */
-    fun packs(context: Context): LinkedHashMap<String, String> {
-        val out = LinkedHashMap<String, String>()
-        runCatching {
-            val a = org.json.JSONArray(context.assets.open("sounds/packs.json").bufferedReader().readText())
-            for (i in 0 until a.length()) a.getJSONObject(i).let { out[it.getString("id")] = it.getString("name") }
-        }
-        
-        return out
-    }
-
-    private val main = Handler(Looper.getMainLooper())
-    private var pool: SoundPool? = null
-    /** The pack the pool holds. */
-    @Volatile private var loaded: String? = null
-    @Volatile private var preparing: String? = null
-    private val ids = HashMap<String, Int>()
-    private var round = 0
 
     /** Whether [pack]'s sounds are in this build. */
     fun available(context: Context, pack: String) =

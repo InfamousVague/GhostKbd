@@ -246,19 +246,6 @@ const List<PluginManifest> catalogue = [
     hasPage: true,
   ),
   PluginManifest(
-    id: 'sounds',
-    name: 'Sound packs',
-    line: 'Thirty soft, subtle key sounds, from droplets to felt and river stones.',
-    description:
-        'Soft key sounds made with ElevenLabs: droplets, felt mallets, paper, river stones, seashells, twigs and more, each cut from a real recording. '
-        'They play when Sound is on in Settings › Sounds.',
-    category: PluginCategory.sound,
-    hue: 'coral',
-    icon: Lucide.volume2,
-    adds: ['Thirty subtle sound packs'],
-    hasPage: true,
-  ),
-  PluginManifest(
     id: 'emoji',
     name: 'Emoji',
     line: 'Every emoji, searchable, up to Unicode’s newest.',
@@ -321,8 +308,6 @@ const List<(String, String)> stockSounds = [
   ('system', 'Android’s'),
 ];
 
-/// The sounds plugin's packs (android SoundPacks.kt).
-const List<(String, String)> soundPacks = [('droplet', 'Droplet'), ('felt', 'Felt mallet'), ('paper', 'Paper')];
 
 PluginManifest? pluginById(String id) {
   for (final plugin in catalogue) {

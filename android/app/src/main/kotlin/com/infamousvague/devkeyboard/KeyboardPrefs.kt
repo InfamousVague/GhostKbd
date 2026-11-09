@@ -35,12 +35,8 @@ class KeyboardPrefs(context: Context) {
     val markdownEverywhere: Boolean get() = bool(MARKDOWN_EVERYWHERE)
     val terminalEverywhere: Boolean get() = bool(TERMINAL_EVERYWHERE)
 
-    /** The sounds plugin's pack (assets/sounds/packs.json). */
-    val soundPack: String get() = prefs.getString(SOUND_PACK, "droplet")!!
-
     /** Key press › Sound, without the sounds plugin: a stock sound (SoundPacks.STOCK) or "system", Android's. */
     val stockSound: String get() = prefs.getString(STOCK_SOUND, "bamboo")!!
-    val soundSource: String get() = prefs.getString(SOUND_SOURCE, "stock")!!
 
     /** How loud key sounds play, 0 to 1 (the setting keeps a percentage). */
     val soundVolume: Float get() = (prefs.getString(SOUND_VOLUME, "35")!!.toFloatOrNull() ?: 35f).coerceIn(0f, 100f) / 100f
@@ -159,11 +155,8 @@ class KeyboardPrefs(context: Context) {
         const val EMOJI_SUGGEST = "emoji_suggest"
         const val MARKDOWN_EVERYWHERE = "markdown_everywhere"
         const val TERMINAL_EVERYWHERE = "terminal_everywhere"
-        const val SOUND_PACK = "sound_pack"
         const val SOUND_VOLUME = "sound_volume"
         const val STOCK_SOUND = "stock_sound"
-        /** Which plays: "stock" (Settings › Sounds) or "pack" (the Sound packs plugin), whichever was chosen last. */
-        const val SOUND_SOURCE = "sound_source"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -203,10 +196,8 @@ class KeyboardPrefs(context: Context) {
             EMOJI_SUGGEST to true,
             MARKDOWN_EVERYWHERE to false,
             TERMINAL_EVERYWHERE to false,
-            SOUND_PACK to "droplet",
             SOUND_VOLUME to "35",
             STOCK_SOUND to "bamboo",
-            SOUND_SOURCE to "stock",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",

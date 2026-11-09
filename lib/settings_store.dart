@@ -53,10 +53,8 @@ class SettingsStore extends ChangeNotifier {
     'emoji_suggest': true,
     'markdown_everywhere': false,
     'terminal_everywhere': false,
-    'sound_pack': 'droplet',
     'sound_volume': '35',
     'stock_sound': 'bamboo',
-    'sound_source': 'stock',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
@@ -150,7 +148,6 @@ class SettingsStore extends ChangeNotifier {
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
-      soundPacksHere = _packs(await _channel.invokeListMethod<Object>('soundPacks'));
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -217,20 +214,6 @@ class SettingsStore extends ChangeNotifier {
   Future<void> sampleSound([String? pack]) async {
     try {
       await _channel.invokeMethod<void>('sampleSound', {if (pack != null) 'pack': pack});
-    } on MissingPluginException {
-      return;
-    }
-  }
-
-  /// The sound packs in this build, as (id, name), in order (assets/sounds/packs.json).
-  List<(String, String)> soundPacksHere = const [];
-  static List<(String, String)> _packs(List<Object?>? raw) => [
-        for (final p in raw ?? const []) if (p is Map) ('${p['id']}', '${p['name']}'),
-      ];
-  Future<void> refreshSoundPacks() async {
-    try {
-      soundPacksHere = _packs(await _channel.invokeListMethod<Object>('soundPacks'));
-      notifyListeners();
     } on MissingPluginException {
       return;
     }

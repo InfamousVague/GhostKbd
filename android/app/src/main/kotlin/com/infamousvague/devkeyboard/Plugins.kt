@@ -14,7 +14,6 @@ package com.infamousvague.devkeyboard
  * - `gifs` (Gifs.kt): search GIPHY from the plugin row and send a GIF.
  * - `markdown`, `terminal`, `clipboard`, `undo`, `incognito`: buttons in the plugin row (DevKeyboardService.refreshRow);
  *   markdown and terminal show in the apps they suit (AppContext.kt) unless set to everywhere.
- * - `sounds` (SoundPacks.kt): key sounds made with ElevenLabs.
  * - `emoji` (Emoji.kt): an emoji panel and search, every emoji of Unicode's latest standard; :shortcodes and
  *   emoji for the word typed in the row.
  * - `ghostmd` (GhostMd.kt): [[note]] and #tag completion and Ghost.md's blocks in Ghost.md; save a selection to it
@@ -32,10 +31,9 @@ object Plugins {
     const val CLIPBOARD = "clipboard"
     const val UNDO = "undo"
     const val INCOGNITO = "incognito"
-    const val SOUNDS = "sounds"
     const val EMOJI = "emoji"
     const val GHOSTMD = "ghostmd"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, SOUNDS, EMOJI, GHOSTMD)
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()

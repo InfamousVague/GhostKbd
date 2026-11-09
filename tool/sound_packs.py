@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The sounds plugin's packs, made with ElevenLabs' sound effects (POST /v1/sound-generation) and written as Ogg Vorbis
-to android/app/src/main/assets/sounds/<pack>/ (key1..3, space, delete, enter), with every pack's name in
-assets/sounds/packs.json. SoundPacks.kt plays them.
+to android/app/src/main/assets/sounds/<pack>/ (key1..3, space, delete, enter): the stock sounds Settings > Sounds
+offers. SoundPacks.kt plays them.
 
 How (v3, 2026-11-08): ElevenLabs is far better at a recording of someone typing than at one isolated click, which
 came out exaggerated and alike from board to board. So for each pack it is asked for a few seconds of slow typing on
@@ -26,52 +26,20 @@ BOARDS: dict = {}
 
 # Packs that are a sound rather than a board.
 SOUNDS = {
-    # The stock sounds (Settings > Sounds), kept from the first sets.
+    # The stock sounds (Settings > Sounds). The Sound packs plugin and its other packs were retired on 2026-11-09,
+    # once these were "solid" (Matt); new ones are added here one at a time.
     'bamboo': 'knocks on a hollow bamboo stalk',
     'geiger': 'a Geiger counter clicking',
     'ping-pong': 'a ping pong ball bouncing on a table',
-    # 2026-11-09, Matt: "a fresh list of 30 new distinct and subtle sounds". Small, soft, short things.
-    'droplet': 'tiny soft water droplets',
     'felt': 'soft felt mallet taps on a wooden tabletop',
-    'paper': 'fingertip taps on a sheet of thick paper',
-    'soft-pop': 'tiny soft mouth pops',
-    'marimba': 'very short muted marimba taps, each damped at once',
-    'sand': 'small pebbles dropped onto damp sand',
-    'linen': 'tiny soft fingertip taps on linen fabric',
-    'corkboard': 'fingertip taps on a cork board',
-    'eraser': 'a soft rubber eraser tapped on a desk',
-    'seed': 'single seeds dropped into a ceramic bowl',
-    'leaf': 'a single small leaf flicked with a finger',
-    'blip': 'tiny underwater bubble blips',
-    'latch': 'a small plastic latch closing gently',
-    'balsa': 'fingertip knocks on a thin balsa wood panel',
-    'bead': 'small glass beads dropped on a felt mat',
-    'frost': 'very soft crisp ticks, like frost cracking',
-    'card': 'a playing card flicked once',
-    'page': 'a single quick soft flick of a book page',
-    'stone': 'a smooth river stone set gently on another',
     'velvet': 'fingertip taps on a velvet cushion, soft thuds',
-    'clay': 'fingertip taps on an unglazed clay pot',
-    'shell': 'a small seashell tapped against another',
-    'block': 'soft wooden tocks of a tiny toy block',
-    'rain-leaf': 'raindrops landing on a broad leaf',
-    'pluck': 'very short muted guitar string plucks, damped instantly',
-    'heartbeat': 'soft low single thumps like a muffled heartbeat',
-    'sparkle': 'very short tiny high sparkle ticks, no ringing',
-    'twig': 'a thin dry twig snapping softly',
-    'zipper': 'a single soft click of a zipper tooth',
     'button': 'a soft cloth-covered button pressed',
 }
 
 # Every pack's name in Settings, in its order.
 NAMES = {
-    'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong',
-    'droplet': 'Droplet', 'felt': 'Felt mallet', 'paper': 'Paper', 'soft-pop': 'Soft pop', 'marimba': 'Muted marimba',
-    'sand': 'Sand', 'linen': 'Linen', 'corkboard': 'Corkboard', 'eraser': 'Eraser', 'seed': 'Seed', 'leaf': 'Leaf',
-    'blip': 'Bubble blip', 'latch': 'Latch', 'balsa': 'Balsa', 'bead': 'Glass bead', 'frost': 'Frost', 'card': 'Card flick',
-    'page': 'Page', 'stone': 'River stone', 'velvet': 'Velvet', 'clay': 'Clay', 'shell': 'Seashell', 'block': 'Toy block',
-    'rain-leaf': 'Rain on a leaf', 'pluck': 'Muted pluck', 'heartbeat': 'Heartbeat', 'sparkle': 'Sparkle', 'twig': 'Twig',
-    'zipper': 'Zipper', 'button': 'Button',
+    'bamboo': 'Thock', 'geiger': 'Geiger counter', 'ping-pong': 'Ping pong', 'felt': 'Felt mallet', 'velvet': 'Velvet',
+    'button': 'Button',
 }
 
 # Sounds every keyboard has, without the plugin (Settings > Key press > Sound): Bamboo, as "Thock" (2026-11-08).
@@ -219,8 +187,6 @@ def make(api_key: str, pack: str) -> None:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    # The plugin's list leaves out the stock sounds, which Key press offers without it (SoundPacks.STOCK).
-    (OUT / 'packs.json').write_text(json.dumps([{'id': k, 'name': v} for k, v in NAMES.items() if k not in STOCK], indent=1) + '\n')
     again = '--again' in sys.argv
     api_key = key()
     failed = []

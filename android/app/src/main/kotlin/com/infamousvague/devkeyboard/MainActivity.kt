@@ -141,11 +141,8 @@ class MainActivity : FlutterActivity() {
                     }
                     "clipboardState" -> result.success(mapOf("count" to ClipHistory.all(this@MainActivity).size))
                     "clearClipboard" -> { ClipHistory.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
-                    "soundPacks" -> result.success(
-                        SoundPacks.packs(this@MainActivity).filter { SoundPacks.available(this@MainActivity, it.key) }.map { mapOf("id" to it.key, "name" to it.value) },
-                    )
                     "sampleSound" -> {
-                        val pack = call.argument<String>("pack") ?: prefs.soundPack
+                        val pack = call.argument<String>("pack") ?: prefs.stockSound
                         SoundPacks.sample(this@MainActivity, pack, prefs.soundVolume.coerceAtLeast(0.15f))
                         result.success(null)
                     }

@@ -110,7 +110,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
         // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
-        prefs.prefs.edit().remove("popup_keys").remove("tap_log").remove("icon_pack").apply()
+        prefs.prefs.edit().remove("popup_keys").remove("tap_log").remove("icon_pack").remove("sound_pack").remove("sound_source").apply()
         deleteFile("tap_log.txt")
     }
 
@@ -471,7 +471,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             vibrator.vibrate(effect)
         }
         val volume = prefs.soundVolume
-        // The plugin's pack where it is added, else the stock sound chosen in Key press, else Android's.
+        // The stock sound chosen in Settings › Sounds, else Android's.
         val pack = soundToPlay()
         if (prefs.sound && volume > 0f && !(pack != null && SoundPacks.play(this, pack, key.type, volume))) {
             val fx = when (key.type) {
@@ -484,11 +484,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
     }
 
-    /** The sound the keys make: the plugin's pack when it was chosen last (and the plugin is added), else the stock
-     *  sound picked in Settings › Sounds; null for Android's own. */
-    private fun soundToPlay(): String? =
-        if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.soundSource == "pack") prefs.soundPack
-        else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
+    /** The stock sound picked in Settings › Sounds, or null for Android's own. */
+    private fun soundToPlay(): String? = prefs.stockSound.takeIf { it in SoundPacks.STOCK }
 
     override fun onShowPicker() {
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
