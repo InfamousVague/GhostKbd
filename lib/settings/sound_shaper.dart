@@ -29,8 +29,9 @@ String _db(double v) => '${v > 0 ? '+' : ''}${v.toStringAsFixed(0)} dB';
 final _knobs = [
   _Knob('gain', 'Volume', -18, 6, 0, _db),
   _Knob('bass', 'Bass', -12, 12, 0, _db),
-  _Knob('treble', 'Treble', -12, 12, 0, _db),
-  _Knob('tone', 'Tone', 800, 16000, 16000, (v) => v >= 15999 ? 'Open' : '${(v / 1000).toStringAsFixed(1)} kHz'),
+  // The defaults round the top off (Matt's ear, 2026-11-08): treble -9 dB, tone 3.8 kHz. SoundPacks.kt has the same.
+  _Knob('treble', 'Treble', -12, 12, -9, _db),
+  _Knob('tone', 'Tone', 800, 16000, 3800, (v) => v >= 15999 ? 'Open' : '${(v / 1000).toStringAsFixed(1)} kHz'),
   _Knob('pitch', 'Pitch', -12, 12, 0, (v) => '${v > 0 ? '+' : ''}${v.toStringAsFixed(0)} st'),
   _Knob('length', 'Length', 0.2, 1, 1, (v) => '${(v * 100).round()}%'),
 ];
@@ -40,10 +41,11 @@ const _kinds = {'key': 'Keys', 'space': 'Space', 'delete': 'Delete', 'enter': 'E
 /// Ready-made shapes for every kind at once.
 final Map<String, Map<String, double>> _presets = {
   'Warm': {'bass': 6, 'treble': -5, 'tone': 7000},
-  'Deep': {'bass': 9, 'treble': -8, 'tone': 4500, 'pitch': -3},
+  'Deep': {'bass': 9, 'treble': -8, 'tone': 3000, 'pitch': -3},
   'Soft': {'gain': -8, 'treble': -6, 'tone': 6000, 'length': 0.6},
-  'Crisp': {'bass': -2, 'treble': 4},
+  'Crisp': {'bass': -2, 'treble': 4, 'tone': 16000},
   'Tiny': {'gain': -4, 'pitch': 5, 'length': 0.5},
+  'Unfiltered': {'treble': 0, 'tone': 16000},
 };
 
 class SoundShaper extends StatefulWidget {
@@ -138,7 +140,7 @@ class _SoundShaperState extends State<SoundShaper> {
         SizedBox(height: t.space(4)),
         PaneSection(
           title: 'Quick shapes',
-          footer: const Text('A shape for every sound at once; adjust from there.'),
+          footer: const Text('A shape for every sound at once; adjust from there. Unfiltered is each sound exactly as it was made.'),
           children: [
             for (final e in _presets.entries)
               SettingRow(
@@ -148,7 +150,7 @@ class _SoundShaperState extends State<SoundShaper> {
                   widget.store.previewSound(_kind);
                 },
               ),
-            if (shaped) SettingRow(label: 'Back to the pack as made', onPress: () async { await _save({}); widget.store.previewSound(_kind); }),
+            if (shaped) SettingRow(label: 'Back to the defaults', onPress: () async { await _save({}); widget.store.previewSound(_kind); }),
           ],
         ),
       ],

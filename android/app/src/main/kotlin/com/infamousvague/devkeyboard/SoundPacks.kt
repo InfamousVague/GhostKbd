@@ -49,9 +49,14 @@ object SoundPacks {
      * cut-off in Hz (16000 leaves it open), [pitch] in semitones, [length] the share of the sound kept (0.3 to 1),
      * the rest faded away.
      */
-    data class Shape(val gain: Float = 0f, val bass: Float = 0f, val treble: Float = 0f, val tone: Float = 16000f, val pitch: Float = 0f, val length: Float = 1f) {
-        val flat get() = this == Shape()
+    data class Shape(val gain: Float = 0f, val bass: Float = 0f, val treble: Float = DEFAULT_TREBLE, val tone: Float = DEFAULT_TONE, val pitch: Float = 0f, val length: Float = 1f) {
+        /** Leaves the sound exactly as made (not the defaults, which round the top off). */
+        val flat get() = gain == 0f && bass == 0f && treble == 0f && tone >= 15999f && pitch == 0f && length >= 1f
     }
+
+    /** The defaults every sound starts from: Matt's ear, 2026-11-08 (treble -9 dB, tone 3.8 kHz). */
+    const val DEFAULT_TREBLE = -9f
+    const val DEFAULT_TONE = 3800f
 
     /** "sound_filters" as KeyboardPrefs keeps it: {"key": {"gain": 0, ...}, "space": {...}}. */
     fun parse(spec: String): Map<String, Shape> = runCatching {
@@ -61,8 +66,8 @@ object SoundPacks {
             Shape(
                 s.optDouble("gain", 0.0).toFloat().coerceIn(-18f, 6f),
                 s.optDouble("bass", 0.0).toFloat().coerceIn(-12f, 12f),
-                s.optDouble("treble", 0.0).toFloat().coerceIn(-12f, 12f),
-                s.optDouble("tone", 16000.0).toFloat().coerceIn(800f, 16000f),
+                s.optDouble("treble", DEFAULT_TREBLE.toDouble()).toFloat().coerceIn(-12f, 12f),
+                s.optDouble("tone", DEFAULT_TONE.toDouble()).toFloat().coerceIn(800f, 16000f),
                 s.optDouble("pitch", 0.0).toFloat().coerceIn(-12f, 12f),
                 s.optDouble("length", 1.0).toFloat().coerceIn(0.2f, 1f),
             )
