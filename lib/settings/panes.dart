@@ -58,8 +58,22 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         icon: _icon(LucideMore.vibrate),
         hue: 'coral',
         group: 'keyboard',
-        summary: (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('sound')) 'Sound', if (s.flag('key_popup')) 'Popup'].join(', ').ifEmptyThen('Silent'),
+        summary: (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('key_popup')) 'Popup'].join(', ').ifEmptyThen('Nothing'),
         page: _keyPress,
+      ),
+      // The keys' sounds, stock ones included; the Sound packs plugin has its own page for its packs.
+      SettingsSection(
+        id: 'sounds-stock',
+        label: 'Sounds',
+        icon: _icon(Lucide.volume2),
+        hue: 'amber',
+        group: 'keyboard',
+        summary: (s) => !s.flag('sound')
+            ? 'Off'
+            : s.pluginOn('sounds')
+                ? 'From Sound packs'
+                : stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'On',
+        page: _soundsStock,
       ),
       SettingsSection(
         id: 'market',
@@ -217,8 +231,17 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
           _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, shown large above your finger.'),
           _toggle(store, 'vibrate', 'Vibrate on key press'),
           if (store.flag('vibrate')) _choice(store, 'haptics', 'Vibration strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
-          _toggle(store, 'sound', 'Sound on key press'),
-          if (store.flag('sound') && !store.pluginOn('sounds'))
+        ],
+      ),
+    ];
+
+List<Widget> _soundsStock(BuildContext context, SettingsStore store) => [
+      PaneSection(children: [_toggle(store, 'sound', 'Sound on key press')]),
+      if (store.flag('sound') && !store.pluginOn('sounds'))
+        PaneSection(
+          title: 'Sound',
+          footer: const Text('Tap one to hear it. More sounds join this list over time; the Sound packs plugin has dozens more.'),
+          children: [
             for (final (id, name) in stockSounds)
               SettingRow(
                 label: name,
@@ -228,10 +251,11 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
                   if (id != 'system') store.sampleSound(id);
                 },
               ),
-          if (store.flag('sound') && store.pluginOn('sounds')) const SettingRow(label: 'Sound', hint: Text('Chosen in Sound packs.')),
-          if (store.flag('sound')) _volume(store),
-        ],
-      ),
+          ],
+        ),
+      if (store.flag('sound') && store.pluginOn('sounds'))
+        const PaneSection(children: [SettingRow(label: 'Sound', hint: Text('Chosen in Sound packs, while that plugin is added.'))]),
+      if (store.flag('sound')) PaneSection(children: [_volume(store)]),
     ];
 
 // --- Plugins' own pages -------------------------------------------------------------------------------------------
@@ -433,7 +457,7 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
       title: 'Pack',
       footer: Text(store.flag('sound')
           ? (here.isNotEmpty ? 'Tap a pack to hear a few seconds of typing in it.' : here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
-          : 'Turn on Sound in Key press to hear them.'),
+          : 'Turn on Sound in Settings › Sounds to hear them.'),
       children: [
         for (final (id, name) in here.isEmpty ? soundPacks : here)
           SettingRow(

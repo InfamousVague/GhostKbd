@@ -251,7 +251,7 @@ const List<PluginManifest> catalogue = [
     line: 'Over fifty key sounds, from thocky switches to snow and chess pieces.',
     description:
         'Key sounds made with ElevenLabs: a clicky mechanical board, a deep thock, a typewriter, bubble pops and 8-bit blips. '
-        'They play when Sound is on in Key press.',
+        'They play when Sound is on in Settings › Sounds.',
     category: PluginCategory.sound,
     hue: 'coral',
     icon: Lucide.volume2,
@@ -287,7 +287,7 @@ const List<PluginManifest> catalogue = [
   ),
 ];
 
-/// Key press's stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
+/// Settings › Sounds' stock sounds, without the sounds plugin (android SoundPacks.STOCK); more come over time.
 const List<(String, String)> stockSounds = [('bamboo', 'Thock'), ('system', 'Android’s')];
 
 /// The sounds plugin's packs (android SoundPacks.kt).
