@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/InfamousVague/GhostKbd/main/docs/typing-profile.schema.json",
+  "title": "Ghost typing profile",
+  "description": "How one person types, for Ghost Keyboard to import and export (docs/typing-profile.md).",
+  "type": "object",
+  "required": ["format", "version"],
+  "properties": {
+    "format": { "const": "ghost-typing-profile" },
+    "version": { "const": 1 },
+    "created": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "properties": { "app": { "type": "string" }, "model": { "type": "string" } }
+    },
+    "report": { "type": "string", "maxLength": 4000 },
+    "layout": { "enum": ["qwerty"] },
+    "keys": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z]$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["dx", "dy"],
+        "properties": {
+          "dx": { "type": "number", "minimum": -1.5, "maximum": 1.5, "description": "Right of the key's middle, in key widths." },
+          "dy": { "type": "number", "minimum": -1.5, "maximum": 1.5, "description": "Below the key's middle, in key heights." },
+          "samples": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "slips": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pressed", "meant"],
+        "properties": {
+          "pressed": { "type": "string", "pattern": "^[a-z]$" },
+          "meant": { "type": "string", "pattern": "^[a-z]$" },
+          "count": { "type": "integer", "minimum": 1 },
+          "x": { "type": "number", "minimum": 0, "maximum": 1 },
+          "y": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "words": {
+      "type": "object",
+      "properties": { "learned": { "type": "array", "items": { "type": "string", "maxLength": 40 } } }
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "profile": { "type": "string", "maxLength": 6000 },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "properties": { "text": { "type": "string" }, "kind": { "enum": ["chat", "writing"] } }
+          }
+        }
+      }
+    }
+  }
+}

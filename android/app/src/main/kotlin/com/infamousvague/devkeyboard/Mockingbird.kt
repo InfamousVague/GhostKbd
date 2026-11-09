@@ -71,11 +71,16 @@ object Mockingbird {
      * Keeps [raw], typed in [app], as a sample when it says something about how you write. A message that grows from
      * one already kept (the same draft, read again) replaces it rather than being kept twice.
      */
-    fun record(context: Context, raw: String, app: String) {
+    fun record(context: Context, raw: String, app: String) = record(context, raw, app, AppContext.kind(app) == AppKind.CHAT)
+
+    /** A sample from a typing profile: texting where [chat], else writing. */
+    fun recordImported(context: Context, raw: String, chat: Boolean) = record(context, raw, if (chat) "imported.chat" else "imported", chat)
+
+    private fun record(context: Context, raw: String, app: String, chat: Boolean) {
         val text = raw.replace(FILL_TAG, "").replace(Regex("[ \\t]+"), " ").replace(Regex("\\n{3,}"), "\n\n").trim().take(MAX_SAMPLE_CHARS)
         if (text.length < 12 || text.split(Regex("\\s+")).size < 3) return
         if (URLISH.matches(text) || text.count { it.isLetter() } < text.length / 2) return
-        val sample = Sample(text, AppContext.kind(app) == AppKind.CHAT, app, System.currentTimeMillis())
+        val sample = Sample(text, chat, app, System.currentTimeMillis())
         worker.execute {
             synchronized(lock) {
                 val list = load(context)
@@ -110,6 +115,11 @@ object Mockingbird {
         File(context.filesDir, PROFILE_FILE).writeText(
             JSONObject().put("text", p.text).put("at", p.at).put("samples", p.samples).put("provider", p.provider).put("model", p.model).toString(),
         )
+    }
+
+    /** A style profile from a typing profile file, in place of the trained one; [source] says whose it is. */
+    fun importProfile(context: Context, text: String, source: String) {
+        saveProfile(context, Profile(text.take(6000), System.currentTimeMillis(), samples(context).size, source, ""))
     }
 
     private val TRAIN_SYSTEM = """

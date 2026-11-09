@@ -94,6 +94,46 @@ class AdaptiveKeys private constructor(private val context: Context) {
         dirty = true
     }
 
+    // --- typing profiles (TypingProfile.kt) ------------------------------------------------------------------------
+
+    /** Every learned aim, for an export. */
+    fun aims(): Map<Char, Aim> = aims.toSortedMap()
+
+    /** An aim from a typing profile, blended with what is here, each weighted by its touches. */
+    fun importAim(c: Char, dx: Float, dy: Float, samples: Int) {
+        val k = c.lowercaseChar()
+        if (!k.isLetter() || samples <= 0) return
+        val a = aims.getOrPut(k) { Aim() }
+        val total = (a.n + samples).coerceAtMost(100_000)
+        a.dx = (a.dx * a.n + dx.coerceIn(-1.5f, 1.5f) * samples) / (a.n + samples)
+        a.dy = (a.dy * a.n + dy.coerceIn(-1.5f, 1.5f) * samples) / (a.n + samples)
+        a.n = total
+        dirty = true
+    }
+
+    /** Where the QWERTY letters sit, in key widths across and rows down, for slips that come without a point. */
+    private val QWERTY: Map<Char, Pair<Float, Float>> = buildMap {
+        "qwertyuiop".forEachIndexed { i, c -> put(c, i.toFloat() to 0f) }
+        "asdfghjkl".forEachIndexed { i, c -> put(c, i + 0.5f to 1f) }
+        "zxcvbnm".forEachIndexed { i, c -> put(c, i + 1.5f to 2f) }
+    }
+
+    /**
+     * A slip from a typing profile, [count] times: it teaches [meant]'s aim, at the point given ([x], [y], fractions of
+     * the letters' area, placed on the heatmap too) or, without one, part way toward [pressed] on a QWERTY board.
+     */
+    fun importSlip(pressed: Char, meant: Char, count: Int, x: Float?, y: Float?) {
+        val p = pressed.lowercaseChar(); val m = meant.lowercaseChar()
+        val pp = QWERTY[p] ?: return
+        val mp = QWERTY[m] ?: return
+        val n = count.coerceIn(1, 500)
+        // Most of the way to the shared edge: where a slip between the two lands.
+        hit(m, (pp.first - mp.first) * 0.6f, (pp.second - mp.second) * 0.6f, n * MISTAKE_WEIGHT)
+        if (x != null && y != null) repeat(n.coerceAtMost(20)) { mistakes.addLast(Mistake(x.coerceIn(0f, 1f), y.coerceIn(0f, 1f), p, m)) }
+        while (mistakes.size > MAX_MISTAKES) mistakes.removeFirst()
+        dirty = true
+    }
+
     /** A touch on [pressed] that was meant for [meant]: it teaches [meant]'s aim, and goes on the heatmap at ([x], [y]). */
     fun mistake(pressed: Char, meant: Char, dx: Float, dy: Float, x: Float, y: Float) {
         hit(meant, dx, dy, MISTAKE_WEIGHT)

@@ -12,6 +12,21 @@ class SettingsStore extends ChangeNotifier {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
       if (call.method == 'dictationChanged') _setDictation(call.arguments);
+      if (call.method == 'profileDone' && call.arguments is Map) {
+        final r = call.arguments as Map;
+        profileError = r['error'] as String?;
+        if (r['exported'] == true) {
+          profileLines = const ['Exported.'];
+          profileReport = null;
+        } else if (profileError == null) {
+          profileLines = [for (final l in (r['lines'] as List? ?? const [])) '$l'];
+          profileReport = r['report'] as String?;
+          profileSource = r['source'] as String?;
+        }
+        notifyListeners();
+        await refreshAdaptive();
+        await refreshAi();
+      }
       if (call.method == 'aiChanged') {
         ghostMessage = call.arguments as String?;
         await refreshAi();
@@ -271,6 +286,28 @@ class SettingsStore extends ChangeNotifier {
         final error = r is Map ? r['trainError'] as String? : null;
         aiMessage = error ?? 'Trained. Your style profile is below.';
       });
+
+  /// Typing profiles (TypingProfile.kt, docs/typing-profile.md): what the last import or export said.
+  List<String> profileLines = const [];
+  String? profileReport;
+  String? profileSource;
+  String? profileError;
+  bool profileSamples = false;
+
+  void setProfileSamples(bool on) {
+    profileSamples = on;
+    notifyListeners();
+  }
+
+  Future<void> importProfile() => _call('profileImport');
+
+  Future<void> exportProfile() async {
+    try {
+      await _channel.invokeMethod<void>('profileExport', {'samples': profileSamples});
+    } on MissingPluginException {
+      return;
+    }
+  }
 
   /// Adaptive keys (AdaptiveKeys.kt): `keys` with learned aims, `mistakes` remembered, `common` (the top pairs).
   Map<String, Object?> adaptive = const {'keys': 0, 'mistakes': 0, 'common': []};

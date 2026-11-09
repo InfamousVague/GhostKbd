@@ -68,6 +68,7 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         intent.getStringExtra(EXTRA_OPEN)?.let { channel?.invokeMethod("open", it) }
         signedIn(intent)
+        profileIntent(intent)
     }
 
     /** The browser back from Ghost.md's sign-in page (GhostOnline.REDIRECT): swap the code for tokens, then tell Settings. */
@@ -85,6 +86,54 @@ class MainActivity : FlutterActivity() {
         openAt = "ghostwriter"
     }
 
+    private var exportSamples = false
+
+    @Deprecated("FlutterActivity still routes results here")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data ?: return
+        if (resultCode != RESULT_OK) return
+        when (requestCode) {
+            REQUEST_IMPORT -> importProfile(uri)
+            REQUEST_EXPORT -> Thread {
+                val error = runCatching {
+                    val text = TypingProfile.export(this, exportSamples)
+                    contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } ?: throw TypingProfile.ProfileError("Couldn't write the file")
+                }.exceptionOrNull()?.message
+                runOnUiThread { channel?.invokeMethod("profileDone", mapOf("exported" to (error == null), "error" to error)) }
+            }.start()
+        }
+    }
+
+    /** A typing profile from a file (picked, opened with this app, or shared to it): taken in, then Settings told. */
+    private fun importProfile(uri: Uri) {
+        Thread {
+            val outcome = runCatching {
+                val text = contentResolver.openInputStream(uri)?.use { s -> s.readBytes().takeIf { it.size <= 8_000_000 }?.toString(Charsets.UTF_8) }
+                    ?: throw TypingProfile.ProfileError("That file is empty or too big")
+                TypingProfile.import(this, text)
+            }
+            runOnUiThread {
+                val r = outcome.getOrNull()
+                channel?.invokeMethod("profileDone", mapOf("lines" to r?.lines, "report" to r?.report, "source" to r?.source, "error" to outcome.exceptionOrNull()?.message))
+            }
+        }.start()
+    }
+
+    /** Opened with, or shared to, this app: a .json file is a typing profile to import. */
+    private fun profileIntent(intent: Intent?) {
+        intent ?: return
+        val uri = when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
+            else -> null
+        } ?: return
+        if (uri.scheme == "ghostkbd") return
+        intent.action = null
+        openAt = "profile"
+        importProfile(uri)
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         channel?.invokeMethod("dictationChanged", dictationState())
@@ -98,6 +147,7 @@ class MainActivity : FlutterActivity() {
         WhisperModel.addListener(onModel)
         openAt = intent?.getStringExtra(EXTRA_OPEN)
         signedIn(intent)
+        profileIntent(intent)
         // Automatic updates: look each time the app opens, and install what is found.
         if (KeyboardPrefs(this).autoUpdate) Updater.check(this, install = true)
     }
@@ -221,6 +271,19 @@ class MainActivity : FlutterActivity() {
                         val a = GitHubCommits.account(this@MainActivity, token, refresh = true)
                         mapOf("login" to a.login, "owners" to a.owners)
                     }
+                    "profileImport" -> {
+                        val pick = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/plain", "application/octet-stream"))
+                        runCatching { startActivityForResult(pick, REQUEST_IMPORT) }
+                        result.success(null)
+                    }
+                    "profileExport" -> {
+                        exportSamples = call.argument<Boolean>("samples") == true
+                        val save = Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
+                            .putExtra(Intent.EXTRA_TITLE, "ghost-typing-profile.json")
+                        runCatching { startActivityForResult(save, REQUEST_EXPORT) }
+                        result.success(null)
+                    }
                     "adaptiveState" -> result.success(adaptiveState())
                     "adaptiveReset" -> { AdaptiveKeys.get(this@MainActivity).reset(); result.success(adaptiveState()) }
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }
@@ -287,5 +350,7 @@ class MainActivity : FlutterActivity() {
         /** An extra naming the settings page to open at. */
         const val EXTRA_OPEN = "open"
         private const val REQUEST_MIC = 41
+        private const val REQUEST_IMPORT = 42
+        private const val REQUEST_EXPORT = 43
     }
 }

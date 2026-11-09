@@ -130,6 +130,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'adaptive', label: 'Adaptive keys', icon: _icon(LucideMore.target), hue: 'coral', group: 'plugins', summary: (s) => '${s.adaptive['keys'] ?? 0} keys tuned', page: _adaptive),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: (s) => s.ai['ready'] == true ? '<<request>> anywhere' : 'Add an AI key', page: _ghostwriter),
+      SettingsSection(id: 'profile', label: 'Typing profile', icon: _icon(Lucide.fileText), hue: 'slate', group: 'app', summary: (s) => 'Import and export', page: _profile),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       // Hidden until the version number in About is tapped five times.
       if (store.flag('developer'))
@@ -702,6 +703,45 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
     PaneSection(children: [SettingRow(label: 'Remove Ghostwriter', onPress: () => store.setPlugin('ghostwriter', false))]),
   ];
 }
+
+List<Widget> _profile(BuildContext context, SettingsStore store) => [
+      PaneHero(
+        glyph: AppIcon(Lucide.fileText, size: 24),
+        title: 'Typing profile',
+        meta: const Text('One open file for how you type: where you aim at each key, your slips, your words and how you write. Other apps and AI models can read it to build reports, and write one for this keyboard to learn from.'),
+        status: const PaneHeroStatus('On'),
+      ),
+      PaneSection(
+        title: 'Import',
+        footer: const Text('Or open or share any typing profile (.json) with Ghost Keyboard. Key aims and slips need Adaptive keys; writing style needs Mockingbird.'),
+        children: [
+          SettingRow(label: 'Import a typing profile…', onPress: store.importProfile),
+          if (store.profileError != null) SettingRow(label: store.profileError!),
+          for (final line in store.profileLines) SettingRow(label: line),
+          if (store.profileSource != null && store.profileLines.isNotEmpty) SettingRow(label: 'From ${store.profileSource}'),
+        ],
+      ),
+      if (store.profileReport != null)
+        PaneSection(title: 'Its report', children: [SettingRowBox(child: Text(store.profileReport!))]),
+      PaneSection(
+        title: 'Export',
+        footer: const Text('Saved where you choose; nothing is uploaded. Without your samples it holds your key aims, slips, learned words and style profile.'),
+        children: [
+          SettingRow(
+            label: 'Include my message samples',
+            hint: const Text('What Mockingbird keeps of what you typed. Leave off unless you trust where the file goes.'),
+            control: GlacierSwitch(checked: store.profileSamples, onCheckedChange: store.setProfileSamples, ariaLabel: 'Include my message samples'),
+          ),
+          SettingRow(label: 'Export my typing profile…', onPress: store.exportProfile),
+        ],
+      ),
+      PaneSection(
+        title: 'The format',
+        children: const [
+          SettingRow(label: 'ghost-typing-profile, version 1', hint: Text('Described in docs/typing-profile.md, with a JSON Schema, in the GhostKbd repository on GitHub.')),
+        ],
+      ),
+    ];
 
 List<Widget> _adaptive(BuildContext context, SettingsStore store) {
   final a = store.adaptive;
