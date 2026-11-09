@@ -21,6 +21,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -29,4 +33,10 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings lib
       - name: Debug build
-        run: flutter build apk --debug --target-platform android-arm64
+        # Downloads that time out are tried again (see release.yml).
+        run: |
+          for attempt in 1 2 3; do
+            flutter build apk --debug --target-platform android-arm64 && exit 0
+            echo "::warning::Build attempt $attempt failed; trying again"; sleep $((attempt * 60))
+          done
+          exit 1

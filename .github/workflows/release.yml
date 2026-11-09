@@ -56,6 +56,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          # Gradle's downloads kept between runs, so a GitHub download hiccup (504s on 2026-11-09) can't stop a release.
+          cache: gradle
+          cache-dependency-path: |
+            dev-keyboard/android/**/*.gradle*
+            dev-keyboard/android/gradle/wrapper/gradle-wrapper.properties
 
       - uses: subosito/flutter-action@v2
         with:
@@ -120,11 +125,18 @@ jobs:
           GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY || vars.GIPHY_API_KEY }}
         run: |
           VERSION="${VERSION#v}"
-          if [ -n "$VERSION" ]; then
-            node tool/release.mjs --glyph ../glyph --version "$VERSION"
-          else
-            node tool/release.mjs --glyph ../glyph
-          fi
+          # A download that times out (GitHub's release CDN answered 504 for hours on 2026-11-09) is tried again, up to
+          # four times a few minutes apart; the build fails before anything is uploaded, so a retry starts clean.
+          for attempt in 1 2 3 4; do
+            if [ -n "$VERSION" ]; then
+              node tool/release.mjs --glyph ../glyph --version "$VERSION" && exit 0
+            else
+              node tool/release.mjs --glyph ../glyph && exit 0
+            fi
+            echo "::warning::Release attempt $attempt failed; trying again in $((attempt * 90)) seconds"
+            sleep $((attempt * 90))
+          done
+          exit 1
 
       - name: Forget the secrets
         if: always()
