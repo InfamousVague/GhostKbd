@@ -5,6 +5,8 @@
 import 'app_icon.dart';
 
 abstract final class LucideMore {
+  static const move = LucideIcon('move', ['M12 2v20', 'm15 19-3 3-3-3', 'm19 9 3 3-3 3', 'M2 12h20', 'm5 9-3 3 3 3', 'm9 5 3-3 3 3'], []);
+  static const squareM = LucideIcon('square-m', ['M5 3H19A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3Z', 'M8 16V8l4 4 4-4v8'], [0]);
   static const bird = LucideIcon('bird', ['M16 7h.01', 'M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20', 'm20 7 2 .5-2 .5', 'M10 18v3', 'M14 17.75V21', 'M7 18a6 6 0 0 0 3.84-10.61'], []);
   static const target = LucideIcon('target', ['M2 12A10 10 0 1 0 22 12A10 10 0 1 0 2 12Z', 'M6 12A6 6 0 1 0 18 12A6 6 0 1 0 6 12Z', 'M10 12A2 2 0 1 0 14 12A2 2 0 1 0 10 12Z'], [0, 1, 2]);
   static const smile = LucideIcon('smile', ['M2 12A10 10 0 1 0 22 12A10 10 0 1 0 2 12Z', 'M8 14s1.5 2 4 2 4-2 4-2', 'M9 9h.01', 'M15 9h.01'], [0]);

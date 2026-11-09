@@ -366,10 +366,10 @@ const List<(String, String)> stockSounds = [
 
 
 /// Plugins that are part of every keyboard, switched on Settings' own pages (Typing, Look & feel, AI, Row tools)
-/// rather than offered in the Market. Ghostwriter stays a Market plugin (Matt, 2026-11-09: "ghostwriter should be a
-/// plugin still"), with a page of its own once added.
+/// rather than offered in the Market. Mockingbird and Ghostwriter stay Market plugins (Matt, 2026-11-09: "ghostwriter should be
+/// a plugin still", "mockingbird should be a plugin as well"), each with a page of its own once added.
 const Set<String> builtInPlugins = {
-  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito', 'mockingbird',
+  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito',
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.

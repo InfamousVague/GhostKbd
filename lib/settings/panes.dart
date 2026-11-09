@@ -22,12 +22,13 @@ Widget _icon(LucideIcon icon) => AppIcon(icon, size: 18, strokeWidth: 2.1);
 Widget _switch(SettingsStore store, String key, String label) =>
     GlacierSwitch(checked: store.flag(key), onCheckedChange: (v) => store.set(key, v), ariaLabel: label);
 
-SettingRow _toggle(SettingsStore store, String key, String label, [String? hint]) =>
-    SettingRow(label: label, hint: hint == null ? null : Text(hint), control: _switch(store, key, label));
+SettingRow _toggle(SettingsStore store, String key, String label, [String? hint, LucideIcon? icon]) =>
+    SettingRow(label: label, hint: hint == null ? null : Text(hint), icon: icon == null ? null : AppIcon(icon, size: 18), control: _switch(store, key, label));
 
-SettingRow _choice(SettingsStore store, String key, String label, Map<String, String> options, [String? hint]) => SettingRow(
+SettingRow _choice(SettingsStore store, String key, String label, Map<String, String> options, [String? hint, LucideIcon? icon]) => SettingRow(
       label: label,
       hint: hint == null ? null : Text(hint),
+      icon: icon == null ? null : AppIcon(icon, size: 18),
       layout: SettingRowLayout.stacked,
       control: GlacierSegmentedControl(
         options: [for (final e in options.entries) GlacierSegmentedOption(value: e.key, label: Text(e.value))],
@@ -68,6 +69,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'dictation', label: 'Dictation', icon: _icon(Lucide.mic), hue: 'rose', group: 'plugins', summary: _dictationSummary, page: _dictation),
       if (store.pluginOn('passwords'))
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
+      if (store.pluginOn('mockingbird'))
+        SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'magenta', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbirdPage, parts: _mockingbirdParts),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('ghostmd'))
@@ -477,15 +480,16 @@ class _VersionRowState extends State<_VersionRow> {
 // --- The simplified pages (2026-11-09: "simplify the settings and minimize what we have") ------------------------
 //
 // Six top pages where there were twenty-two: Typing, Look & feel, AI, Row tools, About, and pages only for
-// the plugins that need setting up (Ghostwriter, Dictation, Password managers, Ghost.md). A page with parts shows its main switches,
-// then its parts as a list like the home list's ("if I click on ghostwriter I see another settings sidebar with the
-// ghostwriter parts"). The plugins every keyboard has (autocorrect, swipe, adaptive keys, the row's buttons,
-// Mockingbird) are switches on these pages, not Market items; Ghostwriter is added from the Market. Each "clear" sits beside what it clears.
+// the plugins that need setting up (Mockingbird, Ghostwriter, Dictation, Password managers, Ghost.md). A page with
+// parts shows its main switches, then its parts as a list like the home list's ("if I click on ghostwriter I see
+// another settings sidebar with the ghostwriter parts"). The plugins every keyboard has (autocorrect, swipe, adaptive
+// keys, the row's buttons) are switches on these pages, not Market items. Each "clear" sits beside what it clears.
 
 /// A plugin as a switch: on adds it, off removes it.
-SettingRow _plugin(SettingsStore store, String id, String label, String hint) => SettingRow(
+SettingRow _plugin(SettingsStore store, String id, String label, String hint, [LucideIcon? icon]) => SettingRow(
       label: label,
       hint: Text(hint),
+      icon: icon == null ? null : AppIcon(icon, size: 18),
       control: GlacierSwitch(checked: store.pluginOn(id), onCheckedChange: (v) => store.setPlugin(id, v), ariaLabel: label),
     );
 
@@ -507,10 +511,12 @@ String _typingSummary(SettingsStore s) =>
     [if (s.pluginOn('autocorrect')) 'Autocorrect', if (s.pluginOn('swipe')) 'swipe', if (s.pluginOn('adaptive')) 'adaptive keys'].join(', ').ifEmptyThen('Plain typing');
 
 String _aiSummary(SettingsStore s) {
-  if (!s.pluginOn('mockingbird') && !s.pluginOn('ghostwriter')) return 'Off';
   if (s.ai['ready'] != true) return 'Add an AI key';
-  return [_providerName(s), if (s.pluginOn('mockingbird')) (s.ai['profile'] != null ? 'your style' : 'learning your style')].join(', ');
+  return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter'].join(', ');
 }
+
+String _mockingbirdSummary(SettingsStore s) =>
+    s.ai['ready'] != true ? 'Add an AI key' : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples');
 
 String _ghostwriterSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
@@ -660,26 +666,42 @@ List<Widget> _aiPage(BuildContext context, SettingsStore store) {
   return [
     PaneHero(
       glyph: AppIcon(Lucide.sparkles, size: 24),
-      title: !mb && !gw ? 'AI' : (ready ? 'Ready' : 'Add an AI key'),
-      meta: const Text('Your AI key, shared by Mockingbird and Ghostwriter, and Mockingbird learning how you write. Your own key, straight to the provider.'),
-      status: PaneHeroStatus(!mb && !gw ? 'Off' : (ready ? 'On' : 'Waiting')),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Your AI key, shared by the AI plugins: Mockingbird and Ghostwriter. Your own key, straight to the provider.'),
+      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
     ),
-    PaneSection(children: [
-      _plugin(store, 'mockingbird', 'Learn my style', 'Keeps samples of what you type, on this phone, and trains a profile of how you write.'),
-      if (!gw) SettingRow(label: 'Ghostwriter', hint: const Text('Writes <<what you ask for>> in any app. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
-    ]),
+    if (!mb || !gw)
+      PaneSection(title: 'AI plugins', children: [
+        if (!mb) SettingRow(label: 'Mockingbird', icon: AppIcon(LucideMore.bird, size: 18), hint: const Text('Learns how you write and text. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
+        if (!gw) SettingRow(label: 'Ghostwriter', icon: AppIcon(LucideMore.wandSparkles, size: 18), hint: const Text('Writes <<what you ask for>> in any app. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
+      ]),
   ];
 }
 
-List<SettingsSection> _aiParts(SettingsStore store) {
-  final mb = store.pluginOn('mockingbird');
-  final gw = store.pluginOn('ghostwriter');
+List<SettingsSection> _aiParts(SettingsStore store) => [
+      _aiProviderPart(),
+      _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
+    ];
+
+// --- Mockingbird --------------------------------------------------------------------------------------------------
+
+List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
   return [
-    if (mb || gw) _aiProviderPart(),
-    if (mb) _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
-    _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
+    PaneHero(
+      glyph: AppIcon(LucideMore.bird, size: 24),
+      title: ready ? (store.ai['profile'] != null ? 'Trained' : 'Learning') : 'Add an AI key',
+      meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Ghostwriter and In my voice write with it.'),
+      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+    ),
+    PaneSection(children: [_plugin(store, 'mockingbird', 'Learn my style', 'Off removes Mockingbird; add it again from Plugins.')]),
   ];
 }
+
+List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
+      _aiProviderPart(),
+      _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
+    ];
 
 SettingsSection _aiProviderPart() =>
     _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', (context, store) => _aiSetup(store));
@@ -837,27 +859,27 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
     PaneSection(
       footer: const Text('Buttons in the row above the keys, whenever you aren’t mid-word.'),
       children: [
-        _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.'),
-        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.'),
-        _plugin(store, 'undo', 'Undo and redo', 'Back and forward arrows.'),
-        _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.'),
-        _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.'),
-        _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.'),
-        if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app'),
-        _plugin(store, 'terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows, in terminal apps.'),
-        if (store.pluginOn('terminal')) _toggle(store, 'terminal_everywhere', 'Terminal keys in every app'),
-        _plugin(store, 'incognito', 'Incognito switch', 'Type without the keyboard learning or keeping anything.'),
+        _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
+        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
+        _plugin(store, 'undo', 'Undo and redo', 'Back and forward arrows.', Lucide.undo2),
+        _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
+        _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
+        if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),
+        _plugin(store, 'terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows, in terminal apps.', Lucide.terminal),
+        if (store.pluginOn('terminal')) _toggle(store, 'terminal_everywhere', 'Terminal keys in every app', null, Lucide.globe),
+        _plugin(store, 'incognito', 'Incognito switch', 'Type without the keyboard learning or keeping anything.', Lucide.eyeOff),
       ],
     ),
     if (store.pluginOn('emoji'))
       PaneSection(
         title: 'Emoji',
         children: [
-          _choice(store, 'emoji_skin', 'Skin tone', const {'0': '✋', '1': '✋🏻', '2': '✋🏼', '3': '✋🏽', '4': '✋🏾', '5': '✋🏿'}),
-          _toggle(store, 'emoji_suggest', 'Emoji for the word you type'),
+          _choice(store, 'emoji_skin', 'Skin tone', const {'0': '✋', '1': '✋🏻', '2': '✋🏼', '3': '✋🏽', '4': '✋🏾', '5': '✋🏿'}, null, LucideMore.hand),
+          _toggle(store, 'emoji_suggest', 'Emoji for the word you type', null, LucideMore.smile),
         ],
       ),
-    if (store.pluginOn('clipboard')) PaneSection(children: [SettingRow(label: 'Clear clipboard history', value: Text('${store.clipCount} saved'), onPress: store.clipCount == 0 ? null : store.clearClipboard)]),
+    if (store.pluginOn('clipboard')) PaneSection(children: [SettingRow(label: 'Clear clipboard history', icon: AppIcon(LucideMore.trash2, size: 18), value: Text('${store.clipCount} saved'), onPress: store.clipCount == 0 ? null : store.clearClipboard)]),
     if (store.pluginOn('gifs'))
       ..._more(store, 'rowtools', [
         PaneSection(
