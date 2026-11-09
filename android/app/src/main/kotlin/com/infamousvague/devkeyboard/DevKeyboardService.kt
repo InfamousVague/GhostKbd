@@ -205,6 +205,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.popupKeys = prefs.popupKeys
         view.split = prefs.split
+        view.iconPack = prefs.iconPack
         // The chosen pack, filtered as set, made ready before the first key needs it.
         if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.sound) SoundPacks.prepare(this, prefs.soundPack, prefs.soundFilters)
         val rowShown = prefs.toolbar || usesRow()

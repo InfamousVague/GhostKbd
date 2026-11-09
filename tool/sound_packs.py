@@ -20,6 +20,51 @@ PACKS = {
     'typewriter': 'vintage manual typewriter, warm wooden desk, soft',
     'bubble': 'soft cartoon bubble',
     'arcade': '8-bit retro video game console',
+    # 2026-11-08, Matt: "generate about 20-30 more sound packs so I can refine the good ones".
+    'holy-panda': 'Holy Panda tactile mechanical keyboard switch, a rounded poppy bump',
+    'topre': 'Topre electrocapacitive keyboard, a soft cushioned rounded thock',
+    'buckling-spring': '1980s buckling spring keyboard, a loud spring click with a little ping',
+    'alps': 'vintage Alps white mechanical switch, a crisp scratchy click',
+    'box-jade': 'thick clicky box mechanical switch, a sharp heavy click bar',
+    'creamy': 'creamy lubed linear switch with POM keycaps, a smooth soft tok',
+    'marble': 'marbly thock keyboard, like a glass marble tapping stone, deep and glassy',
+    'laptop': 'thin laptop chiclet keyboard, a quiet soft tap',
+    'silent': 'silent dampened linear switch, a very soft muffled tap',
+    'wood': 'wooden keycaps on a wooden keyboard case, a warm hollow knock',
+    'ceramic': 'ceramic keycaps on a mechanical keyboard, a clacky glassy tick',
+    'terminal': 'vintage 1980s computer terminal keyboard, a solid mechanical clack',
+    'red-linear': 'light smooth red linear mechanical switch, a gentle clack',
+    'ink': 'smooth heavy black linear mechanical switch, a deep clean clack',
+}
+
+# Packs that are a sound rather than a keyboard: one description, varied for each key the same way.
+SOUND_ONLY = {
+    'piano': 'soft felt piano hammer tapping a muted low string, a short dull note',
+    'raindrop': 'water drop plip into a still pool',
+    'woodblock': 'small woodblock tok struck with a soft mallet',
+    'kalimba': 'soft kalimba tine pluck, gentle and warm',
+    'glass': 'light fingertip tap on a wine glass, a short soft ting',
+    'scifi': 'futuristic soft user interface tap, a subtle digital blip',
+    'pencil': 'pencil tip tapping paper on a desk',
+    'cardboard': 'fingertip tap on an empty cardboard box',
+    'pebble': 'small pebble tapped on a smooth stone',
+    'bubble-wrap': 'single bubble wrap bubble popping',
+    'phone-tick': 'smartphone touchscreen keyboard tick, soft and subtle',
+}
+VARIANTS = {
+    'key1': 'one {s}', 'key2': 'a single, very slightly different {s}', 'key3': 'one quick {s}',
+    'space': 'one deeper, bigger {s}', 'delete': 'one softer, lighter {s}', 'enter': 'one fuller, more satisfying {s}',
+}
+
+# Every pack's name in Settings, in its order; written to assets/sounds/packs.json for the app.
+NAMES = {
+    'mechanical': 'Clicky mechanical', 'thock': 'Deep thock', 'typewriter': 'Typewriter', 'bubble': 'Bubble pop',
+    'arcade': '8-bit arcade', 'holy-panda': 'Tactile pop', 'topre': 'Cushioned thock', 'buckling-spring': 'Buckling spring',
+    'alps': 'Vintage click', 'box-jade': 'Heavy click', 'creamy': 'Creamy', 'marble': 'Marbly', 'laptop': 'Laptop',
+    'silent': 'Silent', 'wood': 'Wooden', 'ceramic': 'Ceramic', 'terminal': 'Terminal clack', 'red-linear': 'Light linear',
+    'ink': 'Deep linear', 'piano': 'Muted piano', 'raindrop': 'Raindrops', 'woodblock': 'Woodblock', 'kalimba': 'Kalimba',
+    'glass': 'Glass', 'scifi': 'Sci-fi', 'pencil': 'Pencil', 'cardboard': 'Cardboard', 'pebble': 'Pebbles',
+    'bubble-wrap': 'Bubble wrap', 'phone-tick': 'Phone tick',
 }
 SOUNDS = {
     'key1': 'a single {p} key press, one short crisp click, close mic, dry, no reverb, isolated',
@@ -113,7 +158,9 @@ def main() -> None:
         return
     again = '--again' in sys.argv
     api_key = key()
-    for pack, thing in PACKS.items():
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / 'packs.json').write_text(json.dumps([{'id': k, 'name': v} for k, v in NAMES.items()], indent=1) + '\n')
+    for pack, thing in list(PACKS.items()) + [(k, None) for k in SOUND_ONLY]:
         folder = OUT / pack
         stamp = folder / '.version'
         made_at = int(stamp.read_text().strip()) if stamp.exists() else 1
@@ -122,7 +169,10 @@ def main() -> None:
             continue
         folder.mkdir(parents=True, exist_ok=True)
         for name, prompt in SOUNDS.items():
-            text = SPECIAL.get(pack, {}).get(name) or prompt.format(p=thing)
+            if pack in SOUND_ONLY:
+                text = VARIANTS[name].format(s=SOUND_ONLY[pack]) + ', very short, close mic, dry, no reverb, isolated'
+            else:
+                text = SPECIAL.get(pack, {}).get(name) or prompt.format(p=thing)
             trim(generate(api_key, text), folder / f'{name}.ogg', pack)
             print(f'{pack}/{name}.ogg')
         stamp.write_text(str(PACK_VERSIONS.get(pack, 1)))

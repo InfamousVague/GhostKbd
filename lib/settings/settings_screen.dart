@@ -81,15 +81,43 @@ class SettingsPage extends StatelessWidget {
           ),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, t.space(10) + pad.bottom),
+              padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, t.space(4)),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [child],
             ),
+          ),
+          // A field on every page to try a setting at once. When it's tapped the page slides up with the keyboard,
+          // the field riding just above the keys (the keyboard's own room above them lets the page through).
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            child: _TryBar(gutter: gutter, bottom: MediaQuery.viewInsetsOf(context).bottom > 0 ? t.space(2) : t.space(2) + pad.bottom),
           ),
         ],
       ),
     );
     if (hue != null) page = GlacierScope(attrs: {'hue': hue!}, child: page);
     return SettingsPaneScope(finder: SettingsFinder(), child: page);
+  }
+}
+
+/// The try-the-keyboard field pinned to the foot of every settings page.
+class _TryBar extends StatelessWidget {
+  const _TryBar({required this.gutter, required this.bottom});
+  final double gutter;
+  final double bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return DecoratedBox(
+      decoration: BoxDecoration(color: t.color('glacier-bg'), border: Border(top: BorderSide(color: t.color('app-rule')))),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, bottom),
+        child: const GlacierInput(placeholder: 'Try the keyboard here', ariaLabel: 'Try the keyboard', size: GlacierFieldSize.md),
+      ),
+    );
   }
 }
 

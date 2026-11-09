@@ -112,7 +112,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       if (store.pluginOn('incognito'))
         SettingsSection(id: 'incognito', label: 'Incognito', icon: _icon(Lucide.eyeOff), hue: 'purple', group: 'plugins', summary: (s) => 'A switch in the row', page: _incognito),
       if (store.pluginOn('sounds'))
-        SettingsSection(id: 'sounds', label: 'Sound packs', icon: _icon(Lucide.volume2), hue: 'coral', group: 'plugins', summary: (s) => soundPacks.where((p) => p.$1 == s.choice('sound_pack')).firstOrNull?.$2 ?? '', page: _sounds),
+        SettingsSection(id: 'sounds', label: 'Sound packs', icon: _icon(Lucide.volume2), hue: 'coral', group: 'plugins', summary: (s) => [...s.soundPacksHere, ...soundPacks].where((p) => p.$1 == s.choice('sound_pack')).firstOrNull?.$2 ?? '', page: _sounds),
       if (store.pluginOn('emoji'))
         SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
@@ -164,10 +164,6 @@ List<Widget> _setup(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(
-      title: 'Try it',
-      children: const [SettingRowBox(child: GlacierInput(placeholder: 'Tap here to try the keyboard', ariaLabel: 'Try the keyboard'))],
-    ),
-    PaneSection(
       children: [SettingRow(label: 'Watch the walkthrough again', icon: AppIcon(LucideMore.rocket, size: 18), onPress: () => openOnboarding(context, store, replay: true))],
     ),
   ];
@@ -202,8 +198,8 @@ List<Widget> _look(BuildContext context, SettingsStore store) => [
         ],
       ),
       PaneSection(
-        title: 'Row icons',
-        footer: const Text('The icons in the row above the keys, from Ghost.md’s icon packs, outlined with a soft fill inside.'),
+        title: 'Icons',
+        footer: const Text('The keys’ icons (shift, backspace, enter, mic) and the row’s, from Ghost.md’s icon packs, outlined with a soft fill inside.'),
         children: [
           for (final (id, name, line) in rowIconPacks)
             SettingRow(
@@ -479,10 +475,10 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
           ? (here.isEmpty ? 'The packs come with an update once they have been made; until then keys use Android’s sounds.' : 'Packs not in this build yet play Android’s sounds.')
           : 'Turn on Sound in Key press to hear them.'),
       children: [
-        for (final (id, name) in soundPacks)
+        for (final (id, name) in here.isEmpty ? soundPacks : here)
           SettingRow(
             label: name,
-            hint: here.contains(id) ? null : const Text('Coming in an update'),
+            hint: here.isEmpty ? const Text('Coming in an update') : null,
             icon: store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
             onPress: () => store.set('sound_pack', id),
           ),

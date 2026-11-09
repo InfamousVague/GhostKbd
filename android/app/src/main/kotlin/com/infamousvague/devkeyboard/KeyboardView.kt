@@ -520,42 +520,33 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         canvas.drawText(text, cx, cy - (m.ascent + m.descent) / 2, label)
     }
 
+    /** The chosen icon pack (Look & layout › Icons): the keys' icons and the row's. */
+    var iconPack = "lucide"
+        set(value) { if (field != value) { field = value; invalidate() } }
+    private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /** [icon] from the chosen pack, [size] across, centred on (cx, cy). */
+    private fun drawPackIcon(canvas: Canvas, icon: RowIcon, cx: Float, cy: Float, size: Float, color: Int, filled: Boolean = false) {
+        canvas.save()
+        canvas.translate(cx - size / 2, cy - size / 2)
+        IconDrawable.drawGlyph(canvas, RowIcons.icon(iconPack, icon), size, color, iconPaint, filled)
+        canvas.restore()
+    }
+
     private fun drawShift(canvas: Canvas, cx: Float, cy: Float) {
         val u = dp(1f)
-        path.reset()
-        path.moveTo(cx, cy - 9 * u)
-        path.lineTo(cx + 9 * u, cy + 1 * u)
-        path.lineTo(cx + 4 * u, cy + 1 * u)
-        path.lineTo(cx + 4 * u, cy + 7 * u)
-        path.lineTo(cx - 4 * u, cy + 7 * u)
-        path.lineTo(cx - 4 * u, cy + 1 * u)
-        path.lineTo(cx - 9 * u, cy + 1 * u)
-        path.close()
-        stroke.color = theme.text
-        stroke.strokeWidth = dp(1.8f)
-        if (shift == ShiftState.OFF) {
-            canvas.drawPath(path, stroke)
-        } else {
-            fill.color = theme.text
-            canvas.drawPath(path, fill)
-            canvas.drawPath(path, stroke)
-        }
+        // Filled while on; underlined, too, when locked.
+        drawPackIcon(canvas, RowIcon.SHIFT, cx, cy, dp(23f), theme.text, filled = shift != ShiftState.OFF)
         if (shift == ShiftState.LOCKED) {
+            stroke.color = theme.text
             stroke.strokeWidth = dp(2f)
-            canvas.drawLine(cx - 4 * u, cy + 11 * u, cx + 4 * u, cy + 11 * u, stroke)
+            canvas.drawLine(cx - 5 * u, cy + 14 * u, cx + 5 * u, cy + 14 * u, stroke)
         }
     }
 
     /** A microphone: a capsule, its cradle and its stand. */
     private fun drawMic(canvas: Canvas, cx: Float, cy: Float, color: Int, scale: Float = 1f) {
-        val u = dp(1f) * scale
-        stroke.color = color
-        stroke.strokeWidth = dp(1.8f) * scale
-        canvas.drawRoundRect(RectF(cx - 3.5f * u, cy - 9 * u, cx + 3.5f * u, cy + 2 * u), 3.5f * u, 3.5f * u, stroke)
-        path.reset()
-        path.addArc(RectF(cx - 7 * u, cy - 6 * u, cx + 7 * u, cy + 6 * u), 0f, 180f)
-        canvas.drawPath(path, stroke)
-        canvas.drawLine(cx, cy + 6 * u, cx, cy + 9 * u, stroke)
+        drawPackIcon(canvas, RowIcon.MIC, cx, cy, dp(22f) * scale, color)
     }
 
     /** The listening panel, over the keys: a ring that swells with the voice, and what to do. */
@@ -579,20 +570,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     }
 
     private fun drawDelete(canvas: Canvas, cx: Float, cy: Float) {
-        val u = dp(1f)
-        val x = cx + 1 * u
-        path.reset()
-        path.moveTo(x - 11 * u, cy)
-        path.lineTo(x - 5 * u, cy - 7 * u)
-        path.lineTo(x + 9 * u, cy - 7 * u)
-        path.lineTo(x + 9 * u, cy + 7 * u)
-        path.lineTo(x - 5 * u, cy + 7 * u)
-        path.close()
-        stroke.color = theme.text
-        stroke.strokeWidth = dp(1.8f)
-        canvas.drawPath(path, stroke)
-        canvas.drawLine(x - 1 * u, cy - 3 * u, x + 5 * u, cy + 3 * u, stroke)
-        canvas.drawLine(x + 5 * u, cy - 3 * u, x - 1 * u, cy + 3 * u, stroke)
+        drawPackIcon(canvas, RowIcon.DELETE, cx, cy, dp(24f), theme.text)
     }
 
     private fun drawEnter(canvas: Canvas, cx: Float, cy: Float) {
@@ -600,6 +578,11 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         stroke.color = theme.onAccent
         stroke.strokeWidth = dp(2f)
         path.reset()
+        when (enterIcon) {
+            EnterIcon.RETURN -> { drawPackIcon(canvas, RowIcon.ENTER, cx, cy, dp(22f), theme.onAccent); return }
+            EnterIcon.SEARCH -> { drawPackIcon(canvas, RowIcon.SEARCH, cx, cy, dp(21f), theme.onAccent); return }
+            else -> Unit
+        }
         when (enterIcon) {
             EnterIcon.RETURN -> {
                 path.moveTo(cx + 8 * u, cy - 7 * u)

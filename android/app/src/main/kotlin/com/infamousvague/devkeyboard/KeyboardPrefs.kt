@@ -38,7 +38,7 @@ class KeyboardPrefs(context: Context) {
     val markdownEverywhere: Boolean get() = bool(MARKDOWN_EVERYWHERE)
     val terminalEverywhere: Boolean get() = bool(TERMINAL_EVERYWHERE)
 
-    /** The sounds plugin's pack (SoundPacks.PACKS). */
+    /** The sounds plugin's pack (assets/sounds/packs.json). */
     val soundPack: String get() = prefs.getString(SOUND_PACK, "mechanical")!!
 
     /** Each kind of key sound's filters, as JSON (SoundPacks.parse). */

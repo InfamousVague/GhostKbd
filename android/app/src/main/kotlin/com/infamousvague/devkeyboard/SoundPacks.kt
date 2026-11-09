@@ -32,14 +32,16 @@ import kotlin.math.tanh
  * so a key's sound still starts the instant the finger lands.
  */
 object SoundPacks {
-    /** Pack id to its name, in Settings' order; the settings app lists the same (lib/plugins/catalogue.dart). */
-    val PACKS = linkedMapOf(
-        "mechanical" to "Clicky mechanical",
-        "thock" to "Deep thock",
-        "typewriter" to "Typewriter",
-        "bubble" to "Bubble pop",
-        "arcade" to "8-bit arcade",
-    )
+    /** Pack id to its name, in Settings' order, from assets/sounds/packs.json (tool/sound_packs.py writes it). */
+    fun packs(context: Context): LinkedHashMap<String, String> {
+        val out = LinkedHashMap<String, String>()
+        runCatching {
+            val a = org.json.JSONArray(context.assets.open("sounds/packs.json").bufferedReader().readText())
+            for (i in 0 until a.length()) a.getJSONObject(i).let { out[it.getString("id")] = it.getString("name") }
+        }
+        if (out.isEmpty()) out += linkedMapOf("mechanical" to "Clicky mechanical", "thock" to "Deep thock", "typewriter" to "Typewriter", "bubble" to "Bubble pop", "arcade" to "8-bit arcade")
+        return out
+    }
 
     /** The kinds of sound that are shaped apart: every letter key shares "key". */
     val KINDS = listOf("key", "space", "delete", "enter")

@@ -20,7 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** The small drawn icons the plugin row's buttons use. */
-enum class RowIcon { SETTINGS, HIDE, GIF, BACK, SEARCH, KEY }
+enum class RowIcon { SETTINGS, HIDE, GIF, BACK, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER }
 
 /**
  * One thing a plugin puts in the row above the keys.
@@ -194,22 +194,38 @@ class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int, var pack:
     override fun draw(canvas: Canvas) {
         val b = bounds
         if (b.width() <= 0) return
-        val glyph = RowIcons.icon(pack, icon)
-        val u = b.width() / 24f
         canvas.save()
         canvas.translate(b.left.toFloat(), b.top.toFloat())
-        canvas.scale(u, u)
-        paint.color = ink
-        paint.style = Paint.Style.FILL
-        paint.alpha = (glyph.washAlpha * android.graphics.Color.alpha(ink)).toInt()
-        for (d in glyph.wash) canvas.drawPath(SvgPath.parse(d), paint)
-        paint.alpha = android.graphics.Color.alpha(ink)
-        if (glyph.lines) {
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 2f
-        }
-        for (d in glyph.paths) canvas.drawPath(SvgPath.parse(d), paint)
+        drawGlyph(canvas, RowIcons.icon(pack, icon), b.width().toFloat(), ink, paint)
         canvas.restore()
+    }
+
+    companion object {
+        /**
+         * [glyph] in a [size]-pixel square at the canvas' origin, in [ink]: the wash under it (at its own share of the
+         * ink, or all of it with [filled]), then its lines stroked or its shapes filled.
+         */
+        fun drawGlyph(canvas: Canvas, glyph: PackIcon, size: Float, ink: Int, paint: Paint, filled: Boolean = false) {
+            canvas.save()
+            val s = size / glyph.box
+            canvas.scale(s, s)
+            canvas.translate(-glyph.ox, -glyph.oy)
+            val alpha = android.graphics.Color.alpha(ink)
+            paint.color = ink
+            paint.style = Paint.Style.FILL
+            paint.alpha = if (filled) alpha else (glyph.washAlpha * alpha).toInt()
+            for (d in glyph.wash) canvas.drawPath(SvgPath.parse(d), paint)
+            paint.alpha = alpha
+            if (glyph.lines) {
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = 2f * glyph.box / 24f
+                paint.strokeCap = Paint.Cap.ROUND
+                paint.strokeJoin = Paint.Join.ROUND
+            }
+            for (d in glyph.paths) canvas.drawPath(SvgPath.parse(d), paint)
+            paint.style = Paint.Style.FILL
+            canvas.restore()
+        }
     }
 
     override fun setAlpha(alpha: Int) { paint.alpha = alpha }

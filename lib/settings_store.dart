@@ -169,7 +169,7 @@ class SettingsStore extends ChangeNotifier {
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
-      soundPacksHere = [for (final p in await _channel.invokeListMethod<Object>('soundPacks') ?? const []) '$p'];
+      soundPacksHere = _packs(await _channel.invokeListMethod<Object>('soundPacks'));
       final popups = await _channel.invokeListMethod<Object>('popupDefaults');
       if (popups != null) {
         popupDefaults = [
@@ -258,11 +258,14 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
-  /// The sound packs in this build (they arrive once the sounds workflow has made them).
-  List<String> soundPacksHere = const [];
+  /// The sound packs in this build, as (id, name), in order (assets/sounds/packs.json).
+  List<(String, String)> soundPacksHere = const [];
+  static List<(String, String)> _packs(List<Object?>? raw) => [
+        for (final p in raw ?? const []) if (p is Map) ('${p['id']}', '${p['name']}'),
+      ];
   Future<void> refreshSoundPacks() async {
     try {
-      soundPacksHere = [for (final p in await _channel.invokeListMethod<Object>('soundPacks') ?? const []) '$p'];
+      soundPacksHere = _packs(await _channel.invokeListMethod<Object>('soundPacks'));
       notifyListeners();
     } on MissingPluginException {
       return;
