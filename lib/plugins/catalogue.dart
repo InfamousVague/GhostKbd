@@ -285,23 +285,9 @@ const List<PluginManifest> catalogue = [
     adds: ['[[note]] and #tag completion in Ghost.md', 'Ghost.md’s blocks in the row', 'Save a selection to Ghost.md from any app'],
     hasPage: true,
   ),
-  PluginManifest(
-    id: 'backlight',
-    name: 'Backlight',
-    line: 'Letters lit from behind, reacting as you type.',
-    description:
-        'An RGB mechanical keyboard’s shine-through legends for your phone: letters that glow and fade as you press them, ripples that run '
-        'out from each key, a heatmap of the keys you use, a rainbow wave, twinkling starlight or a slow breath. In your '
-        'theme’s accent, a colour of your own, or a rainbow.',
-    category: PluginCategory.look,
-    hue: 'purple',
-    icon: Lucide.sparkles,
-    adds: ['Six lighting effects', 'Eight colours and a rainbow'],
-    hasPage: true,
-  ),
 ];
 
-/// The backlight plugin's effects (android Backlight.kt): id, name, what it does.
+/// Settings › Backlight's effects (android Backlight.kt): id, name, what it does.
 const List<(String, String, String)> backlightEffects = [
   ('reactive', 'Reactive', 'The key you press glows, then fades.'),
   ('ripple', 'Ripple', 'A ring of light runs out from each key.'),

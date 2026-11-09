@@ -35,8 +35,7 @@ object Plugins {
     const val SOUNDS = "sounds"
     const val EMOJI = "emoji"
     const val GHOSTMD = "ghostmd"
-    const val BACKLIGHT = "backlight"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, SOUNDS, EMOJI, GHOSTMD, BACKLIGHT)
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, SOUNDS, EMOJI, GHOSTMD)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()

@@ -6,7 +6,7 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 /**
- * The backlight plugin: the keys' legends lit from behind, as shine-through keycaps on RGB mechanical keyboards are,
+ * The backlight (Settings › Backlight, on by default, off in password fields): the keys' legends lit from behind, as shine-through keycaps on RGB mechanical keyboards are,
  * reacting as you type. Only the legends change (KeyboardView.legendLight), never the keys themselves.
  *
  * - reactive: the key pressed glows and fades over half a second, the classic per-key light.

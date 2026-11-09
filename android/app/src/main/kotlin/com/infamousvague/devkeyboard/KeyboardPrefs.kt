@@ -48,7 +48,8 @@ class KeyboardPrefs(context: Context) {
     /** Split the keys on a wide screen (an unfolded foldable, a tablet). */
     val split: Boolean get() = bool(SPLIT)
 
-    /** The backlight plugin: its effect, colour and strength (Backlight.kt). */
+    /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
+    val backlight: Boolean get() = bool(BACKLIGHT)
     val backlightEffect: String get() = prefs.getString(BACKLIGHT_EFFECT, "reactive")!!
     val backlightColour: String get() = prefs.getString(BACKLIGHT_COLOUR, "accent")!!
     val backlightStrength: String get() = prefs.getString(BACKLIGHT_STRENGTH, "medium")!!
@@ -147,6 +148,7 @@ class KeyboardPrefs(context: Context) {
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
         const val SPLIT = "split_keyboard"
+        const val BACKLIGHT = "backlight"
         const val BACKLIGHT_EFFECT = "backlight_effect"
         const val BACKLIGHT_COLOUR = "backlight_colour"
         const val BACKLIGHT_STRENGTH = "backlight_strength"
@@ -191,6 +193,7 @@ class KeyboardPrefs(context: Context) {
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
             SPLIT to true,
+            BACKLIGHT to true,
             BACKLIGHT_EFFECT to "reactive",
             BACKLIGHT_COLOUR to "accent",
             BACKLIGHT_STRENGTH to "medium",

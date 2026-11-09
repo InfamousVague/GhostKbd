@@ -44,6 +44,7 @@ class SettingsStore extends ChangeNotifier {
     'theme_accent': '',
     'theme_mode': 'dark',
     'split_keyboard': true,
+    'backlight': true,
     'backlight_effect': 'reactive',
     'backlight_colour': 'accent',
     'backlight_strength': 'medium',

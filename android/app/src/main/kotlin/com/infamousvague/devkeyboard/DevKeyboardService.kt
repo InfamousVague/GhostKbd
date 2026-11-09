@@ -209,7 +209,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.split = prefs.split
-        view.backlight = if (!Plugins.isOn(prefs, Plugins.BACKLIGHT)) null else view.backlight?.takeIf {
+        // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
+        view.backlight = if (!prefs.backlight || isPassword(currentInputEditorInfo)) null else view.backlight?.takeIf {
             it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode
         } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength), prefs.backlightMode)
         // The chosen pack, made ready before the first key needs it.

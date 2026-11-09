@@ -61,6 +61,15 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         summary: (s) => [if (s.flag('vibrate')) 'Vibrate', if (s.flag('key_popup')) 'Popup'].join(', ').ifEmptyThen('Nothing'),
         page: _keyPress,
       ),
+      SettingsSection(
+        id: 'backlight',
+        label: 'Backlight',
+        icon: _icon(Lucide.sparkles),
+        hue: 'purple',
+        group: 'keyboard',
+        summary: (s) => s.flag('backlight') ? (backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? 'On') : 'Off',
+        page: _backlight,
+      ),
       // The keys' sounds, stock ones included; the Sound packs plugin has its own page for its packs.
       SettingsSection(
         id: 'sounds-stock',
@@ -121,16 +130,6 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
-      if (store.pluginOn('backlight'))
-        SettingsSection(
-          id: 'backlight',
-          label: 'Backlight',
-          icon: _icon(Lucide.sparkles),
-          hue: 'purple',
-          group: 'plugins',
-          summary: (s) => backlightEffects.where((e) => e.$1 == s.choice('backlight_effect')).firstOrNull?.$2 ?? '',
-          page: _backlight,
-        ),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       // Hidden until the version number in About is tapped five times.
       if (store.flag('developer'))
@@ -530,7 +529,11 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
 List<Widget> _backlight(BuildContext context, SettingsStore store) {
   final t = context.tokens;
   return [
-    PaneHero(glyph: AppIcon(Lucide.sparkles, size: 24), title: 'Backlight', meta: const Text('Letters lit from behind, reacting as you type. Try it in the field below.'), status: const PaneHeroStatus('On')),
+    PaneSection(
+      footer: const Text('Letters lit from behind as you type, like shine-through keycaps. Never in password fields. Try it in the field below.'),
+      children: [_toggle(store, 'backlight', 'Backlight')],
+    ),
+    if (store.flag('backlight')) ...[
     PaneSection(
       children: [
         SettingRowBox(
@@ -602,7 +605,7 @@ List<Widget> _backlight(BuildContext context, SettingsStore store) {
         _choice(store, 'backlight_strength', store.choice('backlight_mode') == 'dim' ? 'How dark' : 'Brightness', const {'low': 'Low', 'medium': 'Medium', 'high': 'High'}),
       ],
     ),
-    PaneSection(children: [SettingRow(label: 'Remove Backlight', onPress: () => store.setPlugin('backlight', false))]),
+    ],
   ];
 }
 
