@@ -29,6 +29,7 @@ enum class RowIcon { SETTINGS, HIDE, GIF, BACK, SEARCH, KEY, MIC, DELETE, SHIFT,
  * - [icon]: a drawn icon instead of, or before, the label.
  * - [view]: a view of the plugin's own, shown as it is (a password manager's inline suggestion).
  * - [wide]: a suggestion: shares the row's width with the others, a third each, as Gboard's do.
+ * - [fill]: takes all the width the others leave (a search bar).
  */
 class RowItem(
     val id: String,
@@ -38,6 +39,7 @@ class RowItem(
     val wide: Boolean = false,
     val chip: Boolean = false,
     val view: View? = null,
+    val fill: Boolean = false,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -86,7 +88,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         val wideWidth = ((scroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(44f))) / wideCount)
         for (item in next) {
             val v = item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item)
-            val lp = LinearLayout.LayoutParams(
+            val lp = if (item.fill) LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f) else LinearLayout.LayoutParams(
                 if (item.wide) wideWidth else ViewGroup.LayoutParams.WRAP_CONTENT,
                 if (item.view != null) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.MATCH_PARENT,
             )
@@ -107,7 +109,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         }
         return TextView(context).apply {
             text = item.label
-            gravity = Gravity.CENTER
+            gravity = if (item.fill) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.CENTER
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (item.wide) 16f else 14f)

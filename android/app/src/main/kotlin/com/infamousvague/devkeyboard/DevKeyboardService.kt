@@ -568,7 +568,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (emojiMode != GifMode.OFF) {
             val typing = emojiMode == GifMode.TYPING
             items += RowItem("emoji-back", icon = RowIcon.BACK) { if (typing) browseEmoji() else closeEmoji() }
-            items += RowItem("emoji-query", label = if (typing) "$emojiQuery|" else "Search emoji", icon = RowIcon.SEARCH, chip = true) { typeEmojiSearch() }
+            // Browsing, the search bar takes the row's full width; typing, it shrinks to leave room for the results.
+            items += RowItem("emoji-query-$typing", label = if (typing) "$emojiQuery|" else "Search emoji", icon = RowIcon.SEARCH, chip = true, fill = !typing) { typeEmojiSearch() }
             if (typing) Emoji.search(emojiQuery, 40).forEach { e ->
                 val shown = e.toned(prefs.emojiSkin)
                 items += RowItem("emoji-$shown", label = shown) { commitEmoji(shown) }
@@ -580,7 +581,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("gif-back", icon = RowIcon.BACK) { if (gifMode == GifMode.TYPING) searchGifs() else closeGifs() }
             val typing = gifMode == GifMode.TYPING
             val label = if (typing) "$gifQuery|" else gifQuery.ifEmpty { "Search GIPHY" }
-            items += RowItem("gif-query", label = label, icon = RowIcon.SEARCH, chip = true) { typeGifSearch() }
+            items += RowItem("gif-query", label = label, icon = RowIcon.SEARCH, chip = true, fill = true) { typeGifSearch() }
             if (typing) items += RowItem("gif-go", icon = RowIcon.SEARCH) { searchGifs() }
             strip.setItems(items)
             return
