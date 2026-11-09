@@ -52,7 +52,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       ),
       SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: _typingSummary, page: _typingPage, parts: _typingParts),
       SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
-      SettingsSection(id: 'ai', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),
+      SettingsSection(id: 'ai', label: 'AI', icon: _icon(Lucide.sparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),
       SettingsSection(id: 'rowtools', label: 'Row tools', icon: _icon(Lucide.clipboardPaste), hue: 'amber', group: 'keyboard', summary: _rowSummary, page: _rowToolsPage),
       SettingsSection(
         id: 'market',
@@ -68,6 +68,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'dictation', label: 'Dictation', icon: _icon(Lucide.mic), hue: 'rose', group: 'plugins', summary: _dictationSummary, page: _dictation),
       if (store.pluginOn('passwords'))
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
+      if (store.pluginOn('ghostwriter'))
+        SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
@@ -474,11 +476,11 @@ class _VersionRowState extends State<_VersionRow> {
 
 // --- The simplified pages (2026-11-09: "simplify the settings and minimize what we have") ------------------------
 //
-// Six top pages where there were twenty-two: Typing, Look & feel, Ghostwriter, Row tools, About, and pages only for
-// the plugins that need setting up (Dictation, Password managers, Ghost.md). A page with parts shows its main switches,
+// Six top pages where there were twenty-two: Typing, Look & feel, AI, Row tools, About, and pages only for
+// the plugins that need setting up (Ghostwriter, Dictation, Password managers, Ghost.md). A page with parts shows its main switches,
 // then its parts as a list like the home list's ("if I click on ghostwriter I see another settings sidebar with the
 // ghostwriter parts"). The plugins every keyboard has (autocorrect, swipe, adaptive keys, the row's buttons,
-// Mockingbird and Ghostwriter) are switches on these pages, not Market items. Each "clear" sits beside what it clears.
+// Mockingbird) are switches on these pages, not Market items; Ghostwriter is added from the Market. Each "clear" sits beside what it clears.
 
 /// A plugin as a switch: on adds it, off removes it.
 SettingRow _plugin(SettingsStore store, String id, String label, String hint) => SettingRow(
@@ -507,8 +509,10 @@ String _typingSummary(SettingsStore s) =>
 String _aiSummary(SettingsStore s) {
   if (!s.pluginOn('mockingbird') && !s.pluginOn('ghostwriter')) return 'Off';
   if (s.ai['ready'] != true) return 'Add an AI key';
-  return [if (s.pluginOn('ghostwriter')) '<<requests>>', if (s.pluginOn('mockingbird')) (s.ai['profile'] != null ? 'your style' : 'learning your style')].join(', ');
+  return [_providerName(s), if (s.pluginOn('mockingbird')) (s.ai['profile'] != null ? 'your style' : 'learning your style')].join(', ');
 }
+
+String _ghostwriterSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
 const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
 
@@ -654,14 +658,14 @@ List<Widget> _aiPage(BuildContext context, SettingsStore store) {
   final ready = store.ai['ready'] == true;
   return [
     PaneHero(
-      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
-      title: !mb && !gw ? 'Ghostwriter' : (ready ? 'Ready' : 'Add an AI key'),
-      meta: const Text('Learns how you write, writes <<what you ask for>> in any app, and rewrites a selection In my voice. Your own key, straight to the provider.'),
+      glyph: AppIcon(Lucide.sparkles, size: 24),
+      title: !mb && !gw ? 'AI' : (ready ? 'Ready' : 'Add an AI key'),
+      meta: const Text('Your AI key, shared by Mockingbird and Ghostwriter, and Mockingbird learning how you write. Your own key, straight to the provider.'),
       status: PaneHeroStatus(!mb && !gw ? 'Off' : (ready ? 'On' : 'Waiting')),
     ),
     PaneSection(children: [
-      _plugin(store, 'ghostwriter', 'Fill <<requests>>', 'Type <<what you want>> anywhere; close it with >> or press enter, and the AI writes it as you.'),
       _plugin(store, 'mockingbird', 'Learn my style', 'Keeps samples of what you type, on this phone, and trains a profile of how you write.'),
+      if (!gw) SettingRow(label: 'Ghostwriter', hint: const Text('Writes <<what you ask for>> in any app. Add it from Plugins.'), onPress: () => pushSettings(context, (_) => MarketScreen(store: store))),
     ]),
   ];
 }
@@ -670,13 +674,35 @@ List<SettingsSection> _aiParts(SettingsStore store) {
   final mb = store.pluginOn('mockingbird');
   final gw = store.pluginOn('ghostwriter');
   return [
-    if (mb || gw) _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', (context, store) => _aiSetup(store)),
+    if (mb || gw) _aiProviderPart(),
     if (mb) _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
-    if (gw) _part('ai-filling', 'Filling', LucideMore.textCursorInput, 'indigo', (s) => [s.flag('ghostwriter_auto') ? 'On >>' : 'On Fill', if (s.flag('ghostwriter_typing')) 'typed out'].join(', '), _fillingPart),
-    if (gw) _part('ai-sources', 'What it can read', Lucide.globe, 'cyan', _sourcesSummary, _sourcesPart),
     _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
   ];
 }
+
+SettingsSection _aiProviderPart() =>
+    _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', (context, store) => _aiSetup(store));
+
+// --- Ghostwriter --------------------------------------------------------------------------------------------------
+
+List<Widget> _ghostwriterPage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Type <<what you want>> anywhere; close it with >> or press enter, and the AI writes it as you.'),
+      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+    ),
+    PaneSection(children: [_plugin(store, 'ghostwriter', 'Fill <<requests>>', 'Off removes Ghostwriter; add it again from Plugins.')]),
+  ];
+}
+
+List<SettingsSection> _ghostwriterParts(SettingsStore store) => [
+      _aiProviderPart(),
+      _part('ai-filling', 'Filling', LucideMore.textCursorInput, 'indigo', (s) => [s.flag('ghostwriter_auto') ? 'On >>' : 'On Fill', if (s.flag('ghostwriter_typing')) 'typed out'].join(', '), _fillingPart),
+      _part('ai-sources', 'What it can read', Lucide.globe, 'cyan', _sourcesSummary, _sourcesPart),
+    ];
 
 String _providerName(SettingsStore s) {
   final id = s.choice('ai_provider');

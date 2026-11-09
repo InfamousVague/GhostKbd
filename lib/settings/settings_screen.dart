@@ -40,7 +40,7 @@ class SettingsSection {
   final WidgetBuilder? screen;
 
   /// Its parts, each a section of its own: listed under the page's own cards, as the home list lists sections, and
-  /// opening their pages (Ghostwriter's Your AI, Your style, What it can read…).
+  /// opening their pages (AI's Your AI and Your style, Ghostwriter's What it can read…).
   final List<SettingsSection> Function(SettingsStore store)? parts;
 }
 

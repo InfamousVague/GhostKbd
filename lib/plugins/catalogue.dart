@@ -299,12 +299,13 @@ const List<PluginManifest> catalogue = [
     description:
         'Type <<engineering standup tldr>> or <<why do the metrics not fire on signup>> anywhere. When you close it with '
         '>> the AI writes the answer in your voice and it replaces the request: it reads Mockingbird’s style profile, '
-        'your past messages that match the request, the text around it and, if you let it, your clipboard. Where it '
-        'doesn’t know a fact it leaves a [blank] rather than guessing. << >> keeps clear of templates and code that use braces.',
+        'your past messages that match the request, the text around it and, if you let it, your clipboard, your Ghost.md '
+        'notes, your GitHub commits and the web. It types the answer out, keys lighting as it goes. Where it doesn’t know a '
+        'fact it leaves a [blank] rather than guessing. << >> keeps clear of templates and code that use braces.',
     category: PluginCategory.tools,
     hue: 'indigo',
     icon: LucideMore.wandSparkles,
-    adds: ['<<request>> filled in place, in any app', 'Answers from your own past messages', 'A Fill button when the cursor is on a request'],
+    adds: ['<<request>> filled in place, in any app', 'Answers from your messages, notes, commits and the web', 'A Fill button when the cursor is on a request'],
     permissions: [
       PluginPermission(Permission.network, 'To send the request, the text around it and the matching past messages to the AI you choose, with your own key.'),
     ],
@@ -365,9 +366,10 @@ const List<(String, String)> stockSounds = [
 
 
 /// Plugins that are part of every keyboard, switched on Settings' own pages (Typing, Look & feel, AI, Row tools)
-/// rather than offered in the Market.
+/// rather than offered in the Market. Ghostwriter stays a Market plugin (Matt, 2026-11-09: "ghostwriter should be a
+/// plugin still"), with a page of its own once added.
 const Set<String> builtInPlugins = {
-  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito', 'mockingbird', 'ghostwriter',
+  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito', 'mockingbird',
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.
