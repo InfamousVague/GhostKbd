@@ -48,6 +48,12 @@ object Ghostwriter {
         val appContext = context.applicationContext
         return launch(Job(ids.incrementAndGet(), request, tag), done) {
             val (system, user) = prompt(appContext, prefs, request, before, after, app)
+            // Debug builds only: the key "debug-echo" answers without any AI, to try the typing and the row.
+            if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
+                Thread.sleep(800)
+                return@launch "Shipped the PostHog waitlist events today: signups now fire waitlist_joined with the source, " +
+                    "and the funnel shows up on the growth dashboard. Next up, wiring the referral step."
+            }
             AiClient.complete(prefs, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
         }
     }
@@ -84,6 +90,13 @@ object Ghostwriter {
             var left = 2500
             ClipHistory.all(context).take(6).map { it.text.take(1200) }.takeWhile { c -> (left > 0).also { left -= c.length } }
         } else emptyList()
+        // The work behind "<<posthog updates we made>>": the person's commits that match, from GitHub.
+        var githubNote: String? = null
+        val commits = if (prefs.ghostwriterGithub && prefs.githubToken.isNotBlank()) {
+            runCatching { GitHubCommits.search(context, prefs.githubToken.trim(), request) }
+                .onFailure { githubNote = it.message }.getOrDefault(emptyList())
+        } else emptyList()
+        val words = GitHubCommits.keywords(request)
         val system = buildString {
             append(
                 """
@@ -91,8 +104,9 @@ object Ghostwriter {
                 between << and >>; the text you write replaces it, so write the text itself, as them, in their voice.
                 - If the request names something to write ("engineering standup tldr", "decline politely"), write it.
                 - If it is a question ("why does X happen"), write the answer they would put in this field.
-                - Facts about them (their work, plans, people, what they did) come from their past messages, their
-                  clipboard and the text around the request. Public facts (news, results, dates, figures, how things
+                - Facts about them (their work, plans, people, what they did) come from their GitHub commits, past
+                  messages, clipboard and the text around the request. Work updates come from the commits: say what
+                  changed and why in plain words, grouped sensibly, without hashes or file lists. Public facts (news, results, dates, figures, how things
                   work) you may look up on the web when you have search: do, rather than guess or leave them out.
                   Never invent specifics. Leave a short [bracketed blank] only for a fact you could not find.
                 - Fit the field: in a chat app keep it as short and casual as their texts; elsewhere match their
@@ -105,6 +119,14 @@ object Ghostwriter {
             if (memory.isNotEmpty()) {
                 append("\n\nTHEIR PAST MESSAGES (most relevant first; their memory, for facts and voice)\n")
                 memory.forEach { append("---\n").append(it.text).append('\n') }
+            }
+            if (commits.isNotEmpty()) {
+                append("\nTHEIR GITHUB COMMITS matching ").append(words.joinToString(", ")).append(" (newest first; what they and their AI agents actually changed)\n")
+                commits.forEach { append("---\n").append(it.date).append(' ').append(it.repo).append('\n').append(it.message).append('\n') }
+            } else if (githubNote != null) {
+                append("\n(Their GitHub couldn't be searched: ").append(githubNote).append(")\n")
+            } else if (prefs.ghostwriterGithub && prefs.githubToken.isNotBlank() && words.isNotEmpty()) {
+                append("\n(No GitHub commits of theirs mention ").append(words.joinToString(", ")).append(".)\n")
             }
             if (clips.isNotEmpty()) {
                 append("\nTHEIR RECENT CLIPBOARD (newest first)\n")

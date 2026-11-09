@@ -140,6 +140,31 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         }
     }
 
+    /** A key the AI is "pressing" as it types (Ghostwriter), drawn pressed with its preview, and when it lets go. */
+    private var ghostKey: Pair<Key, RectF>? = null
+    private val releaseGhost = Runnable { ghostKey = null; invalidate() }
+
+    /**
+     * Ghostwriter typing: the key for [c] goes down as a finger's would (pressed face, preview bubble, the backlight's
+     * flare) and comes up [holdMs] later. A character with no key on this page (a digit on the letters page) still
+     * lights nothing, so the text alone moves.
+     */
+    fun ghostPress(c: Char, holdMs: Long = 70) {
+        val match = when {
+            c == ' ' -> keyRects.firstOrNull { it.first.type == KeyType.SPACE }
+            c == '\n' -> keyRects.firstOrNull { it.first.type == KeyType.ENTER }
+            else -> {
+                val folded = Autocorrect.fold(c.lowercase()).firstOrNull()?.toString() ?: c.toString()
+                keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && (k.text == c.toString() || k.text.equals(folded, ignoreCase = true)) }
+            }
+        }
+        removeCallbacks(releaseGhost)
+        ghostKey = match
+        if (match != null) lightNow.press(lightId(match.first), match.second.centerX(), match.second.centerY(), android.os.SystemClock.uptimeMillis())
+        invalidate()
+        postDelayed(releaseGhost, holdMs)
+    }
+
     /**
      * The backlight on a key's legend, as a real board's shine-through legends: brightening blends the light's colour
      * into the label and icon, dimming fades them. Set on the legend's paints for the one key, cleared after; the key
@@ -367,7 +392,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             // The backlight tints this key's legend only: its label, hint and icon paints, not its face.
             val lit = lightNow.let { if (it === wordLight && !wordLight.animating(now)) null else legendLight(key, face(rect), it, now) }
             label.colorFilter = lit; iconPaint.colorFilter = lit; stroke.colorFilter = lit
-            drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true)
+            drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true || ghostKey?.first === key)
         }
         label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
@@ -384,6 +409,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                 showPreview && t.key.type == KeyType.CHAR && !t.cursorMoved && t.swipe == null -> drawPreview(canvas, t.key, t.rect)
             }
         }
+        if (touch == null) ghostKey?.let { (k, r) -> if (showPreview && k.type == KeyType.CHAR) drawPreview(canvas, k, r) }
     }
 
     /**

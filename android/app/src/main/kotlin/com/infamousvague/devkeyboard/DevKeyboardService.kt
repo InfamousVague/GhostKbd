@@ -78,6 +78,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Ghostwriter's <<request>> or Mockingbird's rewrite in flight, or its answer waiting to be placed. */
     private var aiJob: Ghostwriter.Job? = null
 
+    /** Ghostwriter typing an answer out: the text and how far it has got. */
+    private class Typing(val text: String) { var at = 0 }
+    private var typing: Typing? = null
+    private val typeHandler = Handler(Looper.getMainLooper())
+    private val typeTask = Runnable { typeTick() }
+    /** The AI's latest answers, kept out of Mockingbird's samples: they are not how the person writes. */
+    private val aiAnswers = ArrayDeque<String>()
+
     /** Mockingbird: the field's text as last read, kept as a sample once it is sent or left. */
     private var draft = ""
     private var draftApp: String? = null
@@ -282,6 +290,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     // --- KeyboardListener -------------------------------------------------------------------------------------------
 
     override fun onText(text: String, caretBack: Int) {
+        finishTyping()
         if (gifMode == GifMode.TYPING) { gifQuery += text; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery += text; scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -382,6 +391,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onDelete() {
+        finishTyping()
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -409,6 +419,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onSpace() {
+        finishTyping()
         if (gifMode == GifMode.TYPING) { gifQuery += " "; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery += " "; scheduleRow(); return }
         learnGhostMd()
@@ -435,6 +446,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onEnter() {
+        finishTyping()
         if (gifMode == GifMode.TYPING) { searchGifs(); return }
         if (emojiMode == GifMode.TYPING) { browseEmoji(); return }
         val info = currentInputEditorInfo
@@ -559,6 +571,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        finishTyping()
         flushDraft()
         if (dictation.listening) dictation.stop()
         closeGifs()
@@ -927,7 +940,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val ic = currentInputConnection ?: return false
         if (job.selection) {
             if (ic.getSelectedText(0)?.toString() != job.tag) return false
-            ic.commitText(text, 1)
+            if (prefs.ghostwriterTyping) { ic.commitText("", 1); startTyping(text) } else ic.commitText(text, 1)
+            remember(text)
             return true
         }
         val before = ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty()
@@ -941,13 +955,67 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (end < before.length) return false
         ic.beginBatchEdit()
         ic.deleteSurroundingText(before.length - at, (end - before.length).coerceAtLeast(0))
-        ic.commitText(text, 1)
+        if (!prefs.ghostwriterTyping) ic.commitText(text, 1)
         ic.endBatchEdit()
+        if (prefs.ghostwriterTyping) startTyping(text)
+        remember(text)
         return true
+    }
+
+    private fun remember(text: String) {
+        aiAnswers.addFirst(text)
+        while (aiAnswers.size > 6) aiAnswers.removeLast()
+    }
+
+    // --- the AI typing --------------------------------------------------------------------------------------------
+
+    private fun startTyping(text: String) {
+        finishTyping()
+        typing = Typing(text)
+        scheduleRow()
+        typeTick()
+    }
+
+    /**
+     * One beat of the AI typing: a few characters committed and their key pressed on the board, then a pause like a
+     * typist's: longer after a sentence, a comma or a line. Long answers move more characters a beat, so even a long
+     * one is done in about five seconds.
+     */
+    private fun typeTick() {
+        val t = typing ?: return
+        val ic = currentInputConnection ?: run { typing = null; return }
+        if (t.at >= t.text.length) { typing = null; scheduleRow(); return }
+        val per = (t.text.length / 150 + 1).coerceAtMost(6)
+        val chunk = t.text.substring(t.at, (t.at + per).coerceAtMost(t.text.length))
+        t.at += chunk.length
+        ic.commitText(chunk, 1)
+        keyboard?.ghostPress(chunk.last(), holdMs = 60)
+        val last = chunk.last()
+        val pause = when (last) {
+            '.', '!', '?', '\n' -> 140L
+            ',', ';', ':' -> 70L
+            ' ' -> 34L
+            else -> 22L
+        } + (Math.random() * 18).toLong()
+        typeHandler.postDelayed(typeTask, pause)
+    }
+
+    /** Writes what is left at once: the person pressed a key, or left the field. */
+    private fun finishTyping() {
+        val t = typing ?: return
+        typing = null
+        typeHandler.removeCallbacks(typeTask)
+        if (t.at < t.text.length) currentInputConnection?.commitText(t.text.substring(t.at), 1)
+        scheduleRow()
     }
 
     /** The row while an answer is on its way, failed, or couldn't be placed. True when it filled [items]. */
     private fun aiRow(items: ArrayList<RowItem>): Boolean {
+        if (typing != null) {
+            items += RowItem("ai-typing", label = "✦ Typing…", chip = true, fill = true)
+            items += RowItem("ai-skip", label = "Skip", bold = true, chip = true) { finishTyping() }
+            return true
+        }
         val job = aiJob ?: return false
         if (job.cancelled) { aiJob = null; return false }
         val dismiss = RowItem("ai-x-${job.id}", label = "✕", chip = true) { job.cancelled = true; aiJob = null; scheduleRow() }
@@ -1001,8 +1069,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. */
     private fun flushDraft() {
-        val text = draft
+        var text = draft
         draft = ""
+        for (answer in aiAnswers) text = text.replace(answer, " ")
         if (text.isBlank() || incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
         Mockingbird.record(this, text, draftApp.orEmpty())
         Mockingbird.maybeAutoTrain(this, prefs)

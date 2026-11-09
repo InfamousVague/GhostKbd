@@ -649,7 +649,28 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
               ? 'News, results, dates and figures are searched for with your provider’s own web search, instead of left as [blanks].'
               : 'Your provider has no web search: switch to Claude, OpenAI, Gemini or OpenRouter for this.',
         ),
+        _toggle(store, 'ghostwriter_typing', 'Type the answer out', 'The keys light up as the AI types its answer into the field. Off: it appears at once.'),
         _toggle(store, 'ghostwriter_clipboard', 'Read my recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies go with the request.' : 'Needs the Clipboard history plugin.'),
+      ],
+    ),
+    PaneSection(
+      title: 'GitHub',
+      footer: const Text('For <<posthog updates we made>>: the request’s words are searched in the commit messages of your repositories and your organizations’, newest first. A classic token with the repo scope, or a fine-grained one with Contents: read, from github.com/settings/tokens. Kept on your phone.'),
+      children: [
+        _toggle(store, 'ghostwriter_github', 'Search my GitHub commits'),
+        SettingRowBox(
+          child: GlacierInput(
+            key: const ValueKey('github-token'),
+            type: GlacierInputType.password,
+            defaultValue: store.text('github_token'),
+            placeholder: 'Paste a GitHub token',
+            ariaLabel: 'GitHub token',
+            autoCorrect: false,
+            onChange: (text) => store.set('github_token', text.trim()),
+          ),
+        ),
+        SettingRow(label: store.aiBusy ? 'Checking…' : 'Check the token', onPress: store.aiBusy ? null : store.checkGithub),
+        if (store.githubMessage != null) SettingRow(label: store.githubMessage!),
       ],
     ),
     ..._aiSetup(store),

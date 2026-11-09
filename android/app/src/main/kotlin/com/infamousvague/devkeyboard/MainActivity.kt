@@ -191,6 +191,12 @@ class MainActivity : FlutterActivity() {
                     "mockingbirdTrain" -> Mockingbird.train(this@MainActivity) { error ->
                         runOnUiThread { result.success(aiState() + mapOf("trainError" to error)) }
                     }
+                    "githubCheck" -> background(result) {
+                        val token = prefs.githubToken.trim()
+                        if (token.isEmpty()) throw GitHubCommits.GitHubError("Paste a GitHub token first")
+                        val a = GitHubCommits.account(this@MainActivity, token, refresh = true)
+                        mapOf("login" to a.login, "owners" to a.owners)
+                    }
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }
                     else -> result.notImplemented()
                 }

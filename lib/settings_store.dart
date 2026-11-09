@@ -68,6 +68,9 @@ class SettingsStore extends ChangeNotifier {
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
     'ghostwriter_web': true,
+    'ghostwriter_github': true,
+    'github_token': '',
+    'ghostwriter_typing': true,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -95,7 +98,7 @@ class SettingsStore extends ChangeNotifier {
   /// Every setting as it stands, for Settings › Developer's copy of the details.
   /// API keys are never in it: it is made to be copied and pasted.
   String get settingsJson => _values.entries
-      .map((e) => e.key.startsWith('ai_key_') ? '${e.key}=${'${e.value}'.isEmpty ? '' : '(set)'}' : '${e.key}=${e.value}')
+      .map((e) => e.key.startsWith('ai_key_') || e.key == 'github_token' ? '${e.key}=${'${e.value}'.isEmpty ? '' : '(set)'}' : '${e.key}=${e.value}')
       .join(', ');
 
   Set<String> get plugins => choice('plugins').split(',').map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
@@ -262,19 +265,35 @@ class SettingsStore extends ChangeNotifier {
         aiMessage = error ?? 'Trained. Your style profile is below.';
       });
 
+  /// Ghostwriter's GitHub: whose token it is and the owners searched, once checked.
+  String? githubMessage;
+
+  Future<void> checkGithub() => _aiAction(() async {
+        final r = await _channel.invokeMethod<Object>('githubCheck');
+        if (r is Map) {
+          final owners = (r['owners'] as List? ?? const []).join(', ');
+          githubMessage = 'Signed in as ${r['login']}. Searching commits in $owners.';
+        }
+      }, onError: (m) => githubMessage = m);
+
   Future<void> clearMockingbird() => _aiAction(() async {
         _setAi(await _channel.invokeMethod<Object>('mockingbirdClear'));
         aiMessage = 'Samples and profile deleted.';
       });
 
-  Future<void> _aiAction(Future<void> Function() action) async {
+  Future<void> _aiAction(Future<void> Function() action, {void Function(String message)? onError}) async {
     aiBusy = true;
     aiMessage = null;
     notifyListeners();
     try {
       await action();
     } on PlatformException catch (e) {
-      aiMessage = e.message ?? 'Something went wrong';
+      final message = e.message ?? 'Something went wrong';
+      if (onError != null) {
+        onError(message);
+      } else {
+        aiMessage = message;
+      }
     } on MissingPluginException {
       aiMessage = null;
     }
