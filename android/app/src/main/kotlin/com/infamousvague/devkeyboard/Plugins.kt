@@ -21,6 +21,8 @@ package com.infamousvague.devkeyboard
  * - `mockingbird` (Mockingbird.kt, AiClient.kt): learns how you write and text, as a style profile the AI follows;
  *   "In my voice" rewrites a selection.
  * - `ghostwriter` (Ghostwriter.kt): <<request>> anywhere is written by the AI, as you, in place.
+ * - `adaptive` (AdaptiveKeys.kt): learns where you aim at each letter and the neighbours you hit by mistake, and moves
+ *   the keys' touch areas to suit; a heatmap of the mistakes and the moved aims can be drawn over the keys.
  */
 object Plugins {
     const val AUTOCORRECT = "autocorrect"
@@ -38,7 +40,8 @@ object Plugins {
     const val GHOSTMD = "ghostmd"
     const val MOCKINGBIRD = "mockingbird"
     const val GHOSTWRITER = "ghostwriter"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER)
+    const val ADAPTIVE = "adaptive"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()

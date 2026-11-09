@@ -221,6 +221,8 @@ class MainActivity : FlutterActivity() {
                         val a = GitHubCommits.account(this@MainActivity, token, refresh = true)
                         mapOf("login" to a.login, "owners" to a.owners)
                     }
+                    "adaptiveState" -> result.success(adaptiveState())
+                    "adaptiveReset" -> { AdaptiveKeys.get(this@MainActivity).reset(); result.success(adaptiveState()) }
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }
                     else -> result.notImplemented()
                 }
@@ -236,6 +238,13 @@ class MainActivity : FlutterActivity() {
                 r.onSuccess { result.success(it) }.onFailure { result.error("ai", it.message ?: "Something went wrong", null) }
             }
         }.start()
+    }
+
+    /** Settings › Adaptive keys: how many letters have learned aims, and how many mistakes it remembers. */
+    private fun adaptiveState(): Map<String, Any> {
+        val model = AdaptiveKeys.get(this)
+        return mapOf("keys" to model.learnedKeys(), "mistakes" to model.mistakes.size,
+            "common" to model.mistakes.groupingBy { "${it.pressed}→${it.meant}" }.eachCount().entries.sortedByDescending { it.value }.take(5).map { "${it.key} ×${it.value}" })
     }
 
     /** Settings › AI and Mockingbird: the providers, whether one is ready, the samples and the style profile. */

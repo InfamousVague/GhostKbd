@@ -126,6 +126,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       if (store.pluginOn('mockingbird'))
         SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'purple', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbird),
+      if (store.pluginOn('adaptive'))
+        SettingsSection(id: 'adaptive', label: 'Adaptive keys', icon: _icon(LucideMore.target), hue: 'coral', group: 'plugins', summary: (s) => '${s.adaptive['keys'] ?? 0} keys tuned', page: _adaptive),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: (s) => s.ai['ready'] == true ? '<<request>> anywhere' : 'Add an AI key', page: _ghostwriter),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
@@ -698,6 +700,40 @@ List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Remove Ghostwriter', onPress: () => store.setPlugin('ghostwriter', false))]),
+  ];
+}
+
+List<Widget> _adaptive(BuildContext context, SettingsStore store) {
+  final a = store.adaptive;
+  final keys = a['keys'] as int? ?? 0;
+  final mistakes = a['mistakes'] as int? ?? 0;
+  final common = [for (final c in (a['common'] as List? ?? const [])) '$c'];
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.target, size: 24),
+      title: keys == 0 ? 'Learning your aim' : '$keys keys tuned',
+      meta: Text(mistakes == 0 ? 'Type as usual. Each letter needs a few dozen touches before its edges move.' : '$mistakes mistakes remembered${common.isEmpty ? '' : '. Most often: ${common.join(', ')}'}.'),
+      status: const PaneHeroStatus('On'),
+    ),
+    PaneSection(
+      footer: const Text('Try it in the field below: red glows are where your mistakes land; a dot on a line is where a key now listens, moved from its middle.'),
+      children: [
+        _toggle(store, 'adaptive_map', 'Show the heatmap on the keyboard', 'Your mistakes and the moved keys, drawn over the letters while this is on.'),
+        SettingRow(label: 'Refresh', onPress: store.refreshAdaptive),
+      ],
+    ),
+    PaneSection(
+      title: 'How it works',
+      children: const [
+        SettingRow(label: 'What it learns from', hint: Text('Backspace and then the letter beside it, and autocorrect putting a neighbouring letter in. Each letter left standing teaches its own key where you aim.')),
+        SettingRow(label: 'How far keys move', hint: Text('A third of a key at most, and only once a letter has 15 touches; a key’s middle is always its own.')),
+        SettingRow(label: 'Never', hint: Text('In password fields or while incognito. It all stays on this phone.')),
+      ],
+    ),
+    PaneSection(children: [
+      SettingRow(label: 'Forget what it learned', onPress: keys == 0 && mistakes == 0 ? null : store.resetAdaptive),
+      SettingRow(label: 'Remove Adaptive keys', onPress: () => store.setPlugin('adaptive', false)),
+    ]),
   ];
 }
 

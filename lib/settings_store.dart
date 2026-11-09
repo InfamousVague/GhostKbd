@@ -76,6 +76,7 @@ class SettingsStore extends ChangeNotifier {
     'github_token': '',
     'ghostwriter_typing': true,
     'ghostwriter_notes': true,
+    'adaptive_map': false,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -169,6 +170,7 @@ class SettingsStore extends ChangeNotifier {
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
       _setAi(await _channel.invokeMethod<Object>('aiState'));
+      await refreshAdaptive();
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -269,6 +271,29 @@ class SettingsStore extends ChangeNotifier {
         final error = r is Map ? r['trainError'] as String? : null;
         aiMessage = error ?? 'Trained. Your style profile is below.';
       });
+
+  /// Adaptive keys (AdaptiveKeys.kt): `keys` with learned aims, `mistakes` remembered, `common` (the top pairs).
+  Map<String, Object?> adaptive = const {'keys': 0, 'mistakes': 0, 'common': []};
+
+  Future<void> refreshAdaptive() async {
+    try {
+      final r = await _channel.invokeMethod<Object>('adaptiveState');
+      if (r is Map) adaptive = r.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> resetAdaptive() async {
+    try {
+      final r = await _channel.invokeMethod<Object>('adaptiveReset');
+      if (r is Map) adaptive = r.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
 
   /// Ghostwriter's Ghost.md notes online: signing in opens the browser on Ghost.md's page; the answer comes back
   /// through `aiChanged`.

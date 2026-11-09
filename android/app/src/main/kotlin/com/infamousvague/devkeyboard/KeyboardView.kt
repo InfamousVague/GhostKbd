@@ -115,6 +115,27 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
     var split = true
         set(value) { if (field != value) { field = value; layoutKeys(); invalidate() } }
 
+    /** The adaptive keys plugin's learned aims, or null without it; and whether its heatmap is drawn over the keys. */
+    var adaptive: AdaptiveKeys? = null
+    var adaptiveMap = false
+        set(value) { if (field != value) { field = value; invalidate() } }
+
+    /**
+     * The letter key a finger last typed, with where it aimed (after touch correction): what the adaptive keys
+     * plugin learns from. Set just before the key's text is typed, so the service can read it as it arrives.
+     */
+    class Typed(val c: Char, val rect: RectF, val x: Float, val y: Float)
+    private var lastTyped: Typed? = null
+
+    /** The letter just typed by a finger, once: null for anything typed another way (a popup, the row, a swipe). */
+    fun takeTyped(): Typed? = lastTyped.also { lastTyped = null }
+
+    /** The middle of [c]'s key on the letters page now, and its size: to measure a mistake against the key meant. */
+    fun letterRect(c: Char): RectF? = if (page != Page.LETTERS) null else keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text.equals(c.toString(), ignoreCase = true) }?.second
+
+    /** A point as a fraction of the keys' area, for the heatmap, which must hold on a folded or an unfolded screen. */
+    fun keysFraction(x: Float, y: Float): Pair<Float, Float> = (x / width.coerceAtLeast(1)) to ((y - keysTop) / keysHeight.coerceAtLeast(1f))
+
     /** The backlight plugin's light, or null without it. */
     var backlight: Backlight? = null
         set(value) { field = value; invalidate() }
@@ -395,6 +416,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true || ghostKey?.first === key)
         }
         label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
+        if (adaptiveMap && page == Page.LETTERS) adaptive?.let { drawAdaptive(canvas, it) }
         // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
         lightNow.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
         touch?.swipe?.let { drawSwipe(canvas, it) }
@@ -410,6 +432,36 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             }
         }
         if (touch == null) ghostKey?.let { (k, r) -> if (showPreview && k.type == KeyType.CHAR) drawPreview(canvas, k, r) }
+    }
+
+    private val heatPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val aimPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /**
+     * The adaptive keys plugin's heatmap: each remembered mistake a soft red glow where the touch landed, and each
+     * letter whose aim has moved a dot where it now is, tied to the key's middle by a line in the theme's colour.
+     */
+    private fun drawAdaptive(canvas: Canvas, model: AdaptiveKeys) {
+        val unit = keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second ?: return
+        val radius = unit.width() * 0.45f
+        for (m in model.mistakes) {
+            val x = m.x * width; val y = keysTop + m.y * keysHeight
+            heatPaint.shader = android.graphics.RadialGradient(x, y, radius, 0x55FF3B30, 0x00FF3B30, android.graphics.Shader.TileMode.CLAMP)
+            canvas.drawCircle(x, y, radius, heatPaint)
+        }
+        heatPaint.shader = null
+        aimPaint.color = theme.accent
+        aimPaint.strokeWidth = dp(1.5f)
+        for ((k, r) in keyRects) {
+            if (k.type != KeyType.CHAR || k.text.length != 1 || !k.text[0].isLetter()) continue
+            val (ox, oy) = model.offset(k.text[0])
+            if (ox == 0f && oy == 0f) continue
+            val cx = r.centerX() + ox * r.width(); val cy = r.centerY() + oy * r.height()
+            aimPaint.style = Paint.Style.STROKE
+            canvas.drawLine(r.centerX(), r.centerY(), cx, cy, aimPaint)
+            aimPaint.style = Paint.Style.FILL
+            canvas.drawCircle(cx, cy, dp(3.5f), aimPaint)
+        }
     }
 
     /**
@@ -782,6 +834,9 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
 
     private class Touch(val pointerId: Int, var key: Key, var rect: RectF, val downX: Float, val downY: Float) {
         val firstKey = key
+        /** Where the touch was read as aiming, after correction (keyAt's x and y). */
+        var aimX = downX
+        var aimY = downY
         var lastX = downX
         var lastY = downY
         var panel: Panel? = null
@@ -823,7 +878,8 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             val lift = when (fromBottom) { 0, 1 -> 0f; 2 -> dp(LIFT_MIDDLE_DP); else -> dp(LIFT_TOP_DP) }
             (if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX) to (rawY - lift).coerceAtLeast(keysTop + 1f)
         }
-        keyRects.firstOrNull { it.second.contains(x, y) }?.let { return it }
+        lastAim = x to y
+        keyRects.firstOrNull { it.second.contains(x, y) }?.let { return adapt(it, x, y) }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
             val dx = if (x < r.left) r.left - x else if (x > r.right) x - r.right else 0f
@@ -853,6 +909,28 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
         return if (sw < 1e-6f) 0f to 0f else (sx / sw) to (sy / sw)
     }
 
+    /** keyAt's corrected point for the last touch, for [Touch.aimX]. */
+    private var lastAim: Pair<Float, Float> = 0f to 0f
+
+    /**
+     * The adaptive keys plugin: of the letter under the touch and its neighbours, the one whose learned aim is nearest
+     * (in fractions of a key). With nothing learned every aim is the key's middle, which picks the key under the touch.
+     */
+    private fun adapt(hit: Pair<Key, RectF>, x: Float, y: Float): Pair<Key, RectF> {
+        val model = adaptive ?: return hit
+        if (page != Page.LETTERS || hit.first.type != KeyType.CHAR || hit.first.text.length != 1 || !hit.first.text[0].isLetter()) return hit
+        val w = hit.second.width(); val h = hit.second.height()
+        fun cost(r: RectF, c: Char): Float {
+            val (ox, oy) = model.offset(c)
+            val cx = r.centerX() + ox * r.width(); val cy = r.centerY() + oy * r.height()
+            val dx = (x - cx) / r.width(); val dy = (y - cy) / r.height()
+            return dx * dx + dy * dy
+        }
+        return keyRects.asSequence()
+            .filter { (k, r) -> k.type == KeyType.CHAR && k.text.length == 1 && k.text[0].isLetter() && kotlin.math.abs(r.centerX() - hit.second.centerX()) < w * 1.6f && kotlin.math.abs(r.centerY() - hit.second.centerY()) < h * 1.6f }
+            .minByOrNull { (k, r) -> cost(r, k.text[0]) } ?: hit
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -876,7 +954,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
                     return true
                 }
                 val (key, rect) = keyAt(x, y) ?: return true
-                press(Touch(event.getPointerId(i), key, rect, x, y))
+                press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second })
             }
             MotionEvent.ACTION_MOVE -> {
                 val t = touch ?: return true
@@ -1006,6 +1084,7 @@ class KeyboardView(context: Context, host: KeyboardListener) : View(context) {
             t.longPressed -> Unit
             else -> when (t.key.type) {
                 KeyType.CHAR -> {
+                    lastTyped = if (t.key === t.firstKey && t.key.text.length == 1) Typed(t.key.text[0], RectF(t.rect), t.aimX, t.aimY) else null
                     commit(display(t.key.text))
                     // A character key that names a page goes there after typing: the developer page's comma.
                     t.key.page?.let { showPage(it) }

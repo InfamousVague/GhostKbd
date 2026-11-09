@@ -78,6 +78,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Ghostwriter's <<request>> or Mockingbird's rewrite in flight, or its answer waiting to be placed. */
     private var aiJob: Ghostwriter.Job? = null
 
+    /** Adaptive keys: the touches of the word being typed, in order (null where a letter came another way), and the
+     *  last one backspace took away, with when. */
+    private val wordTouches = ArrayList<KeyboardView.Typed?>()
+    private var takenTouch: Pair<KeyboardView.Typed, Long>? = null
+
     /** Ghostwriter typing an answer out: the text and how far it has got. */
     private class Typing(val text: String) { var at = 0 }
     private var typing: Typing? = null
@@ -186,6 +191,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
+        wordTouches.clear(); takenTouch = null
         if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null }
         scheduleRow()
         keyboard?.let { view ->
@@ -231,6 +237,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.split = prefs.split
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
+        view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this) else null
+        view.adaptiveMap = Plugins.isOn(prefs, Plugins.ADAPTIVE) && prefs.adaptiveMap
         view.backlight = if (!prefs.backlight || isPassword(currentInputEditorInfo)) null else view.backlight?.takeIf {
             it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode &&
                 it.fade == Backlight.fadeOf(prefs.backlightFade)
@@ -302,7 +310,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (lastSwipe != null && text.length == 1 && text[0].isLetterOrDigit()) ic.commitText(" ", 1)
         lastSwipe = null
         // Punctuation ends a word, as space does: autocorrect it first.
-        if (caretBack == 0 && text.length == 1 && text[0] in WORD_ENDS && correctLastWord(ic, text)) return
+        if (caretBack == 0 && text.length == 1 && text[0] in WORD_ENDS && correctLastWord(ic, text)) { endWord(); return }
         lastCorrection = null
         // A closing bracket or quote in front of the same one (a pair typed earlier) steps over it, as an editor does.
         if (caretBack == 0 && text.length == 1 && text[0] in CLOSERS && ic.getTextAfterCursor(1, 0)?.toString() == text) {
@@ -314,6 +322,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // A pair's cursor goes inside it: commitText can only leave it before or after what it typed.
         if (caretBack > 0) moveCursorBy(ic, -caretBack)
         if (text == "]") learnGhostMd()
+        adaptiveTyped(text)
         if (text.endsWith(">")) checkFill()
         if (text.length == 1 && text[0] in WORD_ENDS) snapshotDraft()
     }
@@ -364,6 +373,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val after = ic.getTextAfterCursor(1, 0)
         if (!after.isNullOrEmpty() && (after[0].isLetterOrDigit() || after[0] == '\'')) return false
         val fixed = autocorrect.correct(word) ?: return false
+        adaptiveCorrected(word, fixed)
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)
         ic.commitText(fixed + separator, 1)
@@ -393,6 +403,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDelete() {
         finishTyping()
+        keyboard?.takeTyped()
+        takenTouch = wordTouches.removeLastOrNull()?.let { it to System.currentTimeMillis() }
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -421,6 +433,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onSpace() {
         finishTyping()
+        try { space() } finally { endWord() }
+    }
+
+    private fun space() {
         if (gifMode == GifMode.TYPING) { gifQuery += " "; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery += " "; scheduleRow(); return }
         learnGhostMd()
@@ -448,6 +464,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onEnter() {
         finishTyping()
+        try { enter() } finally { endWord() }
+    }
+
+    private fun enter() {
         if (gifMode == GifMode.TYPING) { searchGifs(); return }
         if (emojiMode == GifMode.TYPING) { browseEmoji(); return }
         val info = currentInputEditorInfo
@@ -473,6 +493,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onCursor(steps: Int) {
+        wordTouches.clear(); takenTouch = null
         val ic = currentInputConnection ?: return
         lastCorrection = null
         lastSwipe = null
@@ -971,6 +992,66 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         while (aiAnswers.size > 6) aiAnswers.removeLast()
     }
 
+    // --- adaptive keys -----------------------------------------------------------------------------------------------
+
+    private fun adaptiveOn() = Plugins.isOn(prefs, Plugins.ADAPTIVE) && !incognito && !isPassword(currentInputEditorInfo)
+
+    /** Two letters whose keys touch on the letters page. */
+    private fun neighbours(a: Char, b: Char): Boolean {
+        val ra = keyboard?.letterRect(a) ?: return false
+        val rb = keyboard?.letterRect(b) ?: return false
+        return a.lowercaseChar() != b.lowercaseChar() && kotlin.math.abs(ra.centerX() - rb.centerX()) < ra.width() * 1.6f && kotlin.math.abs(ra.centerY() - rb.centerY()) < ra.height() * 1.6f
+    }
+
+    /** A touch on [pressed] meant for [meant]: measured against [meant]'s key, and placed on the heatmap. */
+    private fun learnMistake(t: KeyboardView.Typed, meant: Char) {
+        // A touch in the middle of the key it typed was aimed there: taken back, it is a change of mind, not a slip.
+        if (kotlin.math.abs(t.x - t.rect.centerX()) < t.rect.width() * 0.2f && kotlin.math.abs(t.y - t.rect.centerY()) < t.rect.height() * 0.2f) return
+        val r = keyboard?.letterRect(meant) ?: return
+        val (fx, fy) = keyboard?.keysFraction(t.x, t.y) ?: return
+        AdaptiveKeys.get(this).mistake(t.c, meant, (t.x - r.centerX()) / r.width(), (t.y - r.centerY()) / r.height(), fx, fy)
+    }
+
+    /**
+     * After [text] is typed: a letter from a finger joins the word's touches. A letter typed straight after
+     * backspace took a neighbouring one away says that touch was meant for this letter.
+     */
+    private fun adaptiveTyped(text: String) {
+        val typed = keyboard?.takeTyped()
+        if (!adaptiveOn()) { wordTouches.clear(); takenTouch = null; return }
+        if (text.length != 1 || !text[0].isLetter()) { endWord(); return }
+        takenTouch?.let { (t, at) ->
+            if (System.currentTimeMillis() - at < 3000 && neighbours(t.c, text[0])) learnMistake(t, text[0])
+        }
+        takenTouch = null
+        wordTouches += typed?.takeIf { it.c.equals(text[0], ignoreCase = true) }
+    }
+
+    /** Autocorrect swapped [word] for [fixed]: where a letter became its neighbour, that touch was meant for it. */
+    private fun adaptiveCorrected(word: String, fixed: String) {
+        if (!adaptiveOn() || word.length != fixed.length || wordTouches.size != word.length) return
+        val swaps = word.indices.filter { !word[it].equals(fixed[it], ignoreCase = true) }
+        if (swaps.isEmpty() || swaps.size > 2) return
+        for (i in swaps) {
+            val t = wordTouches[i] ?: continue
+            if (!neighbours(word[i], fixed[i])) continue
+            learnMistake(t, fixed[i])
+            wordTouches[i] = null
+        }
+    }
+
+    /** The word is over: every touch left standing was right, and teaches its own key where it is aimed at. */
+    private fun endWord() {
+        if (wordTouches.isEmpty()) return
+        if (adaptiveOn()) {
+            val model = AdaptiveKeys.get(this)
+            for (t in wordTouches) t?.let { model.hit(it.c, (it.x - it.rect.centerX()) / it.rect.width(), (it.y - it.rect.centerY()) / it.rect.height()) }
+            model.save()
+        }
+        wordTouches.clear()
+        takenTouch = null
+    }
+
     // --- the AI typing --------------------------------------------------------------------------------------------
 
     private fun startTyping(text: String) {
@@ -1197,6 +1278,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     // --- swipe typing (the swipe plugin) ----------------------------------------------------------------------------
 
     override fun onSwipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyWidth: Float) {
+        wordTouches.clear(); takenTouch = null
         if (gifMode == GifMode.TYPING) return
         val ic = currentInputConnection ?: return
         val found = autocorrect.swipe(path, keys, keyWidth)
