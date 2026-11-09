@@ -16,7 +16,7 @@ object SoundPacks {
      * The stock sounds: every keyboard has them, without the plugin (Settings › Key press › Sound), id to name. More
      * are brought in over time; "system" is Android's own.
      */
-    val STOCK = linkedMapOf("bamboo" to "Thock")
+    val STOCK = linkedMapOf("bamboo" to "Thock", "geiger" to "Geiger counter")
 
     /** Pack id to its name, in Settings' order, from assets/sounds/packs.json (tool/sound_packs.py writes it). */
     fun packs(context: Context): LinkedHashMap<String, String> {

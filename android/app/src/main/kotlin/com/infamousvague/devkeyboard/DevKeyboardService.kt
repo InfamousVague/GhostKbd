@@ -211,7 +211,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.split = prefs.split
         // The chosen pack, made ready before the first key needs it.
         if (prefs.sound) {
-            val pack = if (Plugins.isOn(prefs, Plugins.SOUNDS)) prefs.soundPack else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
+            val pack = soundToPlay()
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         val rowShown = prefs.toolbar || usesRow()
@@ -468,7 +468,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         val volume = prefs.soundVolume
         // The plugin's pack where it is added, else the stock sound chosen in Key press, else Android's.
-        val pack = if (Plugins.isOn(prefs, Plugins.SOUNDS)) prefs.soundPack else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
+        val pack = soundToPlay()
         if (prefs.sound && volume > 0f && !(pack != null && SoundPacks.play(this, pack, key.type, volume))) {
             val fx = when (key.type) {
                 KeyType.DELETE -> AudioManager.FX_KEYPRESS_DELETE
@@ -479,6 +479,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             audio.playSoundEffect(fx, volume)
         }
     }
+
+    /** The sound the keys make: the plugin's pack when it was chosen last (and the plugin is added), else the stock
+     *  sound picked in Settings › Sounds; null for Android's own. */
+    private fun soundToPlay(): String? =
+        if (Plugins.isOn(prefs, Plugins.SOUNDS) && prefs.soundSource == "pack") prefs.soundPack
+        else prefs.stockSound.takeIf { it in SoundPacks.STOCK }
 
     override fun onShowPicker() {
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()

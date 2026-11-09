@@ -51,6 +51,7 @@ class SettingsStore extends ChangeNotifier {
     'sound_pack': 'mechanical',
     'sound_volume': '35',
     'stock_sound': 'bamboo',
+    'sound_source': 'stock',
     'plugins': 'autocorrect',
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',

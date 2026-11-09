@@ -40,6 +40,7 @@ class KeyboardPrefs(context: Context) {
 
     /** Key press › Sound, without the sounds plugin: a stock sound (SoundPacks.STOCK) or "system", Android's. */
     val stockSound: String get() = prefs.getString(STOCK_SOUND, "bamboo")!!
+    val soundSource: String get() = prefs.getString(SOUND_SOURCE, "stock")!!
 
     /** How loud key sounds play, 0 to 1 (the setting keeps a percentage). */
     val soundVolume: Float get() = (prefs.getString(SOUND_VOLUME, "35")!!.toFloatOrNull() ?: 35f).coerceIn(0f, 100f) / 100f
@@ -149,6 +150,8 @@ class KeyboardPrefs(context: Context) {
         const val SOUND_PACK = "sound_pack"
         const val SOUND_VOLUME = "sound_volume"
         const val STOCK_SOUND = "stock_sound"
+        /** Which plays: "stock" (Settings › Sounds) or "pack" (the Sound packs plugin), whichever was chosen last. */
+        const val SOUND_SOURCE = "sound_source"
         const val DICTATION_LANGUAGE = "dictation_language"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
@@ -186,6 +189,7 @@ class KeyboardPrefs(context: Context) {
             SOUND_PACK to "mechanical",
             SOUND_VOLUME to "35",
             STOCK_SOUND to "bamboo",
+            SOUND_SOURCE to "stock",
             DICTATION_LANGUAGE to "auto",
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",

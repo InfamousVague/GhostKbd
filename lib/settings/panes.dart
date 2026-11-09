@@ -70,7 +70,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         group: 'keyboard',
         summary: (s) => !s.flag('sound')
             ? 'Off'
-            : s.pluginOn('sounds')
+            : s.pluginOn('sounds') && s.choice('sound_source') == 'pack'
                 ? 'From Sound packs'
                 : stockSounds.where((p) => p.$1 == s.choice('stock_sound')).firstOrNull?.$2 ?? 'On',
         page: _soundsStock,
@@ -237,24 +237,29 @@ List<Widget> _keyPress(BuildContext context, SettingsStore store) => [
 
 List<Widget> _soundsStock(BuildContext context, SettingsStore store) => [
       PaneSection(children: [_toggle(store, 'sound', 'Sound on key press')]),
-      if (store.flag('sound') && !store.pluginOn('sounds'))
+      if (store.flag('sound'))
         PaneSection(
           title: 'Sound',
-          footer: const Text('Tap one to hear it. More sounds join this list over time; the Sound packs plugin has dozens more.'),
+          footer: Text(store.pluginOn('sounds')
+              ? 'Tap one to hear it and use it. Choosing a pack in Sound packs uses that instead; whichever you chose last plays.'
+              : 'Tap one to hear it. More sounds join this list over time; the Sound packs plugin has dozens more.'),
           children: [
             for (final (id, name) in stockSounds)
               SettingRow(
                 label: name,
-                icon: store.choice('stock_sound') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+                icon: (!store.pluginOn('sounds') || store.choice('sound_source') == 'stock') && store.choice('stock_sound') == id
+                    ? AppIcon(Lucide.check, size: 18)
+                    : const SizedBox(width: 18),
                 onPress: () async {
                   await store.set('stock_sound', id);
+                  await store.set('sound_source', 'stock');
                   if (id != 'system') store.sampleSound(id);
                 },
               ),
+            if (store.pluginOn('sounds') && store.choice('sound_source') == 'pack')
+              SettingRow(label: 'Using a Sound packs pack', hint: Text(soundPacks.where((p) => p.$1 == store.choice('sound_pack')).firstOrNull?.$2 ?? store.choice('sound_pack'))),
           ],
         ),
-      if (store.flag('sound') && store.pluginOn('sounds'))
-        const PaneSection(children: [SettingRow(label: 'Sound', hint: Text('Chosen in Sound packs, while that plugin is added.'))]),
       if (store.flag('sound')) PaneSection(children: [_volume(store)]),
     ];
 
@@ -463,10 +468,11 @@ List<Widget> _sounds(BuildContext context, SettingsStore store) {
           SettingRow(
             label: name,
             hint: here.isEmpty ? const Text('Coming in an update') : null,
-            icon: store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
+            icon: store.choice('sound_source') == 'pack' && store.choice('sound_pack') == id ? AppIcon(Lucide.check, size: 18) : const SizedBox(width: 18),
             // Choosing a pack plays a few seconds of typing in it.
             onPress: () async {
               await store.set('sound_pack', id);
+              await store.set('sound_source', 'pack');
               if (here.isNotEmpty) store.sampleSound();
             },
           ),

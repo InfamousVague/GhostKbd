@@ -98,7 +98,7 @@ NAMES = {
 }
 
 # Sounds every keyboard has, without the plugin (Settings > Key press > Sound): Bamboo, as "Thock" (2026-11-08).
-STOCK = {'bamboo': 'Thock'}
+STOCK = {'bamboo': 'Thock', 'geiger': 'Geiger counter'}
 
 # v3 for every pack but cardboard, which Matt liked as it was (2026-11-08) and which keeps its v1 sounds.
 # Cardboard (liked as it was) and Kalimba (its notes ring into each other, so it can't be cut) keep v1.
