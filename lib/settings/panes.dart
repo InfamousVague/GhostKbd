@@ -124,6 +124,10 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'emoji', label: 'Emoji', icon: _icon(LucideMore.smile), hue: 'yellow', group: 'plugins', summary: (s) => 'Emoji 18.0', page: _emoji),
       if (store.pluginOn('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
+      if (store.pluginOn('mockingbird'))
+        SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'purple', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbird),
+      if (store.pluginOn('ghostwriter'))
+        SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: (s) => s.ai['ready'] == true ? '<<request>> anywhere' : 'Add an AI key', page: _ghostwriter),
       SettingsSection(id: 'updates', label: 'Updates', icon: _icon(Lucide.refreshCw), hue: 'cyan', group: 'app', summary: _updateSummary, page: _updates),
       // Hidden until the version number in About is tapped five times.
       if (store.flag('developer'))
@@ -482,6 +486,177 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
         ('Where titles come from', 'The links and tags you type in Ghost.md are remembered on this phone. When Ghost.md shares its whole list with the keyboard, every note shows.'),
       ],
     );
+
+// --- Mockingbird and Ghostwriter ------------------------------------------------------------------------------------
+
+String _mockingbirdSummary(SettingsStore s) {
+  if (s.ai['training'] == true) return 'Training…';
+  if (s.ai['profile'] != null) return 'Trained';
+  return '${s.ai['samples'] ?? 0} samples';
+}
+
+String _when(Object? ms) {
+  if (ms is! num) return '';
+  final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms.toInt()));
+  if (d.inMinutes < 2) return 'just now';
+  if (d.inHours < 1) return '${d.inMinutes} minutes ago';
+  if (d.inDays < 1) return '${d.inHours} hours ago';
+  return d.inDays == 1 ? 'yesterday' : '${d.inDays} days ago';
+}
+
+/// The AI both plugins use: which provider, its key, its model, and a test. One setting for both pages.
+List<Widget> _aiSetup(SettingsStore store) {
+  final providers = [for (final p in (store.ai['providers'] as List? ?? const [])) if (p is Map) p];
+  final chosen = store.choice('ai_provider');
+  final provider = providers.where((p) => p['id'] == chosen).firstOrNull;
+  final name = provider?['name'] as String? ?? 'Claude';
+  final model = store.text('ai_model_$chosen');
+  final defaultModel = provider?['defaultModel'] as String? ?? '';
+  return [
+    PaneSection(
+      title: 'AI',
+      footer: const Text('Mockingbird and Ghostwriter share this. Requests go straight from your phone to the provider with your own key; Ghost Keyboard has no server in between.'),
+      children: [
+        for (final p in providers)
+          SettingRow(
+            label: p['name'] as String,
+            hint: Text(p['id'] == 'custom' ? 'Any OpenAI-compatible https endpoint: Ollama, LM Studio, vLLM.' : 'Key from ${p['keyFrom']}'),
+            value: p['id'] == chosen ? const Text('Chosen') : null,
+            onPress: p['id'] == chosen ? null : () => store.set('ai_provider', p['id'] as String),
+          ),
+      ],
+    ),
+    PaneSection(
+      title: '$name key',
+      footer: Text(chosen == 'custom' ? 'Optional for a server that asks for none.' : 'Kept in this app’s private storage on your phone. Copy settings in Developer never includes it.'),
+      children: [
+        if (chosen == 'custom')
+          SettingRowBox(
+            child: GlacierInput(
+              key: const ValueKey('ai-base-url'),
+              type: GlacierInputType.url,
+              defaultValue: store.text('ai_base_url'),
+              placeholder: 'https://your-server/v1',
+              ariaLabel: 'Server address',
+              onChange: (text) => store.set('ai_base_url', text.trim()),
+            ),
+          ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('ai-key-$chosen'),
+            type: GlacierInputType.password,
+            defaultValue: store.text('ai_key_$chosen'),
+            placeholder: 'Paste your $name API key',
+            ariaLabel: '$name API key',
+            autoCorrect: false,
+            onChange: (text) => store.set('ai_key_$chosen', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'Model',
+      footer: Text(model.isEmpty ? 'Using $defaultModel until you pick another. Type a model’s id and press enter, or load the list.' : 'Type a model’s id and press enter, or load the list.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('ai-model-$chosen-$model'),
+            defaultValue: model,
+            placeholder: defaultModel.isEmpty ? 'Model id' : defaultModel,
+            ariaLabel: 'Model',
+            autoCorrect: false,
+            onSubmitted: (text) => store.set('ai_model_$chosen', text.trim()),
+          ),
+        ),
+        SettingRow(label: store.aiBusy ? 'Working…' : 'Load $name’s models', onPress: store.aiBusy ? null : store.fetchAiModels),
+        for (final m in store.aiModels.take(40))
+          SettingRow(label: m, value: m == (model.isEmpty ? defaultModel : model) ? const Text('Chosen') : null, onPress: () => store.set('ai_model_$chosen', m)),
+        SettingRow(label: 'Test it', hint: const Text('Sends one tiny request.'), onPress: store.aiBusy ? null : store.testAi),
+        if (store.aiMessage != null) SettingRow(label: store.aiMessage!),
+      ],
+    ),
+  ];
+}
+
+List<Widget> _mockingbird(BuildContext context, SettingsStore store) {
+  final ai = store.ai;
+  final profile = ai['profile'] is Map ? ai['profile'] as Map : null;
+  final samples = ai['samples'] as int? ?? 0;
+  final training = ai['training'] == true || store.aiBusy;
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.bird, size: 24),
+      title: profile != null ? 'Trained on your voice' : 'Learning your voice',
+      meta: Text(profile != null
+          ? 'Profile from ${profile['samples']} samples, ${_when(profile['at'])}, by ${profile['provider']} (${profile['model']}). $samples samples now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.'
+          : '$samples samples so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains once there are ${samples < 50 ? 50 : 10} or so and an AI key is set.'),
+      status: PaneHeroStatus(training ? 'Training' : (profile != null ? 'On' : 'Learning'), pulse: training),
+    ),
+    PaneSection(
+      title: 'Learning',
+      footer: const Text('Never from passwords, email or web addresses, names, searches or number fields, nor while incognito.'),
+      children: [
+        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'A message sent, or a field you leave, is kept on this phone (the last 1,500).'),
+        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most once a day, after 50 new samples. One small request each time.'),
+        SettingRow(
+          label: training ? 'Training…' : 'Train now',
+          hint: const Text('Sends a selection of your newest samples, once, to make the profile.'),
+          onPress: training || samples < 10 ? null : store.trainMockingbird,
+        ),
+        if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
+      ],
+    ),
+    if (profile != null)
+      PaneSection(
+        title: 'Your style profile',
+        footer: const Text('What the AI is told about how you write. It describes style only, not private facts.'),
+        children: [SettingRowBox(child: Text(profile['text'] as String? ?? ''))],
+      ),
+    ..._aiSetup(store),
+    PaneSection(
+      title: 'How it works',
+      children: const [
+        SettingRow(label: 'Texting and writing', hint: Text('Chat apps (WhatsApp, Signal, Messages, Slack, Discord…) teach your texting; everything else your writing.')),
+        SettingRow(label: 'In my voice', hint: Text('Select text anywhere and tap In my voice in the row: it is rewritten as you.')),
+        SettingRow(label: 'A profile, not fine-tuning', hint: Text('The same profile works with every provider, and switching loses nothing.')),
+      ],
+    ),
+    PaneSection(children: [
+      SettingRow(label: 'Delete samples and profile', onPress: samples == 0 && profile == null ? null : store.clearMockingbird),
+      SettingRow(label: 'Remove Mockingbird', onPress: () => store.setPlugin('mockingbird', false)),
+    ]),
+  ];
+}
+
+List<Widget> _ghostwriter(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Type <<what you want>> in any app. Close it with >> and the AI writes it there, as you.'),
+      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+    ),
+    PaneSection(
+      children: [
+        _toggle(store, 'ghostwriter_auto', 'Fill when I type >>', 'Off: tap Fill in the row when the cursor is on a request.'),
+        _toggle(store, 'ghostwriter_memory', 'Answer from my past messages', store.pluginOn('mockingbird') ? 'The samples Mockingbird keeps that share the request’s words.' : 'Add Mockingbird to keep samples; until then only the field’s own text.'),
+        _toggle(store, 'ghostwriter_clipboard', 'Read my recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies go with the request.' : 'Needs the Clipboard history plugin.'),
+      ],
+    ),
+    ..._aiSetup(store),
+    PaneSection(
+      title: 'How it works',
+      children: const [
+        SettingRow(label: '<<engineering standup tldr>>', hint: Text('Something to write: it writes it, from what you have typed lately.')),
+        SettingRow(label: '<<why do the metrics not fire on signup>>', hint: Text('A question: it writes the answer you would give. Facts it doesn’t have become [blanks] to fill.')),
+        SettingRow(label: 'While it writes', hint: Text('The row shows Writing… with ✕ to stop. Keep typing elsewhere and the answer waits in the row to insert.')),
+        SettingRow(label: 'Never', hint: Text('In password fields or while incognito.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Ghostwriter', onPress: () => store.setPlugin('ghostwriter', false))]),
+  ];
+}
 
 List<Widget> _backlight(BuildContext context, SettingsStore store) {
   final t = context.tokens;

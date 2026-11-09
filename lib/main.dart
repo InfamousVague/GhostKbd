@@ -83,7 +83,7 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) store.refreshStatus();
+    if (state == AppLifecycleState.resumed) { store.refreshStatus(); store.refreshAi(); }
   }
 
   /// The keyboard asked for a page: its section, over Settings.

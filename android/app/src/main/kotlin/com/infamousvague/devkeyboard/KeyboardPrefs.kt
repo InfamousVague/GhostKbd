@@ -72,6 +72,22 @@ class KeyboardPrefs(context: Context) {
         if (w !in now) prefs.edit().putString(LEARNED_WORDS, (now + w).sorted().joinToString("\n")).apply()
     }
 
+    /** The AI Mockingbird and Ghostwriter use (AiClient.PROVIDERS' ids), and the person's own key and model for each. */
+    val aiProvider: String get() = prefs.getString(AI_PROVIDER, "anthropic")!!
+    fun aiKey(provider: String): String = prefs.getString("ai_key_$provider", "")!!
+    fun aiModel(provider: String): String = prefs.getString("ai_model_$provider", "")!!
+    /** The custom provider's API root, an OpenAI-compatible https endpoint ending in /v1. */
+    val aiBaseUrl: String get() = prefs.getString(AI_BASE_URL, "")!!
+
+    /** Mockingbird: keep samples of what is typed, and retrain the style profile by itself (at most daily). */
+    val mockingbirdCollect: Boolean get() = bool(MOCKINGBIRD_COLLECT)
+    val mockingbirdAutoTrain: Boolean get() = bool(MOCKINGBIRD_AUTO_TRAIN)
+
+    /** Ghostwriter: fill a <<request>> as soon as its >> is typed; what it may read for context. */
+    val ghostwriterAuto: Boolean get() = bool(GHOSTWRITER_AUTO)
+    val ghostwriterMemory: Boolean get() = bool(GHOSTWRITER_MEMORY)
+    val ghostwriterClipboard: Boolean get() = bool(GHOSTWRITER_CLIPBOARD)
+
     /** The added plugins' ids, comma-separated (Plugins.kt). */
     val plugins: String get() = prefs.getString(PLUGINS, DEFAULTS[PLUGINS] as String)!!
 
@@ -165,6 +181,16 @@ class KeyboardPrefs(context: Context) {
         const val THEME_PRESET = "theme_preset"
         const val CUSTOM_THEME = "custom_theme"
         const val ONBOARDED = "onboarded"
+        const val AI_PROVIDER = "ai_provider"
+        const val AI_BASE_URL = "ai_base_url"
+        const val MOCKINGBIRD_COLLECT = "mockingbird_collect"
+        const val MOCKINGBIRD_AUTO_TRAIN = "mockingbird_auto_train"
+        const val GHOSTWRITER_AUTO = "ghostwriter_auto"
+        const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
+        const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
+
+        /** Every provider's key and model setting (AiClient.PROVIDERS' ids). */
+        private val AI_PROVIDERS = listOf("anthropic", "openai", "gemini", "mistral", "groq", "deepseek", "openrouter", "custom")
 
         val DEFAULTS: Map<String, Any> = linkedMapOf(
             THEME to "dark",
@@ -210,6 +236,13 @@ class KeyboardPrefs(context: Context) {
             THEME_PRESET to "ghost",
             CUSTOM_THEME to "#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED",
             ONBOARDED to false,
-        )
+            AI_PROVIDER to "anthropic",
+            AI_BASE_URL to "",
+            MOCKINGBIRD_COLLECT to true,
+            MOCKINGBIRD_AUTO_TRAIN to true,
+            GHOSTWRITER_AUTO to true,
+            GHOSTWRITER_MEMORY to true,
+            GHOSTWRITER_CLIPBOARD to false,
+        ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }
 }

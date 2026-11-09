@@ -18,6 +18,9 @@ package com.infamousvague.devkeyboard
  *   emoji for the word typed in the row.
  * - `ghostmd` (GhostMd.kt): [[note]] and #tag completion and Ghost.md's blocks in Ghost.md; save a selection to it
  *   from anywhere.
+ * - `mockingbird` (Mockingbird.kt, AiClient.kt): learns how you write and text, as a style profile the AI follows;
+ *   "In my voice" rewrites a selection.
+ * - `ghostwriter` (Ghostwriter.kt): <<request>> anywhere is written by the AI, as you, in place.
  */
 object Plugins {
     const val AUTOCORRECT = "autocorrect"
@@ -33,7 +36,9 @@ object Plugins {
     const val INCOGNITO = "incognito"
     const val EMOJI = "emoji"
     const val GHOSTMD = "ghostmd"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD)
+    const val MOCKINGBIRD = "mockingbird"
+    const val GHOSTWRITER = "ghostwriter"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()

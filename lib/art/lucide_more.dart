@@ -5,6 +5,7 @@
 import 'app_icon.dart';
 
 abstract final class LucideMore {
+  static const bird = LucideIcon('bird', ['M16 7h.01', 'M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20', 'm20 7 2 .5-2 .5', 'M10 18v3', 'M14 17.75V21', 'M7 18a6 6 0 0 0 3.84-10.61'], []);
   static const smile = LucideIcon('smile', ['M2 12A10 10 0 1 0 22 12A10 10 0 1 0 2 12Z', 'M8 14s1.5 2 4 2 4-2 4-2', 'M9 9h.01', 'M15 9h.01'], [0]);
   static const keyboard = LucideIcon('keyboard', ['M10 8h.01', 'M12 12h.01', 'M14 8h.01', 'M16 12h.01', 'M18 8h.01', 'M6 8h.01', 'M7 16h10', 'M8 12h.01', 'M4 4H20A2 2 0 0 1 22 6V18A2 2 0 0 1 20 20H4A2 2 0 0 1 2 18V6A2 2 0 0 1 4 4Z'], [8]);
   static const languages = LucideIcon('languages', ['m5 8 6 6', 'm4 14 6-6 2-3', 'M2 5h12', 'M7 2h1', 'm22 22-5-10-5 10', 'M14 18h6'], []);

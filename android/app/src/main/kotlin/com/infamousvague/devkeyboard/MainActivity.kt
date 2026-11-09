@@ -185,10 +185,43 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                    "aiState" -> result.success(aiState())
+                    "aiModels" -> background(result) { AiClient.models(prefs) }
+                    "aiTest" -> background(result) { AiClient.complete(prefs, "Reply with the single word OK.", "Are you there?", maxTokens = 2000, effort = "low") }
+                    "mockingbirdTrain" -> Mockingbird.train(this@MainActivity) { error ->
+                        runOnUiThread { result.success(aiState() + mapOf("trainError" to error)) }
+                    }
+                    "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }
                     else -> result.notImplemented()
                 }
             }
         }
+    }
+
+    /** Runs [work] off the main thread; its value, or its error's message as an "ai" error, goes back to Flutter. */
+    private fun background(result: MethodChannel.Result, work: () -> Any?) {
+        Thread {
+            val r = runCatching(work)
+            runOnUiThread {
+                r.onSuccess { result.success(it) }.onFailure { result.error("ai", it.message ?: "Something went wrong", null) }
+            }
+        }.start()
+    }
+
+    /** Settings › AI and Mockingbird: the providers, whether one is ready, the samples and the style profile. */
+    private fun aiState(): Map<String, Any?> {
+        val samples = Mockingbird.samples(this)
+        val profile = Mockingbird.profile(this)
+        return mapOf(
+            "providers" to AiClient.PROVIDERS.map { mapOf("id" to it.id, "name" to it.name, "defaultModel" to it.defaultModel, "keyFrom" to it.keyFrom) },
+            "ready" to AiClient.ready(prefs),
+            "samples" to samples.size,
+            "chatSamples" to samples.count { it.chat },
+            "writingSamples" to samples.count { !it.chat },
+            "profile" to profile?.let { mapOf("text" to it.text, "at" to it.at, "samples" to it.samples, "provider" to it.provider, "model" to it.model) },
+            "training" to Mockingbird.training,
+            "error" to Mockingbird.lastError,
+        )
     }
 
     private fun status(): Map<String, Boolean> {

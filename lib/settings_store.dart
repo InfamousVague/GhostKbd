@@ -60,6 +60,13 @@ class SettingsStore extends ChangeNotifier {
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,
+    'ai_provider': 'anthropic',
+    'ai_base_url': '',
+    'mockingbird_collect': true,
+    'mockingbird_auto_train': true,
+    'ghostwriter_auto': true,
+    'ghostwriter_memory': true,
+    'ghostwriter_clipboard': false,
   };
 
   final Map<String, Object> _values = {...defaults};
@@ -85,7 +92,10 @@ class SettingsStore extends ChangeNotifier {
 
   /// The added plugins' ids.
   /// Every setting as it stands, for Settings › Developer's copy of the details.
-  String get settingsJson => _values.entries.map((e) => '${e.key}=${e.value}').join(', ');
+  /// API keys are never in it: it is made to be copied and pasted.
+  String get settingsJson => _values.entries
+      .map((e) => e.key.startsWith('ai_key_') ? '${e.key}=${'${e.value}'.isEmpty ? '' : '(set)'}' : '${e.key}=${e.value}')
+      .join(', ');
 
   Set<String> get plugins => choice('plugins').split(',').map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
 
@@ -149,6 +159,7 @@ class SettingsStore extends ChangeNotifier {
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
+      _setAi(await _channel.invokeMethod<Object>('aiState'));
     } on MissingPluginException {
       // Not on Android (a test, a desktop run): the defaults stand.
     }
@@ -209,6 +220,72 @@ class SettingsStore extends ChangeNotifier {
     } on MissingPluginException {
       return;
     }
+  }
+
+  /// A text setting with no default of its own (each AI provider's key and model): empty until set.
+  String text(String key) => _values[key] as String? ?? '';
+
+  /// Settings › AI and Mockingbird (AiClient.kt, Mockingbird.kt): `providers` (id, name, defaultModel, keyFrom),
+  /// `ready`, `samples`, `chatSamples`, `writingSamples`, `profile` (text, at, samples, provider, model) or null,
+  /// `training` and `error`.
+  Map<String, Object?> ai = const {'providers': [], 'ready': false, 'samples': 0};
+
+  /// The models the chosen provider offers, once fetched; and the last thing an AI action said.
+  List<String> aiModels = const [];
+  String? aiMessage;
+  bool aiBusy = false;
+
+  Future<void> refreshAi() async {
+    try {
+      _setAi(await _channel.invokeMethod<Object>('aiState'));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> fetchAiModels() => _aiAction(() async {
+        final list = await _channel.invokeListMethod<String>('aiModels');
+        aiModels = list ?? const [];
+        aiMessage = aiModels.isEmpty ? 'No models came back.' : null;
+      });
+
+  Future<void> testAi() => _aiAction(() async {
+        final reply = await _channel.invokeMethod<String>('aiTest');
+        aiMessage = 'It answered: ${(reply ?? '').trim()}';
+      });
+
+  Future<void> trainMockingbird() => _aiAction(() async {
+        final r = await _channel.invokeMethod<Object>('mockingbirdTrain');
+        _setAi(r);
+        final error = r is Map ? r['trainError'] as String? : null;
+        aiMessage = error ?? 'Trained. Your style profile is below.';
+      });
+
+  Future<void> clearMockingbird() => _aiAction(() async {
+        _setAi(await _channel.invokeMethod<Object>('mockingbirdClear'));
+        aiMessage = 'Samples and profile deleted.';
+      });
+
+  Future<void> _aiAction(Future<void> Function() action) async {
+    aiBusy = true;
+    aiMessage = null;
+    notifyListeners();
+    try {
+      await action();
+    } on PlatformException catch (e) {
+      aiMessage = e.message ?? 'Something went wrong';
+    } on MissingPluginException {
+      aiMessage = null;
+    }
+    aiBusy = false;
+    await refreshAi();
+    notifyListeners();
+  }
+
+  void _setAi(Object? raw) {
+    if (raw is! Map) return;
+    ai = raw.map((k, v) => MapEntry('$k', v as Object?));
+    notifyListeners();
   }
 
   /// A few seconds of typing in the chosen pack, filters and all.

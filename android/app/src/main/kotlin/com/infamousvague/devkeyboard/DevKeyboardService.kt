@@ -75,6 +75,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The clipboard plugin: the row showing the history instead of its usual things. */
     private var showingClips = false
 
+    /** Ghostwriter's <<request>> or Mockingbird's rewrite in flight, or its answer waiting to be placed. */
+    private var aiJob: Ghostwriter.Job? = null
+
+    /** Mockingbird: the field's text as last read, kept as a sample once it is sent or left. */
+    private var draft = ""
+    private var draftApp: String? = null
+
     /** The incognito plugin's switch, and the field asking for no learning (EditorInfo's flag) either way. */
     private var incognitoOn = false
     private val incognito: Boolean get() =
@@ -170,7 +177,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; ctrlOn = false; altOn = false }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null }
         scheduleRow()
         keyboard?.let { view ->
             if (!restarting) view.reset()
@@ -188,6 +195,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         selStart = newSelStart
         selEnd = newSelEnd
+        // The field emptied under us (a chat app's send button): the message just sent is a sample.
+        if (newSelStart == 0 && newSelEnd == 0 && draft.isNotEmpty()) {
+            val ic = currentInputConnection
+            if (ic != null && ic.getTextBeforeCursor(1, 0).isNullOrEmpty() && ic.getTextAfterCursor(1, 0).isNullOrEmpty()) flushDraft()
+        }
         updateShift()
         scheduleRow()
     }
@@ -285,12 +297,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // A closing bracket or quote in front of the same one (a pair typed earlier) steps over it, as an editor does.
         if (caretBack == 0 && text.length == 1 && text[0] in CLOSERS && ic.getTextAfterCursor(1, 0)?.toString() == text) {
             moveCursorBy(ic, 1)
+            if (text == ">") checkFill()
             return
         }
         ic.commitText(text, 1)
         // A pair's cursor goes inside it: commitText can only leave it before or after what it typed.
         if (caretBack > 0) moveCursorBy(ic, -caretBack)
         if (text == "]") learnGhostMd()
+        if (text.endsWith(">")) checkFill()
+        if (text.length == 1 && text[0] in WORD_ENDS) snapshotDraft()
     }
 
     /** Moves the cursor [delta] characters, from where it is now in the editor (not where onUpdateSelection last said). */
@@ -397,6 +412,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (gifMode == GifMode.TYPING) { gifQuery += " "; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery += " "; scheduleRow(); return }
         learnGhostMd()
+        snapshotDraft()
         val ic = currentInputConnection ?: return
         lastSwipe = null
         val now = System.currentTimeMillis()
@@ -426,9 +442,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         lastCorrection = null
         lastSwipe = null
+        snapshotDraft()
         if (info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
             val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
             if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
+                // A message sent (or a form finished): what was typed is a sample. Searches aren't how anyone writes.
+                if (action != EditorInfo.IME_ACTION_SEARCH) flushDraft() else draft = ""
                 ic.performEditorAction(action)
                 return
             }
@@ -536,6 +555,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        flushDraft()
         if (dictation.listening) dictation.stop()
         closeGifs()
         closeEmoji()
@@ -548,7 +568,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -596,6 +616,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             strip.setItems(items)
             return
         }
+        if (aiRow(items)) { strip.setItems(items); return }
         if (inlineViews.isNotEmpty() && Plugins.isOn(prefs, Plugins.PASSWORDS)) {
             inlineViews.forEachIndexed { i, v -> items += RowItem("inline-$i", view = v) }
             strip.setItems(items)
@@ -643,6 +664,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
+        // Mockingbird: the selection rewritten as you.
+        if (Plugins.isOn(prefs, Plugins.MOCKINGBIRD) && aiAllowed() && selStart != selEnd) {
+            currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
+                items += RowItem("voice", label = "✦ In my voice", bold = true, chip = true) { rewriteSelection(selected) }
+            }
+        }
         // Selected text in another app: to Ghost.md as a note.
         if (ghost && !inGhost && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
@@ -793,6 +820,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private fun contextual(ic: InputConnection, items: ArrayList<RowItem>): Boolean {
         val before = ic.getTextBeforeCursor(200, 0)?.toString() ?: return false
+        if (Plugins.isOn(prefs, Plugins.GHOSTWRITER) && aiAllowed()) {
+            val after = ic.getTextAfterCursor(400, 0)?.toString().orEmpty()
+            Ghostwriter.tagAt(before, after)?.let { (request, _) ->
+                items += RowItem("fill-$request", label = "✦ Fill: ${preview(request)}", bold = true, chip = true, fill = true) { fillAtCursor() }
+                return true
+            }
+            FILL_OPEN.find(before)?.let { m ->
+                val request = m.groupValues[1].trim()
+                items += RowItem("fill-open", label = if (request.length < 2) "✦ Ghostwriter: say what to write, then >>" else "✦ Fill: ${preview(request)}", chip = true, fill = true) {
+                    if (request.length >= 2) { currentInputConnection?.commitText(">>", 1); fillAtCursor() }
+                }
+                return true
+            }
+        }
         if (Plugins.isOn(prefs, Plugins.EMOJI)) {
             SHORTCODE.find(before)?.let { m ->
                 val code = m.groupValues[1]
@@ -826,6 +867,132 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
         }
         return false
+    }
+
+    // --- Ghostwriter and Mockingbird ---------------------------------------------------------------------------------
+
+    /** The AI may read this field: not a password, not incognito. */
+    private fun aiAllowed(): Boolean = !incognito && !isPassword(currentInputEditorInfo)
+
+    /** A <<request>> just closed before the cursor: fill it, where Ghostwriter fills on its own. */
+    private fun checkFill() {
+        if (!Plugins.isOn(prefs, Plugins.GHOSTWRITER) || !prefs.ghostwriterAuto || !aiAllowed()) return
+        if (aiJob?.running == true) return
+        val before = currentInputConnection?.getTextBeforeCursor(2000, 0)?.toString() ?: return
+        if (Ghostwriter.CLOSED.containsMatchIn(before)) fillAtCursor()
+    }
+
+    /** Fills the <<request>> the cursor is on (or just after). */
+    private fun fillAtCursor() {
+        val ic = currentInputConnection ?: return
+        if (!aiAllowed()) return
+        val before = ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty()
+        val after = ic.getTextAfterCursor(400, 0)?.toString().orEmpty()
+        val (request, tag) = Ghostwriter.tagAt(before, after) ?: return
+        val at = (before + after).lastIndexOf(tag, before.length - 1)
+        val around = (before + after)
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.start(this, prefs, request, tag, around.substring(0, at.coerceAtLeast(0)), around.substring((at + tag.length).coerceAtMost(around.length)), currentInputEditorInfo?.packageName) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    private fun rewriteSelection(selected: String) {
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.rewrite(this, prefs, selected, currentInputEditorInfo?.packageName) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /** An answer came back: it replaces its tag (or the selection) where that is still there; if not, it waits in the row. */
+    private fun onAiDone(job: Ghostwriter.Job) {
+        if (job !== aiJob) return
+        val text = job.result
+        if (text != null && placeAnswer(job, text)) aiJob = null
+        scheduleRow()
+    }
+
+    private fun placeAnswer(job: Ghostwriter.Job, text: String): Boolean {
+        val ic = currentInputConnection ?: return false
+        if (job.selection) {
+            if (ic.getSelectedText(0)?.toString() != job.tag) return false
+            ic.commitText(text, 1)
+            return true
+        }
+        val before = ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty()
+        val after = ic.getTextAfterCursor(400, 0)?.toString().orEmpty()
+        val joined = before + after
+        // The last copy of the tag that starts before the cursor; the cursor must be inside it or at its end, or the
+        // person has typed on past it and the answer waits in the row instead.
+        val at = joined.lastIndexOf(job.tag, before.length - 1)
+        if (at < 0) return false
+        val end = at + job.tag.length
+        if (end < before.length) return false
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length - at, (end - before.length).coerceAtLeast(0))
+        ic.commitText(text, 1)
+        ic.endBatchEdit()
+        return true
+    }
+
+    /** The row while an answer is on its way, failed, or couldn't be placed. True when it filled [items]. */
+    private fun aiRow(items: ArrayList<RowItem>): Boolean {
+        val job = aiJob ?: return false
+        if (job.cancelled) { aiJob = null; return false }
+        val dismiss = RowItem("ai-x-${job.id}", label = "✕", chip = true) { job.cancelled = true; aiJob = null; scheduleRow() }
+        when {
+            job.running -> {
+                items += RowItem("ai-run-${job.id}", label = "✦ Writing “${preview(job.request)}”…", chip = true, fill = true)
+                items += dismiss
+            }
+            job.error != null -> {
+                items += RowItem("ai-err-${job.id}", label = "✦ ${job.error}", chip = true, fill = true) { onOpenSettings() }
+                items += RowItem("ai-retry-${job.id}", label = "Retry", bold = true, chip = true) {
+                    aiJob = null
+                    if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    scheduleRow()
+                }
+                items += dismiss
+            }
+            else -> {
+                val text = job.result.orEmpty()
+                items += RowItem("ai-put-${job.id}", label = "Insert: ${preview(text)}", bold = true, chip = true, fill = true) {
+                    currentInputConnection?.commitText(text, 1); aiJob = null; scheduleRow()
+                }
+                items += dismiss
+            }
+        }
+        return true
+    }
+
+    /** A field whose text says how you write: not passwords, addresses, numbers, searches or this app's own fields. */
+    private fun collectable(info: EditorInfo?): Boolean {
+        if (info == null || info.packageName == packageName) return false
+        if ((info.inputType and InputType.TYPE_MASK_CLASS) != InputType.TYPE_CLASS_TEXT) return false
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return variation !in setOf(
+            InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_FILTER, InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS, InputType.TYPE_TEXT_VARIATION_PERSON_NAME,
+            InputType.TYPE_TEXT_VARIATION_PHONETIC,
+        )
+    }
+
+    /** Reads the field's text for Mockingbird, where it may: at word and sentence ends, and before enter. */
+    private fun snapshotDraft() {
+        if (!Plugins.isOn(prefs, Plugins.MOCKINGBIRD) || !prefs.mockingbirdCollect || incognito) { draft = ""; return }
+        val info = currentInputEditorInfo
+        if (!collectable(info)) { draft = ""; return }
+        val ic = currentInputConnection ?: return
+        draft = (ic.getTextBeforeCursor(1500, 0)?.toString().orEmpty() + ic.getTextAfterCursor(500, 0)?.toString().orEmpty())
+        draftApp = info?.packageName
+    }
+
+    /** Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. */
+    private fun flushDraft() {
+        val text = draft
+        draft = ""
+        if (text.isBlank() || incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
+        Mockingbird.record(this, text, draftApp.orEmpty())
+        Mockingbird.maybeAutoTrain(this, prefs)
     }
 
     /** Replaces [old], just before the cursor, with [new]. */
@@ -1089,6 +1256,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         private val SHORTCODE = Regex("(?:^|\\s):([a-z0-9_+-]{2,30})$")
         /** "[[Not" just typed in Ghost.md: the start of a link to a note. */
         private val WIKI_OPEN = Regex("\\[\\[([^\\[\\]\\n|]{0,60})$")
+        /** "<<standup tl" being typed: a Ghostwriter request not yet closed. */
+        private val FILL_OPEN = Regex("<<([^<>\\n]{0,400})$")
         /** "#ide" just typed in Ghost.md, after a space or at a line's start: a tag. */
         private val TAG_OPEN = Regex("(?:^|\\s)#([\\p{L}\\p{N}_/-]{1,40})$")
 

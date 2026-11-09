@@ -272,6 +272,45 @@ const List<PluginManifest> catalogue = [
     adds: ['[[note]] and #tag completion in Ghost.md', 'Ghost.md’s blocks in the row', 'Save a selection to Ghost.md from any app'],
     hasPage: true,
   ),
+  PluginManifest(
+    id: 'mockingbird',
+    name: 'Mockingbird',
+    line: 'The AI learns how you write and text, and writes like you.',
+    description:
+        'Mockingbird keeps samples of what you type on this phone: your texts in chat apps, your writing everywhere else. '
+        'The AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter or your own server) reads them '
+        'and writes your style profile: punctuation, length, tone, the words you use. Ghostwriter writes in that voice, '
+        'and selecting text offers In my voice to rewrite it as you. Nothing is kept from passwords, email or web '
+        'addresses, or while incognito; the samples never leave the phone except, once, to train.',
+    category: PluginCategory.typing,
+    hue: 'purple',
+    icon: LucideMore.bird,
+    adds: ['A style profile of your texting and writing', 'In my voice: rewrite a selection as you', 'Works with Claude, OpenAI, Gemini and more'],
+    permissions: [
+      PluginPermission(Permission.network, 'To train your profile and rewrite text, with your own AI key, straight to the provider you choose.'),
+    ],
+    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'ghostwriter',
+    name: 'Ghostwriter',
+    line: 'Type <<what you want>> in any app and the AI writes it, as you.',
+    description:
+        'Type <<engineering standup tldr>> or <<why do the metrics not fire on signup>> anywhere. When you close it with '
+        '>> the AI writes the answer in your voice and it replaces the request: it reads Mockingbird’s style profile, '
+        'your past messages that match the request, the text around it and, if you let it, your clipboard. Where it '
+        'doesn’t know a fact it leaves a [blank] rather than guessing. << >> keeps clear of templates and code that use braces.',
+    category: PluginCategory.tools,
+    hue: 'indigo',
+    icon: LucideMore.wandSparkles,
+    adds: ['<<request>> filled in place, in any app', 'Answers from your own past messages', 'A Fill button when the cursor is on a request'],
+    permissions: [
+      PluginPermission(Permission.network, 'To send the request, the text around it and the matching past messages to the AI you choose, with your own key.'),
+    ],
+    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hasPage: true,
+  ),
 ];
 
 /// Settings › Backlight's effects (android Backlight.kt): id, name, what it does.
