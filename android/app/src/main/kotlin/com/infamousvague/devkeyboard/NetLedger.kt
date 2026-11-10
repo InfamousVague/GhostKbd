@@ -119,6 +119,11 @@ enum class NetPath(
         trigger = "Tapping In my voice with text selected.",
         sends = "Your key and model, the selection, your style profile, and up to 3,000 characters of similar things you typed.",
     ),
+    SHERLOCK(
+        NetFeature.AI, "sherlock", "Sherlock", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("sherlock"),
+        trigger = "Tapping Reply, Another or Retry, or opening the keyboard in an empty chat box with “Draft as I open a chat” on.",
+        sends = "Your key and model, the chat read off the screen (up to 5,000 characters, the newest kept), what you had typed in the box, the chat app's name, and with Mockingbird your style profile and up to 2,500 characters of similar things you typed.",
+    ),
     TRAIN(
         NetFeature.AI, "train", "Mockingbird’s training", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("mockingbird"),
         trigger = "Tapping Train now. By itself with “Retrain by itself” on: once 50 new samples are kept, no sooner than 20 hours after the last time.",

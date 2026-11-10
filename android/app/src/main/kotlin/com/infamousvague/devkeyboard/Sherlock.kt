@@ -76,7 +76,7 @@ object Sherlock {
             append(text)
             if (hint.isNotBlank()) append("\n\nWHAT I WANT TO SAY (write it as my reply): ").append(hint.trim())
         }
-        val reply = AiClient.complete(prefs, system(context, app, examples), user, maxTokens = 2000, effort = "low")
+        val reply = AiClient.complete(prefs, NetPath.SHERLOCK, system(context, app, examples), user, maxTokens = 2000, effort = "low")
         synchronized(this) { lastKey = key; lastReply = reply }
         return reply
     }
