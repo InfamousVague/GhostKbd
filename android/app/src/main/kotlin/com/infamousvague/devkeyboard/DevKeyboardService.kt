@@ -1272,13 +1272,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         draftApp = info?.packageName
     }
 
-    /** Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. */
+    /**
+     * Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. Training
+     * is asked whether or not there was a draft: with "Keep samples of what I type" off there never is one, and a
+     * profile from before the style rules improved is still due its retrain.
+     */
     private fun flushDraft() {
         var text = draft
         draft = ""
+        if (incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
         for (answer in aiAnswers) text = text.replace(answer, " ")
-        if (text.isBlank() || incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
-        Mockingbird.record(this, text, draftApp.orEmpty())
+        if (text.isNotBlank()) Mockingbird.record(this, text, draftApp.orEmpty())
         Mockingbird.maybeAutoTrain(this, prefs)
     }
 

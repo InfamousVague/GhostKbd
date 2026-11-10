@@ -15,12 +15,14 @@ import java.util.concurrent.TimeUnit
  *   kept from password, email-address, web-address or number fields, while incognito is on (or the field asks for no
  *   learning), or with collecting switched off.
  * - Slips: a sample is what was left in the field, after autocorrect; a slip autocorrect missed (or made with it off)
- *   would otherwise be read as how you write. So [SampleCleaner] repairs the obvious ones as a sample is kept, the AI
- *   that trains is told that only a habit you repeat is style, and the AI that writes is told never to copy a
- *   misspelling ([VoiceRules]).
+ *   would otherwise be read as how you write. So [SampleCleaner] repairs the obvious ones as a sample is kept (only
+ *   where the slip shows and the right word is one you use; a word you type three times is yours, and goes back
+ *   into the samples it was taken out of), the AI that trains is told that only a habit you repeat is style, and
+ *   the AI that writes is told to keep your spelling habits and never to copy a slip ([VoiceRules]).
  * - Training: the AI you chose reads a selection of samples and writes a style profile, your voice in a page: how you
  *   text and how you write. The samples stay on the phone; only that selection goes, once, to train. Retrains itself
- *   (at most daily, once [AUTO_TRAIN_AFTER] new samples have come in) unless switched off.
+ *   unless switched off: at most daily, once [Retrain.AFTER_SAMPLES] new samples have come in, and once more,
+ *   without waiting for either, after an update that improved the style rules ([Retrain]).
  * - Using it: Ghostwriter (<<…>>) and "In my voice" send the profile and a few samples like the thing being written.
  *
  * It is a profile, not fine-tuning: it works the same with every provider and costs one small request to train.
@@ -28,11 +30,14 @@ import java.util.concurrent.TimeUnit
 object Mockingbird {
     const val MAX_SAMPLES = 1500
     private const val MAX_SAMPLE_CHARS = 1500
-    const val AUTO_TRAIN_AFTER = 50
-    /** The fewest samples training takes. */
-    private const val MIN_TRAIN_SAMPLES = 10
     private const val SAMPLES_FILE = "mockingbird_samples.json"
     private const val PROFILE_FILE = "mockingbird_profile.json"
+    /** The words judged the person's own ([keptWords]), a JSON list, oldest first. */
+    private const val WORDS_FILE = "mockingbird_words.json"
+    private const val MAX_KEPT_WORDS = 500
+    /** Small things to remember between runs: when an outdated profile's retrain was last tried. */
+    private const val STATE = "mockingbird"
+    private const val OUTDATED_TRY_AT = "outdated_retrain_at"
 
     /**
      * Something the person typed. [text] is what the AI reads: the sample with its obvious slips repaired. [raw] is
@@ -120,7 +125,7 @@ object Mockingbird {
             }
             // The cleaning is done outside the lock, so Settings and the keyboard never wait on it.
             val lexicon = lexicon(context, wait = false)
-            val sample = cleaned(typed, others, lexicon)
+            val (sample, fresh) = cleaned(context, typed, others, lexicon)
             val stale = synchronized(lock) {
                 val list = load(context)
                 list.add(sample)
@@ -128,8 +133,10 @@ object Mockingbird {
                 save(context, list)
                 list.any { it.cleaned < SampleCleaner.VERSION }
             }
-            // Samples kept before the cleaner (or while no dictionary was loaded) are cleaned now, once.
-            if (stale && lexicon != null) cleanStored(context, lexicon)
+            // Samples kept before the cleaner (or while no dictionary was loaded) are cleaned now, once. And when
+            // this sample has made a word the person's own, the samples it was taken out of get it back now:
+            // Ghostwriter reads them between trainings.
+            if (lexicon != null && (stale || fresh)) cleanStored(context, lexicon)
         }
     }
 
@@ -161,41 +168,66 @@ object Mockingbird {
         return own.lexicon()
     }
 
+    @Volatile private var keptCache: Set<String>? = null
+
     /**
-     * [sample] with its obvious slips repaired. [others] is every other sample as typed: a word that would be
-     * changed is first counted across them, since one the person types repeatedly is theirs. Without a [lexicon]
-     * the sample is kept as typed and marked as not yet cleaned.
+     * The words once judged the person's own: in no dictionary, but typed three times or more
+     * ([SampleCleaner.Habits.deliberate]). Remembered apart from the samples, so the oldest sample dropping off
+     * the end of the list cannot turn a nickname back into a slip. Oldest first; forgotten with [clear].
      */
-    private fun cleaned(sample: Sample, others: List<String>, lexicon: SampleCleaner.Lexicon?): Sample {
-        val typed = sample.typed
-        if (lexicon == null || !lexicon.ready) return sample.copy(text = typed, raw = null, cleaned = 0)
-        var text = SampleCleaner.clean(typed, lexicon)
-        if (text != typed) {
-            val deliberate = SampleCleaner.repeated(others + typed, lexicon, SampleCleaner.suspects(typed, lexicon))
-            if (deliberate.isNotEmpty()) text = SampleCleaner.clean(typed, lexicon, deliberate)
-        }
-        return sample.copy(text = text, raw = typed.takeIf { it != text }, cleaned = SampleCleaner.VERSION)
+    private fun keptWords(context: Context): Set<String> {
+        keptCache?.let { return it }
+        val words = runCatching {
+            val a = JSONArray(File(context.filesDir, WORDS_FILE).readText())
+            (0 until a.length()).mapTo(LinkedHashSet()) { a.getString(it) }
+        }.getOrElse { LinkedHashSet() }
+        keptCache = words
+        return words
+    }
+
+    /** Remembers [words] as [keptWords], the newest [MAX_KEPT_WORDS] of them. Worker thread only. */
+    private fun keepWords(context: Context, words: Set<String>) {
+        if (words == keptWords(context)) return
+        val kept = words.toList().takeLast(MAX_KEPT_WORDS)
+        val tmp = File(context.filesDir, "$WORDS_FILE.tmp")
+        tmp.writeText(JSONArray(kept).toString())
+        tmp.renameTo(File(context.filesDir, WORDS_FILE))
+        keptCache = LinkedHashSet(kept)
     }
 
     /**
-     * Every stored sample cleaned again from what was typed, with the repeated words counted over all of them: the
-     * samples kept before the cleaner get their first cleaning, and a word since typed often enough to be the
-     * person's own goes back into the samples it was taken out of. At most [MAX_SAMPLES] short texts, each
-     * unknown word looked up once. Worker thread only.
+     * [sample] with its obvious slips repaired ([SampleCleaner.cleanNew]), and whether a word of it has just become
+     * the person's own. [others] is every other sample as typed: a word that would be changed is first counted
+     * across them, since one the person types repeatedly is theirs, and so is the word it would become, since a
+     * fix is made only to a word they use. Without a [lexicon] the sample is kept as typed and marked as not yet
+     * cleaned.
+     */
+    private fun cleaned(context: Context, sample: Sample, others: List<String>, lexicon: SampleCleaner.Lexicon?): Pair<Sample, Boolean> {
+        val typed = sample.typed
+        if (lexicon == null || !lexicon.ready) return sample.copy(text = typed, raw = null, cleaned = 0) to false
+        val result = SampleCleaner.cleanNew(typed, others, lexicon, keptWords(context))
+        if (result.fresh) keepWords(context, result.kept)
+        return sample.copy(text = result.text, raw = typed.takeIf { it != result.text }, cleaned = SampleCleaner.VERSION) to result.fresh
+    }
+
+    /**
+     * Every stored sample cleaned again from what was typed ([SampleCleaner.cleanAll]), with the person's habits
+     * counted over all of them: the samples kept before the cleaner get their first cleaning, and a word since
+     * typed often enough to be the person's own goes back into the samples it was taken out of, and is
+     * remembered ([keptWords]). At most [MAX_SAMPLES] short texts, each unknown word looked up once. Worker
+     * thread only.
      */
     private fun cleanStored(context: Context, lexicon: SampleCleaner.Lexicon) {
         if (!lexicon.ready) return
         val before = synchronized(lock) { load(context).toList() }
         if (before.isEmpty()) return
-        val deliberate = SampleCleaner.repeated(before.map { it.typed }, lexicon)
-        val after = before.map { s ->
-            val text = SampleCleaner.clean(s.typed, lexicon, deliberate)
-            s.copy(text = text, raw = s.typed.takeIf { it != text }, cleaned = SampleCleaner.VERSION)
-        }
+        val (texts, kept) = SampleCleaner.cleanAll(before.map { it.typed }, lexicon, keptWords(context))
+        val after = before.mapIndexed { i, s -> s.copy(text = texts[i], raw = s.typed.takeIf { it != texts[i] }, cleaned = SampleCleaner.VERSION) }
         synchronized(lock) {
             val list = load(context)
             // Only this thread adds and removes samples; clear() is the one thing that can have come in between.
             if (list.size != before.size || list.indices.any { list[it] !== before[it] }) return
+            keepWords(context, kept)
             if (after != before) {
                 for (i in after.indices) list[i] = after[i]
                 save(context, list)
@@ -204,7 +236,8 @@ object Mockingbird {
     }
 
     /**
-     * The samples, every one cleaned first: what a typing profile exports. Waits for the worker (a training in
+     * The samples, every one cleaned first: what a typing profile exports ([Sample.text], and [Sample.raw] beside
+     * it where a slip was repaired). Waits for the worker (a training in
      * flight included, up to a minute), so not for the main thread.
      */
     fun cleanedSamples(context: Context): List<Sample> {
@@ -215,8 +248,10 @@ object Mockingbird {
 
     fun clear(context: Context) = synchronized(lock) {
         cache = mutableListOf()
+        keptCache = LinkedHashSet()
         File(context.filesDir, SAMPLES_FILE).delete()
         File(context.filesDir, PROFILE_FILE).delete()
+        File(context.filesDir, WORDS_FILE).delete()
         lastError = null
     }
 
@@ -229,10 +264,11 @@ object Mockingbird {
 
     /**
      * True for a profile trained under the old instructions, which asked for the "typos they leave in": it may
-     * describe slips as habits, so it is due a retrain. One imported from a typing profile file was not trained
-     * here and is the person's choice: never outdated.
+     * describe slips as habits, so it is due a retrain ([Retrain.outdated]). One written elsewhere and imported
+     * from a typing-profile file is the person's choice and never outdated; one from Ghost Keyboard's own export
+     * keeps the version it was trained under.
      */
-    fun outdated(p: Profile): Boolean = p.version < VoiceRules.PROFILE_VERSION && !(p.model.isEmpty() && p.provider.startsWith("Imported"))
+    fun outdated(p: Profile): Boolean = Retrain.outdated(p.version, p.provider, p.model)
 
     private fun saveProfile(context: Context, p: Profile) {
         File(context.filesDir, PROFILE_FILE).writeText(
@@ -240,9 +276,13 @@ object Mockingbird {
         )
     }
 
-    /** A style profile from a typing profile file, in place of the trained one; [source] says whose it is. */
-    fun importProfile(context: Context, text: String, source: String) {
-        saveProfile(context, Profile(text.take(6000), System.currentTimeMillis(), samples(context).size, source, ""))
+    /**
+     * A style profile from a typing profile file, in place of the trained one. [source] says whose it is
+     * ([Retrain.importedBy]) and [version] which style rules it was written under ([Retrain.importVersion]): an
+     * old profile of this keyboard's stays due its retrain after a trip through a file.
+     */
+    fun importProfile(context: Context, text: String, source: String, version: Int) {
+        saveProfile(context, Profile(text.take(6000), System.currentTimeMillis(), samples(context).size, source, "", version))
     }
 
     /** Trains a new profile in the background; [done] gets an error message, or null when it worked. */
@@ -257,7 +297,7 @@ object Mockingbird {
                 // The AI reads cleaned samples; a cleaner that fails must not stop the training.
                 runCatching { lexicon(app, wait = true)?.let { cleanStored(app, it) } }
                 val all = samples(app)
-                if (all.size < MIN_TRAIN_SAMPLES) throw AiClient.AiError("Type a little more first: ${all.size} of $MIN_TRAIN_SAMPLES samples")
+                if (all.size < Retrain.MIN_SAMPLES) throw AiClient.AiError("Type a little more first: ${all.size} of ${Retrain.MIN_SAMPLES} samples")
                 val chat = pick(all.filter { it.chat }, 14_000)
                 val writing = pick(all.filter { !it.chat }, 10_000)
                 val user = buildString {
@@ -282,25 +322,30 @@ object Mockingbird {
         return list.asReversed().takeWhile { s -> (left > 0).also { left -= s.text.length + 4 } }.reversed()
     }
 
-    /** When an [outdated] profile's retrain was last started by itself, so a failing provider is asked hourly at most. */
-    @Volatile private var outdatedRetrainAt = 0L
-
     /**
-     * Retrains by itself when switched on, the AI is set up, enough new samples have come in, and a day has passed.
-     * An [outdated] profile does not wait for the samples or the day: it is retrained as soon as there is something
-     * to train on.
+     * Retrains by itself when switched on and the AI is set up, where [Retrain.due] says so: enough new samples
+     * and a day since the last training, or, for an [outdated] profile, at once (and a day later if that fails;
+     * the try is remembered across restarts). Cheap for the caller: the samples and the profile are read on the
+     * worker thread, so the keyboard can ask whenever a field is left, whether or not anything was kept from it.
      */
     fun maybeAutoTrain(context: Context, prefs: KeyboardPrefs) {
         if (!prefs.mockingbirdAutoTrain || training || !AiClient.ready(prefs)) return
-        val count = samples(context).size
-        val p = profile(context)
-        val now = System.currentTimeMillis()
-        val due = when {
-            p == null -> count >= AUTO_TRAIN_AFTER
-            outdated(p) -> (count >= MIN_TRAIN_SAMPLES && now - outdatedRetrainAt > 3_600_000L).also { if (it) outdatedRetrainAt = now }
-            else -> count - p.samples >= AUTO_TRAIN_AFTER && now - p.at > 20 * 3_600_000L
+        val app = context.applicationContext
+        worker.execute {
+            if (training) return@execute
+            val count = samples(app).size
+            val p = profile(app)
+            val now = System.currentTimeMillis()
+            val old = p != null && outdated(p)
+            val state = app.getSharedPreferences(STATE, Context.MODE_PRIVATE)
+            val due = Retrain.due(
+                trained = p != null, outdated = old, samples = count, newSamples = count - (p?.samples ?: 0),
+                sinceTrained = now - (p?.at ?: 0L), sinceOutdatedTry = now - state.getLong(OUTDATED_TRY_AT, 0L),
+            )
+            if (!due) return@execute
+            if (old) state.edit().putLong(OUTDATED_TRY_AT, now).apply()
+            train(app)
         }
-        if (due) train(context)
     }
 
     // --- using it -----------------------------------------------------------------------------------------------------

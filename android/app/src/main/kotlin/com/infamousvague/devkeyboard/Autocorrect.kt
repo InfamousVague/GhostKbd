@@ -19,8 +19,9 @@ import kotlin.math.abs
  * Learned words (a fix the person undid, or words added in Settings) are never changed, and count as words for
  * correcting near-misses of them.
  *
- * Mockingbird reads the same dictionaries to take slips out of its writing samples ([slip], [lexicon]): a stricter
- * judgement than [correct]'s, since nobody is there to undo it.
+ * Mockingbird reads the same dictionaries to take slips out of its writing samples ([slip], [lexicon]): a far
+ * stricter judgement than [correct]'s, since nobody is there to undo it. A word the lists miss is not a slip for
+ * that alone.
  */
 class Autocorrect(context: Context) {
     private val app = context.applicationContext
@@ -299,31 +300,114 @@ class Autocorrect(context: Context) {
 
     /**
      * For text already written (Mockingbird's samples), where [correct] is for a word as it is typed: the one word
-     * [typed] was plainly a slip of, in [typed]'s capitals, or null when it should stand. Stricter than [correct]:
+     * [typed] was plainly a slip of, in [typed]'s capitals, or null when it should stand. Nobody is there to undo it,
+     * and a real word, a name or a term can be missing from the lists, so "not in the lists" is never enough: the
+     * slip itself has to show.
      * - [correct]'s own guards hold (ACRONYMS, camelCase, learned words), and slang counts whether or not its
      *   switch is on;
      * - nothing that is a way of writing rather than a slip: no "i" → "I", no apostrophe put into "dont", no
      *   accent put onto "cafe";
-     * - two letters swapped ("teh") is always a slip. Any other fix needs a spelling the lists have never seen
-     *   ("nite" and "yas" are in them, rare: somebody means those) and an ordinary slip: a neighbouring key, a
-     *   letter doubled or dropped, not a far key or a missing first letter;
-     * - the fix must be likely ([SLIP_SCORE]; a short word has many near neighbours, "gurl" beside "girl", so
-     *   [SLIP_SCORE_SHORT] unless its letters were swapped) and well ahead of the next word it could have been
-     *   ([SLIP_MARGIN]): "hwo" is who or how, so it stands.
+     * - a spelling the lists hold, however rare, is somebody's word (untied, prefect, strat, nite) and stands,
+     *   whatever commoner word it resembles. The exceptions are named: [LISTED_SLIPS];
+     * - a spelling they do not hold is fixed only for one of three slips ([shape]): two letters next to each other
+     *   swapped ("taht", "tomorrwo"), one neighbouring key struck inside the word ("keybkard"), or a consonant
+     *   doubled. The last two only in a word of six letters or more: a short word has too many real neighbours
+     *   (vim beside him), and a different first or last letter is as often another word (linted, linter);
+     * - a word of six letters or more must also not look like a word ([odd]): drooping, vishal and minuet do, and
+     *   are somebody's, however near dropping, visual and minute they sit;
+     * - the fix must be likely ([SLIP_SCORE]; [SLIP_SCORE_SHORT] for a word of five letters or fewer, so only the
+     *   very commonest words are put back: "pani" is not "pain") and well ahead of the next word it could have
+     *   been ([SLIP_MARGIN]): "hwo" is who or how, so it stands.
      */
     fun slip(typed: String): String? {
         if (!ready || typed.length < 3 || typed.length > 24) return null
         if (typed.all { it.isUpperCase() } || typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase()
         if (isWord(lower)) return null
-        val known = words[lower]
-        val pick = pick(lower, known) ?: return null
-        val swapped = pick.word.length == lower.length && pick.word.toCharArray().sorted() == lower.toCharArray().sorted()
-        if (!swapped && (known != null || pick.cost > SLIP_COST)) return null
-        val bar = if (!swapped && lower.length <= SHORT) SLIP_SCORE_SHORT else SLIP_SCORE
-        if (pick.score < bar || pick.score - pick.next < SLIP_MARGIN) return null
-        val cased = recase(typed, pick.word)
+        val fixed = if (words.containsKey(lower)) {
+            LISTED_SLIPS[lower]?.takeIf { (words[it] ?: 0f) >= COMMON } ?: return null
+        } else {
+            // Asked first, being cheap: most long words the lists miss look like words, and stand.
+            if (lower.length > SHORT && !odd(lower)) return null
+            val pick = pick(lower, null) ?: return null
+            if (shape(lower, pick.word) == null) return null
+            val bar = if (lower.length <= SHORT) SLIP_SCORE_SHORT else SLIP_SCORE
+            if (pick.score < bar || pick.score - pick.next < SLIP_MARGIN) return null
+            pick.word
+        }
+        val cased = recase(typed, fixed)
         return if (cased == typed) null else cased
+    }
+
+    /** The slips [slip] takes for accidents: letters swapped, a neighbouring key, a letter doubled. */
+    private enum class Slip { SWAP, KEY, DOUBLED }
+
+    /**
+     * Which slip turns [fix] into [typed] (both lower case), or null when it is none [slip] trusts:
+     * - two letters next to each other swapped, in a word of any length;
+     * - one neighbouring key in place of the right one, in a word longer than [SHORT] and not at its first or
+     *   last letter;
+     * - a consonant typed twice, in a word longer than [SHORT]. A doubled vowel is a word stretched (whaat, loove).
+     * A dropped letter, a far key and a letter too many are left: abbreviations and other words look the same.
+     */
+    private fun shape(typed: String, fix: String): Slip? {
+        if (typed.length == fix.length) {
+            val i = typed.indices.firstOrNull { typed[it] != fix[it] } ?: return null
+            val j = typed.indices.last { typed[it] != fix[it] }
+            if (j == i + 1 && typed[i] == fix[j] && typed[j] == fix[i]) return Slip.SWAP
+            if (j == i && typed.length > SHORT && i > 0 && i < typed.length - 1 && near(typed[i], fix[i])) return Slip.KEY
+            return null
+        }
+        if (typed.length == fix.length + 1 && typed.length > SHORT) {
+            val i = typed.indices.first { it >= fix.length || typed[it] != fix[it] }
+            if (i > 0 && typed[i] == typed[i - 1] && typed[i] !in VOWELS && typed.removeRange(i, i + 1) == fix) return Slip.DOUBLED
+        }
+        return null
+    }
+
+    /**
+     * The runs of three letters, a word's two edges included, that the common words of the loaded languages hold:
+     * what a word looks like. Made at [odd]'s first use and again when the dictionaries change, so the keyboard's
+     * own loading never pays for it.
+     */
+    @Volatile private var runs: Pair<Map<String, Float>, java.util.BitSet>? = null
+
+    /** [runs] for the dictionaries loaded now. */
+    private fun runs(): java.util.BitSet {
+        val loaded = words
+        runs?.let { if (it.first === loaded) return it.second }
+        val set = java.util.BitSet(RUN_LETTERS * RUN_LETTERS * RUN_LETTERS)
+        // A programmer's abbreviations (npm, kubectl) are words, but not what a word looks like.
+        for ((word, zipf) in loaded) if (zipf >= COMMON && word !in DEV_WORDS) eachRun(word) { set.set(it) }
+        runs = loaded to set
+        return set
+    }
+
+    /** Each run of three letters in [word], its edges included ("the": ^th, the, he$), as a number for [runs]. */
+    private inline fun eachRun(word: String, visit: (Int) -> Unit) {
+        if (word.isEmpty()) return
+        var first = 0
+        var second = runLetter(word[0])
+        for (i in 1..word.length) {
+            val third = if (i < word.length) runLetter(word[i]) else 0
+            visit((first * RUN_LETTERS + second) * RUN_LETTERS + third)
+            first = second; second = third
+        }
+    }
+
+    /** A letter's place in a run: 1 to 26 for a to z, 27 for anything else (an accent, an apostrophe); 0 is a word's edge. */
+    private fun runLetter(c: Char) = if (c in 'a'..'z') c - 'a' + 1 else RUN_LETTERS - 1
+
+    /**
+     * [lower] does not look like a word: it holds a run of three letters that no common word of the loaded
+     * languages has ("ybk" in keybkard, "hp" opening hpuse). A real word the lists miss (vishal, drooping,
+     * curation) nearly always looks like one, which is how a neighbouring-key slip is told from it.
+     */
+    private fun odd(lower: String): Boolean {
+        val seen = runs()
+        var odd = false
+        eachRun(lower) { if (!seen.get(it)) odd = true }
+        return odd
     }
 
     /**
@@ -333,9 +417,6 @@ class Autocorrect(context: Context) {
     fun isWord(lower: String): Boolean =
         lower in learned || lower in slangList || (words[lower] ?: 0f) >= COMMON || contractions.containsKey(lower) || folded.containsKey(lower)
 
-    /** [lower] is in the loaded lists at all, however rare: what tells a language with a dictionary from one without. */
-    fun isListed(lower: String): Boolean = isWord(lower) || words.containsKey(lower)
-
     /**
      * These dictionaries as [SampleCleaner] reads them. Each fix is worked out once and remembered for as long as
      * the returned object is kept, so make one per pass over the samples, not one to keep.
@@ -344,7 +425,6 @@ class Autocorrect(context: Context) {
         private val fixes = HashMap<String, String?>()
         override val ready get() = isReady
         override fun isWord(lower: String) = this@Autocorrect.isWord(lower)
-        override fun isListed(lower: String) = this@Autocorrect.isListed(lower)
         override fun fix(token: String): String? = if (fixes.containsKey(token)) fixes[token] else slip(token).also { fixes[token] = it }
     }
 
@@ -396,10 +476,17 @@ class Autocorrect(context: Context) {
         private const val SLIP_SCORE = 2.4f
         private const val SLIP_SCORE_SHORT = 4.0f
         private const val SLIP_MARGIN = 1.0f
-        /** The dearest slip [slip] takes for an accident: two neighbouring keys. Dearer ones are a far key or a first letter. */
-        private const val SLIP_COST = 2.0f
-        /** [slip]'s short word: up to this many letters. */
+        /** [slip]'s short word: up to this many letters. Only swapped letters are fixed in one. */
         private const val SHORT = 5
+        /** Doubled, these are a word stretched for effect, not a slip. */
+        private const val VOWELS = "aeiouy"
+        /** [runLetter]'s range: a word's edge, a to z, and one for every other character. */
+        private const val RUN_LETTERS = 28
+        /**
+         * The spellings the lists do hold that nobody means: the commonest swaps, typed often enough to have got
+         * into the word counts. Every other listed spelling stands.
+         */
+        private val LISTED_SLIPS = mapOf("teh" to "the", "thier" to "their", "recieve" to "receive")
         private const val ALPHABET = "abcdefghijklmnopqrstuvwxyz"
         /** A learned word counts as moderately common (about one in 30,000 words) when a slip lands near it. */
         private const val LEARNED_ZIPF = 4.0f

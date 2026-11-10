@@ -5,8 +5,11 @@ package com.infamousvague.devkeyboard
  * into account auto correct so it doesn't assume I'm just leaving mistakes"): the one that trains Mockingbird's
  * style profile, and the ones that write with it (Ghostwriter, "In my voice").
  *
- * A habit the person keeps to is style and is imitated; a slip is not, and is never learned or copied. The samples
- * have their obvious slips repaired before any AI sees them ([SampleCleaner]); these instructions are for the rest.
+ * A habit the person keeps to is style and is imitated, a spelling habit as much as any other ("u" for "you", no
+ * accents, "sooo"); a slip is not, and is never learned or copied. The AI that trains and the AIs that write are
+ * given the same test for telling them apart: a habit is named in the profile or recurs, a slip is seen once. The
+ * samples have their obvious slips repaired before any AI sees them ([SampleCleaner]); these instructions are for
+ * the rest.
  *
  * No Android here, so the texts can be read and checked off the phone (tool/check_sample_cleaner.sh prints them).
  */
@@ -53,29 +56,47 @@ object VoiceRules {
     """.trimIndent()
 
     /**
-     * Ghostwriter's instruction, one of its list: the answer is spelled correctly whatever the past messages hold.
+     * What counts as a convention to keep, in all three writing instructions: the same things the training
+     * instructions call style and [SampleCleaner] leaves alone, spelling habits among them. A list without those
+     * reads "correctly spelled" as an order to undo them (to put the accents back, to turn "sooo" into "so").
      */
-    const val WRITING = "Write correctly spelled text in their voice: reproduce their deliberate conventions (casing, " +
-        "punctuation habits, abbreviations, emoji use), but never introduce or copy an accidental misspelling, even if " +
-        "one of their past messages contains one."
-
-    /** The same for "In my voice", where the text being rewritten may hold a slip too. */
-    const val REWRITING = "Write correctly spelled text in their voice: reproduce their deliberate conventions (casing, " +
-        "punctuation habits, abbreviations, emoji use), but never introduce or copy an accidental misspelling, even if " +
-        "a sample or the text itself contains one."
+    private const val CONVENTIONS = "(casing, punctuation and apostrophe habits, missing accents, abbreviations, slang, " +
+        "stretched words, any spelling the profile names as theirs or that recurs across their messages, emoji use)"
 
     /**
-     * What follows the style profile wherever it is sent, whatever the profile says: one trained before
-     * [PROFILE_VERSION] 2 may describe slips as habits, and a sample may still hold one.
+     * Ghostwriter's instruction, one of its list: the answer keeps the person's spelling habits and none of their
+     * slips, whatever the past messages hold. [SPELLING_RULE], which always follows, says which is which.
+     */
+    const val WRITING = "Write correctly spelled text in their voice: reproduce their deliberate conventions " + CONVENTIONS +
+        ", but never introduce or copy an accidental misspelling, even if one of their past messages contains one. " +
+        "SPELLING, below, says how to tell a convention from a slip."
+
+    /** The same for "In my voice", where the text being rewritten may hold a slip too. */
+    const val REWRITING = "Write correctly spelled text in their voice: reproduce their deliberate conventions " + CONVENTIONS +
+        ", but never introduce or copy an accidental misspelling, even if a sample or the text itself contains one. " +
+        "SPELLING, below, says how to tell a convention from a slip."
+
+    /**
+     * What follows the style profile wherever it is sent, whatever the profile says. It gives the AI that writes
+     * the test the AI that trains has: a spelling the profile names as a convention, or one that recurs, is the
+     * person's and is kept; a one-off is a slip. And it says which wins: a profile trained before
+     * [PROFILE_VERSION] 2 may call typos a habit, and a sample may still hold a slip, but neither is copied.
      */
     const val SPELLING_RULE = "SPELLING\n" +
-        "Write correctly spelled text in their voice. Reproduce their deliberate conventions (casing, punctuation " +
-        "habits, abbreviations, emoji use), but never introduce or copy an accidental misspelling, even if a sample " +
-        "contains one or the profile describes typos as a habit: a slip is not their style."
+        "Write correctly spelled text in their voice. Reproduce their deliberate conventions " + CONVENTIONS + ", but " +
+        "never introduce or copy an accidental misspelling, even if a sample contains one or the profile describes " +
+        "typos as a habit: a slip is not their style.\n" +
+        "Telling them apart: a spelling is deliberate when the profile names it as a convention they keep to (\"u\" for " +
+        "\"you\", no accents, \"sooo\"), or when it recurs across their messages; so is slang, a texting abbreviation or " +
+        "a stretched word, which nobody types by accident. Keeping to these is their style, not a misspelling: " +
+        "\"correctly spelled\" never means undoing them. A slip is an accident of the thumbs seen once (letters " +
+        "swapped, a neighbouring key, a letter doubled or dropped: \"teh\", \"tge\"), or anything the profile itself " +
+        "calls a typo or a mistake. When unsure, spell the word the ordinary way."
 
     /**
      * The [profile] as a system-prompt section, or a note that there isn't one yet (null); then, always,
-     * [SPELLING_RULE], so neither an old profile nor a slip in a sample is ever copied.
+     * [SPELLING_RULE], so neither an old profile nor a slip in a sample is ever copied, and a spelling habit is
+     * never "corrected" away.
      */
     fun voiceSection(profile: String?): String =
         "THEIR STYLE PROFILE\n" + (profile ?: "(Not trained yet: copy the voice of the past messages below.)") + "\n\n" + SPELLING_RULE
