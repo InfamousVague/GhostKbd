@@ -342,6 +342,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val keyPadY get() = dp(6f)
     private val keyRadius get() = dp(6f)
     private var navInset = 0
+    private var seenInset = -1
 
     /** The letters page sets the height; the symbol pages spread their rows over the same space, as Gboard does. */
     private val rowCount get() = if (numberRow) 5 else 4
@@ -355,7 +356,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             } else {
                 @Suppress("DEPRECATION") insets.systemWindowInsetBottom
             }
-            if (!embedded && bottom != navInset) { navInset = bottom; requestLayout() }
+            // onMeasure works the strip out afresh (bottomInset); this only asks for it when Android's number moves.
+            if (!embedded && bottom != seenInset) { seenInset = bottom; requestLayout() }
             insets
         }
     }
@@ -366,13 +368,29 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     /**
+     * Settings › Look & feel › Keys › Space under the keys. "auto": room for Android's own buttons (see [bottomInset]);
+     * "more": that and [MORE_SPACE_DP] again, for a phone whose buttons still crowd the bottom row; "none": only what
+     * Android itself reports.
+     */
+    var bottomSpace = "auto"
+        set(value) { if (field != value) { field = value; requestLayout() } }
+
+    /**
      * The strip Android keeps under the keyboard for its own buttons (collapse, switch keyboard) and the gesture bar.
      * Read from the window itself each layout, so it is right however the insets were dispatched.
+     *
+     * With gesture navigation Android draws those two buttons over the keyboard's own window, in a strip
+     * [NAV_BUTTONS_DP] tall, but some phones report only the thin gesture bar's height as the inset; the buttons then
+     * sat on the bottom row (Matt, 2026-11-09: "The keyboard needs to be higher the bottom stock android keyboard
+     * collapse and select are intercepting the UI"). So wherever there is a gesture bar at all, the keys keep at
+     * least the buttons' height clear.
      */
     private fun bottomInset(): Int {
         if (embedded) return 0
         val insets = rootWindowInsets ?: return navInset
-        val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        var gestures = 0
+        val reported = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            gestures = maxOf(insets.getInsets(WindowInsets.Type.systemGestures()).bottom, insets.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom)
             maxOf(
                 insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
                 insets.getInsets(WindowInsets.Type.tappableElement()).bottom,
@@ -380,8 +398,15 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         } else {
             @Suppress("DEPRECATION") insets.systemWindowInsetBottom
         }
-        return maxOf(bottom, navInset)
+        lastReported = maxOf(reported, lastReported)
+        if (bottomSpace == "none") return lastReported
+        val buttons = if (lastReported > 0 || gestures > 0 || hadGestures) { hadGestures = true; ceil(dp(NAV_BUTTONS_DP)).toInt() } else 0
+        return maxOf(lastReported, buttons) + if (bottomSpace == "more") ceil(dp(MORE_SPACE_DP)).toInt() else 0
     }
+
+    /** The most Android has reported for the strip, and whether it has ever had a gesture bar: neither flickers back as insets are re-sent. */
+    private var lastReported = 0
+    private var hadGestures = false
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -1247,6 +1272,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         private const val DOCK_SLACK_DP = 14f
         /** The strip above the keys of the preview in Settings (dp), where a key's popup shows. */
         const val EMBEDDED_TOP_DP = 40f
+        /** The strip Android draws its collapse and switch-keyboard buttons in, with gesture navigation (dp). */
+        const val NAV_BUTTONS_DP = 48f
+        /** What "More" adds under the keys (dp). */
+        const val MORE_SPACE_DP = 20f
         /**
          * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
          * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps

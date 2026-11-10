@@ -641,6 +641,10 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'key_borders', 'Key borders'),
         _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
       ]),
+      PaneSection(
+        footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),
+        children: [_choice(store, 'bottom_space', 'Space under the keys', const {'none': 'None', 'auto': 'Auto', 'more': 'More'})],
+      ),
     ];
 
 List<Widget> _keyPressPart(BuildContext context, SettingsStore store) => [

@@ -252,6 +252,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         view.wideLayout = prefs.wideLayout
         view.oneHanded = prefs.oneHanded
+        view.bottomSpace = prefs.bottomSpace
         view.deleteSwipe = prefs.deleteSwipe
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
         view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this) else null

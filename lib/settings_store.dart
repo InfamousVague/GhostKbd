@@ -101,6 +101,7 @@ class SettingsStore extends ChangeNotifier {
     'wide_layout': 'split',
     'one_handed': 'off',
     'delete_swipe': true,
+    'bottom_space': 'auto',
     'typing_stats': true,
     'rewrite_language': 'Spanish',
     'preview_open': false,
