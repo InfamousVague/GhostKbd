@@ -122,8 +122,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         { text -> clusterBefore(text) },
     )
 
-    /** The field the history belongs to: its view, app and type. A start that changes any of them is a new field. */
-    private var fieldKey: Triple<Int, String?, Int>? = null
+    /**
+     * What the keyboard is told about a field when it starts: its view, app, type, Enter action, hint and names. A
+     * start that changes any of them is a new field. Two inputs on one web page or Compose screen can still be alike
+     * in all of these, which is why the editor reads the field before it keeps a history across a restart.
+     */
+    private data class FieldKey(
+        val id: Int, val app: String?, val type: Int, val options: Int, val hint: String?, val name: String?, val label: String?, val privateOptions: String?,
+    )
+
+    /** The field the history belongs to. */
+    private var fieldKey: FieldKey? = null
 
     /** The undo plugin's switch as last applied, so flipping it starts or stops recording the field in hand. */
     private var undoOn = false
@@ -231,13 +240,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onEvaluateFullscreenMode(): Boolean = false
 
     /**
-     * A field takes the keyboard. A new field (or app) starts with an empty history; the same field started again by
-     * its app keeps its history, which is checked against the text straight away.
+     * A field takes the keyboard. A new field (or app) starts with an empty history. A field its app says it is only
+     * starting again keeps its history if the editor finds its newest step in the text, read there and then
+     * ([FieldEditor.restarted]): inputs that share one view (a web page, Compose, Flutter) arrive the same way.
      */
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         runCatching {
-            val key = attribute?.let { Triple(it.fieldId, it.packageName, it.inputType) }
+            val key = attribute?.let {
+                FieldKey(it.fieldId, it.packageName, it.inputType, it.imeOptions, it.hintText?.toString(), it.fieldName, it.label?.toString(), it.privateImeOptions)
+            }
             if (attribute == null) { fieldKey = null; editor.detach(); return@runCatching }
             undoOn = Plugins.isOn(prefs, Plugins.UNDO)
             if (restarting && key == fieldKey) { editor.restarted(attribute.initialSelStart, attribute.initialSelEnd); return@runCatching }
@@ -300,8 +312,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = false
         wordTouches.clear(); takenTouch = null
         if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null }
-        // Whatever happened while the keyboard was away, the open step is over; an empty history asks the field if it has text.
-        editor.sent()
+        // Whatever happened while the keyboard was away, the open step is over. Not on a restart: onStartInput has
+        // just dealt with that, and an app that restarts after every key must not end the word at every letter.
+        if (!restarting) editor.sent()
+        // An empty history asks the field if it has text.
         editor.peek()
         scheduleRow()
         keyboard?.let { view ->
@@ -614,11 +628,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onCursor(steps: Int) {
         toolsHeld = false
+        // An answer still typing out is written whole first, so it stays one step and none of it lands at the moved
+        // cursor. The selection reported so far is then behind what was just written: this move goes by arrow keys.
+        val behind = typing != null
+        finishTyping()
         wordTouches.clear(); takenTouch = null
         val ic = currentInputConnection ?: return
         lastCorrection = null
         lastSwipe = null
-        if (selEnd < 0) {
+        if (selEnd < 0 || behind) {
             val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
             repeat(abs(steps)) { sendDownUpKeyEvents(code) }
             editor.sent()
@@ -927,7 +945,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // An app's profile decides for that app; without one, the plugin's own rule (the apps it suits, or everywhere).
         if (profile?.flag("terminal") ?: (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL))) {
             items += RowItem("esc", label = "Esc", chip = true) { sendKey(KeyEvent.KEYCODE_ESCAPE) }
-            items += RowItem("tab", label = "Tab", chip = true) { sendKey(KeyEvent.KEYCODE_TAB) }
+            items += RowItem("tab", label = "Tab", chip = true) { tab() }
             items += RowItem("ctrl-$ctrlOn", label = "Ctrl", bold = ctrlOn, chip = true) { ctrlOn = !ctrlOn; scheduleRow() }
             items += RowItem("alt-$altOn", label = "Alt", bold = altOn, chip = true) { altOn = !altOn; scheduleRow() }
             items += RowItem("left", label = "←", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
@@ -983,12 +1001,32 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** A key press with modifiers, as a hardware keyboard sends it: what terminals and undo listen for. */
     private fun sendKey(code: Int, meta: Int = 0) {
-        val ic = currentInputConnection ?: return
+        if (!pressKey(code, meta)) return
+        // What a key press does is the app's business: the step being typed is over, and the field is checked after.
+        editor.sent()
+    }
+
+    /** [code] down and up with [meta], and nothing told to the history. False with no field to send it to. */
+    private fun pressKey(code: Int, meta: Int = 0): Boolean {
+        val ic = currentInputConnection ?: return false
         val now = android.os.SystemClock.uptimeMillis()
         ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, meta))
         ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, meta))
-        // What a key press does is the app's business: the step being typed is over, and the field is checked after.
-        editor.sent()
+        return true
+    }
+
+    /**
+     * The terminal row's Tab: a key press, which a terminal reads as one. In an ordinary field it types a tab
+     * character, and that is a step in the history like any other typing (the editor sees what the key did, as it does
+     * for Enter). Esc, the arrows and Ctrl or Alt with a letter stay key presses whose effect is the app's: the field is
+     * checked after them, and a history they made stale is dropped.
+     */
+    private fun tab() {
+        if (currentInputConnection == null) return
+        finishTyping()
+        lastCorrection = null
+        lastSwipe = null
+        editor.tab { pressKey(KeyEvent.KEYCODE_TAB) }
     }
 
     /** [c] sent with the sticky Ctrl and Alt, then both let go. False for a character with no key of its own. */
@@ -1617,6 +1655,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val ic = currentInputConnection
             val info = currentInputEditorInfo
             if (ic == null || info == null) { closeGifs(); return@load }
+            // The download took a while: an answer that began typing out meanwhile is finished first, and stays one step.
+            finishTyping()
             val takesGifs = info.contentMimeTypes?.any { ClipDescription.compareMimeTypes("image/gif", it) } == true
             if (bytes != null && takesGifs) {
                 val uri = Giphy.save(this, gif, bytes)

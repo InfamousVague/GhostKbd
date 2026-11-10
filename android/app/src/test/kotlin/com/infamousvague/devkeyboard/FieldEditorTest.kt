@@ -141,11 +141,22 @@ class FakeField(var text: String = "", var selStart: Int = text.length, var selE
     }
 
     /** The Enter key reaching the app: a new line, with [extra] after it where the app adds a bullet. */
-    fun pressEnter(extra: String = "") {
-        text = text.substring(0, selStart) + "\n" + extra + text.substring(selEnd)
-        selStart += 1 + extra.length
+    fun pressEnter(extra: String = "") = press("\n$extra")
+
+    /** A key press reaching the app, which types [made] for it. */
+    fun press(made: String) {
+        text = text.substring(0, selStart) + made + text.substring(selEnd)
+        selStart += made.length
         selEnd = selStart
         report()
+    }
+
+    /** Another field takes this one's place inside the same view: its own text, the cursor at [sel]. No report: the app starts its input again instead. */
+    fun becomes(text: String, sel: Int = text.length) {
+        this.text = text
+        selStart = sel
+        selEnd = sel
+        reports.clear()
     }
 
     /** The text with the selection marked: "ab|cd" or "a[bc]d". */
@@ -180,6 +191,9 @@ class Rig(text: String = "", sel: Int = text.length, recordable: Boolean = true,
         for ((s, e) in waiting) editor.onSelection(s, e)
     }
 
+    /** Reads made while a key was being handled: the ones a typist waits on. */
+    var keyReads = 0
+
     /** Time passes: the timers that fall due run. */
     fun pass(ms: Long) {
         now += ms
@@ -188,19 +202,26 @@ class Rig(text: String = "", sel: Int = text.length, recordable: Boolean = true,
         pump()
     }
 
-    /** Types [s] a key at a time, 80 ms apart, the reports arriving between keys. */
+    /** One key: [text] typed, the reads it cost counted, its report handed over. */
+    fun key(text: String) {
+        val before = field.reads
+        editor.type(text)
+        keyReads += field.reads - before
+        pump()
+    }
+
+    /** Types [s] a key at a time, 80 ms apart, the reports arriving between keys and the timers running as they fall due. */
     fun keys(s: String) {
         var i = 0
         while (i < s.length) {
             val n = Character.charCount(s.codePointAt(i))
-            editor.type(s.substring(i, i + n))
-            pump()
-            now += 80
+            key(s.substring(i, i + n))
+            pass(80)
             i += n
         }
     }
 
-    fun backspace(times: Int = 1) = repeat(times) { assertTrue(editor.backspace()); pump(); now += 60 }
+    fun backspace(times: Int = 1) = repeat(times) { assertTrue(editor.backspace()); pump(); pass(60) }
 
     fun undo(): FieldEditor.Outcome = editor.undo().also { pump() }
 
@@ -215,8 +236,21 @@ class Rig(text: String = "", sel: Int = text.length, recordable: Boolean = true,
         assertTrue(pressed || late)
     }
 
+    /** The Tab key, which the app takes as a tab character, or as nothing to do with the text where [types] is false. */
+    fun tab(types: Boolean = true) {
+        editor.tab { if (types) field.press("\t") }
+        pump()
+        pass(300)
+    }
+
+    /** The app starts its input again, giving the selection the field has now. */
+    fun restart() = editor.restarted(field.selStart, field.selEnd)
+
     val steps get() = editor.history.undo.size
     val show get() = field.show()
+
+    /** What each step typed, oldest first. */
+    val typed get() = editor.history.undo.map { it.inserted.toString() }
 }
 
 /**
@@ -235,8 +269,10 @@ class FieldEditorTest {
         r.keys("hello world. Next one")
         assertEquals(4, r.steps)
         assertEquals(listOf("hello ", "world. ", "Next ", "one"), r.editor.history.undo.map { it.inserted.toString() })
-        // One read per word, none per letter.
-        assertEquals(4, r.field.reads)
+        // One read as typing starts. A new word straight after the last waits on none: the last step says what is there.
+        assertEquals(1, r.keyReads)
+        // The checks that follow, off the key path, come to no more than one a word.
+        assertTrue(r.field.reads <= 4)
     }
 
     @Test fun undoBackToEmptyAndRedoToTheEnd() {
@@ -466,10 +502,23 @@ class FieldEditorTest {
         assertEquals(done, r.undo())
         assertEquals("f|", r.show)
         assertEquals(done, r.redo())
-        // With no positions the cursor is left at the end, and undo still finds the pair from there.
-        assertEquals("f{}|", r.show)
+        // The field gives no positions but reports its selection: the cursor goes back inside the pair.
+        assertEquals("f{|}", r.show)
         assertEquals(done, r.undo())
         assertEquals("f|", r.show)
+        // A field that says nothing at all about where its cursor is: the cursor is left at the end, never moved to
+        // a place written down earlier, and undo still finds the pair from there.
+        val m = Rig("f")
+        m.field.noOffset = true
+        m.field.mute = true
+        m.editor.type("{}", caretBack = 1)
+        assertEquals(done, m.undo())
+        assertEquals("f|", m.show)
+        assertEquals(done, m.redo())
+        assertEquals("f{}|", m.show)
+        assertTrue(m.field.calls.none { it.startsWith("select") })
+        assertEquals(done, m.undo())
+        assertEquals("f|", m.show)
     }
 
     @Test fun wrapLinkAndLinePrefix() {
@@ -950,10 +999,478 @@ class FieldEditorTest {
         assertEquals("kept |", r.show)
     }
 
+    // --- another field behind the same view (a web page, Compose, Flutter): it arrives as a restart ---------------------
+
+    @Test fun restartIntoAnEmptyFieldDropsWhatWasWaitingToBeRedone() {
+        for (noOffset in listOf(false, true)) {
+            val r = Rig()
+            r.field.noOffset = noOffset
+            r.keys("private note")
+            while (r.steps > 0) assertEquals(done, r.undo())
+            assertTrue(r.editor.canRedo)
+            r.pass(1_000)
+            // Field A is empty; the person moves to field B, also empty, which the app shows as the same view started again.
+            r.field.becomes("")
+            r.restart()
+            assertFalse("noOffset=$noOffset", r.editor.canRedo)
+            assertFalse(r.editor.canUndo)
+            assertEquals(nothing, r.redo())
+            assertEquals("|", r.show)
+        }
+    }
+
+    @Test fun restartIntoAFieldEmptiedByADeletionDropsIt() {
+        val r = Rig("abc")
+        r.backspace(3)
+        assertEquals("|", r.show)
+        assertTrue(r.steps > 0)
+        r.pass(1_000)
+        r.field.becomes("")
+        r.restart()
+        // An empty field shows nothing of the deletion: undo must not write "abc" into whatever field this is now.
+        assertEquals(0, r.steps)
+        assertEquals(nothing, r.undo())
+        assertEquals("|", r.show)
+    }
+
+    @Test fun restartIntoAnotherFieldDropsItsStepsWithoutTouchingTheField() {
+        for (noOffset in listOf(false, true)) {
+            val r = Rig()
+            r.field.noOffset = noOffset
+            r.keys("Buy milk and eggs today ")
+            assertEquals(5, r.steps)
+            r.pass(1_000)
+            r.field.calls.clear()
+            r.field.becomes("Groceries")
+            r.restart()
+            // The steps were field A's: gone at once, before an arrow can be tapped, and nothing was sent to field B.
+            assertEquals("noOffset=$noOffset", 0, r.steps)
+            assertTrue(r.field.calls.isEmpty())
+            assertTrue(r.editor.handOff)
+            assertEquals(asked, r.undo())
+            assertTrue(r.field.calls.none { it.startsWith("select") || it.startsWith("delete") || it.startsWith("commit") })
+            assertEquals("Groceries|", r.show)
+        }
+    }
+
+    @Test fun restartIntoALongerOrShorterFieldDropsIt() {
+        // B holds A's text and more after it: A's last step is not at B's end.
+        val longer = Rig()
+        longer.keys("typed here ")
+        longer.pass(1_000)
+        longer.field.becomes("typed here and more", 11)
+        longer.restart()
+        assertEquals(0, longer.steps)
+        // B is shorter than where A's last step sat.
+        val shorter = Rig()
+        shorter.keys("one two three four ")
+        shorter.pass(1_000)
+        shorter.field.becomes("one", 3)
+        shorter.restart()
+        assertEquals(0, shorter.steps)
+        assertEquals(asked, shorter.undo())
+        assertEquals("one|", shorter.show)
+    }
+
+    @Test fun restartStraightAfterAKeyIntoAnotherFieldIsFoundOutByTheCheck() {
+        val r = Rig()
+        r.keys("abc")
+        // Within the half second a restart is taken as the key's own: field B happens to have its cursor at 3 too.
+        r.field.becomes("xyz")
+        r.restart()
+        r.pass(400)
+        assertEquals(0, r.steps)
+        assertEquals("xyz|", r.show)
+    }
+
+    @Test fun restartOfTheSameFieldLaterKeepsAHistoryThatIsFound() {
+        for (noOffset in listOf(false, true)) {
+            val r = Rig()
+            r.field.noOffset = noOffset
+            r.keys("kept words ")
+            r.pass(2_000)
+            val reads = r.field.reads
+            r.restart()
+            // Read there and then, not on trust.
+            assertEquals(reads + 1, r.field.reads)
+            assertEquals(2, r.steps)
+            assertEquals(done, r.undo())
+            assertEquals("kept |", r.show)
+            r.pass(2_000)
+            r.restart()
+            assertTrue(r.editor.canRedo)
+            assertEquals(done, r.redo())
+            assertEquals("kept words |", r.show)
+        }
+    }
+
+    @Test fun restartWithAnUnreadableFieldDropsTheHistoryButGoesOnRecording() {
+        val r = Rig()
+        r.keys("some words ")
+        r.pass(2_000)
+        r.field.nullReads = true
+        r.restart()
+        assertEquals(0, r.steps)
+        assertTrue(r.editor.recording)
+        r.field.nullReads = false
+        r.keys("more ")
+        assertEquals(1, r.steps)
+        assertEquals(done, r.undo())
+        assertEquals("some words |", r.show)
+    }
+
+    @Test fun enterThenRestartIntoAnEmptyFieldDropsTheHistory() {
+        val r = Rig("abc")
+        r.backspace(3)
+        // Enter does nothing to the text here (the app takes it as "next field") and the next field is empty too.
+        r.editor.enter { }
+        r.field.becomes("")
+        r.restart()
+        r.pass(400)
+        assertEquals(0, r.steps)
+        assertEquals(nothing, r.undo())
+        assertEquals("|", r.show)
+    }
+
+    // --- an app that starts its input again after every key ------------------------------------------------------------
+
+    @Test fun appThatRestartsAfterEveryKeyKeepsWordsWhole() {
+        for (restartFirst in listOf(false, true)) {
+            val r = Rig()
+            for (c in "hello world again ") {
+                val before = r.field.reads
+                r.editor.type(c.toString())
+                r.keyReads += r.field.reads - before
+                // The service on a restart: onStartInput, then onStartInputView, which only looks for old text.
+                if (restartFirst) { r.restart(); r.editor.peek(); r.pump() } else { r.pump(); r.restart(); r.editor.peek() }
+                r.pass(80)
+            }
+            assertTrue("restartFirst=$restartFirst", r.editor.recording)
+            assertEquals(listOf("hello ", "world ", "again "), r.typed)
+            // Reads by the word at most, never by the key; one of them on the key path.
+            assertEquals(1, r.keyReads)
+            assertTrue("reads ${r.field.reads}", r.field.reads <= 3)
+            r.pass(1_000)
+            assertEquals(3, r.steps)
+            assertEquals(done, r.undo())
+            assertEquals("hello world |", r.show)
+            assertEquals(done, r.redo())
+            assertEquals("hello world again |", r.show)
+        }
+    }
+
+    @Test fun appThatRestartsAndMovesTheCursorAfterEveryKeyGoesToThePlainPath() {
+        val r = Rig()
+        var typed = ""
+        for (c in "abcdefghijkl") {
+            r.editor.type(c.toString())
+            r.pump()
+            // An input mask: it adds a character of its own after each key, then starts its input again.
+            r.field.outside(r.field.text + "-")
+            r.pump()
+            r.restart()
+            r.editor.peek()
+            typed += "$c-"
+            r.pass(80)
+        }
+        assertEquals("$typed|", r.show)
+        assertFalse(r.editor.recording)
+        assertEquals(0, r.steps)
+        // It was given up on after a few keys, not read at every one.
+        assertTrue("reads ${r.field.reads}", r.field.reads <= 8)
+    }
+
+    // --- what a key waits on -------------------------------------------------------------------------------------------
+
+    @Test fun typingOnWaitsOnNoReads() {
+        val r = Rig()
+        repeat(400) { r.keys("word${it % 7} ") }
+        // 2,400 keys: one read as typing began, and none since on the key path.
+        assertEquals(1, r.keyReads)
+        assertTrue(r.editor.recording)
+        assertEquals(EditHistory.MAX_STEPS, r.steps)
+        assertTrue(r.errors.isEmpty())
+        assertEquals(done, r.undo())
+        assertTrue(r.field.text.endsWith("word${398 % 7} "))
+        // A tap, then a key: the cursor moved, so that one key reads first.
+        r.field.tap(3); r.pump()
+        r.keys("x")
+        assertEquals(2, r.keyReads)
+    }
+
+    @Test fun swipedWordsAfterEachOtherWaitOnNoReads() {
+        val r = Rig()
+        r.editor.insert("one", Kind.SWIPE); r.pump()
+        val reads = r.field.reads
+        r.editor.insert(" two", Kind.SWIPE); r.pump()
+        r.editor.insert(" three", Kind.SWIPE); r.pump()
+        assertEquals(reads, r.field.reads)
+        r.pass(400)
+        assertEquals(3, r.steps)
+        r.undo(); r.undo()
+        assertEquals("one|", r.show)
+    }
+
+    @Test fun steadilySlowFieldStopsBeingRead() {
+        val r = Rig()
+        r.field.readCost = 100
+        repeat(200) { r.keys("word ") }
+        assertEquals(1_000, r.field.text.length)
+        assertFalse(r.editor.recording)
+        // The old limit let every word wait 100 ms for good: 20 seconds over these 200 words.
+        assertTrue("waited ${r.field.reads * 100} ms", r.field.reads * 100 <= 500)
+        assertEquals(1, r.keyReads)
+    }
+
+    @Test fun oneLongWaitEndsRecordingAtOnce() {
+        val r = Rig()
+        r.field.readCost = 1_900
+        r.keys("one two three ")
+        assertEquals("one two three |", r.show)
+        assertEquals(1, r.field.reads)
+        assertFalse(r.editor.recording)
+        // Another field of the app that just hung is not read either; one met a minute later is.
+        r.editor.attach(true, false, 0, 0)
+        assertFalse(r.editor.recording)
+        r.now += 60_000
+        r.editor.attach(true, false, 0, 0)
+        assertTrue(r.editor.recording)
+    }
+
+    @Test fun anOddSlowAnswerIsForgiven() {
+        val r = Rig()
+        r.field.readCost = 150
+        r.keys("a")
+        r.field.readCost = 0
+        r.keys(" few more words typed here ")
+        r.field.tap(2); r.pump()
+        r.pass(10_000)
+        // Ten seconds on, one more slow answer: the first has long been forgiven.
+        r.field.readCost = 150
+        r.key("x")
+        r.field.readCost = 0
+        r.pass(1_000)
+        assertTrue(r.editor.recording)
+        assertEquals(done, r.undo())
+        assertEquals("a |few more words typed here ", r.show)
+    }
+
+    // --- backspace: a slip, or a deletion ------------------------------------------------------------------------------
+
+    @Test fun autocorrectAfterABackspaceUndoesThroughTextThatWasThere() {
+        val r = Rig()
+        r.keys("tehh")
+        r.backspace()
+        assertTrue(r.editor.replaceBefore("teh", "the ", Kind.CORRECTION, typedFirst = " ")); r.pump()
+        assertEquals("the |", r.show)
+        // The backspace put a slip right, as it does before a space that is typed: the word and its space, then the fix.
+        assertEquals(listOf("teh ", "the "), r.typed)
+        assertEquals(done, r.undo())
+        assertEquals("teh |", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("|", r.show)
+        assertEquals(nothing, r.undo())
+        assertEquals(done, r.redo())
+        assertEquals("teh |", r.show)
+        assertEquals(done, r.redo())
+        assertEquals("the |", r.show)
+        // With punctuation, and after a pause that makes the separator a step of its own.
+        val p = Rig()
+        p.keys("so recievee")
+        p.backspace()
+        assertTrue(p.editor.replaceBefore("recieve", "receive.", Kind.CORRECTION, typedFirst = ".")); p.pump()
+        val seen = ArrayList<String>()
+        while (p.steps > 0) { assertEquals(done, p.undo()); seen += p.show }
+        assertEquals(listOf("so recieve.|", "so |", "|"), seen)
+        val late = Rig()
+        late.keys("tehh")
+        late.backspace()
+        late.now += 4_000
+        assertTrue(late.editor.replaceBefore("teh", "the ", Kind.CORRECTION, typedFirst = " ")); late.pump()
+        seen.clear()
+        while (late.steps > 0) { assertEquals(done, late.undo()); seen += late.show }
+        // Every state on the way back was in the field, or is the word with the space that was pressed.
+        assertEquals(listOf("teh |", "teh|", "tehh|", "|"), seen)
+    }
+
+    @Test fun wordDeleteSlideThenTypingKeepsTheWordToUndo() {
+        val r = Rig()
+        r.keys("hello world")
+        r.editor.deleteBefore("world"); r.pump()
+        r.keys("x")
+        assertEquals("hello x|", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("hello |", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("hello world|", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("hello |", r.show)
+        assertEquals(done, r.redo()); assertEquals(done, r.redo()); assertEquals(done, r.redo())
+        assertEquals("hello x|", r.show)
+    }
+
+    @Test fun heldBackspaceOverTheWordBeingTypedThenTypingKeepsTheWordToUndo() {
+        val r = Rig()
+        r.keys("see you tomorrow")
+        r.backspace(8)
+        assertEquals("see you |", r.show)
+        r.keys("tonight")
+        assertEquals("see you tonight|", r.show)
+        assertEquals(listOf("see ", "you ", "tomorrow", "", "tonight"), r.typed)
+        assertEquals("tomorrow", r.editor.history.undo[3].removed.toString())
+        assertEquals(done, r.undo())
+        assertEquals("see you |", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("see you tomorrow|", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("see you |", r.show)
+        assertEquals(done, r.redo()); assertEquals(done, r.redo()); assertEquals(done, r.redo())
+        assertEquals("see you tonight|", r.show)
+    }
+
+    @Test fun aSlipIsAFewLettersWithSomeOfTheWordLeft() {
+        // Three letters off a longer word and typed again: one step, as before.
+        val slip = Rig()
+        slip.keys("wonderfol")
+        slip.backspace(FieldEditor.SLIP)
+        slip.keys("ful")
+        assertEquals(listOf("wonderful"), slip.typed)
+        // One more than that is a deletion.
+        val more = Rig()
+        more.keys("wonderfol")
+        more.backspace(FieldEditor.SLIP + 1)
+        more.keys("rful")
+        assertEquals(listOf("wonderfol", "", "rful"), more.typed)
+        assertEquals(done, more.undo()); assertEquals(done, more.undo())
+        assertEquals("wonderfol|", more.show)
+        // A word backspaced away whole is a deletion however short it is.
+        val whole = Rig()
+        whole.keys("go no")
+        whole.backspace(2)
+        whole.keys("yes")
+        assertEquals("go yes|", whole.show)
+        assertEquals(done, whole.undo()); assertEquals(done, whole.undo())
+        assertEquals("go no|", whole.show)
+    }
+
+    @Test fun backspaceTakesAWindowsLineEndWhole() {
+        val r = Rig("line one\r\n")
+        r.backspace()
+        assertEquals("line one|", r.show)
+        assertEquals(done, r.undo())
+        assertEquals("line one\r\n|", r.show)
+        assertEquals(done, r.redo())
+        assertEquals("line one|", r.show)
+        // A line feed alone, and a carriage return alone, are still one each.
+        assertEquals(1, EditHistory.unitBefore("a\n") { 1 })
+        assertEquals(1, EditHistory.unitBefore("a\r") { 1 })
+        assertEquals(2, EditHistory.unitBefore("\r\n") { 1 })
+    }
+
+    // --- fields that give no positions ---------------------------------------------------------------------------------
+
+    @Test fun noPositionsSelectionGoesBackWhereTheTextIsNow() {
+        val lead = "0123456789abcdef and then we "
+        val r = Rig(lead + "say hello world, and so on to the end")
+        r.field.noOffset = true
+        val at = lead.length + 4
+        r.field.tap(at, at + 5); r.pump()
+        r.keys("H")
+        // The app's own paste menu puts two characters in at the field's start, and the person taps back after the H.
+        r.field.outside("XX" + r.field.text, at + 1 + 2); r.pump()
+        assertEquals(done, r.undo())
+        assertEquals("XX${lead}say [hello] world, and so on to the end", r.show)
+        assertEquals(done, r.redo())
+        assertEquals("XX${lead}say H| world, and so on to the end", r.show)
+    }
+
+    @Test fun noPositionsPairCursorGoesBackInsideWhereThePairIsNow() {
+        val lead = "0123456789abcdef and then we say "
+        val r = Rig(lead + "hello world, and so on to the end", sel = lead.length)
+        r.field.noOffset = true
+        r.field.tap(lead.length); r.pump()
+        r.editor.type("()", caretBack = 1); r.pump()
+        assertEquals(done, r.undo())
+        r.field.outside("XX" + r.field.text, lead.length + 2); r.pump()
+        assertEquals(done, r.redo())
+        assertEquals("XX$lead(|)hello world, and so on to the end", r.show)
+    }
+
+    // --- Tab, as a key ---------------------------------------------------------------------------------------------------
+
+    @Test fun tabThatTypesATabIsAStep() {
+        for (noOffset in listOf(false, true)) {
+            val r = Rig()
+            r.field.noOffset = noOffset
+            r.keys("- item one")
+            r.tab()
+            assertEquals("- item one\t|", r.show)
+            assertEquals(listOf("- ", "item ", "one", "\t"), r.typed)
+            // The check that follows a key press finds nothing wrong: the history stays.
+            r.pass(1_000)
+            assertEquals(4, r.steps)
+            assertFalse(r.editor.handOff)
+            r.keys("x")
+            assertEquals(done, r.undo())
+            assertEquals(done, r.undo())
+            assertEquals("- item one|", r.show)
+            assertEquals(done, r.redo())
+            assertEquals("- item one\t|", r.show)
+            assertEquals(done, r.undo()); assertEquals(done, r.undo())
+            assertEquals("- item |", r.show)
+        }
+    }
+
+    @Test fun tabThatTypesNothingLeavesTheHistoryAsItWas() {
+        val r = Rig()
+        r.keys("name")
+        r.tab(types = false)
+        assertEquals(1, r.steps)
+        assertEquals(done, r.undo())
+        assertEquals("|", r.show)
+        // A completion (the app writes something else for the key): not the keyboard's to undo.
+        val c = Rig()
+        c.keys("git che")
+        c.editor.tab { c.field.press("ckout ") }
+        c.pump(); c.pass(300)
+        assertEquals(0, c.steps)
+        assertEquals(asked, c.undo())
+    }
+
+    // --- Rewrite's memory of a whole field ------------------------------------------------------------------------------
+
+    @Test fun rewriteRemembersNoTextAndForgetsOnAnyOtherEdit() {
+        val all = "word ".repeat(20_000)
+        val r = Rig(all)
+        r.field.tap(7); r.pump()
+        val was = r.editor.selectionNow()
+        r.editor.sent(); r.field.tap(0, all.length); r.pump()
+        r.editor.rememberRewrite(all, was)
+        // Nothing the editor holds for it is text: the field's 100,000 characters are not kept alive by the keyboard.
+        val held = FieldEditor::class.java.getDeclaredField("rewrite").also { it.isAccessible = true }.get(r.editor)
+        assertTrue(held != null && held.javaClass.declaredFields.none { CharSequence::class.java.isAssignableFrom(it.type) })
+        // The job is dismissed and the person types on: the memory goes with the next edit.
+        r.field.tap(all.length); r.pump()
+        r.keys("x")
+        assertEquals(null, FieldEditor::class.java.getDeclaredField("rewrite").also { it.isAccessible = true }.get(r.editor))
+        // A refused answer (the selection is not the one asked about) forgets it too.
+        val f = Rig("i has a cat")
+        f.field.tap(4); f.pump()
+        val at = f.editor.selectionNow()
+        f.editor.sent(); f.field.tap(0, 11); f.pump()
+        f.editor.rememberRewrite("i has a cat", at)
+        assertFalse(f.editor.beginFill(0, 0, "something else", selection = true, full = "x", typeOut = false))
+        assertEquals(null, FieldEditor::class.java.getDeclaredField("rewrite").also { it.isAccessible = true }.get(f.editor))
+        // Asked again without the memory, the answer still goes in; undo then gives the selection back, not a stale cursor.
+        assertTrue(f.editor.beginFill(0, 0, "i has a cat", selection = true, full = "I have a cat.", typeOut = false)); f.pump()
+        assertEquals(done, f.undo())
+        assertEquals("[i has a cat]", f.show)
+    }
+
     // --- everything together ------------------------------------------------------------------------------------------
 
     @Test fun fuzzUndoThenRedoReproducesEverySnapshot() {
-        for (seed in 1..60) {
+        for (seed in 1..400) {
             val rnd = java.util.Random(seed.toLong())
             val r = Rig()
             if (seed % 5 == 0) r.field.noOffset = true
@@ -970,7 +1487,7 @@ class FieldEditorTest {
             val words = listOf("alpha", "be", "😀", "γάμμα", "שלום", "x́y", "tab\there", "new\nline", "👨‍👩‍👧", "🇬🇧")
             repeat(40) {
                 val was = r.field.text
-                when (rnd.nextInt(12)) {
+                when (rnd.nextInt(15)) {
                     0, 1, 2, 3 -> {
                         // A key at a time, marking after each: one word can be two steps (a line end inside it).
                         val word = words[rnd.nextInt(words.size)] + " "
@@ -1025,6 +1542,34 @@ class FieldEditorTest {
                     9 -> { r.editor.replaceSelection(Kind.WRAP) { s -> Pair("**$s**", if (s.isEmpty()) 2 else 0) }; r.pump() }
                     10 -> if (!r.field.noOffset) { r.editor.insertAtLineStart("- "); r.pump() }
                     11 -> { r.enter(); r.now += 4_000 }
+                    12 -> { r.tab(); r.now += 4_000 }
+                    13 -> if (r.field.selStart == r.field.selEnd) {
+                        // The word-delete slide, as the service works the word out; sometimes typed over straight after.
+                        val text = r.field.text.substring(0, r.field.selStart)
+                        var i = text.length
+                        while (i > 0 && text[i - 1].isWhitespace()) i--
+                        if (i > 0) {
+                            if (text[i - 1].isLetterOrDigit()) while (i > 0 && (text[i - 1].isLetterOrDigit() || text[i - 1] == '\'')) i--
+                            else i -= if (Character.isLowSurrogate(text[i - 1]) && i >= 2) 2 else 1
+                        }
+                        if (i < text.length) {
+                            r.editor.deleteBefore(text.substring(i)); r.pump()
+                            mark(true)
+                            if (rnd.nextBoolean()) { r.keys("w"); r.now += 4_000 }
+                        }
+                    }
+                    14 -> {
+                        // The app starts its input again on the same field, now or a while after the last key: with
+                        // the text short enough to be read whole, the history must come through it untouched. An
+                        // empty field is the exception: it shows nothing of any step, and is taken as a new one.
+                        if (rnd.nextBoolean()) r.pass(2_000)
+                        val empty = r.field.text.isEmpty()
+                        val k0 = if (empty) 0 else r.steps
+                        r.restart()
+                        if (!empty && r.field.text.length <= 200) assertEquals("seed $seed restart", k0, r.steps)
+                        r.pass(400)
+                        if (r.field.text.length <= 200) assertEquals("seed $seed after restart", k0, r.steps)
+                    }
                 }
                 mark(r.field.text != was)
             }
@@ -1041,6 +1586,101 @@ class FieldEditorTest {
                 if (r.field.noOffset) assertEquals("seed $seed redo $k", after[k].replace("|", "").replace("[", "").replace("]", ""), r.field.text)
                 else assertEquals("seed $seed redo $k", after[k], r.show)
             }
+        }
+    }
+
+    /**
+     * The same, against a field that behaves badly: selection reports arrive late or not at all, some fields give no
+     * positions, the cursor is tapped about and text selected, the app starts its input again, and undo and redo are
+     * tapped in the middle. Whatever the history makes of it, an arrow that says it did something must leave text that
+     * was in the field before, and one that did nothing must leave the text alone.
+     */
+    @Test fun fuzzHostileFieldNeverGetsTextThatWasNeverThere() {
+        for (seed in 1..600) {
+            val rnd = java.util.Random(seed.toLong())
+            val r = Rig()
+            if (seed % 4 == 0) r.field.noOffset = true
+            val lateBy = rnd.nextInt(3)
+            val dropRate = if (seed % 3 == 0) 0.15 else 0.0
+            val seen = HashSet<String>()
+            seen += r.field.text
+            val held = ArrayList<Pair<Int, Int>>()
+            fun deliver(all: Boolean = false) {
+                held += r.field.reports; r.field.reports.clear()
+                while (held.size > (if (all) 0 else lateBy)) {
+                    val (s, e) = held.removeAt(0)
+                    if (rnd.nextDouble() >= dropRate) r.editor.onSelection(s, e)
+                }
+                seen += r.field.text
+            }
+            fun tick(ms: Long) {
+                r.now += ms
+                if (r.settleAt in 0..r.now) { r.settleAt = -1; r.editor.settle() }
+                if (r.auditAt in 0..r.now) { r.auditAt = -1; r.editor.audit() }
+                deliver()
+            }
+            /** [at], moved back off the second half of a surrogate pair. */
+            fun whole(at: Int): Int { var i = at; while (i > 0 && i < r.field.text.length && Character.isLowSurrogate(r.field.text[i])) i--; return i }
+            /** An arrow tapped: the text it leaves must have been there before, or be untouched. */
+            fun arrow(redo: Boolean, all: Boolean): Boolean {
+                val was = r.field.text
+                val out = if (redo) r.editor.redo() else r.editor.undo()
+                val now = r.field.text
+                if (out == done) assertTrue("seed $seed ${if (redo) "redo" else "undo"} left text that was never there: $now", now in seen)
+                else assertEquals("seed $seed $out changed the text", was, now)
+                deliver(all)
+                return out == done
+            }
+            val words = listOf("alpha", "be", "😀", "γάμμα", "שלום", "x́y", "tab\there", "new\nline", "👨‍👩‍👧", "🇬🇧", "be", "be")
+            repeat(50) {
+                when (rnd.nextInt(17)) {
+                    0, 1, 2, 3, 4 -> {
+                        val word = words[rnd.nextInt(words.size)] + " "
+                        var i = 0
+                        while (i < word.length) {
+                            val n = Character.charCount(word.codePointAt(i))
+                            r.editor.type(word.substring(i, i + n)); deliver(); tick(80)
+                            i += n
+                        }
+                        if (rnd.nextBoolean()) tick(4_000)
+                    }
+                    5 -> { r.editor.insert(words[rnd.nextInt(words.size)], Kind.PASTE); deliver() }
+                    6 -> repeat(1 + rnd.nextInt(6)) { r.editor.backspace(); deliver(); tick(50) }
+                    7 -> if (r.field.text.isNotEmpty()) { r.field.tap(whole(rnd.nextInt(r.field.text.length + 1))); deliver() }
+                    8 -> if (r.field.text.length > 3) {
+                        val a = whole(rnd.nextInt(r.field.text.length - 1))
+                        var b = a + 1 + rnd.nextInt(minOf(6, r.field.text.length - a))
+                        while (b < r.field.text.length && Character.isLowSurrogate(r.field.text[b])) b++
+                        r.field.tap(a, b); deliver()
+                    }
+                    9 -> { r.editor.type("()", caretBack = 1); deliver() }
+                    10 -> { r.editor.replaceSelection(Kind.WRAP) { s -> Pair("**$s**", if (s.isEmpty()) 2 else 0) }; deliver() }
+                    11 -> { r.editor.insertAtLineStart("- "); deliver() }
+                    12 -> { r.editor.enter { r.field.pressEnter(if (rnd.nextInt(4) == 0) "- " else "") }; deliver(); tick(300) }
+                    13 -> { r.editor.tab { if (rnd.nextInt(3) > 0) r.field.press("\t") }; deliver(); tick(300) }
+                    14 -> if (r.field.selStart == r.field.selEnd) {
+                        val text = r.field.text.substring(0, r.field.selStart)
+                        var i = text.length
+                        while (i > 0 && text[i - 1].isWhitespace()) i--
+                        if (i > 0) {
+                            if (text[i - 1].isLetterOrDigit()) while (i > 0 && text[i - 1].isLetterOrDigit()) i--
+                            else i -= if (Character.isLowSurrogate(text[i - 1]) && i >= 2) 2 else 1
+                        }
+                        if (i < text.length) { r.editor.deleteBefore(text.substring(i)); deliver() }
+                    } else {
+                        r.editor.deleteSelection(); deliver()
+                    }
+                    15 -> { if (rnd.nextBoolean()) tick(2_000); r.restart(); r.editor.peek(); tick(100) }
+                    16 -> arrow(redo = rnd.nextBoolean(), all = false)
+                }
+                assertTrue("seed $seed errors ${r.errors}", r.errors.isEmpty())
+            }
+            deliver(all = true)
+            var taps = 0
+            while (taps++ < 300 && arrow(redo = false, all = true)) Unit
+            taps = 0
+            while (taps++ < 300 && arrow(redo = true, all = true)) Unit
+            assertTrue("seed $seed errors ${r.errors}", r.errors.isEmpty())
         }
     }
 }

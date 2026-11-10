@@ -20,11 +20,16 @@ class ConnectionPort(private val connection: () -> InputConnection?, private val
 
     /**
      * One read around the cursor. On Android 12 and later a single call that also says where the cursor is; before
-     * that, or where the app does not answer it, the three older calls, which give no position.
+     * that, or where the app does not answer it, the three older calls, which give no position. The older calls are
+     * tried only when the new one said no at once: a no that took a long time is Android giving up on an app that is
+     * not answering (it waits two seconds), and asking again would only wait as long again.
      */
     override fun read(before: Int, after: Int): Reading? = try {
         val ic = connection()
-        if (ic == null) null else readNew(ic, before, after) ?: readOld(ic, before, after)
+        if (ic == null) null else {
+            val asked = SystemClock.uptimeMillis()
+            readNew(ic, before, after) ?: if (SystemClock.uptimeMillis() - asked >= GAVE_UP_MS) null else readOld(ic, before, after)
+        }
     } catch (t: Throwable) {
         null
     }
@@ -108,5 +113,10 @@ class ConnectionPort(private val connection: () -> InputConnection?, private val
         key(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, ctrl or shift)
         if (redo) key(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SHIFT_LEFT, ctrl)
         key(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, 0)
+    }
+
+    companion object {
+        /** A read that came back with nothing after this long was not refused by the app: it never answered. */
+        private const val GAVE_UP_MS = 200L
     }
 }

@@ -121,7 +121,10 @@ class Caret(private val clock: () -> Long) {
     fun predict(s: Int, e: Int = s) {
         if (s < 0 || e < 0) { unknown(); return }
         expire()
-        expected.addLast(longArrayOf(minOf(s, e).toLong(), maxOf(s, e).toLong(), clock()))
+        val lo = minOf(s, e).toLong(); val hi = maxOf(s, e).toLong()
+        // The same selection twice running is reported once: a second expectation would never be met.
+        expected.lastOrNull()?.let { if (it[0] == lo && it[1] == hi) { it[2] = clock(); return } }
+        expected.addLast(longArrayOf(lo, hi, clock()))
         while (expected.size > 64) expected.removeFirst()
     }
 
@@ -171,6 +174,19 @@ class Caret(private val clock: () -> Long) {
         return Verdict.FOREIGN
     }
 
+    /**
+     * Whether [s0] to [e0] is a selection the keyboard is waiting to hear of, or the one it last took as true: an app
+     * starting its input again with it has moved nothing.
+     */
+    fun expects(s0: Int, e0: Int): Boolean {
+        if (s0 < 0 || e0 < 0) return false
+        val s = minOf(s0, e0); val e = maxOf(s0, e0)
+        expire()
+        if (adopt > 0) return false
+        if (expected.any { it[0].toInt() == s && it[1].toInt() == e }) return true
+        return expected.isEmpty() && start == s && end == e
+    }
+
     /** Takes [s] to [e] as true without judging it (while Enter is being worked out). */
     fun take(s: Int, e: Int) {
         expected.clear()
@@ -187,8 +203,16 @@ class Caret(private val clock: () -> Long) {
  * what the step put there, with the text either side of it as it was. If it is not (the app changed it, something was
  * pasted from the app's own menu, another keyboard typed), the history is dropped and the app is asked to undo instead.
  *
- * Where the field is not being recorded (the plugin is off, a password, a field that cannot be read) every method
- * sends exactly the calls 0.9.4 sent and nothing is kept.
+ * A history belongs to one field. An app that starts its input again without saying the field changed has to show
+ * the newest step in its text, or it is a new field ([restarted]): the inputs of a web page or a Flutter screen share
+ * one view, and moving between them looks just like that.
+ *
+ * Typing comes first. A word typed straight after the last step is sent without reading the field (the step says
+ * what is there, and the app's selection reports say the cursor has not moved); the check comes after, off the key
+ * path ([audit]). Reads are timed, and a field that answers slowly is not recorded any more.
+ *
+ * Where the field is not being recorded (the plugin is off, a password, a field that cannot be read or is slow)
+ * every method sends exactly the calls 0.9.4 sent and nothing is kept.
  *
  * Everything runs on the main thread. A failure in the bookkeeping is logged, drops the history and stops recording
  * the field; the edit itself still goes out.
@@ -218,17 +242,18 @@ class FieldEditor(
     /** The step whose end the cursor is believed to sit at, so the next key can join it without reading the field. */
     private var tip: Step? = null
 
-    /** Enter, sent as a key press and not yet seen in the field. */
+    /** Enter or Tab, sent as a key press and not yet seen in the field; [pendingMark] is the character it must have typed. */
     private var pending: Step? = null
+    private var pendingMark = '\n'
 
     /** An AI answer still typing out. */
     private var fill: Step? = null
 
     /**
-     * What backspace has taken off the end of the word being typed ([shrunkStep]), newest first in the text's order.
-     * If typing goes on, it was a slip put right and is forgotten, the word staying one step. If anything else comes
-     * next, the word is put down as it was typed and the backspaces become a step of their own, so undo gives the
-     * deleted letters back.
+     * What backspace has taken off the end of the word being typed ([shrunkStep]), newest first in the text's order:
+     * at most [SLIP] characters, with some of the word left. If typing goes on, it was a slip put right and is
+     * forgotten, the word staying one step. If anything else comes next (more backspaces among them), the word is put
+     * down as it was typed and the backspaces become a step of their own, so undo gives the deleted letters back.
      */
     private val shrunk = StringBuilder()
     private var shrunkStep: Step? = null
@@ -236,13 +261,27 @@ class FieldEditor(
     private val caret = Caret(clock)
     private var strikes = 0
     private var echoes = 0
-    private var slow = 0
     private var lastEditAt = 0L
     private var judging = false
     private var told = Pair(true, true)
 
-    /** For Rewrite on a whole field: the text it selected, and the cursor from before it selected everything. */
-    private var rewrite: Triple<String, Int, Int>? = null
+    /** Restarts that ended the step being typed, each straight after a key and soon after the one before. */
+    private var restarts = 0
+    private var restartAt = 0L
+
+    /** The time reads have cost lately, in milliseconds: it drains as time passes ([owed]), and too much ends recording. */
+    private var lag = 0L
+    private var lagAt = 0L
+
+    /** The next [audit] must find the newest step in the field, or the history goes: set where an app started its input again. */
+    private var prove = false
+
+    /**
+     * For Rewrite on a whole field: how long the text it selected was and its hash (never the text itself, which can
+     * be a whole document), and the cursor from before it selected everything.
+     */
+    private class Whole(val length: Int, val hash: Int, val from: Int, val to: Int)
+    private var rewrite: Whole? = null
 
     /** Whether the Undo arrow does anything: a step of the keyboard's own, or the app's undo. */
     val canUndo: Boolean get() = !recording || history.undo.isNotEmpty() || pending != null || handOff
@@ -259,22 +298,51 @@ class FieldEditor(
      */
     fun attach(recordable: Boolean, hadText: Boolean, selStart: Int, selEnd: Int) {
         forget()
-        recording = recordable
+        // An app whose reads were slow a moment ago (the time owed is kept from field to field) is not read again yet.
+        recording = recordable && owed(clock()) <= LAG_LIMIT
         handOff = hadText
-        strikes = 0; echoes = 0; slow = 0
+        strikes = 0; echoes = 0; restarts = 0
         caret.seed(selStart, selEnd)
         tell()
     }
 
-    /** The same field started again by its app: the history stays, and is checked against the field straight away. */
+    /**
+     * An app started its input again without saying the field changed. That is not taken on trust: every input on a
+     * web page, a Compose screen or a Flutter screen shares one view, so this is also what moving from one of them to
+     * another looks like. The history is kept only if the newest step is found in the field, read here and now; an
+     * empty field, or one that does not show it where it was left, is a new field.
+     *
+     * The one exception costs no read: a start straight after a key, with the selection that key should have led to.
+     * Some apps start again after every key (an input mask, a field that restyles its text); the word being typed
+     * stays one step, and the field is checked once typing pauses. Where such an app does move the selection, the
+     * steps cannot be kept together, and after four in a row the field is left alone.
+     */
     fun restarted(selStart: Int, selEnd: Int) {
         if (!recording) return
         guarded {
+            val now = clock()
+            val recent = now - lastEditAt < ECHO_MS
+            val t = tip
+            if (recent && pending == null && t != null && t === history.top() && caret.expects(selStart, selEnd)) {
+                prove = true
+                scheduler.auditIn(AUDIT_MS)
+                return@guarded
+            }
             sealAll()
             tip = null
+            judging = false
             caret.seed(selStart, selEnd)
-            if (clock() - lastEditAt < 500) strike()
-            scheduler.auditIn(0)
+            if (recent) {
+                if (now - restartAt > RESTART_ROW_MS) restarts = 0
+                restartAt = now
+                if (++restarts >= 4) {
+                    drop(true)
+                    recording = false
+                    return@guarded
+                }
+            }
+            if (pending != null) settle()
+            if (recording) inspect(strict = true, forgiving = true)
         }
         tell()
     }
@@ -312,7 +380,7 @@ class FieldEditor(
                 Caret.Verdict.OWN -> if (judging) { judging = false; echoes = 0 }
                 Caret.Verdict.FOREIGN -> {
                     foreign = true
-                    if (judging && clock() - lastEditAt < 500) strike()
+                    if (judging && clock() - lastEditAt < ECHO_MS) strike()
                     if (recording) {
                         sealAll()
                         tip = null
@@ -345,19 +413,22 @@ class FieldEditor(
         if (text.isEmpty()) return
         var join: Step? = null
         var plan: Plan? = null
+        var unread = false
         if (recording) guarded {
             val top = history.top()
             if (pending == null && caretBack == 0 && top != null && top === tip && EditHistory.joinsTyping(top, text, clock())) {
                 join = top
             } else {
                 sealAll()
-                stepRead()?.let { plan = draft(if (caretBack > 0) Kind.PAIR else Kind.TYPING, it, 0, 0, text, caretBack, open = caretBack == 0) }
+                // A new word straight after the last step needs no read before it is sent: that step says what is here.
+                val r = fromTip()?.also { unread = true } ?: stepRead()
+                r?.let { plan = draft(if (caretBack > 0) Kind.PAIR else Kind.TYPING, it, 0, 0, text, caretBack, open = caretBack == 0) }
             }
         }
         send(0, 0, text, caretBack, false, plan?.step?.at ?: -1, batch = false)
         guarded {
             join?.let { grow(it, text) }
-            plan?.let { record(it) }
+            plan?.let { record(it); if (unread) scheduler.auditIn(AUDIT_MS) }
         }
         tell()
     }
@@ -366,12 +437,14 @@ class FieldEditor(
     fun insert(text: String, kind: Kind, caretBack: Int = 0) {
         if (text.isEmpty()) return
         var plan: Plan? = null
+        var unread = false
         if (recording) guarded {
             sealAll()
-            stepRead()?.let { plan = draft(kind, it, 0, 0, text, caretBack, open = false) }
+            val r = fromTip()?.also { unread = true } ?: stepRead()
+            r?.let { plan = draft(kind, it, 0, 0, text, caretBack, open = false) }
         }
         send(0, 0, text, caretBack, false, plan?.step?.at ?: -1, batch = caretBack > 0)
-        guarded { plan?.let { record(it) } }
+        guarded { plan?.let { record(it); if (unread) scheduler.auditIn(AUDIT_MS) } }
         tell()
     }
 
@@ -430,6 +503,8 @@ class FieldEditor(
     private fun noteTyped(r: Reading, sep: String) {
         val top = history.top()
         if (top != null && top === tip && EditHistory.joinsTyping(top, sep, clock())) {
+            // As when it is typed ([grow]): a backspace or two before it put a slip right, and is not a step.
+            forgetSlip(top)
             top.inserted.append(sep)
             top.caret = top.inserted.length
             top.time = clock()
@@ -464,7 +539,7 @@ class FieldEditor(
             }
             if (read.before.isEmpty() || read.before.last() == OBJECT) { sentNow(); return@guarded }
             unit = EditHistory.unitBefore(read.before, clusterBefore)
-            how = deleteHow(read, unit)
+            how = deleteHow(read, unit, slip = true)
             if (how == FRESH) {
                 sealAll()
                 plan = draft(Kind.DELETE, read, unit, 0, "", 0, open = true)
@@ -478,7 +553,11 @@ class FieldEditor(
         return true
     }
 
-    /** Deletes [text], which the service has just read from before the cursor: a swiped word, or the word-delete slide. */
+    /**
+     * Deletes [text], which the service has just read from before the cursor: a swiped word, or the word-delete slide.
+     * Always a deletion of its own in the history, never a slip in the word being typed: undo gives the word back
+     * whatever is typed next.
+     */
     fun deleteBefore(text: String) {
         if (text.isEmpty()) return
         var how = NONE
@@ -488,7 +567,7 @@ class FieldEditor(
             val read = stepRead(maxOf(STEP_BEFORE, text.length + CTX)) ?: return@guarded
             if (read.selected.isNotEmpty() || !read.before.endsWith(text)) { drop(true); return@guarded }
             r = read
-            how = deleteHow(read, text.length)
+            how = deleteHow(read, text.length, slip = false)
             if (how == FRESH) {
                 sealAll()
                 plan = draft(Kind.DELETE, read, text.length, 0, "", 0, open = true)
@@ -512,14 +591,19 @@ class FieldEditor(
         tell()
     }
 
-    /** Where [unit] characters deleted from before the cursor go: off the word being typed, onto a run of backspaces, or a new step. */
-    private fun deleteHow(r: Reading, unit: Int): Int {
+    /**
+     * Where [unit] characters deleted from before the cursor go: off the word being typed, onto a run of backspaces,
+     * or a new step. Only with [slip] (a backspace key) can they come off the word, and only while it is a slip: no
+     * more than [SLIP] characters in all, and some of the word left. Past that it is a deletion, kept to be undone.
+     */
+    private fun deleteHow(r: Reading, unit: Int, slip: Boolean): Int {
         var top = history.top()
         val gone = r.before.takeLast(unit)
-        if (top != null && top === tip && top.kind == Kind.TYPING && top.state == StepState.OPEN &&
-            top.caret == top.inserted.length && top.inserted.endsWith(gone)
+        if (slip && top != null && top === tip && top.kind == Kind.TYPING && top.state == StepState.OPEN &&
+            top.caret == top.inserted.length && top.inserted.length > unit && top.inserted.endsWith(gone) &&
+            (if (shrunkStep === top) shrunk.length else 0) + unit <= SLIP
         ) return SHRINK
-        // Past the start of the word being typed: its backspaces so far become the run this one joins.
+        // More than a slip, or past the start of the word being typed: its backspaces so far become the run this one joins.
         settleShrunk()
         top = history.top()
         return if (top != null && top === tip && EditHistory.joinsDelete(top, clock())) EXTEND else FRESH
@@ -587,13 +671,23 @@ class FieldEditor(
      * Enter, which [send] presses as a key: the app decides what it does (a new line, a new bullet, nothing), so the
      * step is filled in from what the field shows a moment later.
      */
-    fun enter(send: () -> Unit) {
+    fun enter(send: () -> Unit) = keyed(Kind.ENTER, '\n', send)
+
+    /**
+     * Tab, which [send] presses as a key, as terminals want it. In an ordinary field it types a tab character (or the
+     * app indents the line), which is a step; where it does something else (the next field, a completion) there is
+     * none, as with [enter].
+     */
+    fun tab(send: () -> Unit) = keyed(Kind.TYPING, '\t', send)
+
+    /** A key press whose step, of [kind], is filled in once the field shows what it typed: text with [mark] in it. */
+    private fun keyed(kind: Kind, mark: Char, send: () -> Unit) {
         var step: Step? = null
         if (recording) guarded {
             sealAll()
             val r = stepRead() ?: return@guarded
             val pos = position(r)
-            step = Step(Kind.ENTER, pos, r.selected, "", r.before.takeLast(CTX), r.after.take(CTX), 0, r.selected.length, 0, clock())
+            step = Step(kind, pos, r.selected, "", r.before.takeLast(CTX), r.after.take(CTX), 0, r.selected.length, 0, clock())
                 .also { it.state = StepState.PENDING }
         }
         send()
@@ -602,34 +696,36 @@ class FieldEditor(
                 history.redo.clear()
                 tip = null
                 pending = it
+                pendingMark = mark
                 scheduler.settleIn(SETTLE_MS)
             }
         }
         tell()
     }
 
-    /** Looks at what Enter did, with a read of its own or with [given], one another edit has just made. */
+    /** Looks at what Enter (or Tab) did, with a read of its own or with [given], one another edit has just made. */
     fun settle(given: Reading? = null) {
         val s = pending ?: return
         guarded {
             pending = null
             val r = given ?: timedRead(STEP_BEFORE, CTX) ?: return@guarded
+            val mark = pendingMark
             val shortStart = s.before.length < CTX
             val shortEnd = s.after.length < CTX
             val pos = if (r.known) r.selStart else -1
-            // Nothing happened: the app took Enter as something else (send, next field).
+            // Nothing happened: the app took the key as something else (send, next field).
             if (r.selected == s.removed.toString() && around(r, s.before, s.after, shortStart, shortEnd) && (pos < 0 || s.at < 0 || pos == s.at)) return@guarded
             var x: String? = null
             if (r.selected.isEmpty()) {
                 if (pos >= 0 && s.at >= 0) {
                     val n = pos - s.at
                     if (n in 1..MAX_ENTER && n <= r.before.length) x = r.before.takeLast(n)
-                } else if (r.before.endsWith("\n")) {
-                    x = "\n"
+                } else if (r.before.endsWith(mark)) {
+                    x = mark.toString()
                 }
             }
             val made = x
-            if (made != null && made.contains('\n') && around(r, s.before + made, s.after, shortStart, shortEnd)) {
+            if (made != null && made.contains(mark) && around(r, s.before + made, s.after, shortStart, shortEnd)) {
                 s.inserted.append(made)
                 s.caret = made.length
                 s.state = StepState.SEALED
@@ -710,9 +806,12 @@ class FieldEditor(
     /** Before Rewrite selects the whole field: where the cursor was, so undoing the rewrite puts it back there. -1 if unknown. */
     fun selectionNow(): Pair<Int, Int> = Pair(caret.knownStart(), caret.knownEnd())
 
-    /** Rewrite selected the whole field, [all], with the cursor having been at [was]. */
+    /**
+     * Rewrite selected the whole field, [all], with the cursor having been at [was]. Only the length and hash of
+     * [all] are kept, to know the answer's selection as the same one; any other edit forgets them.
+     */
     fun rememberRewrite(all: String, was: Pair<Int, Int>) {
-        rewrite = if (was.first >= 0 && was.second >= 0) Triple(all, was.first, was.second) else null
+        rewrite = if (was.first >= 0 && was.second >= 0) Whole(all.length, all.hashCode(), was.first, was.second) else null
     }
 
     /**
@@ -722,6 +821,9 @@ class FieldEditor(
      */
     fun beginFill(cutBefore: Int, cutAfter: Int, expect: String, selection: Boolean, full: String, typeOut: Boolean): Boolean {
         var r: Reading? = null
+        // Whatever comes of this answer, what Rewrite remembered is used here or not at all.
+        val was = rewrite
+        rewrite = null
         if (recording) guarded { sealAll(); r = stepRead(maxOf(STEP_BEFORE, cutBefore + CTX), cutAfter + CTX) }
         val read = r
         if (selection) {
@@ -736,16 +838,14 @@ class FieldEditor(
         if (read != null) guarded {
             plan = draft(Kind.AI, read, if (selection) 0 else cutBefore, if (selection) 0 else cutAfter, text, 0, open = typeOut)?.also { p ->
                 if (typeOut) p.step.redoText = full
-                val was = rewrite
                 // Rewrite of a whole field: the cursor goes back to where it was before everything was selected.
-                if (selection && was != null && was.first == expect && p.step.at >= 0) {
-                    val from = was.second - p.step.at
-                    val to = was.third - p.step.at
+                if (selection && was != null && was.length == expect.length && was.hash == expect.hashCode() && p.step.at >= 0) {
+                    val from = was.from - p.step.at
+                    val to = was.to - p.step.at
                     if (from in 0..expect.length && to in from..expect.length) { p.step.selFrom = from; p.step.selTo = to }
                 }
             }
         }
-        rewrite = null
         if (selection) port.commit(text)
         else {
             port.beginBatch()
@@ -890,11 +990,15 @@ class FieldEditor(
         val shortEnd = s.after.length < CTX
         val ins = s.inserted.toString()
         var ok = false
+        // Where the step starts, for putting the selection back: only a place known now, never one written down earlier.
+        var place = -1
         var r = timedRead(CTX + n + 1, CTX + n + 1) ?: return false
-        if (c in 0..n && r.selected.isEmpty() && around(r, s.before + ins.substring(0, c), ins.substring(c) + s.after, shortStart, shortEnd)) {
+        if (leftBy(r, s)) {
             ok = true
-            // The field says where this is: believed over what was written down (text before it may have changed).
-            if (r.known) s.at = r.selStart - c
+            // Found at the cursor. Where that is comes from the field, or from its last selection report; text put in
+            // before it since the step was made will have moved it from where it was written down.
+            place = placeNow(r, c)
+            if (place >= 0) s.at = place
         } else {
             val from = if (r.known) r.selStart else caret.knownStart()
             val to = if (r.known) r.selEnd else caret.knownEnd()
@@ -905,6 +1009,7 @@ class FieldEditor(
                     ok = true
                     c = n
                     r = r2
+                    place = s.at
                 } else {
                     port.select(from, to)
                     caret.unknown()
@@ -929,13 +1034,14 @@ class FieldEditor(
             recording = false
             return true
         }
-        if (s.at >= 0) {
-            caret.predict(s.at); caret.predict(s.at + removed.length)
+        if (place >= 0) {
+            caret.predict(place); caret.predict(place + removed.length)
             if (s.selFrom != removed.length || s.selTo != removed.length) {
-                port.select(s.at + s.selFrom, s.at + s.selTo)
-                caret.predict(s.at + s.selFrom, s.at + s.selTo)
+                port.select(place + s.selFrom, place + s.selTo)
+                caret.predict(place + s.selFrom, place + s.selTo)
             }
         } else {
+            // Nowhere to count from: the cursor stays after the text put back, and redo will look for it there.
             s.selFrom = removed.length
             s.selTo = removed.length
             caret.unknown()
@@ -967,12 +1073,12 @@ class FieldEditor(
         var from = s.selFrom
         var to = s.selTo
         var ok = false
+        var place = -1
         val r = timedRead(CTX + m + 1, CTX + m + 1) ?: return false
-        if (from in 0..m && to in from..m && r.selected == removed.substring(from, to) &&
-            around(r, s.before + removed.substring(0, from), removed.substring(to) + s.after, shortStart, shortEnd)
-        ) {
+        if (readyFor(r, s)) {
             ok = true
-            if (r.known) s.at = r.selStart - from
+            place = placeNow(r, from)
+            if (place >= 0) s.at = place
         } else {
             val wasFrom = if (r.known) r.selStart else caret.knownStart()
             val wasTo = if (r.known) r.selEnd else caret.knownEnd()
@@ -983,6 +1089,7 @@ class FieldEditor(
                     ok = true
                     from = m
                     to = m
+                    place = s.at
                 } else {
                     port.select(wasFrom, wasTo)
                     caret.unknown()
@@ -1005,13 +1112,14 @@ class FieldEditor(
             recording = false
             return true
         }
-        if (s.at >= 0) {
-            caret.predict(s.at, s.at + (to - from)); caret.predict(s.at + ins.length)
+        if (place >= 0) {
+            caret.predict(place, place + (to - from)); caret.predict(place + ins.length)
             if (s.caret != ins.length) {
-                port.select(s.at + s.caret, s.at + s.caret)
-                caret.predict(s.at + s.caret)
+                port.select(place + s.caret, place + s.caret)
+                caret.predict(place + s.caret)
             }
         } else {
+            // Nowhere to count from: the cursor stays after the text, and undo will look for it there.
             s.caret = ins.length
             caret.unknown()
         }
@@ -1047,32 +1155,90 @@ class FieldEditor(
     fun audit() {
         if (!recording || pending != null) return
         guarded {
-            val s = history.top()
-            val back = history.redo.lastOrNull()
-            if (s == null && back == null) return@guarded
-            val r = timedRead(AUDIT_READ, AUDIT_READ) ?: return@guarded
-            // What should be in the field around the newest change: after the last step, or before the next redo.
-            val at = s?.at ?: back!!.at
-            val want = if (s != null) s.before + s.inserted + s.after else back!!.before + back.removed + back.after
-            val lead = if (s != null) s.before.length else back!!.before.length
-            if (r.empty) {
-                if (want.isNotEmpty()) drop(false)
-                return@guarded
-            }
-            if (!r.known || at < 0) return@guarded
-            val text = r.before + r.selected + r.after
-            val window = r.selStart - r.before.length
-            val from = at - lead - window
-            if (from < 0 || from + want.length > text.length) return@guarded
-            if (text.substring(from, from + want.length) != want) { drop(true); return@guarded }
-            // A step made at the field's very start or end: the field must still start or end there.
-            val wholeStart = r.before.length < AUDIT_READ
-            val wholeEnd = r.after.length < AUDIT_READ
-            val trail = if (s != null) s.after.length else back!!.after.length
-            if (lead < CTX && wholeStart && from != 0) drop(true)
-            else if (trail < CTX && wholeEnd && from + want.length != text.length) drop(true)
+            val strict = prove
+            prove = false
+            inspect(strict, forgiving = false)
         }
         tell()
+    }
+
+    /**
+     * Reads the field and looks for the newest step (or, with nothing left to undo, for the place the next redo
+     * starts from). Without [strict], the history goes only where the field shows the step is not there, and stays
+     * where the read cannot tell (the cursor is far from it, the field gives no positions). With [strict], after an
+     * app started its input again, it stays only where the step is found: an empty field, a field that does not reach
+     * the step's place, and a step that is not at the cursor in a field with no positions all drop it.
+     * [forgiving]: a read that gives nothing drops the history but does not end recording.
+     */
+    private fun inspect(strict: Boolean, forgiving: Boolean) {
+        val s = history.top()
+        val back = history.redo.lastOrNull()
+        val step = s ?: back ?: return
+        val r = timedRead(AUDIT_READ, AUDIT_READ, forgiving) ?: return
+        // What should be in the field around the newest change: after the last step, or before the next redo.
+        val lead = step.before
+        val trail = step.after
+        val want = lead + (if (s != null) s.inserted else step.removed) + trail
+        if (r.empty) {
+            // An empty field shows nothing of any step. After a restart that makes it a new field.
+            if (strict || want.isNotEmpty()) drop(false)
+            return
+        }
+        // A step whose words were written down without a read (a new word straight after the last) is checked here:
+        // an app that rewrites what is typed is found out, and after three times its field is left alone.
+        val t = tip
+        if (t != null && t.caret in 0..t.inserted.length && !r.before.endsWith(tipTail(t, 64))) {
+            drop(true)
+            if (++strikes >= 3) recording = false
+            return
+        }
+        val at = step.at
+        if (!r.known || at < 0) {
+            // No positions: only the cursor's own surroundings can show the step.
+            if (strict && !(if (s != null) leftBy(r, s) else readyFor(r, step))) drop(true)
+            return
+        }
+        val text = r.before + r.selected + r.after
+        val window = r.selStart - r.before.length
+        val from = at - lead.length - window
+        // The read reaches the field's start where its window starts at 0, and its end where less came back than was asked for.
+        val wholeStart = window == 0
+        val wholeEnd = r.after.length < AUDIT_READ
+        if (from < 0 || from + want.length > text.length) {
+            // Out of what was read. A field seen to its start or end that does not reach the place does not hold the step.
+            if (strict || (from < 0 && wholeStart) || (from + want.length > text.length && wholeEnd)) drop(true)
+            return
+        }
+        if (!text.regionMatches(from, want, 0, want.length)) { drop(true); return }
+        // A step made at the field's very start or end: the field must still start or end there.
+        if (lead.length < CTX && wholeStart && from != 0) drop(true)
+        else if (trail.length < CTX && wholeEnd && from + want.length != text.length) drop(true)
+    }
+
+    /** Whether [r] shows the step [s] as it left the field, the cursor where it put it: what [undoStep] looks for first. */
+    private fun leftBy(r: Reading, s: Step): Boolean {
+        val c = s.caret
+        if (c !in 0..s.inserted.length || r.selected.isNotEmpty()) return false
+        return around(r, s.before + s.inserted.substring(0, c), s.inserted.substring(c) + s.after, s.before.length < CTX, s.after.length < CTX)
+    }
+
+    /** Whether [r] shows the field as it was before the step [s], with the selection it began from: what [redoStep] looks for first. */
+    private fun readyFor(r: Reading, s: Step): Boolean {
+        val m = s.removed.length
+        val from = s.selFrom
+        val to = s.selTo
+        if (from !in 0..m || to !in from..m || r.selected != s.removed.substring(from, to)) return false
+        return around(r, s.before + s.removed.substring(0, from), s.removed.substring(to) + s.after, s.before.length < CTX, s.after.length < CTX)
+    }
+
+    /**
+     * Where a step starts, having just been found with the selection [offset] characters into it: from the field
+     * where it says, else from its last selection report. -1 where neither does: the cursor is then left where the
+     * text puts it rather than moved to a place written down earlier, which other edits may have shifted since.
+     */
+    private fun placeNow(r: Reading, offset: Int): Int {
+        val start = if (r.known) r.selStart else caret.knownStart()
+        return if (start >= offset) start - offset else -1
     }
 
     /** Whether [r] has [wantBefore] right before the cursor and [wantAfter] right after; [shortStart] and [shortEnd] ask for the field to start or end exactly there. */
@@ -1140,8 +1306,7 @@ class FieldEditor(
 
     /** [text] typed onto the end of the open step [s]. */
     private fun grow(s: Step, text: String) {
-        // Typing on after a few backspaces: they put a slip right, and the word is still one step.
-        if (shrunkStep === s) { shrunk.setLength(0); shrunkStep = null }
+        forgetSlip(s)
         s.inserted.append(text)
         s.caret = s.inserted.length
         s.time = clock()
@@ -1151,14 +1316,23 @@ class FieldEditor(
         caret.advance(text.length)
     }
 
+    /** Typing goes on at the end of [s] after a backspace or two: they put a slip right, and the word is still one step. */
+    private fun forgetSlip(s: Step) {
+        if (shrunkStep === s) { shrunk.setLength(0); shrunkStep = null }
+    }
+
     /** An edit of the keyboard's own was just made: the next selection report is judged against it. */
     private fun edited() {
         lastEditAt = clock()
         judging = true
     }
 
-    /** Ends whatever step is still growing. An answer still typing out loses its unwritten rest unless [keepAnswer]. */
+    /**
+     * Ends whatever step is still growing, and forgets what Rewrite remembered about a whole-field selection (another
+     * edit came first). An answer still typing out loses its unwritten rest unless [keepAnswer].
+     */
     private fun sealAll(keepAnswer: Boolean = false) {
+        rewrite = null
         settleShrunk()
         history.top()?.let { if (it.state == StepState.OPEN) it.state = StepState.SEALED }
         if (!keepAnswer) { fill?.redoText = null; fill = null }
@@ -1176,28 +1350,61 @@ class FieldEditor(
         val r = timedRead(before, after) ?: return null
         if (pending != null) { settle(r); if (!recording) return null }
         val t = tip
-        if (t != null && t.caret in 0..t.inserted.length) {
-            val want = (t.before + t.inserted.substring(0, t.caret)).takeLast(64)
-            if (!r.before.endsWith(want)) {
-                drop(true)
-                if (++strikes >= 3) recording = false
-                return null
-            }
+        if (t != null && t.caret in 0..t.inserted.length && !r.before.endsWith(tipTail(t, 64))) {
+            drop(true)
+            if (++strikes >= 3) recording = false
+            return null
         }
         if (r.known) caret.agree(r.selStart, r.selEnd)
         return r
     }
 
-    /** A read, timed. A field that cannot be read, or is slow twice, is not recorded any more. */
-    private fun timedRead(before: Int, after: Int): Reading? {
+    /** The last [n] characters before the cursor as the step [t] left them: its own text up to the cursor, then what came before it. */
+    private fun tipTail(t: Step, n: Int): String {
+        val head = t.inserted.substring(maxOf(0, t.caret - n), t.caret)
+        return if (head.length >= n) head else (t.before + head).takeLast(n)
+    }
+
+    /**
+     * What a read would give where the cursor is known still to sit where the newest step left it, with nothing
+     * selected: that step's own text and the text it found either side. So a new word typed straight after the last
+     * one is sent without waiting on the field; [audit] checks it shortly after, off the key path.
+     *
+     * "Known" is the app's word, not a guess: every selection the keyboard's edits should have led to has been
+     * reported back, the last report is a bare cursor, and it is at the step's end. Null otherwise (a tap, a selection,
+     * a report still on its way or never sent, Enter still being worked out): then the field is read first, as the
+     * text a key is about to replace can only be learned before it is sent.
+     */
+    private fun fromTip(): Reading? {
+        val t = tip ?: return null
+        if (pending != null || t !== history.top() || t.caret !in 0..t.inserted.length) return null
+        val at = caret.knownStart()
+        if (at < 0 || caret.knownEnd() != at || (t.at >= 0 && t.at + t.caret != at)) return null
+        val after = (t.inserted.substring(t.caret, minOf(t.inserted.length, t.caret + CTX)) + t.after).take(CTX)
+        return Reading(tipTail(t, STEP_BEFORE), "", after, at, at)
+    }
+
+    /** The read time still owed at [now]: what was spent, less a millisecond forgiven for every [LAG_DRAIN] that pass. */
+    private fun owed(now: Long): Long = (lag - (now - lagAt) / LAG_DRAIN).coerceAtLeast(0)
+
+    /**
+     * A read, timed. A field that cannot be read is not recorded any more, nor is one whose reads cost too much: each
+     * read's time is added to what is owed, which drains slowly, so one long wait ends recording at once and a field
+     * that is steadily slow ends it within a few reads, while a healthy field's odd slow answer is forgiven.
+     * [forgiving]: a read that gives nothing drops the history but leaves recording on (an app not ready yet).
+     */
+    private fun timedRead(before: Int, after: Int, forgiving: Boolean = false): Reading? {
         val t0 = clock()
         val r = port.read(before, after)
-        val took = clock() - t0
-        if (r == null || (took > SLOW_MS && ++slow >= 2)) {
+        val now = clock()
+        lag = (owed(t0) + (now - t0)).coerceAtMost(LAG_CAP)
+        lagAt = now
+        if (lag > LAG_LIMIT || (r == null && !forgiving)) {
             forget()
             recording = false
             return null
         }
+        if (r == null) drop(true)
         return r
     }
 
@@ -1214,6 +1421,7 @@ class FieldEditor(
         pending = null
         fill = null
         rewrite = null
+        prove = false
         judging = false
         shrunk.setLength(0)
         shrunkStep = null
@@ -1252,7 +1460,24 @@ class FieldEditor(
         private const val AUDIT_MS = 300L
         private const val AUDIT_READ = 256
         private const val ASK_READ = 64
-        private const val SLOW_MS = 120L
+
+        /** A selection report or a restart this soon after a key is taken as that key's doing. */
+        private const val ECHO_MS = 500L
+
+        /** Restarts further apart than this are not counted as one after another. */
+        private const val RESTART_ROW_MS = 3_000L
+
+        /** Backspace may take this many characters off the word being typed and still be a slip put right. */
+        const val SLIP = 3
+
+        /** Read time owed above which a field is not recorded any more, in milliseconds. */
+        private const val LAG_LIMIT = 250L
+
+        /** The most that can be owed, so a hung app is tried again a few seconds after it recovers. */
+        private const val LAG_CAP = 500L
+
+        /** Milliseconds that must pass for one owed millisecond to be forgiven: reads may take a twentieth of the time. */
+        private const val LAG_DRAIN = 20L
 
         private const val NONE = 0
         private const val SELECTION = 1

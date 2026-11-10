@@ -130,10 +130,13 @@ class EditHistory(private val maxSteps: Int = MAX_STEPS, private val maxUnits: I
         /**
          * How many UTF-16 units one backspace takes from the end of [before]: one code point (both halves of a
          * surrogate pair), or the whole of an emoji made of several (a family, a flag, a keycap, a skin tone), whose
-         * length [clusterBefore] gives. This is the stock Android keyboard's rule.
+         * length [clusterBefore] gives. This is the stock Android keyboard's rule. A Windows line end (a carriage
+         * return and a line feed) goes as one, as Android's own text fields take it on the backspace key: half of
+         * it left behind would be a character nobody can see.
          */
         fun unitBefore(before: String, clusterBefore: (String) -> Int): Int {
             if (before.isEmpty()) return 0
+            if (before.endsWith("\r\n")) return 2
             val last = before.codePointBefore(before.length)
             val one = Character.charCount(last)
             val emojiShaped = Character.isSupplementaryCodePoint(last) || last == 0x200D || last == 0xFE0F || last == 0xFE0E || last == 0x20E3
