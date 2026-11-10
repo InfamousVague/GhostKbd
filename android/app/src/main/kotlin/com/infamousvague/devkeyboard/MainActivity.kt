@@ -274,12 +274,6 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "aiState" -> result.success(aiState())
-                    "sherlockState" -> result.success(mapOf("enabled" to SherlockService.enabled(this@MainActivity), "running" to (SherlockService.instance != null), "ocr" to (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)))
-                    "sherlockOpen" -> { SherlockService.openSettings(this@MainActivity); result.success(null) }
-                    "requestNotifications" -> {
-                        if (android.os.Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 7102)
-                        result.success(null)
-                    }
                     "aiModels" -> background(result) { AiClient.models(prefs) }
                     "aiTest" -> background(result) { AiClient.complete(prefs, NetPath.AI_TEST, "Reply with the single word OK.", "Are you there?", maxTokens = 2000, effort = "low") }
                     // Settings › Offline, and the Market's "It talks to…": the ledger as things stand (Net.kt).

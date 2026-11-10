@@ -96,11 +96,6 @@ class SettingsStore extends ChangeNotifier {
     'mockingbird_collect': true,
     'mockingbird_auto_train': true,
     'ghostwriter_auto': true,
-    'sherlock_auto': true,
-    'sherlock_fill': false,
-    'sherlock_autoreply': false,
-    'sherlock_notes': true,
-    'sherlock_names': '',
     'accuracy_log': false,
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
@@ -345,7 +340,6 @@ class SettingsStore extends ChangeNotifier {
       final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
       clipCount = clips?['count'] as int? ?? 0;
       _setAi(await _channel.invokeMethod<Object>('aiState'));
-      await refreshSherlock();
       await refreshAdaptive();
       await refreshNextWords();
       await refreshStats();
@@ -405,23 +399,6 @@ class SettingsStore extends ChangeNotifier {
   Future<void> downloadModelId(String id) => _dictationCall('downloadModel', {'id': id});
   Future<void> deleteModelId(String id) => _dictationCall('deleteModel', {'id': id});
   Future<void> setDictationLanguage(String code) => _dictationCall('setDictationLanguage', {'code': code});
-
-  /// Sherlock's screen reader: whether it is turned on in Android's accessibility settings, and taking you there.
-  bool sherlockEnabled = false;
-  bool sherlockOcr = true;
-  Future<void> refreshSherlock() async {
-    try {
-      final r = await _channel.invokeMapMethod<String, Object>('sherlockState');
-      sherlockEnabled = r?['enabled'] as bool? ?? false;
-      sherlockOcr = r?['ocr'] as bool? ?? true;
-      notifyListeners();
-    } on MissingPluginException {
-      return;
-    }
-  }
-
-  Future<void> openSherlockSettings() => _call('sherlockOpen');
-  Future<void> requestNotifications() => _call('requestNotifications');
 
   /// The accuracy record (AccuracyLog): how many words and swipes it holds, saving it to Downloads, deleting it.
   int accuracyCount = 0;

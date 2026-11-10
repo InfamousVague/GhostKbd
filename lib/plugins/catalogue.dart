@@ -26,14 +26,13 @@ enum PluginCategory {
 }
 
 /// What a plugin may reach.
-enum Permission { microphone, network, autofill, download, screen }
+enum Permission { microphone, network, autofill, download }
 
 const Map<Permission, String> plainPermissionWords = {
   Permission.microphone: 'Your microphone',
   Permission.network: 'The internet',
   Permission.autofill: 'Your password manager',
   Permission.download: 'Space on your phone',
-  Permission.screen: 'What’s on your screen',
 };
 
 LucideIcon permissionIcon(Permission kind) => switch (kind) {
@@ -41,7 +40,6 @@ LucideIcon permissionIcon(Permission kind) => switch (kind) {
       Permission.network => Lucide.globe,
       Permission.autofill => Lucide.keyRound,
       Permission.download => LucideMore.hardDriveDownload,
-      Permission.screen => LucideMore.scanSearch,
     };
 
 @immutable
@@ -388,37 +386,6 @@ const List<PluginManifest> catalogue = [
     hasPage: true,
   ),
   PluginManifest(
-    id: 'sherlock',
-    name: 'Sherlock',
-    line: 'Reads the chat on your screen and drafts your reply, in your words.',
-    description:
-        'Open the keyboard in a chat and Sherlock reads the conversation on the screen, works out who said what, and '
-        'drafts the reply you would send, in your voice (Mockingbird’s style profile and your past messages, when you '
-        'have Mockingbird). The draft waits in the row: tap it to put it in the box, or Another for a different one. '
-        'Type a few words first (“no, busy, maybe sunday”) and tap Reply, and it writes that as you. With Auto-reply on '
-        'it sends for you and answers each new message while the chat is open, so the conversation carries on; it tells '
-        'you each reply it sends, with Stop. It reads the app’s own text where it can, and on Android 11 or later '
-        'reads a picture of the screen with on-phone OCR where an app draws its own. It needs its switch in Android’s '
-        'accessibility settings, and reads nothing in password fields or while incognito.',
-    category: PluginCategory.tools,
-    hue: 'cyan',
-    icon: LucideMore.scanSearch,
-    adds: ['A drafted reply as you open a chat', 'Reply: your few words written out in your voice', 'Works in any chat app, with OCR where text can’t be read'],
-    permissions: [
-      PluginPermission(Permission.screen, 'To read the chat under the keyboard, with a switch you turn on in Android’s accessibility settings. Only when it drafts a reply.'),
-      PluginPermission(Permission.network, 'To send the conversation on your screen to the AI you choose, with your own key, for the one reply. Nothing is kept.'),
-    ],
-    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
-    hasPage: true,
-    iosDescription:
-        'Type <<engineering standup tldr>> or <<why do the metrics not fire on signup>> anywhere. When you close it with '
-        '>> the AI writes the answer in your voice and it replaces the request: it reads Mockingbird’s style profile, '
-        'your past messages that match the request, the text around it and, if you let it, your clipboard, your GitHub '
-        'commits and the web. It types the answer out, keys lighting as it goes. Where it doesn’t know a fact it leaves '
-        'a [blank] rather than guessing. << >> keeps clear of templates and code that use braces.',
-    iosAdds: ['<<request>> filled in place, in any app', 'Answers from your messages, commits and the web', 'A Fill button when the cursor is on a request'],
-  ),
-  PluginManifest(
     id: 'rewrite',
     name: 'Rewrite',
     line: 'Fix, shorten, restyle or translate what you wrote, in place.',
@@ -506,12 +473,6 @@ const Set<String> builtInPlugins = {
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.
-/// Plugins the Market lists only with Settings › Developer on (Matt, 2026-11-10: "put sherlock behind developer mode").
-const Set<String> developerPlugins = {'sherlock'};
-
-/// The Market as this person sees it: [developerPlugins] only with Developer on.
-List<PluginManifest> marketCatalogueFor(bool developer) => [for (final p in marketCatalogue) if (developer || !developerPlugins.contains(p.id)) p];
-
 List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p.here];
 
 /// The plugins every keyboard has, as the Market's Installed tab lists them beside the added ones.

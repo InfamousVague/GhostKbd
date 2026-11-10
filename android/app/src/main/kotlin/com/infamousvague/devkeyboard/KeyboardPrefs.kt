@@ -168,20 +168,8 @@ class KeyboardPrefs(context: Context) {
 
     /** Ghostwriter: fill a <<request>> as soon as its >> is typed; what it may read for context. */
     val ghostwriterAuto: Boolean get() = bool(GHOSTWRITER_AUTO)
-    /** Sherlock drafts a reply on its own as the keyboard opens in a chat app (off: only on a tap of Reply). */
-    val sherlockAuto: Boolean get() = bool(SHERLOCK_AUTO)
-    /** Sherlock's draft goes straight into the box (off: it waits in the row for a tap). */
-    val sherlockFill: Boolean get() = bool(SHERLOCK_FILL)
-    /** Sherlock sends its replies and answers each new message while a chat is open (Matt, 2026-11-10). */
-    val sherlockAutoreply: Boolean get() = bool(SHERLOCK_AUTOREPLY)
-    /** Sherlock looks up your Ghost.md notes that match the conversation, as Ghostwriter's <<requests>> do. */
-    val sherlockNotes: Boolean get() = bool(SHERLOCK_NOTES)
     /** Settings › Typing stats › Keep a record for accuracy tests (AccuracyLog). */
     val accuracyLog: Boolean get() = bool(ACCURACY_LOG)
-    /** Your usernames and display names in chats (Discord, Slack, groups), comma-separated: messages under them are yours. */
-    val sherlockNames: String get() = prefs.getString(SHERLOCK_NAMES, "")!!
-    /** Settings › Developer is showing: the version in About was tapped five times. */
-    val developer: Boolean get() = bool(DEVELOPER)
     val ghostwriterMemory: Boolean get() = bool(GHOSTWRITER_MEMORY)
     val ghostwriterClipboard: Boolean get() = bool(GHOSTWRITER_CLIPBOARD)
     /** Ghostwriter may look facts up online, with the provider's own search (AiClient.SEARCHES). */
@@ -327,12 +315,7 @@ class KeyboardPrefs(context: Context) {
         const val MOCKINGBIRD_COLLECT = "mockingbird_collect"
         const val MOCKINGBIRD_AUTO_TRAIN = "mockingbird_auto_train"
         const val GHOSTWRITER_AUTO = "ghostwriter_auto"
-        const val SHERLOCK_AUTO = "sherlock_auto"
-        const val SHERLOCK_FILL = "sherlock_fill"
-        const val SHERLOCK_AUTOREPLY = "sherlock_autoreply"
-        const val SHERLOCK_NOTES = "sherlock_notes"
         const val ACCURACY_LOG = "accuracy_log"
-        const val SHERLOCK_NAMES = "sherlock_names"
         const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
         const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
         const val GHOSTWRITER_WEB = "ghostwriter_web"
@@ -411,12 +394,7 @@ class KeyboardPrefs(context: Context) {
             MOCKINGBIRD_COLLECT to true,
             MOCKINGBIRD_AUTO_TRAIN to true,
             GHOSTWRITER_AUTO to true,
-            SHERLOCK_AUTO to true,
-            SHERLOCK_FILL to false,
-            SHERLOCK_AUTOREPLY to false,
-            SHERLOCK_NOTES to true,
             ACCURACY_LOG to false,
-            SHERLOCK_NAMES to "",
             GHOSTWRITER_MEMORY to true,
             GHOSTWRITER_CLIPBOARD to false,
             GHOSTWRITER_WEB to true,

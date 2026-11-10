@@ -119,11 +119,6 @@ enum class NetPath(
         trigger = "Tapping In my voice with text selected.",
         sends = "Your key and model, the selection, your style profile, and up to 3,000 characters of similar things you typed.",
     ),
-    SHERLOCK(
-        NetFeature.AI, "sherlock", "Sherlock", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("sherlock"),
-        trigger = "Tapping Reply, Another or Retry; opening the keyboard in an empty chat box with “Draft as I open a chat” on; and with Auto-reply on, each new message from the other person while a chat app is open.",
-        sends = "Your key and model, the chat read off the screen (up to 5,000 characters, the newest kept), what you had typed in the box, the chat app's name, today's date, your Mockingbird style profile and up to 3,000 characters of similar things you typed, and with “Look in my notes” on, up to about 9,000 characters of your Ghost.md notes that match the conversation.",
-    ),
     TRAIN(
         NetFeature.AI, "train", "Mockingbird’s training", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("mockingbird"),
         trigger = "Tapping Train now. By itself with “Retrain by itself” on: once 50 new samples are kept, no sooner than 20 hours after the last time.",
@@ -155,9 +150,9 @@ enum class NetPath(
         sends = "This app’s name and return address, to register it; then the sign-in code and its proof, for tokens. Your password is typed in your browser, never here.",
     ),
     GHOST_SEARCH(
-        NetFeature.GHOST_ONLINE, "ghost-search", "Ghost.md notes online", listOf("ghostmarkdown.com"), plugins = listOf("ghostwriter", "sherlock"),
-        trigger = "A Ghostwriter request with “Search my notes” on, or a Sherlock reply with “Look in my notes” on, once signed in, when Ghost.md on this phone finds nothing.",
-        sends = "Your sign-in token, up to 4 words of the request (or of the conversation, for Sherlock), and the ids of up to 3 notes to read. A refresh token when the sign-in has run out.",
+        NetFeature.GHOST_ONLINE, "ghost-search", "Ghost.md notes online", listOf("ghostmarkdown.com"), plugins = listOf("ghostwriter"),
+        trigger = "A Ghostwriter request with “Search my notes” on, once signed in, when Ghost.md on this phone finds nothing.",
+        sends = "Your sign-in token, up to 4 words of the request, and the ids of up to 3 notes to read. A refresh token when the sign-in has run out.",
     ),
     GHOST_SIGN_OUT(
         NetFeature.GHOST_ONLINE, "ghost-sign-out", "Ghost.md sign-out", listOf("ghostmarkdown.com"),

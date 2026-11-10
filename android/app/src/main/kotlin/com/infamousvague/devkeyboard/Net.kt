@@ -236,13 +236,12 @@ object Net {
         return when (path) {
             NetPath.GHOSTWRITER -> on(Plugins.GHOSTWRITER) && ai
             NetPath.REWRITE -> on(Plugins.REWRITE) && ai
-            NetPath.SHERLOCK -> Sherlock.on(prefs) && Sherlock.ready(prefs)
             NetPath.MY_VOICE, NetPath.TRAIN -> on(Plugins.MOCKINGBIRD) && ai
             NetPath.AI_TEST, NetPath.AI_MODELS -> ai
             NetPath.GITHUB_SEARCH -> on(Plugins.GHOSTWRITER) && ai && prefs.ghostwriterGithub && prefs.githubToken.isNotBlank()
             NetPath.GITHUB_CHECK -> prefs.githubToken.isNotBlank()
             NetPath.GHOST_SIGN_IN -> on(Plugins.GHOSTWRITER) && !GhostOnline.signedIn(context)
-            NetPath.GHOST_SEARCH -> ((on(Plugins.GHOSTWRITER) && ai && prefs.ghostwriterNotes) || (Sherlock.on(prefs) && Sherlock.ready(prefs) && prefs.sherlockNotes)) && GhostOnline.signedIn(context)
+            NetPath.GHOST_SEARCH -> on(Plugins.GHOSTWRITER) && ai && prefs.ghostwriterNotes && GhostOnline.signedIn(context)
             NetPath.GHOST_SIGN_OUT -> GhostOnline.signedIn(context)
             NetPath.GIF_SEARCH, NetPath.GIF_IMAGE -> on(Plugins.GIFS) && Giphy.key(prefs).isNotBlank()
             NetPath.MODEL -> on(Plugins.DICTATION)

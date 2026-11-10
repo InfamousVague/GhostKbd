@@ -73,12 +73,6 @@ object Ghostwriter {
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
         launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
-    /** Sherlock: the chat on the screen read and your reply drafted; [hint] is what was in the box already. */
-    fun sherlock(context: Context, prefs: KeyboardPrefs, hint: String, app: String?, fresh: Boolean, keyboardTop: Int, done: (Job) -> Unit): Job {
-        val appContext = context.applicationContext
-        return launch(prefs, Job(ids.incrementAndGet(), "Reply", hint, mode = Sherlock.MODE), done) { Sherlock.run(appContext, prefs, hint, app, fresh, keyboardTop) }
-    }
-
     /**
      * Runs [work] on the worker and hands [job] back on the main thread. With Offline on the work is never started
      * (no notes read, no commits searched): the job ends with "Offline is on", which the row shows as its error.
@@ -115,7 +109,7 @@ object Ghostwriter {
 
     /**
      * Ghost.md's notes that match [words]: from Ghost.md on this phone, else online through its connector when signed
-     * in. Blocking. Ghostwriter's <<requests>> and Sherlock's replies both read them.
+     * in. Blocking.
      */
     fun notes(context: Context, words: List<String>): Notes {
         if (words.isEmpty()) return Notes(emptyList(), "", null)

@@ -81,7 +81,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         icon: _icon(Lucide.store),
         hue: 'purple',
         group: 'plugins',
-        summary: (s) => '${marketCatalogueFor(s.flag('developer')).where((p) => s.pluginOn(p.id)).length} added · browse the Market',
+        summary: (s) => '${marketCatalogue.where((p) => s.pluginOn(p.id)).length} added · browse the Market',
         page: (context, store) => const [],
         screen: (context) => MarketScreen(store: store),
       ),
@@ -91,8 +91,6 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
       if (store.pluginOn('mockingbird'))
         SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'magenta', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbirdPage, parts: _mockingbirdParts),
-      if (store.pluginOn('sherlock') && store.flag('developer'))
-        SettingsSection(id: 'sherlock', label: 'Sherlock', icon: _icon(LucideMore.scanSearch), hue: 'cyan', group: 'plugins', summary: _sherlockSummary, page: _sherlockPage, parts: _sherlockParts),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('rewrite'))
@@ -984,112 +982,6 @@ List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
 
 SettingsSection _aiProviderPart() =>
     _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', _aiSetup);
-
-// --- Sherlock -----------------------------------------------------------------------------------------------------
-
-String _sherlockSummary(SettingsStore s) => s.ai['ready'] != true
-    ? 'Add an AI key'
-    : !s.sherlockEnabled
-        ? 'Turn it on in Android'
-        : s.flag('sherlock_auto')
-            ? 'Drafts as you open a chat'
-            : 'On Reply';
-
-List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
-  final ready = store.ai['ready'] == true;
-  final on = store.sherlockEnabled;
-  final profile = store.ai['profile'];
-  return [
-    PaneHero(
-      glyph: AppIcon(LucideMore.scanSearch, size: 24),
-      title: !ready ? 'Add an AI key' : on ? 'Ready' : 'One switch to go',
-      meta: Text(store.flag('sherlock_autoreply')
-          ? 'Auto-reply is on: while a chat is open, Sherlock answers each new message in your words and sends it.'
-          : 'Open the keyboard in a chat and Sherlock reads the conversation and drafts your reply, in your words. You read it and press send.'),
-      status: PaneHeroStatus(ready && on ? 'On' : 'Waiting'),
-    ),
-    PaneSection(
-      footer: Text(on
-          ? 'Android lets Sherlock read the app under the keyboard. It reads only when it drafts a reply, never in password fields or incognito, and keeps nothing.'
-          : 'Android asks you to turn screen reading on yourself: Accessibility › Installed apps (or Downloaded apps) › Sherlock (Ghost Keyboard) › on. Android may warn that it can see your screen: that is what it reads to draft the reply.'),
-      children: [
-        SettingRow(
-          label: 'Read the screen',
-          icon: AppIcon(LucideMore.scanSearch, size: 18),
-          value: Text(on ? 'On' : 'Off'),
-          onPress: store.openSherlockSettings,
-        ),
-      ],
-    ),
-    PaneSection(
-      footer: const Text('Sherlock writes with the AI you set up in AI. It sounds like you from Mockingbird, and takes facts from your Ghost.md notes as Ghostwriter’s <<requests>> do: type a <<question>> in the box and tap Reply to have it answered from them.'),
-      children: [
-        SettingRow(
-          label: 'Writes with',
-          icon: AppIcon(Lucide.sparkles, size: 18),
-          value: Text(ready ? '${_providerName(store)} · ${_modelOf(store)}' : 'Add a key in AI'),
-        ),
-        SettingRow(
-          label: 'Your voice',
-          icon: AppIcon(LucideMore.bird, size: 18),
-          value: Text(profile is Map ? 'Mockingbird profile' : (store.pluginOn('mockingbird') ? 'Not trained yet' : 'Add Mockingbird')),
-          onPress: profile is Map ? null : () => pushSettings(context, (_) => MarketScreen(store: store)),
-        ),
-        _toggle(store, 'sherlock_notes', 'Look in my notes', 'Your Ghost.md notes that match the conversation, for the facts.', LucideMore.squareM),
-      ],
-    ),
-    PaneSection(
-      footer: const Text('In Discord, Slack and group chats everyone’s messages sit on one side under their name. Your usernames and display names here, separated by commas, tell Sherlock which are yours. Press enter to save.'),
-      children: [
-        SettingRowBox(
-          child: GlacierInput(
-            key: ValueKey('sherlock-names-${store.text('sherlock_names')}'),
-            defaultValue: store.text('sherlock_names'),
-            placeholder: 'Your names in chats, e.g. mattv, Matt',
-            ariaLabel: 'Your names in chats',
-            onSubmitted: (text) => store.set('sherlock_names', text.trim()),
-          ),
-        ),
-      ],
-    ),
-    PaneSection(children: [
-      _toggle(store, 'sherlock_auto', 'Draft as I open a chat', 'Off: only when you tap Reply in the row.'),
-      _toggle(store, 'sherlock_fill', 'Put it straight in the box', 'Off: the draft waits in the row for a tap.'),
-    ]),
-    PaneSection(
-      footer: const Text('While a chat app is open, Sherlock answers each new message as you and sends it, so the conversation carries on by itself. It never sends over what you have started typing, pauses after 20 replies in a row until you write one yourself, and tells you each reply it sends in a notification, with Stop.'),
-      children: [
-        SettingRow(
-          label: 'Auto-reply',
-          hint: const Text('Sends for you and keeps the conversation going.'),
-          icon: AppIcon(LucideMore.scanSearch, size: 18),
-          control: GlacierSwitch(
-            checked: store.flag('sherlock_autoreply'),
-            onCheckedChange: (v) {
-              store.set('sherlock_autoreply', v);
-              if (v) store.requestNotifications();
-            },
-            ariaLabel: 'Auto-reply',
-          ),
-        ),
-      ],
-    ),
-    PaneSection(children: [
-      _plugin(store, 'sherlock', 'Sherlock', 'Off removes Sherlock; add it again from Plugins.'),
-    ]),
-  ];
-}
-
-List<SettingsSection> _sherlockParts(SettingsStore store) => [
-      _aiProviderPart(),
-      if (!store.pluginOn('mockingbird'))
-        _part('sherlock-voice', 'Your voice', LucideMore.bird, 'magenta', (s) => 'Add Mockingbird', (context, store) => [
-              PaneSection(
-                footer: const Text('With Mockingbird, Sherlock writes from your style profile and your past messages. Without it, it writes a plain casual reply.'),
-                children: [SettingRow(label: 'Add Mockingbird', icon: AppIcon(LucideMore.bird, size: 18), onPress: () => pushSettings(context, (_) => MarketScreen(store: store)))],
-              ),
-            ]),
-    ];
 
 // --- Ghostwriter --------------------------------------------------------------------------------------------------
 

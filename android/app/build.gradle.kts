@@ -80,8 +80,6 @@ flutter {
 dependencies {
     // The passwords plugin: the style Android's inline autofill suggestions are drawn in.
     implementation("androidx.autofill:autofill:1.1.0")
-    // Sherlock: on-phone OCR of a chat whose app draws its own text (the Latin model, bundled: no download).
-    implementation("com.google.mlkit:text-recognition:16.0.1")
     // The undo history's self-check (src/test): plain JUnit on a desk, no device.
     testImplementation("junit:junit:4.13.2")
     // The accuracy replay (src/test AccuracyReplay) reads the record's JSON lines off the device.
