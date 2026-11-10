@@ -1253,13 +1253,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     // After a space, or at a field's or sentence's start: the three likeliest next words, the
                     // likeliest in the middle as Gboard has its pick, then the tools, the first of them peeking in.
                     // While incognito two, so its chip fits in front of them: nothing may cover the sign that it is on.
-                    val private = incognito
+                    // In a chat app Sherlock's Reply goes in front too, with two words, so it is never left off the edge.
+                    val tools = tools()
+                    val reply = tools.any { it.id == "sherlock" && AppContext.kind(currentInputEditorInfo?.packageName) == AppKind.CHAT }
+                    val private = incognito || reply
                     val words = nextWords.timed { nextWords.at(predict).top(if (private) 2 else 3) }.map(::shifted).distinct()
                     if (words.isNotEmpty()) {
                         val order = if (words.size >= 2) listOf(words[1], words[0]) + words.drop(2) else words
-                        val tools = tools()
-                        // "Incognito on" and a clip copied a moment ago come before any word.
-                        val first = tools.filter { it.id.startsWith("fresh-") || it.id == INCOGNITO_ON }
+                        // "Incognito on", a clip copied a moment ago and, in a chat, Sherlock's Reply come before any word.
+                        val first = tools.filter { it.id.startsWith("fresh-") || it.id == INCOGNITO_ON || (reply && it.id == "sherlock") }
                         items += first
                         order.forEach { w -> items += RowItem("nw-$w", label = w, wide = true) { pickPrediction(w) } }
                         items += tools.filter { it !in first }
@@ -1605,6 +1607,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun autoSherlock(info: EditorInfo) {
         if (!Plugins.isOn(prefs, Plugins.SHERLOCK) || !prefs.sherlockAuto || !aiAllowed()) return
         if (AppContext.kind(info.packageName) != AppKind.CHAT || SherlockService.instance == null) return
+        // On its own it never leaves an error in the row at every chat: with Offline on, or no AI set up, it waits for
+        // a tap of Reply, which says why.
+        if (Net.offline(prefs) || !AiClient.ready(prefs)) return
         rowHandler.postDelayed({
             if (currentInputEditorInfo?.packageName == info.packageName && aiJob == null && !fieldHasText()) startSherlock(fresh = false)
         }, SHERLOCK_SETTLE_MS)
