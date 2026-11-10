@@ -248,11 +248,24 @@ private fun bundled(root: File) {
         var bad = 0
         var n = 0
         var first = ""
+        var twos = 0
         f.useLines { lines ->
             lines.drop(1).forEach { line ->
                 val key = line.substringBefore('\t')
-                if (key != NextWordText.START && !listed(key)) bad++
-                for (part in line.substringAfter('\t').split(' ')) {
+                val parts = key.split(' ')
+                // A two-word context: both its words listed (the first may be a sentence's start), and its "=n" first.
+                if (parts.size > 2 || parts.withIndex().any { (i, w) -> !(w == NextWordText.START && (i == 0 || parts.size == 1)) && !listed(w) }) {
+                    bad++; if (first.isEmpty()) first = key
+                }
+                var rest = line.substringAfter('\t')
+                if (parts.size == 2) {
+                    twos++
+                    val seen = rest.substringBefore(' ').takeIf { it.startsWith('=') }?.drop(1)?.toIntOrNull()
+                    if (seen == null || seen < 1) { bad++; if (first.isEmpty()) first = "$key without its =n" }
+                    t.seen(key).let { if (it != (seen ?: 0)) { bad++; if (first.isEmpty()) first = "$key read as seen $it" } }
+                    rest = rest.substringAfter(' ')
+                }
+                for (part in rest.split(' ')) {
                     val shown = part.substringBeforeLast(':')
                     val share = part.substringAfterLast(':').toIntOrNull()
                     if (share == null || share !in 1..10_000 || !listed(shown.lowercase(l.locale))) { bad++; if (first.isEmpty()) first = "$key → $part" }
@@ -261,6 +274,7 @@ private fun bundled(root: File) {
             }
         }
         same(n, t.pairs, "$code: every pair was read")
+        same(t.contexts, f.useLines { it.count() } - 1, "$code: every context was read ($twos of two words)")
         check(bad == 0) { "$code: $bad entries are not words of its list (the first: $first)" }
         check(t.pairs >= 5_000) { "$code has at least 5,000 pairs (${t.pairs})" }
         var start = 0
@@ -268,7 +282,7 @@ private fun bundled(root: File) {
         check(start >= 3) { "$code can start a sentence ($start starters)" }
     }
     println("  ${files.size} tables, $pairs pairs, $total bytes")
-    check(total < 12_000_000) { "the tables together are under 12 MB ($total)" }
+    check(total < 32_000_000) { "the tables together are under 32 MB ($total)" }
 }
 
 private fun english(root: File) {
@@ -287,7 +301,7 @@ private fun english(root: File) {
     System.gc(); Thread.sleep(100)
     val heap1 = rt.totalMemory() - rt.freeMemory()
     println("  en.tsv: ${table.pairs} pairs after ${table.contexts} contexts, read in $readMs ms; about ${(heap1 - heap0) / 1024} KB of this JVM's heap (its own estimate: ${table.approxBytes / 1024} KB)")
-    check(table.approxBytes < 6_000_000) { "the English table is under 6 MB in memory by its own estimate" }
+    check(table.approxBytes < 12_000_000) { "the English table is under 12 MB in memory by its own estimate" }
 
     val personal = PersonalPairs()
     val lookup = object : Scorer.Lookup {

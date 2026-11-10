@@ -1,6 +1,6 @@
 #ghost-ngram	1	is	Tatoeba export 2026-11-07, CC BY 2.0 FR
-^	ég:1703 það:631 hann:576 hún:492 þú:479 við:380 þetta:213 hvað:183 ekki:106 mér:99 John:92 er:87 þau:83 hver:82 af:77 þessi:75 hvernig:74 í:74 mig:64 hvar:63 hversu:58 ef:52 á:44 má:36 þeir:35 enginn:34 hvenær:32 hvaða:28 allir:27 þegar:26 Bill:25 þið:24 þær:24 að:19 gerðu:19 hvers:19 til:19 vinsamlegast:19 allt:18 klukkan:18 ertu:17 Tom:17 hvert:17 húsið:17 já:17 nei:17 maðurinn:15 nú:15
-af	hverju:2140 því:625 þér:398 honum:227 stað:227 þeim:189 fólki:152 sér:114 þessum:114 peningum:95 þessari:95 henni:76 völdum:76 mér:57 og:57 vini:57 ótta:57 öllum:57 öðrum:57 útliti:57 víni:54 annari:48 bjór:47 að:38 bróður:38 bókum:38 Disney:38 eggjum:38 einhverri:38 fara:38 ferðamönnum:38 fötum:38 grænmeti:38 hræðslu:38 Jörðinni:38 kaffi:38 litlum:38 ljósmyndun:38 mat:38 misskilningi:38 mjólk:38 skólanum:38 stóli:38 svo:38 sögu:38 ull:38 veikindum:38 yngri:38
+^	ég:1703 það:631 hann:576 hún:492 þú:479 við:380 þetta:213 hvað:183 ekki:106 mér:99 John:92 er:87 þau:83 hver:82 af:77 þessi:75 hvernig:74 í:74 mig:64 hvar:63 hversu:58 ef:52 á:44 má:36 þeir:35 enginn:34 hvenær:32 hvaða:28 allir:27 þegar:26 Bill:25 þið:24 þær:24 að:19 gerðu:19 hvers:19 til:19 vinsamlegast:19 allt:18 klukkan:18 ertu:17 Tom:17 hvert:17 húsið:17 já:17 nei:17 maðurinn:15 nú:15 en:15 Jón:15 áttu:15 hér:14 takk:13 ekkert:13 hættu:13 margir:13 maður:13 Peter:13 henni:12 og:12 pabbi:12 geturðu:12 eftir:11 faðir:11
+af	hverju:2140 því:625 þér:398 honum:227 stað:227 þeim:189 fólki:152 sér:114 þessum:114 peningum:95 þessari:95 henni:76 völdum:76 mér:57 og:57 vini:57 ótta:57 öllum:57 öðrum:57 útliti:57 víni:54 annari:48 bjór:47 að:38 bróður:38 bókum:38 Disney:38 eggjum:38 einhverri:38 fara:38 ferðamönnum:38 fötum:38 grænmeti:38 hræðslu:38 Jörðinni:38 kaffi:38 litlum:38 ljósmyndun:38 mat:38 misskilningi:38 mjólk:38 skólanum:38 stóli:38 svo:38 sögu:38 ull:38 veikindum:38 yngri:38 án:38 örfáum:38 öðru:38 vinnunni:38 rökfræði:35 sjúkrahúsinu:34 ásettu:28 kökunni:23 tei:23 lestinni:22 stjörnunum:20 borðinu:19
 afar	fögur:2500
 afmælisdaginn	þinn:8583
 afrit	af:4000
@@ -39,7 +39,7 @@ austur	af:5000
 auðveldara	ef:4000 sagt:4000
 auðvelt	að:6522 fyrir:870
 auðvitað	eftir:2222
-að	fara:618 gera:423 vera:420 ég:331 þú:309 segja:233 hann:225 læra:208 tala:179 hafa:171 taka:138 það:138 koma:133 lesa:130 fá:111 hún:108 kaupa:98 sjá:92 hitta:84 halda:81 hjálpa:70 heyra:68 spila:68 vinna:68 drekka:67 við:65 hætta:62 horfa:60 finna:57 leggja:57 vita:57 byrja:54 ganga:54 ná:54 verða:54 láta:52 borða:49 hringja:49 skrifa:49 sofa:49 því:49 bíða:48 búa:46 gefa:46 hugsa:46 leita:46 nota:46 opna:43
+að	fara:618 gera:423 vera:420 ég:331 þú:309 segja:233 hann:225 læra:208 tala:179 hafa:171 taka:138 það:138 koma:133 lesa:130 fá:111 hún:108 kaupa:98 sjá:92 hitta:84 halda:81 hjálpa:70 heyra:68 spila:68 vinna:68 drekka:67 við:65 hætta:62 horfa:60 finna:57 leggja:57 vita:57 byrja:54 ganga:54 ná:54 verða:54 láta:52 borða:49 hringja:49 skrifa:49 sofa:49 því:49 bíða:48 búa:46 gefa:46 hugsa:46 leita:46 nota:46 opna:43 reyna:43 ferðast:41 fylgja:41 skilja:41 sér:41 ákveða:41 eyða:41 mér:38 þér:38 keyra:35 svara:35 komast:33 þetta:33 hlusta:30 lifa:30 biðja:27
 aðeins	í:1481 sex:741 á:741
 aðgang	að:9999
 aðra	sí:1230
@@ -227,7 +227,7 @@ einungis	á:1000 töluð:629
 eitt	af:571 augnablik:571 fyrir:571 hundrað:571 stórt:571 það:571 þúsund:571
 eitthvað	að:1351 sem:946 um:405 undarlegt:405 í:405 af:270 annað:270 en:270 fyrir:270 hjálpar:270 skemmtilegt:270
 ekkert	að:1186 nema:763 í:508 um:424 á:424 er:339 annað:254 mál:254 sérstakt:254 vatn:254 meira:169 með:169 okkar:169 svar:169 til:169
-ekki	að:824 í:304 hvað:181 við:164 á:164 með:134 eins:129 neitt:129 lengur:123 gert:94 til:94 vera:94 satt:85 hafa:82 af:76 verið:64 þurft:64 alltaf:58 efni:58 gleyma:58 máli:58 fara:53 hægt:53 svona:53 tala:53 það:53 enn:47 er:47 farið:47 ganga:47 of:47 taka:47 góð:44 einu:41 hvernig:41 komið:41 mikið:41 séð:41 átt:41 ennþá:35 auðvelt:35 bara:35 hvort:35 svo:35 um:35 vel:35 alveg:29 eftir:29
+ekki	að:824 í:304 hvað:181 við:164 á:164 með:134 eins:129 neitt:129 lengur:123 gert:94 til:94 vera:94 satt:85 hafa:82 af:76 verið:64 þurft:64 alltaf:58 efni:58 gleyma:58 máli:58 fara:53 hægt:53 svona:53 tala:53 það:53 enn:47 er:47 farið:47 ganga:47 of:47 taka:47 góð:44 einu:41 hvernig:41 komið:41 mikið:41 séð:41 átt:41 ennþá:35 auðvelt:35 bara:35 hvort:35 svo:35 um:35 vel:35 alveg:29 eftir:29 greint:29 góðar:29 góður:29 haldið:29 inn:29 koma:29 mjög:29 nógu:29 segja:29 viss:29 þennan:29 endilega:23 fengið:23 fundið:23 fyrir:23 fyrr:23
 elda	mat:1667
 eldgosið	virðist:9999
 eldri	en:4242 bróður:2121 bróðir:1000 systir:909
@@ -249,11 +249,11 @@ ensk	orð:9999
 enska	er:3846
 ensku	en:851 og:426 í:426 frönsku:286
 epli	ekki:1538 eru:1538
-er	ekki:792 að:586 mjög:235 það:199 með:193 í:193 þetta:135 ég:122 á:87 of:80 svo:80 bara:77 ekkert:71 allt:61 hann:61 þessi:58 eins:55 enn:55 alltaf:51 enginn:51 erfitt:51 engin:48 góður:45 búinn:42 hún:42 þegar:42 húsið:39 rétt:39 stór:39 uppáhalds:38 frá:35 til:35 góð:34 búið:32 gott:32 maður:32 kominn:29 laus:29 næstum:29 nú:29 orðið:29 sama:29 svolítið:29 sá:29 virkilega:29 þér:29 búin:26 fyrir:26
+er	ekki:792 að:586 mjög:235 það:199 með:193 í:193 þetta:135 ég:122 á:87 of:80 svo:80 bara:77 ekkert:71 allt:61 hann:61 þessi:58 eins:55 enn:55 alltaf:51 enginn:51 erfitt:51 engin:48 góður:45 búinn:42 hún:42 þegar:42 húsið:39 rétt:39 stór:39 uppáhalds:38 frá:35 til:35 góð:34 búið:32 gott:32 maður:32 kominn:29 laus:29 næstum:29 nú:29 orðið:29 sama:29 svolítið:29 sá:29 virkilega:29 þér:29 búin:26 fyrir:26 höfuðborg:23 alveg:23 eitthvað:23 mikill:23 mikilvægt:23 mun:23 núna:23 synd:23 tilbúinn:23 við:23 þess:23 bróðir:21 aldrei:19 bráð:19 fallegt:19 hægt:19
 erfitt	að:4516 með:1290 fyrir:968
 erfiðleikum	með:8000
 ert	ekki:1086 að:743 þú:629 of:571 mjög:286 góður:229 með:229 kominn:171 ábyrgur:171 í:171 algjörlega:114 enn:114 fallegur:114 svo:114 tilbúinn:114 ung:114 ábyrg:96 hrædd:51 hræddur:38 þreytt:24 upptekinn:20
-eru	að:727 ekki:568 í:409 mjög:295 til:227 margir:159 allir:136 bara:136 á:136 eins:114 þeir:114 fleiri:91 of:91 öll:91 úr:91 þetta:91 allar:68 engir:68 góðar:68 jafn:68 jöfn:68 kostir:68 margar:68 með:68 rétt:68 svona:68 tíu:68 þau:68 það:68 slæmar:65 bækurnar:47 eftir:45 einungis:45 engin:45 falleg:45 fallegar:45 farnir:45 hérna:45 karlar:45 leikarar:45 liðin:45 líka:45 mér:45 mörg:45 nú:45 rauð:45 stuttar:45 um:45
+eru	að:727 ekki:568 í:409 mjög:295 til:227 margir:159 allir:136 bara:136 á:136 eins:114 þeir:114 fleiri:91 of:91 öll:91 úr:91 þetta:91 allar:68 engir:68 góðar:68 jafn:68 jöfn:68 kostir:68 margar:68 með:68 rétt:68 svona:68 tíu:68 þau:68 það:68 slæmar:65 bækurnar:47 eftir:45 einungis:45 engin:45 falleg:45 fallegar:45 farnir:45 hérna:45 karlar:45 leikarar:45 liðin:45 líka:45 mér:45 mörg:45 nú:45 rauð:45 stuttar:45 um:45 vinir:45 virkilega:45 þrír:45 þær:45 þér:45 góð:43 úlfar:37 töluð:29
 erum	að:1220 við:732 öll:732 ekki:610 með:366 svo:366 í:366 alltaf:244 frá:244 hér:244 nánast:244 sammála:244 fátæk:116
 eruð	þið:4516 ungir:968
 eyddi	annari:5672
@@ -357,7 +357,7 @@ fylgir	mér:3750 að:2500
 fylgja	reglunum:1875 lögunum:1250
 fylgjast	með:9999
 fylla	í:3333
-fyrir	að:828 mig:808 mér:384 því:343 þér:303 þig:236 sér:222 utan:202 það:182 framan:162 okkur:141 alla:121 löngu:101 matinn:101 sig:101 hana:81 hann:81 tveimur:81 þremur:81 myrkur:63 allan:61 hvað:61 hádegi:61 klukkan:61 sex:61 ykkur:61 ferðina:55 kaldan:44 aftan:40 barninu:40 einn:40 gerðum:40 hegðun:40 henni:40 horn:40 hornið:40 hvaða:40 hvern:40 mannkynið:40 Mary:40 meira:40 miðnætti:40 neðan:40 nokkrum:40 sjálfan:40 sjö:40 tilviljun:40 um:40
+fyrir	að:828 mig:808 mér:384 því:343 þér:303 þig:236 sér:222 utan:202 það:182 framan:162 okkur:141 alla:121 löngu:101 matinn:101 sig:101 hana:81 hann:81 tveimur:81 þremur:81 myrkur:63 allan:61 hvað:61 hádegi:61 klukkan:61 sex:61 ykkur:61 ferðina:55 kaldan:44 aftan:40 barninu:40 einn:40 gerðum:40 hegðun:40 henni:40 horn:40 hornið:40 hvaða:40 hvern:40 mannkynið:40 Mary:40 meira:40 miðnætti:40 neðan:40 nokkrum:40 sjálfan:40 sjö:40 tilviljun:40 um:40 víst:40 ári:40 þessa:40 þessar:40 þetta:40 þróun:40 hvorn:38 útlendinga:38 heilsuna:31 trjánum:17 kvöldmatinn:16 flugið:15
 fyrirtækið	er:2857
 fyrr	en:2581 eða:1613
 fyrramálið	klukkan:3333
@@ -490,7 +490,7 @@ hamingju	með:3000 hvert:2000
 hana	ekki:485 vegna:291 í:291 aftur:194 langaði:194 til:194 um:194 varlega:194 á:194 afsökunar:188
 handa	mér:5000 henni:1923 þér:1154
 hangir	á:5000
-hann	er:1658 var:435 hefur:221 um:221 á:199 kemur:177 í:155 sagði:140 ekki:111 fór:103 gaf:103 kom:103 væri:103 ætti:103 að:88 sé:81 tók:81 býr:74 gerði:74 mun:74 fer:66 hafði:66 kann:66 lagði:66 getur:59 þarf:59 af:52 komi:52 leit:52 sem:52 til:52 talar:47 gat:44 með:44 sagðist:44 segir:44 verður:44 elskar:43 lítur:42 fyrir:37 fékk:37 hefði:37 hlýtur:37 hvort:37 taldi:37 varð:37 vinnur:37 vissi:37
+hann	er:1658 var:435 hefur:221 um:221 á:199 kemur:177 í:155 sagði:140 ekki:111 fór:103 gaf:103 kom:103 væri:103 ætti:103 að:88 sé:81 tók:81 býr:74 gerði:74 mun:74 fer:66 hafði:66 kann:66 lagði:66 getur:59 þarf:59 af:52 komi:52 leit:52 sem:52 til:52 talar:47 gat:44 með:44 sagðist:44 segir:44 verður:44 elskar:43 lítur:42 fyrir:37 fékk:37 hefði:37 hlýtur:37 hvort:37 taldi:37 varð:37 vinnur:37 vissi:37 dó:29 fæddist:29 hafi:29 lofaði:29 lést:29 lét:29 missti:29 sat:29 skrifaði:29 átti:29 bjó:22 fara:22 fylgdi:22 gengur:22 hafa:22 heim:22
 hans	er:1086 var:686 eru:400 að:229 fer:171 í:171 allan:114 auð:114 fyrir:114 gaf:114 hjálp:114 og:114 til:114 undanskildum:114
 hart	að:6667 og:1111 sem:1111
 harðar	að:8750
@@ -610,7 +610,7 @@ hundurinn	er:2308 minn:1387 þinn:660
 hungri	á:5000
 hurðinni	þegar:4000
 hvar	er:3363 ég:619 þú:531 eru:354 get:269 hann:265 hún:265 sem:265 býr:177 keypti:177 þið:177 voruð:148 varstu:49
-hvað	er:1465 ég:566 þú:540 hann:386 með:386 sem:360 finnst:206 í:206 kallast:154 ætlar:154 gerir:129 heitir:129 kostar:129 langar:129 ef:103 gerðist:103 kom:103 við:103 það:103 þýðir:103 ertu:93 gerist:77 hún:77 kosta:77 ætti:77 þetta:77 þarftu:59 byrjar:51 fæ:51 fékk:51 hefði:51 klukkan:51 mundir:51 olli:51 um:51 varð:51 væri:51 ætli:51 úr:51 þarf:51 þau:51 þið:51 lásu:27 viltu:18 veistu:12 segirðu:11 varstu:10 ferðu:9
+hvað	er:1465 ég:566 þú:540 hann:386 með:386 sem:360 finnst:206 í:206 kallast:154 ætlar:154 gerir:129 heitir:129 kostar:129 langar:129 ef:103 gerðist:103 kom:103 við:103 það:103 þýðir:103 ertu:93 gerist:77 hún:77 kosta:77 ætti:77 þetta:77 þarftu:59 byrjar:51 fæ:51 fékk:51 hefði:51 klukkan:51 mundir:51 olli:51 um:51 varð:51 væri:51 ætli:51 úr:51 þarf:51 þau:51 þið:51 lásu:27 viltu:18 veistu:12 segirðu:11 varstu:10 ferðu:9 hefurðu:7 ætlarðu:3
 hvaða	bækur:769 bók:769 tungumáli:462 átt:462 tungumál:406 landi:308 ávöxtur:308
 hvaðan	eru:1875 koma:1250
 hve	lengi:1875 vel:1250
@@ -662,7 +662,7 @@ höfuðborg	Úkraínu:3077 Bandaríkjanna:1538 Finnlands:1538 Íslands:1538
 höfuðið	á:4000
 hönd	sína:2500
 höndina	á:5000
-hún	er:1708 var:504 á:246 bað:220 fór:197 sagði:172 tók:147 kom:135 hefur:123 verður:123 ekki:86 hafði:86 hélt:86 bauð:74 fer:74 fékk:74 gaf:74 keypti:74 spurði:69 talar:67 varð:61 vill:61 elskar:56 gerði:49 réðst:49 setti:49 sé:49 átti:49 að:37 býr:37 gat:37 gekk:37 getur:37 hefði:37 kann:37 kemur:37 leit:37 missti:37 segir:37 til:37 veit:37 vildi:37 virðist:37 ætti:37 í:37 þarf:37 hjálpaði:29 af:25
+hún	er:1708 var:504 á:246 bað:220 fór:197 sagði:172 tók:147 kom:135 hefur:123 verður:123 ekki:86 hafði:86 hélt:86 bauð:74 fer:74 fékk:74 gaf:74 keypti:74 spurði:69 talar:67 varð:61 vill:61 elskar:56 gerði:49 réðst:49 setti:49 sé:49 átti:49 að:37 býr:37 gat:37 gekk:37 getur:37 hefði:37 kann:37 kemur:37 leit:37 missti:37 segir:37 til:37 veit:37 vildi:37 virðist:37 ætti:37 í:37 þarf:37 hjálpaði:29 af:25 bjó:25 brenndi:25 flutti:25 féll:25 gengur:25 giftist:25 hafi:25 hlýtur:25 hringdi:25 hugsar:25 lék:25 náði:25 nýtti:25 og:25 passar:25 reyndi:25
 hús	er:1304 sín:870
 húsin	eru:4000 sín:4000
 húsinu	mínu:3846 þínu:1478
@@ -914,7 +914,7 @@ meirihluti	ungs:6667
 menn	eru:2500 hafa:1667
 merki	um:7500
 mest	upp:4000
-með	að:540 þér:460 mér:260 það:200 því:200 henni:160 okkur:140 vitlaust:137 eða:120 þig:117 honum:100 bindi:80 mig:80 rútu:80 vinum:80 ykkur:80 þremur:80 bros:60 góða:60 hann:60 mjög:60 móður:60 nokkra:60 peninga:60 Ítalíu:60 bókina:55 vinnuna:50 afmælið:40 augun:40 augunum:40 blá:40 brosi:40 börnunum:40 einu:40 falleg:40 fé:40 hana:40 hverjum:40 leið:40 lest:40 lokuð:40 Mary:40 mikið:40 miða:40 mömmu:40 neina:40 neinn:40 nýju:40
+með	að:540 þér:460 mér:260 það:200 því:200 henni:160 okkur:140 vitlaust:137 eða:120 þig:117 honum:100 bindi:80 mig:80 rútu:80 vinum:80 ykkur:80 þremur:80 bros:60 góða:60 hann:60 mjög:60 móður:60 nokkra:60 peninga:60 Ítalíu:60 bókina:55 vinnuna:50 afmælið:40 augun:40 augunum:40 blá:40 brosi:40 börnunum:40 einu:40 falleg:40 fé:40 hana:40 hverjum:40 leið:40 lest:40 lokuð:40 Mary:40 mikið:40 miða:40 mömmu:40 neina:40 neinn:40 nýju:40 spurningu:40 svona:40 systur:40 tilfinningar:40 tvo:40 tíu:40 í:40 öllu:40 þessum:40 þetta:40 strætó:25 ruslið:24 peningana:23 kjötinu:23 höfuðverk:18 strætisvagni:18
 meðal	ungs:2353 okkar:1176 þeirra:1176
 meðan	ég:4400 hann:1200 hún:1200 þú:800
 mig	langar:1481 á:556 að:450 í:344 ekki:265 fá:185 um:185 vantar:185 engu:159 til:159 vera:132 dreymdi:126 líka:106 ef:79 fyrir:79 langaði:79 sem:79 skortir:79 spurninga:79 vel:79 eftir:53 eins:53 enn:53 hvað:53 hvort:53 klukkan:53 með:53 seinna:53 sterkari:53 ég:53 þegar:53 skiljanlega:49 ennþá:40
@@ -970,7 +970,7 @@ mánuður	ársins:9999
 mátt	ekki:4286 nota:857 borða:259
 mæta	á:4000
 mætti	ég:7273
-mér	að:641 finnst:403 til:385 er:330 það:220 líður:201 þykir:201 ekki:183 í:183 hvað:147 líkar:108 hvernig:92 líka:92 tókst:92 þætti:92 þótti:92 fannst:73 frá:73 svo:73 af:55 hefur:55 mynd:55 og:55 söguna:55 um:55 sýnist:54 bara:37 drauma:37 einu:37 eitthvað:37 en:37 finnast:37 heim:37 inn:37 kom:37 leið:37 með:37 sanna:37 tvær:37 vonbrigðum:37 út:37 þegar:37 þessi:37 þrátt:37 þykja:37 hjálparhönd:32 bjór:30 leiðist:25
+mér	að:641 finnst:403 til:385 er:330 það:220 líður:201 þykir:201 ekki:183 í:183 hvað:147 líkar:108 hvernig:92 líka:92 tókst:92 þætti:92 þótti:92 fannst:73 frá:73 svo:73 af:55 hefur:55 mynd:55 og:55 söguna:55 um:55 sýnist:54 bara:37 drauma:37 einu:37 eitthvað:37 en:37 finnast:37 heim:37 inn:37 kom:37 leið:37 með:37 sanna:37 tvær:37 vonbrigðum:37 út:37 þegar:37 þessi:37 þrátt:37 þykja:37 hjálparhönd:32 bjór:30 leiðist:25 sannleikann:21 reiður:10 vinsamlegast:10
 mín	er:2427 hefur:388 eru:291 skoðun:291 var:291 býr:194 lesa:194 um:194
 mína	í:600 skoðun:400
 mínar	og:1538
@@ -1048,7 +1048,7 @@ nýtti	sér:7500
 of	mikið:1680 seint:640 gamall:320 hratt:320 ung:240 feitur:160 fljótur:160 gömul:160 langt:160 litlir:160 lágur:160 lítið:160 mikil:160 mikils:160 mikinn:160 miklum:160 snemma:160 stór:160 stórir:160 ungur:160 á:160 klár:125 varkár:64 sein:54 fátækur:33 þreyttur:28 upptekinn:28 seinn:25
 ofan	í:2857
 oft	á:1333 í:1333 að:833
-og	ég:435 þú:351 það:266 hann:238 æ:154 við:112 fór:84 Mary:84 hún:70 á:70 að:56 er:56 hvað:56 hægt:56 sagði:56 til:56 veru:56 í:56 þar:56 þér:56 drottningin:42 eru:42 gallar:42 gengu:42 maður:42 mögulegt:42 skrifaði:42 sumt:42 svo:42 tvær:42 þannig:42 þau:42 þegar:42 þeir:42 þetta:42 smjör:37 aftur:28 aldrei:28 allar:28 bolti:28 eina:28 eins:28 eitt:28 ekki:28 eldri:28 faðir:28 fimm:28 fyrsta:28
+og	ég:435 þú:351 það:266 hann:238 æ:154 við:112 fór:84 Mary:84 hún:70 á:70 að:56 er:56 hvað:56 hægt:56 sagði:56 til:56 veru:56 í:56 þar:56 þér:56 drottningin:42 eru:42 gallar:42 gengu:42 maður:42 mögulegt:42 skrifaði:42 sumt:42 svo:42 tvær:42 þannig:42 þau:42 þegar:42 þeir:42 þetta:42 smjör:37 aftur:28 aldrei:28 allar:28 bolti:28 eina:28 eins:28 eitt:28 ekki:28 eldri:28 faðir:28 fimm:28 fyrsta:28 fyrstu:28 glös:28 hinir:28 hvergi:28 jafn:28 konan:28 konu:28 lágt:28 María:28 menningu:28 minni:28 mjólk:28 setti:28 settu:28 sex:28 sjálfan:28
 okkar	er:898 eru:419 hefur:419 með:299 var:299 að:180 tveggja:180 um:180 verður:180 eigin:120 langar:120 mun:120 á:120 í:120 þarf:120 þýðir:120
 okkur	á:515 að:221 mikið:221 til:221 tókst:221 ekki:147 er:147 fyrir:147 grein:147 hálftíma:147 langar:147 meiri:147 með:147 saman:147 við:147 öll:147 öllum:147
 olli	mér:2857 því:2857
@@ -1160,7 +1160,7 @@ seinna	en:1176
 seinni	partinn:1621
 seint	heim:1364 að:909 í:909
 sekur	um:6667
-sem	þú:1684 ég:1397 er:556 hann:455 við:320 hún:286 á:152 stendur:118 hefur:101 þau:101 þið:101 eru:84 getur:84 maður:84 það:84 gefnu:84 mér:67 var:67 þér:67 allir:51 búa:51 býr:51 falleg:51 hjálpa:51 kann:51 munu:51 má:51 og:51 skiptir:51 verra:51 þeir:51 besta:34 drepur:34 fara:34 gerir:34 gleyma:34 gætir:34 inniheldur:34 kom:34 krefst:34 kunna:34 leitar:34 skilja:34 steinn:34 tala:34 Titanic:34 þeim:34 þarfnast:33
+sem	þú:1684 ég:1397 er:556 hann:455 við:320 hún:286 á:152 stendur:118 hefur:101 þau:101 þið:101 eru:84 getur:84 maður:84 það:84 gefnu:84 mér:67 var:67 þér:67 allir:51 búa:51 býr:51 falleg:51 hjálpa:51 kann:51 munu:51 má:51 og:51 skiptir:51 verra:51 þeir:51 besta:34 drepur:34 fara:34 gerir:34 gleyma:34 gætir:34 inniheldur:34 kom:34 krefst:34 kunna:34 leitar:34 skilja:34 steinn:34 tala:34 Titanic:34 þeim:34 þarfnast:33 þig:33 John:32 pabbi:31 reiddi:21 Tom:5
 send	til:9999
 senda	hana:2000 mér:2000
 sendu	mér:6667
@@ -1395,7 +1395,7 @@ tekið	út:2000
 tekur	ekki:1000 það:1000
 telur	að:2500 þú:2500 þig:2436
 tennis	á:2500 í:1667
-til	að:3984 þess:183 baka:170 hvers:157 í:118 Evrópu:105 hans:105 Ameríku:92 með:92 mín:92 hann:79 þín:67 útlanda:57 Bandaríkjanna:52 Boston:52 Danmerkur:52 dyra:52 hamingju:52 hliðar:52 Hong:52 hægri:52 hún:52 kominn:52 læknis:52 dauða:39 foreldra:39 hennar:39 Parísar:39 Rússlands:39 sölu:39 Japans:33 allra:26 aðgerða:26 box:26 einskis:26 enda:26 góða:26 Hawaii:26 Kaliforníu:26 landsins:26 London:26 Lundúna:26 margra:26 mikillar:26 nein:26 San:26 Spánar:26 staðar:26
+til	að:3984 þess:183 baka:170 hvers:157 í:118 Evrópu:105 hans:105 Ameríku:92 með:92 mín:92 hann:79 þín:67 útlanda:57 Bandaríkjanna:52 Boston:52 Danmerkur:52 dyra:52 hamingju:52 hliðar:52 Hong:52 hægri:52 hún:52 kominn:52 læknis:52 dauða:39 foreldra:39 hennar:39 Parísar:39 Rússlands:39 sölu:39 Japans:33 allra:26 aðgerða:26 box:26 einskis:26 enda:26 góða:26 Hawaii:26 Kaliforníu:26 landsins:26 London:26 Lundúna:26 margra:26 mikillar:26 nein:26 San:26 Spánar:26 staðar:26 Tyrklands:26 vinstri:26 Judy:22 ost:19 tannlæknis:15 myrkurs:15 bragðs:14 Tókýó:4
 tilboðinu	hans:6667
 tilbúin	fyrir:2500
 tilbúinn	til:1765 að:1176
@@ -1454,7 +1454,7 @@ töluðu	ekki:6667
 tölvan	mín:5455 er:2727
 tölvur	eru:6000
 týna	myndavélinni:9137
-um	að:1577 það:540 þetta:259 hann:238 skoðun:173 borð:151 hvað:151 þig:147 morguninn:108 of:108 allt:86 hana:86 hendurnar:86 hjálp:86 jólin:86 Kína:86 mig:86 tíma:86 allan:65 aðra:65 bil:65 daginn:65 fimm:65 göturnar:65 heiminn:65 helgina:65 trúarbrögð:65 tíu:65 gluggann:54 sakleysi:44 alla:43 augun:43 efni:43 helgar:43 hversu:43 kring:43 kyrrt:43 líf:43 líður:43 margt:43 morð:43 nóttina:43 okkur:43 reikninginn:43 stjórnmál:43 stund:43 Sviss:43 árangur:43
+um	að:1577 það:540 þetta:259 hann:238 skoðun:173 borð:151 hvað:151 þig:147 morguninn:108 of:108 allt:86 hana:86 hendurnar:86 hjálp:86 jólin:86 Kína:86 mig:86 tíma:86 allan:65 aðra:65 bil:65 daginn:65 fimm:65 göturnar:65 heiminn:65 helgina:65 trúarbrögð:65 tíu:65 gluggann:54 sakleysi:44 alla:43 augun:43 efni:43 helgar:43 hversu:43 kring:43 kyrrt:43 líf:43 líður:43 margt:43 morð:43 nóttina:43 okkur:43 reikninginn:43 stjórnmál:43 stund:43 Sviss:43 árangur:43 mistökin:33 herra:33 launahækkun:26 herbergið:22 þýsku:21
 umhverfið	hefur:6667
 undan	mér:1250
 undarlegt	hljóð:2857 vissi:2857
@@ -1478,7 +1478,7 @@ vandamál	að:1111
 vandi	sig:7500
 vandræðum	með:6667
 vanur	að:7222
-var	ekki:756 að:643 í:482 mjög:257 of:193 svo:177 ég:145 hann:129 með:129 á:113 ekkert:80 hissa:80 stolið:80 löng:64 næstum:64 úti:64 þetta:64 vön:49 auðvelt:48 bara:48 boðið:48 einn:48 einu:48 gefið:48 honum:48 lokað:48 nokkuð:48 nógu:48 rekinn:48 stór:48 svolítið:48 árið:48 veik:46 vanur:33 barn:32 bjargað:32 eina:32 einföld:32 eins:32 einungis:32 eitthvað:32 enginn:32 ferðin:32 frekar:32 frábær:32 fyrst:32 fyrsta:32 fyrsti:32
+var	ekki:756 að:643 í:482 mjög:257 of:193 svo:177 ég:145 hann:129 með:129 á:113 ekkert:80 hissa:80 stolið:80 löng:64 næstum:64 úti:64 þetta:64 vön:49 auðvelt:48 bara:48 boðið:48 einn:48 einu:48 gefið:48 honum:48 lokað:48 nokkuð:48 nógu:48 rekinn:48 stór:48 svolítið:48 árið:48 veik:46 vanur:33 barn:32 bjargað:32 eina:32 einföld:32 eins:32 einungis:32 eitthvað:32 enginn:32 ferðin:32 frekar:32 frábær:32 fyrst:32 fyrsta:32 fyrsti:32 heima:32 heitt:32 horfið:32 hvíta:32 hérna:32 kominn:32 krakki:32 langt:32 lokuð:32 minnst:32 mér:32 nóg:32 nú:32 rétt:32 samþykkt:32 sett:32
 varlega	þar:2857
 varpaði	ég:5000
 varst	að:3750 tveggja:2500
@@ -1559,7 +1559,7 @@ vit	í:9999
 vita	ekki:1538 af:1026 að:1026 betur:1026 það:1026 allt:513 þegar:513 sannleikann:434
 vitað	sannleikann:2259
 vitlaust	númer:9999
-við	erum:642 að:503 verðum:363 höfum:330 hann:208 þig:194 getum:173 þurfum:165 ættum:160 vorum:147 mig:104 það:104 hliðina:95 munum:87 förum:78 gætum:69 áttum:69 í:69 búum:61 gerðum:61 þetta:61 því:61 annað:52 eigum:52 komum:52 komumst:52 námið:52 sáum:52 viljum:52 á:52 af:43 fengum:43 fundum:43 gerum:43 hana:43 náum:43 ræddum:43 þennan:43 fórum:41 elskum:37 aðra:35 ekki:35 fyrstu:35 háskólann:35 lifum:35 skulum:35 hittumst:34 vinnuna:29
+við	erum:642 að:503 verðum:363 höfum:330 hann:208 þig:194 getum:173 þurfum:165 ættum:160 vorum:147 mig:104 það:104 hliðina:95 munum:87 förum:78 gætum:69 áttum:69 í:69 búum:61 gerðum:61 þetta:61 því:61 annað:52 eigum:52 komum:52 komumst:52 námið:52 sáum:52 viljum:52 á:52 af:43 fengum:43 fundum:43 gerum:43 hana:43 náum:43 ræddum:43 þennan:43 fórum:41 elskum:37 aðra:35 ekki:35 fyrstu:35 háskólann:35 lifum:35 skulum:35 hittumst:34 vinnuna:29 allt:26 gátum:26 hefðum:26 Mary:26 nýju:26 sjáum:26 skoðanir:26 vinnum:26 vitum:26 þá:26 John:24 töluðum:19 annan:17 birni:17 borðum:17 bílinn:17
 viðurkenna	að:5000
 vona	að:7600 það:1600 bara:800
 vonast	til:9999
@@ -1588,7 +1588,7 @@ yndislega	ræðu:6667
 yngri	en:4286 systur:2857
 york	er:2857
 yður	sæti:2500
-á	morgun:338 að:290 hverjum:169 fætur:168 móti:163 mér:157 því:133 hann:97 leiðinni:97 mig:97 ensku:84 ekki:78 milli:78 réttum:72 óvart:72 þessu:72 eftir:66 fundinn:66 sunnudaginn:57 hjálp:54 hverju:54 dag:48 hana:48 tvo:48 við:48 ég:48 Íslandi:48 þennan:48 markaðinn:44 honum:42 kvöldin:42 lífi:42 næsta:42 ströndinni:42 þessum:42 þetta:42 þrjá:42 þig:41 aðra:36 enga:36 Facebook:36 myndina:36 ströndina:36 tíu:36 Ítalíu:36 þessari:36 gítar:34 sjónvarpið:33
+á	morgun:338 að:290 hverjum:169 fætur:168 móti:163 mér:157 því:133 hann:97 leiðinni:97 mig:97 ensku:84 ekki:78 milli:78 réttum:72 óvart:72 þessu:72 eftir:66 fundinn:66 sunnudaginn:57 hjálp:54 hverju:54 dag:48 hana:48 tvo:48 við:48 ég:48 Íslandi:48 þennan:48 markaðinn:44 honum:42 kvöldin:42 lífi:42 næsta:42 ströndinni:42 þessum:42 þetta:42 þrjá:42 þig:41 aðra:36 enga:36 Facebook:36 myndina:36 ströndina:36 tíu:36 Ítalíu:36 þessari:36 gítar:34 sjónvarpið:33 bíl:30 endanum:30 flugvöllinn:30 Jörðinni:30 sama:30 sitt:30 stefnumót:30 tvö:30 ári:30 það:30 þýsku:29 sunnudögum:27 veitingastað:25 brott:24 einn:24 einum:24
 ábyrg	fyrir:9999
 ábyrgur	fyrir:9999
 ábyrgð	á:6000
@@ -1646,9 +1646,9 @@ yður	sæti:2500
 ættu	ekki:9999
 ættum	að:5769 við:1154 ekki:769
 ætíð	að:5000
-ég	er:1723 hef:501 var:371 á:287 get:223 veit:208 vil:189 þarf:163 mun:160 að:156 skal:143 held:134 elska:129 ekki:124 sá:117 sé:117 fór:114 hugsa:114 fer:107 verð:104 vildi:101 ætla:98 hafði:81 vona:78 kom:72 keypti:68 hitti:62 væri:62 sagði:59 fengið:55 fékk:55 geri:55 kann:55 skil:55 hlakka:53 gæti:52 man:49 fann:46 gat:46 vissi:46 kem:44 gerði:42 tók:42 hélt:39 trúi:39 ætti:39 nota:36 tala:36
+ég	er:1723 hef:501 var:371 á:287 get:223 veit:208 vil:189 þarf:163 mun:160 að:156 skal:143 held:134 elska:129 ekki:124 sá:117 sé:117 fór:114 hugsa:114 fer:107 verð:104 vildi:101 ætla:98 hafði:81 vona:78 kom:72 keypti:68 hitti:62 væri:62 sagði:59 fengið:55 fékk:55 geri:55 kann:55 skil:55 hlakka:53 gæti:52 man:49 fann:46 gat:46 vissi:46 kem:44 gerði:42 tók:42 hélt:39 trúi:39 ætti:39 nota:36 tala:36 þekki:36 heyrði:34 kemst:33 heyri:32 hafi:29 hefði:29 heiti:29 segi:29 þurfti:29 fara:26 lét:26 átti:26 mundi:24 beið:23 fæddist:23 spila:23
 éta	mikið:2500
-í	gær:470 dag:401 skólann:135 kvöld:130 burtu:121 lagi:111 að:106 þessu:101 gegnum:77 mig:77 fyrsta:58 heimi:58 skapi:58 næsta:53 Japan:53 tíma:48 hvaða:43 nótt:43 þessum:43 vinnuna:40 heiminum:39 húsið:39 skólanum:39 viku:39 því:39 bekknum:36 garðinum:35 fyrra:34 hug:34 ljós:34 meira:34 skóla:34 síðustu:34 tíu:34 ár:34 þér:34 einu:29 eldhúsinu:29 hættu:29 Kína:29 lífi:29 lífinu:29 mörg:29 næstu:29 raun:29 viðbót:29 það:29 þessari:29
+í	gær:470 dag:401 skólann:135 kvöld:130 burtu:121 lagi:111 að:106 þessu:101 gegnum:77 mig:77 fyrsta:58 heimi:58 skapi:58 næsta:53 Japan:53 tíma:48 hvaða:43 nótt:43 þessum:43 vinnuna:40 heiminum:39 húsið:39 skólanum:39 viku:39 því:39 bekknum:36 garðinum:35 fyrra:34 hug:34 ljós:34 meira:34 skóla:34 síðustu:34 tíu:34 ár:34 þér:34 einu:29 eldhúsinu:29 hættu:29 Kína:29 lífi:29 lífinu:29 mörg:29 næstu:29 raun:29 viðbót:29 það:29 þessari:29 Þýskalandi:29 vinnunni:29 bíó:28 rúminu:27 fyrramálið:26 allan:24 Bandaríkjunum:24 Boston:24 eitthvað:24 fangelsi:24 gangi:24 hann:24 marga:24 mér:24 smá:24 Sviss:24
 íbúðinni	minni:4000 við:4000
 ísland	er:3000 heyrði:1470
 íslandi	eru:1538
@@ -1697,7 +1697,7 @@ yður	sæti:2500
 þarftu	að:2308 pening:813
 þarna	er:1351 niðri:541
 þau	eru:1452 voru:430 í:323 segja:269 bjuggu:215 að:161 gengu:161 bara:108 eiga:108 ekki:108 geta:108 hugsa:108 héldu:108 koma:108 sem:108 tóku:108 urðu:108 vilja:108 vinna:108 vissu:108 vita:108 áttu:108 þekkja:108 sjóða:91
-það	er:2999 var:718 sem:545 eru:352 ekki:339 sé:180 skiptir:146 að:126 mun:113 á:113 í:106 verður:100 væri:93 eina:60 versta:60 þarf:60 gott:53 tók:53 virðist:53 voru:53 fyrir:47 hefur:47 kemur:47 kann:40 sama:40 varð:40 og:33 sjálfur:33 tekur:33 til:33 vantar:33 vegna:33 lítur:32 eftir:27 kom:27 mikið:27 mál:27 nokkuð:27 samt:27 þá:27 þýðir:27 gleður:25 aftur:20 aldrei:20 allra:20 allt:20 besta:20 breytir:20
+það	er:2999 var:718 sem:545 eru:352 ekki:339 sé:180 skiptir:146 að:126 mun:113 á:113 í:106 verður:100 væri:93 eina:60 versta:60 þarf:60 gott:53 tók:53 virðist:53 voru:53 fyrir:47 hefur:47 kemur:47 kann:40 sama:40 varð:40 og:33 sjálfur:33 tekur:33 til:33 vantar:33 vegna:33 lítur:32 eftir:27 kom:27 mikið:27 mál:27 nokkuð:27 samt:27 þá:27 þýðir:27 gleður:25 aftur:20 aldrei:20 allra:20 allt:20 besta:20 breytir:20 ef:20 eins:20 en:20 gerist:20 getur:20 sjálf:20 strax:20 taka:20 rignir:14 allir:13 bil:13 birtir:13 einmitt:13 einu:13 fer:13 fyrsta:13
 þegar	ég:2500 þú:1686 hann:640 hún:465 við:407 það:407 maður:291 þeir:233 farinn:174 þau:174 búinn:116 gift:116 komið:116 stóri:116 sumar:116 verið:116 síminn:113
 þegja	þegar:7500
 þeim	sem:1111 tveim:741 tveimur:741 að:370 er:370 steypt:370
@@ -1748,7 +1748,7 @@ yður	sæti:2500
 þátt	í:7500
 þær	eru:1852 geta:370 séu:370 vilja:370 vita:370 þekkja:370 sjóða:315
 þætti	eitthvað:2857 gaman:2857
-þér	að:685 ekki:318 um:269 er:244 við:244 í:171 fyrir:147 þetta:147 en:122 sama:122 eins:98 eða:98 til:98 það:98 allt:73 annan:73 betur:73 ef:73 eitthvað:73 hvar:73 hvað:73 kærlega:73 sæti:73 vel:73 út:73 af:49 ekkert:49 finnst:49 frá:49 grein:49 hvernig:49 hún:49 kaffi:49 líki:49 mun:49 mína:49 nýjan:49 og:49 rosalega:49 tókst:49 tónlist:49 var:49 þessi:49 því:49 sýnist:48 epli:26 líkar:20 Tom:11
+þér	að:685 ekki:318 um:269 er:244 við:244 í:171 fyrir:147 þetta:147 en:122 sama:122 eins:98 eða:98 til:98 það:98 allt:73 annan:73 betur:73 ef:73 eitthvað:73 hvar:73 hvað:73 kærlega:73 sæti:73 vel:73 út:73 af:49 ekkert:49 finnst:49 frá:49 grein:49 hvernig:49 hún:49 kaffi:49 líki:49 mun:49 mína:49 nýjan:49 og:49 rosalega:49 tókst:49 tónlist:49 var:49 þessi:49 því:49 sýnist:48 epli:26 líkar:20 Tom:11 bráðlega:7
 þín	er:1071 og:357 fyrir:238 minna:238 mun:238 verður:238
 þína	saman:435 undir:435
 þínir	eru:5455
@@ -1760,7 +1760,7 @@ yður	sæti:2500
 þögn	er:5000
 þökk	sé:9999
 þörf	á:6667 fyrir:1667
-þú	ert:1319 verður:691 getur:506 hefur:346 þarft:298 vilt:261 mátt:252 ferð:185 munt:185 segir:177 átt:169 ættir:158 að:143 lítur:113 gerir:110 sért:110 gerðir:101 heldur:101 ekki:93 gætir:93 veist:84 hefðir:80 varst:65 hlýtur:59 sagðir:57 kemur:51 hafir:42 myndir:42 sást:42 sérð:42 talar:38 færð:34 komst:34 mundir:34 á:34 værir:33 þekkir:28 breytir:25 finnur:25 gera:25 hlustar:25 mig:25 og:25 tekur:25 verðir:25 ætlar:25 í:25 eigir:24
+þú	ert:1319 verður:691 getur:506 hefur:346 þarft:298 vilt:261 mátt:252 ferð:185 munt:185 segir:177 átt:169 ættir:158 að:143 lítur:113 gerir:110 sért:110 gerðir:101 heldur:101 ekki:93 gætir:93 veist:84 hefðir:80 varst:65 hlýtur:59 sagðir:57 kemur:51 hafir:42 myndir:42 sást:42 sérð:42 talar:38 færð:34 komst:34 mundir:34 á:34 værir:33 þekkir:28 breytir:25 finnur:25 gera:25 hlustar:25 mig:25 og:25 tekur:25 verðir:25 ætlar:25 í:25 eigir:24 trúir:21 farir:21 reykir:18 kannt:18 borgar:17 einhvern:17 fylgir:17 gefur:17 gengur:17 getir:17 hagar:17 kaupir:17 keyptir:17 leggur:17 lest:17 skilur:17
 þúsund	tungumála:1154 dollara:605 dollarar:424 jen:332
 þúsundir	útlendinga:9394
 þýskaland	var:2857
@@ -1769,3 +1769,870 @@ yður	sæti:2500
 þýtt	þessa:6000
 þýða	þessa:2000
 þýðir	að:1538 á:1538 það:1538 þetta:1538
+^ af	=101 hverju:8911 því:396
+^ aldrei	=11 hefi:2247 hef:1818 í:1818
+^ allir	=35 eru:857 hafa:857 í:857 eiga:571 menn:571 meðlimir:571 vita:571 elska:565
+^ allt	=24 sem:2917 í:2500 er:1667 verður:833 virðist:833
+^ annar	=8 af:3750
+^ að	=25 lokum:1600 foreldrum:800 mínu:800
+^ barnið	=11 er:3636 grét:1760
+^ bill	=58 er:2069 var:1034 kom:690
+^ bróðir	=12 minn:9015
+^ bíddu	=9 eftir:2222
+^ bíllinn	=12 er:3333 minn:1502
+^ bókin	=8 er:3750 hans:2500
+^ dan	=11 var:2727 spilaði:1818
+^ ef	=68 þú:4265 ég:1471 hann:441 við:441 það:441 ekki:294 maður:294 hurðin:45
+^ eftir	=15 langa:2000 að:1333 því:1333
+^ einn	=11 af:2727 fyrir:1818 vina:1818
+^ ekkert	=17 er:2353 okkar:1176
+^ ekki	=139 gleyma:647 vera:647 er:504 ganga:432 hafa:432 tala:432 koma:288 láta:288 leyfa:216 snerta:216 ljúga:203 bera:144 bíll:144 fara:144 gefast:144 hlaupa:144 horfa:144 leika:144 líta:144 standa:144 taka:144 trufla:144 vekja:144 þennan:144
+^ en	=19 það:2632 ef:1053 hvað:1053 þú:1053
+^ engin	=8 furða:571
+^ enginn	=45 getur:1778 er:1111 veit:1111 kom:667 var:667 gat:444 hefur:444
+^ er	=114 þetta:1754 það:1228 hann:614 ég:614 hún:526 eitthvað:439 þér:439 nokkur:351 til:351 John:247 allt:175 einhver:175 faðir:175 læknir:175 herra:135 Tom:39 kötturinn:30
+^ eru	=12 þetta:2500
+^ eruð	=11 þið:9999
+^ farðu	=25 í:2000 og:1600 aftur:800 beint:800 á:800
+^ faðir	=15 minn:4207
+^ finnst	=11 þér:9999
+^ flestir	=9 Japanir:2222
+^ foreldrar	=8 mínir:5000 Johns:3750
+^ fyrir	=13 hvað:2308 hvaða:1538 hvern:1538 löngu:1538
+^ fyrst	=11 þú:4545
+^ fólk	=10 sem:2000
+^ förum	=13 í:3077
+^ gerðu	=25 það:5200 svo:2000 eins:1200
+^ get	=19 ég:9999
+^ geturðu	=42 keypt:714 líka:714 hringt:476 leyst:476 lýst:476 talað:476 synt:439 hjálpað:319
+^ guð	=9 er:2222 minn:2003
+^ gæti	=10 ég:9999
+^ hafðu	=13 ekki:2308 samband:2308 það:1538
+^ haltu	=9 dagbók:2222 dyrunum:231
+^ hann	=753 er:2616 var:518 hefur:345 á:252 gaf:186 kom:159 kemur:146 tók:146 fór:133 mun:133 býr:120 kann:120 lagði:120 gerði:106 sagði:106 getur:93 þarf:93 leit:80 verður:80 talar:72 elskar:70 fer:66 gat:66 hafði:66
+^ hefur	=15 þú:5333 þetta:1333
+^ henni	=16 var:1250 líkar:669
+^ herra	=13 Brown:3077 Johnson:1538 Smith:1538
+^ honum	=10 finnst:3000 er:2000 var:2000
+^ hringdu	=13 í:8462
+^ hundurinn	=19 er:2632 minn:1423
+^ hvar	=82 er:4634 eru:488 get:371 býr:244 keypti:244 voruð:204 varstu:68
+^ hvað	=239 er:2092 með:586 finnst:335 í:335 kallast:251 gerir:209 heitir:209 kostar:209 langar:209 ætlar:209 þýðir:167 kosta:126 sem:126 ertu:121 ef:84 kom:84 mundir:84 olli:84 væri:84 ætli:84 ætti:84 þarf:84 viltu:30 veistu:20
+^ hvaða	=37 tungumál:713 bók:541 ávöxtur:541
+^ hvaðan	=14 eru:2143
+^ hvenær	=42 hefst:714 kemur:714 byrjar:476 sem:476 verður:476
+^ hver	=107 er:4299 á:1028 hefur:280 sem:280 ykkar:280 byggði:187 maður:187 ætli:187 eyðilagði:51
+^ hverjum	=8 er:2500
+^ hvernig	=97 er:515 gengur:515 get:470 var:412 líta:309 sem:309 datt:206 líður:206 sér:206 geturðu:186 líkar:55 hefurðu:54 viltu:49 berðu:40 ertu:37 segirðu:21
+^ hvers	=25 vegna:5600 konar:1600 er:1200
+^ hversu	=76 lengi:1579 mikið:1184 margar:1053 oft:1053 gamall:789 gömul:658 margir:526 hár:395 langt:395 djúpt:263 hátt:263 langan:263 mörg:263
+^ hvert	=22 er:3636 ykkar:909 ætlarðu:80
+^ hvort	=11 sem:2727 er:1818
+^ hví	=15 ekki:1333 er:1333 ertu:361
+^ hættu	=17 að:7059 þessu:1176
+^ hér	=18 er:6111 kemur:2222
+^ hún	=643 er:1866 var:513 bað:279 á:264 fór:202 sagði:187 hefur:156 tók:156 verður:140 kom:124 bauð:93 gaf:93 keypti:93 spurði:87 fer:78 fékk:78 hélt:78 varð:78 talar:71 réðst:62 setti:62 vill:62 elskar:51 býr:47
+^ húsið	=22 mitt:2273 hans:1818 er:909 hennar:909 þitt:613
+^ jafnvel	=11 þótt:6364
+^ john	=128 er:2891 var:547 á:391 hefur:312 og:312 fór:234 stóð:234 lék:156 mun:156 reyndi:156 skrifar:156 talaði:156 veit:156 verður:156 drakk:136
+^ johnson	=8 er:3750
+^ já	=22 ég:2727 það:2727 eitthvað:909
+^ jón	=19 er:2632 fór:1053
+^ kannski	=8 ætti:2500
+^ kennarinn	=16 okkar:1875
+^ klukkan	=24 er:5417 hvað:2917 hefur:833
+^ komdu	=30 hingað:1000 með:1000 þér:1000 að:667 eins:667 heim:667 nú:667 yfir:667
+^ komið	=9 þið:5556 mér:2222
+^ konan	=12 er:4167 mín:2500
+^ leyfðu	=9 mér:8889
+^ loksins	=13 fékk:1538
+^ láttu	=11 mig:3636 ekki:2727
+^ læknirinn	=9 gaf:2222 sagði:2222
+^ lífið	=11 er:6364 byrjar:3636
+^ líkar	=8 þér:9999
+^ mamma	=11 mín:5455
+^ margir	=17 misstu:1765 nemendur:1176
+^ maður	=17 á:1765 sér:1176 verður:1176 ætti:1176
+^ maðurinn	=20 er:3500 sem:1500
+^ mig	=83 langar:6265 vantar:843 dreymdi:574 langaði:361 skortir:361
+^ má	=47 ég:8298 bjóða:1277
+^ mætti	=8 ég:9999
+^ mér	=129 finnst:1705 er:1240 til:1085 þykir:853 líður:620 líkar:415 líka:388 tókst:388 fannst:310 þótti:310 þætti:233 kom:155 leið:155 sýnist:153
+^ nei	=22 það:2273 ég:1818 en:909 þetta:909
+^ nú	=20 er:1000 ég:1000 þegar:1000
+^ og	=16 hvað:1875 ég:1250 þú:1250
+^ okkur	=13 tókst:2308 til:1538
+^ pabbi	=25 minn:7572
+^ peter	=17 er:2353 hefur:1176 kom:1176 líkist:1176 var:1176
+^ reyndu	=10 að:5000 það:2000
+^ sama	=13 hvað:5385 hversu:2308 hver:1538
+^ sjáðu	=12 hvernig:2500
+^ sonur	=9 minn:7011
+^ strákurinn	=14 sem:2857 er:2143
+^ stúlkan	=11 hefur:1818 undir:1818 var:1818
+^ svo	=12 ég:1667
+^ systir	=9 mín:8889
+^ sá	=15 sem:8000
+^ takk	=19 fyrir:6316
+^ taktu	=17 því:1176
+^ til	=25 hvers:4400 að:2800 hamingju:1600
+^ tölvan	=8 mín:5000 er:2500
+^ var	=14 ferðin:1429 þér:1429 Tom:422
+^ velkomin	=10 á:3000 í:3000
+^ vertu	=37 svo:2973 ekki:811 hljóð:811 nú:541
+^ vinsamlegast	=91 komið:440 ekki:330 finndu:330 mundu:330 sendu:330 kveiktu:228 fáið:220 láttu:192 minntu:166 haltu:139 segðu:103 bíddu:59 farðu:57 komdu:56 hjálpaðu:45
+^ við	=497 erum:1308 verðum:825 höfum:664 þurfum:322 ættum:303 getum:282 vorum:262 munum:181 áttum:141 eigum:121 gerðum:121 sáum:121 viljum:121 búum:101 fengum:101 fundum:101 förum:101 komum:101 ræddum:101 fórum:85 gætum:80 skulum:80 elskum:75 gátum:60
+^ á	=57 hverju:877 ég:877 morgun:702 endanum:526 hverjum:526 hvaða:351 landbúnaðar:351 nýja:351 virkum:351 Íslandi:351 fætur:315 þriðjudaginn:279 borðinu:117
+^ áttu	=19 enn:1053
+^ ég	=2225 er:2175 hef:593 var:382 á:301 veit:265 vil:256 get:229 þarf:198 skal:189 mun:175 elska:164 held:162 fór:148 hugsa:139 sá:135 verð:135 fer:130 ætla:117 vildi:108 vona:108 keypti:94 hafði:76 hitti:74 hlakka:74
+^ í	=97 dag:1753 hvaða:825 gær:686 þá:515 alvörunni:206 fyrra:206 hvert:206 Sviss:206
+^ þakka	=10 þér:9000
+^ þannig	=9 að:2222
+^ þar	=13 sem:6923
+^ þau	=109 eru:1835 voru:550 segja:367 gengu:275 bara:183 eiga:183 geta:183 héldu:183 tóku:183 urðu:183 vilja:183 vissu:183 vita:183 þekkja:183 sjóða:156
+^ það	=824 er:5061 var:1226 eru:631 skiptir:267 sem:255 mun:194 verður:121 væri:121 eina:109 virðist:97 voru:97 þarf:97 tók:85 hefur:73 kann:61 kemur:61 vantar:61 lítur:58 tekur:49 varð:49 gleður:46 breytir:36 þýðir:36 birtir:24
+^ þegar	=34 ég:4118 þú:1471 maður:588 stóri:588
+^ þeir	=46 eru:1739 sem:652 gengu:435 geta:435 vilja:435 vita:435 þekkja:435 sjóða:370
+^ þessar	=13 bækur:3077 myndir:2308
+^ þessi	=98 bók:714 börn:408 er:408 setning:408 bíll:306 hundur:306 kassi:306 maður:306 dagur:204 mynd:204 tónlist:204 íþrótt:204 gaur:196 stelpa:123 stóll:41
+^ þessir	=13 stólar:658
+^ þetta	=278 er:6691 var:647 eru:324 verður:144 blóm:108 hús:108 mun:108 efni:72 kjöt:72 lag:72 tekur:72 vatn:72
+^ þið	=32 eruð:2970 verðið:979 hafið:938 vitið:625 þurfið:625
+^ þrátt	=10 fyrir:9999
+^ því	=13 miður:3077 meira:1538
+^ þær	=32 eru:1875 geta:625 vilja:625 vita:625 þekkja:625 sjóða:532
+^ þér	=14 er:3571 tókst:1429 líkar:382
+^ þótt	=12 ég:5833 sólin:1667
+^ þú	=626 ert:1898 verður:1246 getur:607 mátt:477 hefur:447 þarft:389 munt:288 ættir:257 átt:240 lítur:183 hefðir:142 hlýtur:112 veist:112 gerðir:96 gætir:96 ferð:80 talar:58 varst:46 sagðir:32 gerir:32 keyptir:32 komst:32 skuldar:32 sást:32
+af fólki	=8 í:3750
+af honum	=12 að:2500
+af hverju	=113 er:442 hann:442 ég:354 sagði:265 ertu:192 að:177 ekki:177 komst:177 ætti:177 þau:177 þeir:177 þær:177 þú:177 ferðu:48 varstu:33
+af stað	=12 undir:2500 í:1667
+af þeim	=10 tveim:4000 tveimur:4000
+af því	=33 að:7273
+af þér	=21 að:5238
+aftur á	=12 móti:3333
+aftur í	=9 sætin:2222 sætið:2222
+alls ekki	=12 að:2500
+allt sem	=20 þú:3000 ég:2000 er:1000 má:1000
+allt í	=19 lagi:6842 allt:1053 einu:1053
+alltaf að	=9 segja:3333
+annað en	=8 að:2500
+annað hvort	=8 okkar:2500 opnar:2500 ykkar:2500
+auðvelt að	=15 finna:2667 læra:1314
+að biðja	=10 hana:2000 hann:2000 mig:2000 um:2000
+að borða	=40 ekki:750 til:750 brauð:482 epli:397 morgunmat:326
+að byrja	=20 að:1500 frá:1500 undir:1500 með:1000
+að bíða	=20 eftir:3500 í:1000
+að búa	=17 til:5882 í:1765
+að deyja	=8 úr:2500
+að drekka	=34 bjór:1460 svona:882 meiri:588
+að elda	=10 mat:2000
+að enginn	=10 hafi:3000 dó:2000
+að eyða	=17 tíma:1765 ekki:1176 meiri:1176
+að fara	=228 í:1754 til:1272 á:833 út:746 að:614 ekki:482 heim:351 þangað:351 núna:175 yfir:132 aftur:88 einn:88 en:88 gera:88 snemma:88 úr:88
+að ferðast	=15 hvert:1333 um:1333
+að finna	=21 einhvern:952 nýjan:952 skrifstofuna:375
+að flytja	=8 til:2500
+að fylgja	=15 reglunum:2000 lögunum:1333
+að fá	=41 þér:1951 okkur:976 mér:488 nóg:488 vinnu:488 ökuskírteini:488
+að ganga	=20 í:3000
+að gefa	=17 þér:1765 börnunum:1176 sér:1176
+að gera	=156 það:1154 þetta:1154 er:577 eitthvað:385 við:321 mistök:256 svona:256 hvað:192 mig:192 næst:192 í:192 eins:128 með:128 neitt:128 núna:128 svo:128 þitt:86 úlfalda:77
+að gleyma	=8 mér:2500
+að hafa	=63 áhyggjur:476 hemil:354 drepið:317 lokið:317 nóg:317 rétt:317 séð:317 verið:317 rangt:312
+að halda	=30 áfram:2000 sig:667 sér:667 þig:650
+að hann	=83 er:1205 sé:723 væri:723 hefði:602 var:602 hafi:482 komi:482 hafði:361 hefur:361 muni:361 nái:361 lést:241 myndi:241 skyldi:241 yrði:241 ætti:241
+að heyra	=25 frá:2000 það:1600 að:1200 í:1200 fréttirnar:883
+að hitta	=31 þig:4087 mig:1290 föður:645 hana:645 hann:645
+að hjálpa	=26 mér:1923 föður:1538 þeim:1154
+að hlusta	=11 á:8182
+að horfa	=22 á:9545
+að hringja	=18 í:3889
+að hugsa	=17 um:5882 þannig:1176
+að hvíla	=9 þig:6497
+að hætta	=23 að:6957 ekki:870
+að hún	=40 er:1000 sé:1000 hafði:750 hafi:500 hélt:500 var:500 verði:500 vilji:500 væri:500
+að kaupa	=36 ekki:556 hús:556 nýjan:556 tölvuna:556 þau:556 þá:556 þær:556 bókina:506
+að keyra	=13 bíl:2308 ekki:1538
+að koma	=49 hingað:1224 í:816 með:612 aftur:408 að:408 fyrir:408 inn:408 við:408
+að komast	=12 að:2500 hingað:1667 í:1667
+að leggja	=21 harðar:2459 hart:2381 af:1429 eins:952
+að leika	=8 við:2500
+að leita	=17 að:8824
+að lesa	=48 bækur:1250 þessa:1250 bókina:1139 allar:417 það:417
+að leysa	=8 vandamálið:600
+að lifa	=11 en:1818
+að ljúka	=8 málinu:2500 því:2500
+að loka	=8 glugganum:1232 dyrunum:649
+að láta	=19 í:1053 þig:1026
+að læra	=78 að:1410 ensku:769 í:641 á:385 betur:256 meira:256 náttúrufræði:256 tónlist:256 þýsku:125 japönsku:73
+að líta	=8 á:3750 eftir:2500
+að missa	=10 af:3000
+að nota	=17 ekki:1176 þýsku:572
+að ná	=20 sér:1500 tökum:1000 á:1000 lestinni:189
+að opna	=16 gluggann:1180 dyrnar:501 hurðina:431
+að reyna	=16 að:5625
+að segja	=86 honum:698 svona:698 það:698 þér:698 mér:581 er:349 slíkt:349 þetta:349 nokkuð:233 um:233 satt:200 sannleikann:197
+að sjá	=34 þig:2580 um:1471 ekki:588 þetta:588
+að skilja	=15 dyrnar:229
+að skrifa	=18 bréf:3889
+að spila	=25 á:3600 fótbolta:1600 tennis:325
+að svara	=13 fyrir:2308 spurningunum:1493
+að synda	=13 í:1538
+að sér	=15 við:2000 gæti:1333 í:1333
+að taka	=51 sér:588 af:392 ljósmyndir:392 lyfin:392 við:392 þessi:392 þér:392 leigubíl:189
+að tala	=66 við:3030 um:1061 svona:606 illa:455 með:455 saman:303
+að vera	=155 á:645 að:452 með:323 komin:258 í:258 eftir:194 hér:194 mjög:194 veik:184 annað:129 ekki:129 gert:129 góður:129 heima:129 kominn:129 sagt:129 svona:129 um:129 góð:122 upptekin:59 veikur:49 sein:17
+að verða	=20 læknir:1000 dimmt:190
+að vinna	=25 saman:1200 með:800 svona:800
+að vita	=21 betur:1905 af:1429 það:1429 allt:952 að:952 sannleikann:538
+að við	=24 erum:1667 náum:833 hringjum:382
+að ákveða	=15 mig:4000 að:2667 strax:2000
+að ég	=122 sé:1148 væri:820 hafi:656 var:492 gæti:410 hef:328 get:311 geri:246 geti:246 hafði:246 ætti:246 er:164 gat:164 gerði:164 hefði:164 kom:164 komi:164 las:164 man:164 nenni:164 sæti:164 veit:164 vissi:164 elska:162
+að útskýra	=8 fyrir:3750 þetta:3750
+að það	=51 sé:4902 er:784 sem:392 var:392 verði:392
+að þetta	=12 sé:5833 er:3333
+að því	=18 að:3889 sem:1667
+að þér	=14 við:2857
+að þú	=114 sért:965 ert:932 hafir:439 gerðir:263 getur:263 hefur:263 verðir:263 eigir:252 ættir:215 getir:175 gætir:175 komst:175 mundir:175 myndir:175 farir:164 vitir:145 værir:116 sjáir:107 náir:68 komir:54 hefðir:46
+að þýða	=9 þessa:2222
+bara að	=14 enginn:1429
+bað hann	=24 um:8333
+betra en	=8 það:3750
+bill er	=12 í:1667
+bróðir minn	=23 er:2174 hefur:870
+byrjaði að	=11 læra:1792
+búin að	=19 vera:2632 ákveða:2632 fá:1053 lesa:1053
+búinn að	=32 lesa:1562 ákveða:1562 vera:1250 gleyma:938 kaupa:625
+býr í	=16 New:1250
+ef hann	=9 er:2222
+ef ég	=22 væri:2273 geri:1364 hefði:1364 fer:909
+ef þú	=65 vilt:1077 gerir:769 heldur:769 getur:615 ert:594 breytir:462 ætlar:462 fylgir:308 hlustar:308 kemur:308 sást:308 værir:305 reykir:218
+efni á	=12 að:4167
+eftir að	=24 hafa:2917 ég:1250 sjá:833
+eftir mér	=8 en:2500
+eftir í	=13 bílnum:1538 flöskunni:964
+eftir því	=10 að:3000 sem:3000
+eigum við	=8 að:6250
+eina sem	=12 þú:5833
+eins og	=91 hann:1099 þú:879 það:549 við:330 ég:330 þér:330 að:220 bolti:220 er:220 hún:220 maður:220 sjálfan:220 þau:220 þetta:220
+einu sinni	=30 í:2000 enn:1667
+eitthvað að	=10 drekka:5858
+ekkert að	=14 segja:2143 fara:1429 borða:646
+ekkert nema	=9 bara:2222
+ekki af	=13 hverju:5385 því:1538
+ekki að	=141 fara:993 segja:780 gera:709 ég:426 hann:355 vera:355 þú:355 tala:284 læra:280 hafa:213 hringja:213 kenna:213 loka:213 sofa:213 vita:213 ákveða:213 kasta:142 koma:142 meta:142 vinna:142 þessu:142 flýta:70
+ekki efni	=10 á:9999
+ekki eins	=22 og:1364 dýr:909 erfitt:909 gamall:909 slæmar:866 dýrt:591
+ekki enn	=8 búinn:3750 búin:2500
+ekki ennþá	=8 búin:2500 búinn:2500
+ekki er	=8 ég:5000 allt:2500
+ekki fara	=9 þangað:2222
+ekki farið	=8 á:3750
+ekki ganga	=8 svona:3750 í:2500
+ekki gert	=16 mig:3750 það:2500
+ekki gleyma	=10 að:5000 því:2000
+ekki hafa	=14 áhyggjur:2143 svona:1429 logið:946
+ekki hvað	=31 ég:4516 hann:1935 við:645 það:645 þú:645
+ekki hægt	=9 að:9999
+ekki með	=23 neina:870 neinn:870
+ekki máli	=10 hvort:4000
+ekki neitt	=22 sérstakt:909
+ekki of	=8 mikið:5000 hratt:2500
+ekki sofið	=8 í:3750
+ekki taka	=8 nema:2500
+ekki tala	=9 svona:3333 um:2222
+ekki til	=16 að:1875 hennar:1250 nein:1250 þess:1250
+ekki vera	=16 svona:1875
+ekki við	=28 að:1786 hann:1071 í:714 það:714
+ekki á	=28 morgun:1429 fundinn:714 hana:714 markaðinn:644 trjánum:304
+ekki í	=52 skapi:2115 skólann:769 dag:385 löndum:385 meira:385 tíma:385 tímann:385 vinnunni:382
+ekki það	=9 sem:7778
+ekki þurft	=11 að:9999
+eldri en	=14 ég:3571 hún:1429
+en að	=16 taka:1875
+en hann	=35 er:1143 fylgdi:857 sagðist:857 taldi:857 var:857 vildi:857 neitaði:571 þurfti:571 hlustaði:129
+en við	=9 erum:2222
+en ég	=62 er:1774 á:806 get:613 man:484 hef:323 hélt:323 kom:323 vissi:323
+en í	=9 gær:3695
+en það	=17 sem:2941 er:1176 fyrsta:1176 verður:1176
+en þú	=26 ferð:3077 heldur:769
+enga hugmynd	=8 um:5000 af:2500
+enginn getur	=9 neitað:2222 skilið:2222
+er allt	=19 í:3158 sem:1579 annað:1053 og:1053
+er alltaf	=16 að:1250 með:1250 í:1250
+er að	=182 fara:714 læra:596 tala:549 leita:495 lesa:330 reyna:330 koma:275 segja:275 vera:275 verða:275 bíða:242 gera:220 spila:220 kaupa:165 vinna:165 ég:165 þú:165 borða:149 deyja:110 flytja:110 frétta:110 horfa:110 hringja:110 opna:110
+er bara	=24 afsökun:1191 að:833 fimm:833 átján:833
+er bróðir	=8 minn:3380 þinn:3219 hans:2500
+er búin	=8 að:7500
+er búinn	=13 að:8462 með:1538
+er búið	=10 að:4000 til:2000
+er eins	=17 og:6471 konar:1765
+er ekkert	=22 nema:1364 að:909
+er ekki	=246 með:650 í:447 eins:407 lengur:366 að:285 hægt:244 til:244 ennþá:214 alltaf:203 enn:203 mjög:163 það:163 auðvelt:122 gott:122 góður:122 mín:122 neitt:122 svo:122 viss:122 alveg:81 bara:81 fyndið:81 hrifin:81 hér:81
+er engin	=15 þörf:2667 útskýring:319 furða:305
+er enginn	=16 að:1250 vafi:1250 glæpur:1030 reykur:665
+er enn	=17 hærri:1765 ekki:1176 á:1176 ástfanginn:1176 þá:1176
+er erfitt	=16 að:6875 fyrir:1250
+er fyrir	=8 framan:2500 neðan:2500 utan:2500
+er gott	=10 að:2000 en:2000
+er góð	=11 manneskja:1818 í:1818
+er góður	=14 í:4286
+er hann	=19 að:1053 ekki:1053 þegar:1053
+er hræddur	=13 við:6923 um:2308
+er höfuðborg	=8 Íslands:2500 Úkraínu:2500
+er hún	=13 ekki:1538
+er húsið	=12 sem:3333 þar:2500 hennar:1667
+er kominn	=9 tími:6667
+er laus	=9 í:3333 við:2222 á:2222
+er maður	=10 í:2000
+er með	=60 falleg:333 góða:333 mikið:333
+er mjög	=73 góður:411 heitt:274 kalt:274 áhugavert:274 hrifinn:214 glaður:126 leiðinlegt:111 glöð:69 hávaxinn:48
+er næstum	=9 því:4444
+er of	=25 gamall:1200 feitur:800 lágur:800 stór:800 fátækur:165
+er orðið	=9 mjög:2222
+er rétt	=12 að:1667
+er sama	=9 og:2222
+er stór	=12 borg:1667
+er svo	=25 með:800 sannarlega:800 þreytt:125
+er sá	=9 eini:3333 sem:3333
+er uppáhalds	=29 tungumálið:690
+er vanur	=8 að:5000
+er á	=27 móti:1852 morgun:1111 leiðinni:741 mínum:741
+er ég	=38 að:789 frjáls:526 lengur:526 með:526 sem:526
+er í	=60 gangi:833 lagi:667 góðu:500 fyrsta:333 Úkraínu:333 megrun:250 jakkafötum:80
+er ómögulegt	=8 að:6250
+er það	=62 ekki:2258 nokkuð:645 sem:645 að:484 allt:323 besta:323 í:323 glæpur:177
+er þegar	=13 búinn:1538 gift:1538 komið:1538
+er þessi	=18 bók:1111 eyja:1111 manneskja:1111
+er þetta	=42 köttur:230
+er þér	=9 sama:2222
+erfitt að	=14 fá:2143
+ert að	=13 gera:1538 segja:1538
+ert ekki	=19 að:2632 nógu:1053
+eru að	=32 missa:1875 byrja:625 gera:625 hefjast:625 leika:625
+eru ekki	=25 góðar:2000 eins:800 endilega:800
+eru mjög	=13 fallegar:1538
+eru í	=18 útrýmingarhættu:1488
+eruð þið	=14 ekki:2143 að:1429 nemendur:1429
+fara að	=17 sofa:1765 pakka:1176
+fara ekki	=12 ein:1667
+fara til	=36 útlanda:650 Danmerkur:556 læknis:556 tannlæknis:317
+fara á	=26 fætur:1380 morgun:769 ströndina:769 lögreglustöðina:392 klósettið:339
+fara í	=45 vinnuna:739 skólann:667 klippingu:444 langt:444 göngutúr:416 veisluna:319 háttinn:142
+fara út	=21 með:1905 í:1905 að:952 eftir:952
+fara þangað	=11 einn:2727
+fer til	=11 Hong:2727
+fer á	=10 fætur:2691
+fer í	=11 loftið:1818 skólann:1818
+finnst gaman	=17 að:9412
+finnst þér	=23 um:3043 ekki:1304
+foreldrar mínir	=9 séu:2222
+frændi minn	=8 býr:2500
+fyrir að	=41 vera:4390 hafa:1463 ég:976 hann:488
+fyrir framan	=8 dyrnar:286
+fyrir mig	=40 að:1250 líka:750
+fyrir það	=9 sem:2222
+fyrir þig	=12 að:4167
+fyrir því	=17 að:5294 sem:1765 hversu:1176
+fyrir þér	=15 en:1333
+fyrr en	=8 ég:2500
+fyrsta skipti	=8 í:5000
+fá þér	=9 annan:2222 sæti:2222
+fór að	=9 gráta:880 rigna:835
+fór til	=12 Evrópu:2500 Ameríku:1667
+fór á	=12 skíði:1577
+fór í	=24 bankann:833 bíó:536 göngutúr:312
+föður sínum	=11 með:2727 að:1818 í:1818
+gaman af	=21 því:2381 að:952 ljósmyndun:952
+gaman að	=24 fara:1250 ferðast:1250 spila:1250 horfa:833 taka:833 læra:821
+ganga í	=10 hjónaband:2000 skóla:2000
+gat ekki	=21 gert:1429 talað:952 munað:776 svarað:739 sofið:423
+gera er	=9 að:9999
+gera við	=8 úrið:425
+gera það	=29 sjálfur:1034 sjálf:690 undir:690
+gera þetta	=21 sjálf:952 sjálfur:952
+gerði það	=11 samt:1818
+gerðu það	=15 að:2667 sem:2667
+get ekki	=49 gert:1020 fundið:816 farið:612 drukkið:408 haldið:408 samþykkt:408 sýnt:408 talað:408
+get ég	=38 fengið:3421 ekki:1053 aðstoðað:789 hjálpað:352
+getum við	=8 ekki:2500
+getur ekki	=39 verið:1795 hafa:769 gert:513 komið:513 lifað:513 staðið:513 veitt:513 vaknað:310
+getur gert	=8 það:7500
+getur þú	=8 ekki:5000
+grein fyrir	=8 því:6250
+gæti ég	=13 fengið:3077 í:1538 vinsamlegast:830
+hafa verið	=10 að:2000
+halda áfram	=8 að:5000
+hann býr	=10 í:3000 einn:2000
+hann ekki	=15 að:2000
+hann elskar	=9 að:2222
+hann er	=225 ekki:978 að:533 mjög:311 enn:267 alltaf:222 með:222 góður:178 á:178 búinn:133 farinn:133 fyrir:133 mikill:133 í:133 ríkur:111 ennþá:100 bara:89 frá:89 líka:89 maður:89 mun:89 nógu:89 sannur:89 um:89 hrifinn:70
+hann fer	=9 að:2222 í:2222
+hann fór	=14 til:3571 í:1429
+hann gaf	=14 mér:6429
+hann getur	=8 ekki:3750 lesið:2500
+hann hafði	=9 engan:2222
+hann hefur	=30 gaman:1000 ekkert:667 engan:667 skrifað:667 þegar:667
+hann kann	=9 að:5556 hvorki:2222
+hann kemur	=24 aftur:2083 ekki:833 á:833
+hann kom	=14 með:2143 aftur:1429 inn:1429
+hann lagði	=9 til:3333 hart:2222 hönd:2222
+hann mun	=10 ekki:3000 aldrei:2000 verða:2000
+hann sagði	=19 mér:3158 ekki:1053
+hann um	=30 að:7333
+hann var	=59 að:847 mjög:847 ekki:508 í:508 með:339 of:339 öruggur:339 vanur:139 hræddur:112
+hann væri	=14 að:2143
+hann á	=27 brott:741 sitt:741 tvo:741 prófinu:47
+hann ætti	=14 að:9999
+hann í	=21 gær:1979 burtu:952 fyrsta:952
+hann þarf	=8 að:3750 ekki:2500
+hans var	=12 í:1667
+hart að	=12 sér:5833 þér:2500
+hef aldrei	=12 verið:2500 heyrt:1667
+hef ekkert	=11 að:3636 um:1818
+hef ekki	=26 séð:1923 efni:1154 tíma:769 áhuga:769 sofið:513
+hef verið	=11 að:1818
+hef ég	=9 ekki:3333 séð:2222 rangt:2187
+hef það	=11 á:3636 gott:2727 að:1818 fínt:1818
+hefur ekki	=14 efni:1429
+hefur gaman	=9 af:9999
+hefur verið	=14 að:2857
+hefðir ekki	=11 þurft:8159 átt:1818
+hefðir átt	=21 að:9999
+heima hjá	=10 þér:4000 sér:2000
+held að	=26 þú:2308 ég:1538 það:1154 þetta:1154 þessi:769
+heldur áfram	=8 að:7500
+hennar er	=11 nálægt:1818
+hitta þig	=14 áður:1429 bráðlega:208
+hitti hann	=9 í:6667
+hlakka til	=17 að:8824
+hliðina á	=9 húsinu:2222 mér:2222
+hlusta á	=11 mig:1818 tónlist:1818 þig:1772
+hlýtur að	=17 vera:8235 hafa:1765
+honum að	=94 fara:2447 hætta:638 tala:638 taka:532 koma:319 leggja:319 segja:319 drekka:234 festa:213 fá:213 hann:213 honum:213 kaupa:213 keyra:213 minnka:213 nota:213 stunda:213 æfa:213 bíða:188
+honum á	=8 stefnumót:3750 óvart:2500
+horfa á	=26 sjónvarpið:1203 mig:769 sjónvarp:769 vandamálið:185
+hringdu í	=13 mig:6923
+hringja í	=10 mig:2000 þig:1949
+hrædd við	=10 að:3000
+hræddur við	=13 að:3077
+hugsa að	=33 það:3636 þú:3030 ég:1818 hann:606
+hugsa um	=13 að:1538 það:1538
+hvar er	=38 ég:526 síminn:510 pabbi:322
+hvað er	=57 þetta:1930 að:1228 klukkan:877 í:702 opið:526 vinsælt:351 þessi:351 uppáhalds:216
+hvað finnst	=8 þér:9999
+hvað hann	=15 ætti:2667 heitir:2000 sagði:2000 var:1333
+hvað með	=15 að:4667 þig:1949 það:1333
+hvað sem	=14 þú:4286 er:3571
+hvað ég	=22 á:1818 get:1382 vildi:1364 er:909 átti:909
+hvað þú	=21 segir:1905 ert:1840 hefur:952 meinar:883
+hver er	=49 þessi:1429 uppáhalds:1422 að:612 maðurinn:408 þín:298
+hver á	=11 þennan:2727 þessa:1818 þessar:1818
+hverju er	=8 hann:2500 það:2500
+hverjum degi	=21 í:952
+hvers vegna	=17 er:1176 ertu:319
+hversu lengi	=12 er:2500 hefurðu:217
+hversu margar	=13 mínútur:2308 bækur:1538 manneskjur:1538 vikur:1538
+hversu mikið	=13 er:1538 hún:1538
+hversu oft	=9 á:5556
+hvert er	=8 uppáhalds:1538
+hvert sem	=11 hann:4545 hún:1818 þú:1818
+hvort hann	=12 komi:2500 væri:2500 kemur:1667 vissi:1667
+hvort þú	=14 komir:437
+hægt að	=18 kaupa:1667
+hætta að	=21 reykja:2140 taka:952 drekka:697
+hætti að	=8 drekka:1831 reykja:1605
+hættu að	=12 berja:1667
+hélt að	=8 ég:3750 hann:2500
+hún bað	=23 hann:9130
+hún er	=139 með:791 að:576 ekki:432 mjög:360 í:288 of:216 átta:216 algjör:144 alltaf:144 bara:144 falleg:144 farin:144 frekar:144 heit:144 næstum:144 tuttugu:144 ung:144 önnum:144 góð:136 vön:110
+hún fór	=16 að:1875 með:1875 til:1250
+hún hefur	=10 gaman:3000
+hún kom	=11 ekki:2727 aftur:1818 til:1818
+hún sagði	=14 honum:2857 að:1429 mér:1429
+hún var	=41 hissa:732 honum:732 að:488 ekki:488 sextán:488 svo:488 veik:464 vön:373
+hún verður	=10 ekki:2000 of:2000 sautján:2000
+hún á	=20 að:1500 fallega:1000
+húsið mitt	=9 er:2222
+inn í	=32 húsið:2500 garðinn:895 herbergið:632 hús:625 leikhúsið:625 búðina:286
+jafnvel þótt	=13 það:3077 ég:1538
+john er	=38 að:1053 ekki:1053 góður:789
+john var	=8 í:2500
+kalla á	=9 hjálp:4444 leigubíl:357
+kann að	=23 vera:3043 hafa:1739 lesa:870
+kann ekki	=8 að:7500
+kann vel	=8 að:5000 við:5000
+klukkan er	=15 næstum:2000
+klukkan sex	=15 á:1333
+kom heim	=8 sofnaði:267
+kom til	=12 Japans:797 Tókýó:188
+kominn tími	=9 til:7778 á:2222
+kunna að	=8 veiða:2500
+langar að	=32 fara:938 læra:924 búa:625 kaupa:625 skrifa:625
+langar til	=20 að:8500
+langar þig	=10 í:5000 til:4000
+lent í	=8 vandamálum:2500
+leyfðu mér	=10 að:9000
+liðið okkar	=9 með:3333 er:2222 var:2222
+læra að	=12 forrita:1667 hafa:1667
+lífið er	=8 stutt:2500
+líkar við	=8 Tom:369
+líkar þér	=14 við:2857 betur:1429
+lítur út	=22 fyrir:7727 eins:1364
+margar bækur	=9 og:4444 um:2222
+maður er	=12 að:2500 ekki:1667
+meira en	=21 fimm:952 tvo:952
+með að	=27 fara:1111 fá:1111 ganga:1111 trúa:741
+með mér	=13 af:1538
+með vitlaust	=8 númer:9999
+með því	=10 að:9999
+með þér	=23 til:870
+meðan ég	=11 er:4545 var:2727
+mig að	=17 sjá:2353 heyra:1765 komast:1176
+mig dreymdi	=9 góðan:2222 vondan:592
+mig langar	=56 að:5536 til:2321 í:1250 ekki:357
+mig á	=21 að:1429 eftir:952 stjörnur:952 því:952
+mig í	=13 fyrramálið:1370 gær:1279
+mikið af	=26 fólki:1923 peningum:1154 bjór:636
+minn er	=26 að:1154
+mitt er	=16 að:1875
+mjög vel	=12 á:1667
+mun ekki	=16 taka:1875
+mun ég	=11 gera:1818 hafa:1818
+mundi ég	=13 ekki:3077
+má ég	=40 fara:1500 nota:1000 spyrja:750 taka:750 biðja:500 koma:500 spurja:76
+mátt ekki	=15 reiða:1081
+mætti ég	=8 fá:2500 kynna:2500
+mér að	=35 gera:1143 athuga:857 halda:857 hugsa:571 kenna:571 sjá:571
+mér ekki	=10 bara:2000
+mér er	=18 illt:2222 sama:2222 alveg:1111 kalt:1111
+mér finnst	=22 gaman:4091 leiðinlegt:369
+mér hvað	=8 klukkan:2500 ég:2500
+mér líkar	=22 við:3182 að:1364 ekki:1364 vel:1364
+mér líður	=11 vel:2727 eins:1818
+mér til	=21 að:952 mikillar:952
+mér í	=10 vil:3000
+mér þykir	=11 það:2727 fyrir:1818
+mín er	=25 að:1200
+næstum því	=11 aldrei:1818
+nú þegar	=8 þú:2500
+of mikið	=21 salt:1429 á:1429 þessa:952
+of seint	=8 að:2500 í:2500
+oft á	=8 viku:3750 dag:2500
+og hann	=17 er:1176 segir:1176 sé:1176 var:1176
+og við	=8 getum:2500
+og ég	=31 get:735 gat:645 hélt:645 kom:645 skal:645 bjóst:479
+og það	=19 er:2632 sem:2105 strax:1053
+og þú	=25 getur:2400 ert:1545 munt:1200 vilt:1200 heldur:800
+okkar er	=15 að:1333 bara:1333
+pabbi minn	=23 er:1304 sagði:870 elskar:570
+rangt fyrir	=17 mér:4706 sér:2353 þér:1765
+reykingar eru	=10 ekki:4000 slæmar:1905
+reyna að	=10 sanna:2000
+rétt fyrir	=14 þér:4286 sér:3571 mér:2143
+sagt mér	=8 hvað:2500 hvernig:2500
+sagði að	=12 ég:2500 hann:1667 það:1667
+sagði mér	=13 að:3846 frá:1538
+sagði þér	=9 að:4444 hvað:3333
+sama hvað	=8 þú:6250 gerist:2500
+segja það	=9 vegna:2222
+segja þér	=10 hvar:2000 mína:2000
+sem er	=33 að:1212 getur:606
+sem hann	=27 fór:1481 sagði:1111 segir:1111 var:1111 fæddist:741
+sem hún	=17 er:1765 gerði:1765 fór:1176
+sem við	=19 förum:1053 höfum:1053 segjum:1053 þurfum:1053
+sem ég	=83 hef:1566 sagði:1084 er:602 sá:482 get:366 fæddist:361 nota:361 veit:361 vildi:361 þarf:361 fann:241 fór:241 hafði:241 hélt:241 á:241 bjóst:119
+sem þú	=100 vilt:2000 segir:1400 þarft:942 hefur:600 getur:400 átt:400 gerir:300 ert:290 þekkir:251 sagðir:202 sérð:200 varst:193
+sjá þig	=10 aftur:4000
+sjálfan þig	=8 er:2500
+skapi til	=11 að:9999
+skil ekki	=9 hvað:2222
+skiptir ekki	=9 máli:9999
+skiptir mig	=8 engu:7500 ekki:2500
+sonur minn	=10 er:2000
+spila á	=12 gítar:1725 spil:1667 píanóið:340
+strax og	=10 hún:2000
+svo mikið	=8 af:3750 að:3750
+svo vel	=24 að:9167
+svo ég	=16 kemst:2500 ætla:1875
+systir mín	=16 er:4375
+sá hann	=8 fara:2500 koma:2500
+sá sem	=18 á:2222 hefur:1667 krefst:1111
+sér í	=9 heilsu:2222
+sí og	=11 æ:9999
+takk fyrir	=14 að:2143
+tala um	=12 trúarbrögð:2500 það:1667 þig:1624
+tala við	=25 þig:1559 prófessorinn:651 hundinn:343 Tom:177
+til að	=304 fara:658 vera:461 hitta:428 gera:395 sjá:362 læra:357 heyra:230 hjálpa:230 tala:230 kaupa:197 koma:197 láta:197 verða:197 ég:164 drepa:132 ferðast:132 fá:132 geta:132 hafa:132 ná:132 segja:132 sofa:132 taka:132 útskýra:132
+til hans	=8 fyrir:2500
+til hvers	=12 er:1667 erum:1667 ertu:301
+til í	=9 að:4444 herberginu:820
+til þess	=14 að:5000
+tíma til	=11 að:9091
+tíma í	=16 að:2500 Noregi:1875 gær:1039
+tími til	=15 að:6667 kominn:2667
+um að	=73 fara:685 hjálpa:685 hætta:548 hann:411 vera:411 ég:411 breyta:274 gangast:274 gefa:274 gera:274 hringja:274 koma:274 lesa:274 þú:274
+um hann	=11 sem:1818
+um það	=25 mál:1600 sem:1200 bil:800 en:800
+um þetta	=12 mál:1667
+undir eins	=29 við:690
+upp og	=8 gengu:3750
+upp á	=32 tíu:938 bátinn:625 morgun:625 náð:625 þessu:625
+vanur að	=13 fara:3077 vaka:2308 drekka:1127
+var að	=40 fara:1500 hlusta:500 hringja:500 koma:500 komast:500 leita:500
+var ekki	=47 eins:1702 fyrr:638 hægt:426 með:426 viss:426 í:426
+var hann	=8 dauður:1367
+var mjög	=16 ánægður:954 hamingjusamur:400
+var svo	=11 mikið:1818
+var ég	=9 bara:2222 vanur:1366
+var í	=30 burtu:1333 Japan:366
+vegna þess	=27 að:8889 hve:741
+veit að	=18 þú:2778 þið:2222 ég:1111 þetta:1111
+veit ekki	=29 hvað:3793 hvort:1724 af:1034 hvernig:690
+vel að	=27 fá:2593 koma:1481 standa:741 vera:741
+vel við	=17 hann:2353 Tom:174
+vel í	=8 dag:3750 Róm:3750
+vera að	=13 hann:2308
+vera með	=9 vitlaust:2861 þér:2222
+vera á	=10 réttum:3000 sjúkrahúsinu:1820 stöðinni:1215
+verið að	=12 læra:1643
+vertu svo	=11 vænn:860 væn:581
+verð að	=21 fara:3333 gera:1429
+verðum að	=42 kaupa:1429 gera:476 hafa:476 horfa:476 hugsa:476 láta:476 virða:476
+verðum við	=11 að:6364
+verður að	=93 fara:968 gera:968 taka:645 vera:538 fylgja:430 leggja:430 skila:323 læra:318 deila:215 efna:215 halda:215 ljúka:215 sjá:215 svara:215 viðurkenna:215 bíða:190
+verður ekki	=12 auðvelt:1667 ánægður:1273
+vil ekki	=22 að:1364 fara:1364 deyja:909 skrifa:909
+vildi óska	=14 að:8571 þess:1429
+vinum sínum	=10 í:2000
+vinur minn	=8 er:2500
+virðist vera	=15 að:3333 með:1333 mjög:1333 í:1333
+viss um	=12 að:6667
+vissi ekki	=12 hvað:3333 að:1667 hvernig:1667
+við að	=58 fara:862 vera:690 gera:517 eyða:456 elda:345 fá:345 heyra:345 hittast:345 undirbúa:345 labba:320 spurja:70 þrífa:57
+við erum	=74 að:1351 öll:811 ekki:676 með:405 svo:405 í:405 alltaf:270 frá:270 hér:270 nánast:270 sammála:270 fátæk:129
+við fórum	=10 ekki:3000 á:2000
+við förum	=9 í:3333 verðum:1980
+við getum	=20 ekki:3000 borgað:1462 átt:1000
+við gætum	=8 spurt:2500
+við hliðina	=12 á:7500
+við höfum	=38 ekki:789 þekkt:789 engan:526
+við verðum	=47 að:8723
+við vorum	=17 að:1176 einmitt:1176 á:1176 öll:1176
+við áttum	=8 ekki:2500
+við ættum	=22 að:6818 ekki:909
+við það	=12 að:3333
+við þig	=23 lengur:870 í:870
+við þurfum	=19 að:4211 það:1579 ekki:1053
+vona að	=19 þú:4737 það:1579
+vonast til	=8 að:9999
+á að	=48 gera:2500 vera:1250 fara:625 hafa:625 ég:625
+á borðinu	=10 er:2000
+á eftir	=11 ketti:747
+á ekki	=13 efni:1538 peninga:1538
+á fundinn	=11 í:3636
+á fætur	=31 klukkan:1613 með:645 um:645
+á gítar	=11 og:2727
+á hann	=16 með:1875 sem:1875
+á hverju	=9 ári:4444
+á hverjum	=28 degi:7500 morgni:2143
+á leiðinni	=16 í:2500 heim:1875 til:1250
+á mig	=16 eins:1250 sem:1250
+á milli	=13 sín:1538 þeirra:1538
+á morgun	=56 heldur:714 er:357
+á mér	=26 drauma:769 og:769
+á móti	=27 mjög:1111 því:1111 einni:741 mér:741 stríðinu:741
+á réttum	=12 tíma:9999
+á sjónvarpið	=21 eftir:952 á:952
+á tvo	=8 syni:3750 bræður:2500
+á ég	=8 að:7500
+á íslandi	=8 eru:2500
+á þennan	=8 bíl:3750
+á þessu	=12 svæði:1667
+á því	=22 að:5455
+á þýsku	=10 um:2000
+áfram að	=20 drekka:1465 vaxa:1000 vinna:1000 gráta:396
+áhrif á	=12 hann:1667 okkur:1667 heilsuna:370
+áhuga á	=15 að:1333 stjórnmálum:1333
+án þess	=9 að:7778 svo:2222
+átt að	=36 segja:1667 koma:1389 gera:833 kynna:556 vera:556
+áður en	=29 þú:4828 ég:1724 langt:690
+ætla að	=24 fá:2083
+ætlar þú	=8 að:9999
+ætti að	=39 gera:1282 fara:1026 koma:769 vera:769 halda:513 lesa:513 segja:513
+ætti ég	=11 að:8182
+ættum að	=15 fara:1333 lesa:1333 vera:1333
+ég að	=48 fara:1250 gera:833 læra:616 borga:417 hringja:417 opna:417 skipta:417 vera:417 ég:417 þú:417
+ég ekki	=38 til:1053 hvað:789 skipta:789 að:526 hitt:526 lengur:526
+ég elska	=40 þig:1705 að:1250 hana:1250 þessa:500
+ég er	=529 ekki:1796 að:1115 með:491 mjög:302 búinn:189 í:189 frá:132 of:132 á:132 búin:113 enn:113 laus:113 svo:113 svolítið:113 alltaf:76 eins:76 tilbúinn:76 viss:76 þegar:76 aftur:57 bara:57 nemandi:57 sammála:57 stolt:57
+ég fara	=8 á:3750 að:2500 heim:2500
+ég fengið	=17 að:2353
+ég fer	=33 á:2424 með:1212 að:909 ekki:909 til:909 í:909
+ég fékk	=17 mér:1765 það:1176
+ég fór	=35 í:4286 á:2000 til:1143 að:571 heiman:571
+ég gat	=14 ekki:7143
+ég geri	=17 það:2941 þetta:2941 ráð:1176
+ég gerði	=13 það:6154 þetta:1538
+ég get	=90 ekki:5444 gert:444 það:444 beðið:222 engan:222 sagt:222
+ég gæti	=16 ekki:1875 hjálpað:836
+ég hafði	=25 aldrei:1200 enga:1200 ekki:800 engan:800 hitt:800 rangt:787
+ég hef	=154 ekki:1623 aldrei:779 ekkert:714 verið:714 það:714 gaman:455 þekkt:260 bara:195 búið:195 enga:195 fengið:195 séð:195 alltaf:130 að:130 engan:130 komið:130 lagt:130 lært:130 þegar:130 engann:107 týnt:86
+ég hefði	=9 ekki:3333 átt:2222
+ég held	=41 að:6341 ekki:1463 ég:976 það:488
+ég heyri	=11 að:1818 ekkert:1818
+ég heyrði	=14 að:1429 hann:1429 í:1429
+ég hitti	=22 hann:3636 föður:909
+ég hjálpaði	=8 henni:2500 honum:2500
+ég hlakka	=19 til:8947 ekki:1053
+ég hugsa	=35 að:9429
+ég hélt	=12 að:4167
+ég kann	=17 vel:2941 ekki:2353 að:1765
+ég kem	=16 aftur:3125 til:1250
+ég kemst	=10 ekki:6000
+ég keypti	=21 henni:952 myndavél:952 þessa:952 þrjár:952
+ég kom	=22 til:2727 heim:1818 með:909
+ég lét	=8 laga:2500
+ég man	=15 ekki:4000 eftir:2667
+ég mun	=49 ekki:1020 gera:816 þurfa:816 aldrei:612 styðja:612 fylgjast:408 segja:408 vera:408 lána:385 sakna:350
+ég mundi	=17 heldur:4118 gera:1176
+ég nota	=11 á:1818
+ég sagði	=18 þér:5000 ykkur:1667
+ég segi	=9 að:2222 ykkur:2222 þér:2222
+ég skal	=44 gera:1364 kaupa:1364 sækja:1136 sjá:909 reyna:455 segja:455 útbúa:455 lána:429
+ég skil	=17 ekki:5294
+ég sá	=36 hann:2222 hana:556 í:556 þig:541 manneskjuna:422 Tom:82
+ég sé	=36 að:1111 ekki:1111 það:833 bara:556 búin:556 búinn:556
+ég tala	=11 ekki:3636 við:3636
+ég trúi	=12 því:5000 ekki:1667 á:1667
+ég tók	=13 því:3846 þátt:1538 leigubíl:247
+ég var	=114 að:1404 í:1053 ekki:526 of:526 á:351 með:263 barn:175 heima:175 mjög:175 svo:175 átta:175 úti:175 vanur:108 seinn:18
+ég veit	=64 ekki:4062 að:2812 það:469 bara:312 er:312 hvar:312 hvað:312
+ég verð	=32 að:6562 kominn:625 sennilega:625
+ég vil	=58 ekki:3621 að:1207 heldur:517 frekar:345 giftast:345 vita:345
+ég vildi	=31 segja:1935 óska:1334 að:1290 gjarnan:645
+ég vinn	=11 í:2727 á:1818
+ég vissi	=14 ekki:5000 að:1429
+ég vona	=24 að:7500 það:1667 bara:833
+ég væri	=19 að:1053 til:1053 ung:1053 ungur:1053 þú:1053
+ég á	=88 ekki:1364 að:568 mér:455 einn:341 þrjá:341 ennþá:257 hund:235 eldri:227 enga:227 engan:227 erfitt:227 Facebook:227 fimm:227 gamlan:227 marga:227 tvo:227 vin:179
+ég átti	=8 í:3750 að:2500
+ég ætla	=30 að:6667 ekki:2000
+ég ætti	=12 að:7500
+ég þarf	=50 að:6000 á:400
+ég þekki	=11 ekki:2727
+ég þoli	=8 ekki:5000
+ég þurfti	=9 að:8889
+í að	=22 kvarta:909 loka:909 opna:909 læra:896
+í bekknum	=8 okkar:2500
+í burtu	=25 frá:1600 í:1600
+í bíó	=9 með:2222
+í dag	=83 er:1205 á:482 en:361 fór:241 verður:241 áttu:241
+í fyrsta	=12 skipti:6667 skiptið:2500
+í gær	=117 var:256 keypti:171 las:171 í:171
+í göngutúr	=12 fyrir:2500
+í heimi	=12 er:1667
+í heiminum	=8 deyja:2500
+í herberginu	=13 sínu:1538 þínu:1478
+í herbergið	=10 mitt:3000
+í hvaða	=9 átt:3333
+í húsið	=8 sitt:2500
+í japan	=20 er:1000 og:1000
+í lagi	=23 með:870
+í mig	=16 á:2500 í:2500 ef:1250 seinna:1250
+í næsta	=11 mánuði:9091
+í rúminu	=8 í:2500
+í skapi	=12 til:9167
+í skólann	=28 á:1429 í:714
+í tíma	=10 á:3000 í:2000
+í veisluna	=8 hlakka:4317
+í þessu	=21 herbergi:1905 vatni:1429 bókasafni:952 landi:952 veðri:952
+í þessum	=9 bæ:2222 skóla:2222 glösum:1185
+í því	=8 að:3750
+óska að	=12 ég:5833 þú:1667
+út fyrir	=22 að:9999
+út um	=8 gluggann:3146 allt:2500
+út í	=19 okkur:1579 næsta:1053 sveit:1053 þessu:1053 búð:996
+út úr	=14 húsinu:1429 þessari:1429
+úti í	=8 haga:2500 garðinum:1288
+þakka þér	=11 fyrir:3636 kærlega:2727 rosalega:1818
+þar sem	=28 ég:2143 hann:714 hún:714 pabbi:437
+þar til	=14 hún:2857 hann:2143
+þarf að	=60 fara:2833 gera:1000 laga:667 bera:333 biðja:333 skrifa:333 læra:329
+þarft að	=12 gera:5833
+þarft ekki	=14 að:9286
+þau eru	=27 að:2222 ekki:741 öll:741
+þau voru	=8 mjög:2500
+það að	=19 opna:1053 segja:1053 þú:1053
+það eina	=9 sem:9999
+það ekki	=51 vera:392
+það er	=451 ekki:754 ekkert:355 erfitt:310 engin:288 mjög:288 enginn:244 að:200 í:177 kominn:155 rétt:155 svo:155 synd:155 þess:155 bráð:133 það:133 búið:111 mikilvægt:111 orðið:111 allt:89 bara:89 kirkja:89 lítið:89 maður:89 mikið:89
+það eru	=53 margir:755 bara:566 fleiri:566 kostir:566 margar:566 tíu:566 ekki:377 engir:377 til:377 um:377 úlfar:306
+það gott	=8 um:2500
+það mun	=17 ekki:2941 enginn:1765 kosta:1176
+það sem	=82 þú:3293 ég:1951 hann:610 hún:488 verra:366 drepur:244 skiptir:244 við:244 það:244 þið:244
+það skiptir	=22 ekki:3636 mig:3636 engu:2273
+það sé	=27 tími:1852 satt:1275 engin:1111 kominn:1111 hættulegt:741
+það tók	=8 okkur:3750 að:2500
+það var	=108 ekki:1296 mjög:370 stór:278 árið:278 í:278 auðvelt:185 að:185 einu:185 eitthvað:185 ekkert:185 heitt:185 minnst:185 of:185 dimmt:35
+það verður	=15 að:2000 auðveldara:1333 ekki:1333 dimmt:253
+það virðist	=8 vera:6250 sem:3750
+það væri	=14 best:2143
+það á	=17 tilfinningunni:2077 hreinu:1176 eldinn:1174
+það í	=16 dag:1250
+það þarf	=9 að:7778
+þegar hann	=11 kemst:1818 kemur:1818
+þegar hún	=8 var:2500
+þegar ég	=43 var:3953 er:1395 kom:698 opnaði:465 segi:465 tala:465
+þegar þú	=29 ferð:2759 ert:1998 kemur:690 varst:666
+þeir eru	=15 að:2000 ekki:1333
+þeir sem	=10 skilja:2000
+þess að	=55 hann:1455 ég:1091 hún:909 þú:727 tala:545 hafa:364 þau:364
+þess vegna	=15 sem:4667 er:1333 var:1333
+þessi bók	=11 er:3636
+þetta ekki	=12 það:1667
+þetta er	=206 ekki:1262 húsið:437 bara:340 stór:340 allt:243 mjög:243 svo:146 í:146 það:146 minn:131 borð:97 bíllinn:97 eins:97 frábært:97 ljósmynd:97 líklega:97 mikilvægt:97 mynd:97 sonur:97 stórt:97 ómögulegt:53 uppáhalds:40 japönsk:34 strákurinn:25
+þetta eru	=9 ekki:2222 bækurnar:1529
+þig að	=13 fara:1538 fylgja:1538 svolitlu:920
+þig til	=8 að:7500
+þig á	=12 Tom:246
+þig í	=16 aldir:1250 eftirrétt:1250
+þið eruð	=16 ungir:1875
+þrátt fyrir	=17 að:4706 allan:1765
+þurfa að	=12 skoða:1667
+þurft að	=11 flýta:720
+þurfti að	=11 fara:3636 ganga:1818
+því að	=99 ég:1212 hann:606 hún:606 það:606 þú:606 heyra:303 vera:303 halda:202 hlusta:202 lesa:202 ná:202 skólanum:202 skólinn:202 spila:202 tala:202
+því ekki	=8 að:3750
+því sem	=25 þú:3200 gefnu:1995 ég:1600 hann:800
+þær eru	=10 að:2000
+þér að	=28 fara:1786 segja:1786 skilja:1071 hjálpa:714 velja:714 þú:714
+þér ekki	=13 við:1538
+þér er	=10 frjálst:2000 sama:2000 velkomið:1143
+þér um	=11 hendurnar:1818 þetta:1818
+þér við	=10 námið:2000 vinnuna:1664
+þótt ég	=11 sé:3636
+þörf á	=8 að:3750
+þú að	=17 gera:4118 við:1176
+þú ekki	=11 hjálpað:1217
+þú ert	=162 ekki:1173 að:802 of:617 mjög:309 góður:247 með:247 kominn:185 ábyrgur:185 í:185 algjörlega:123 enn:123 fallegur:123 svo:123 tilbúinn:123 ung:123 ábyrg:104 hrædd:55 hræddur:41 þreytt:26 upptekinn:22
+þú ferð	=22 út:1818 að:909 ekki:909 framhjá:909 í:909
+þú gerir	=13 mig:1538 nokkuð:1538 slíkt:1538
+þú gerðir	=12 það:3333 sömu:1667 þetta:1667
+þú getur	=60 ekki:2833 tekið:500 alltaf:333 horft:333 séð:333 reitt:265
+þú hefur	=41 ekki:1707 gert:976 gefið:732 ekkert:488 svo:488
+þú hefðir	=36 átt:5833 ekki:3056 getað:556
+þú heldur	=12 áfram:3333 að:2500
+þú lítur	=14 út:3571 föl:734
+þú munt	=22 ekki:1364 sjá:1364 geta:909 þurfa:909 bráðlega:133
+þú mátt	=34 ekki:4412 nota:882 borða:266
+þú segir	=21 er:3333
+þú sért	=13 með:3077
+þú varst	=8 að:3750 tveggja:2500
+þú veist	=10 að:4000
+þú verður	=82 að:8902
+þú vilt	=31 að:645
+þú átt	=20 að:3500 ekki:2000 eftir:1500
+þú þarft	=45 ekki:3111 að:2667 bara:667 góðan:444

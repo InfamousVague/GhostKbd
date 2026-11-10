@@ -366,32 +366,65 @@ class NextWordLearner(private val window: Int, private val learn: (NextWordText.
  * A file is a header (`#ghost-ngram`, the version, the language, where the counts came from), then a line a context:
  * the context in lower case, a tab, and `word:share` entries, likeliest first, the share in ten-thousandths. A word
  * is written as it is usually cased in the middle of a sentence (I, Monday, Haus).
+ *
+ * A context may be two words ("how are", "^ thank" for thank opening a sentence). Such a row opens with `=n`, how
+ * often the two words were seen together where the counts came from ([seen]), so a row from a handful of sentences
+ * is trusted less than one from thousands. Keyboards from before two-word rows skip both the entry and the row.
  */
 class NgramTable private constructor(
     /** The language's code, the file's stem. */
     val code: String,
-    private val rows: HashMap<String, Int>,
+    /** Every word of the table in lower case (contexts and followers), to its number. */
+    private val ids: HashMap<String, Int>,
+    /** A one-word context's row, by its word's number; -1 where it has none. */
+    private val oneRow: IntArray,
+    /** Two-word contexts, sorted, each its two words' numbers packed ([pack]); and each one's row. */
+    private val twoKeys: LongArray,
+    private val twoRow: IntArray,
     private val start: IntArray,
+    private val counts: IntArray,
     private val next: IntArray,
     private val share: ShortArray,
     private val words: Array<String>,
     private val lowers: Array<String>,
-    private val known: HashSet<String>,
 ) {
     /** How many word pairs it holds. */
     val pairs: Int get() = next.size
 
     /** How many contexts have followers. */
-    val contexts: Int get() = rows.size
+    val contexts: Int get() = start.size - 1
 
     /** Whether [word] (lower case) is one of this table's words: how the language being written is told. */
-    fun has(word: String): Boolean = rows.containsKey(word) || word in known
+    fun has(word: String): Boolean = ids.containsKey(word)
 
-    /** The row of [key], or of the part after its last apostrophe where the whole is not there (j'ai finds ai). */
+    private fun one(key: String): Int {
+        val id = ids[key] ?: return -1
+        return oneRow[id]
+    }
+
+    /**
+     * The row of [key]: one word, or two with a space between ("how are"). A word not there whole is looked for by
+     * the part after its last apostrophe (j'ai finds ai).
+     */
     private fun row(key: String): Int {
-        rows[key]?.let { return it }
+        val space = key.indexOf(' ')
+        if (space > 0) {
+            val a = ids[key.substring(0, space)] ?: return -1
+            val b = ids[key.substring(space + 1)] ?: return -1
+            val at = twoKeys.binarySearch(pack(a, b))
+            return if (at >= 0) twoRow[at] else -1
+        }
+        val r = one(key)
+        if (r >= 0) return r
         val cut = key.lastIndexOf('\'')
-        return if (cut >= 0 && cut < key.length - 1) rows[key.substring(cut + 1)] ?: -1 else -1
+        return if (cut >= 0 && cut < key.length - 1) one(key.substring(cut + 1)) else -1
+    }
+
+    /** How often a two-word context's words were seen together where the counts came from; 0 for one word or none. */
+    fun seen(key: String): Int {
+        if (key.indexOf(' ') < 0) return 0
+        val r = row(key)
+        return if (r < 0) 0 else counts[r]
     }
 
     /** Each word that follows [key] here, likeliest first: as shown, in lower case, and its share of what followed (0 to 1). */
@@ -411,22 +444,42 @@ class NgramTable private constructor(
     fun shareAt(i: Int): Float = (share[i].toInt() and 0xFFFF) / 10_000f
 
     /** About how much memory the table takes, in bytes: its arrays, its strings and its hash entries. An estimate. */
-    val approxBytes: Long get() =
-        next.size * 4L + share.size * 2L + start.size * 4L +
-            words.sumOf { 40L + it.length * 2 } + lowers.indices.sumOf { if (lowers[it] === words[it]) 0L else 40L + lowers[it].length * 2 } +
-            rows.keys.sumOf { 48L + 40L + it.length * 2 } + known.size * 48L
+    val approxBytes: Long get() {
+        val strings = HashSet<String>()
+        var bytes = next.size * 4L + share.size * 2L + start.size * 4L + counts.size * 4L + oneRow.size * 4L + twoKeys.size * 8L + twoRow.size * 4L +
+            words.size * 8L + lowers.size * 8L + ids.size * 40L
+        fun str(s: String) { if (strings.add(s)) bytes += 40L + s.length * 2 }
+        words.forEach(::str); lowers.forEach(::str); ids.keys.forEach(::str)
+        return bytes
+    }
 
     companion object {
         /** The newest file version this keyboard reads. */
         const val VERSION = 1
+
+        /** A two-word context packed as one number: 20 bits for each word's number, and 24 for its row when sorting. */
+        private const val ID_BITS = 20
+        private const val ROW_BITS = 24
+        private const val MAX_IDS = 1 shl ID_BITS
+        private const val MAX_ROWS = 1 shl ROW_BITS
+        private const val ROW_MASK = (1L shl ROW_BITS) - 1
+        private fun pack(a: Int, b: Int): Long = (a.toLong() shl ID_BITS) or b.toLong()
 
         /**
          * Reads a table's [lines]; null where they are not one this keyboard reads (no header, or a newer version).
          * [locale] is whose lower case the language has (Turkish I).
          */
         fun parse(lines: Sequence<String>, locale: Locale = Locale.ROOT): NgramTable? {
-            val rows = HashMap<String, Int>()
+            val ids = HashMap<String, Int>()
+            fun id(word: String): Int = ids.getOrPut(word) { ids.size }
+            val oneKeys = ArrayList<Int>()
+            val oneRows = ArrayList<Int>()
+            // Each two-word context as one number: its first word's number, its second's, and its row (see [pack]).
+            var twoList = LongArray(1 shl 12)
+            var twos = 0
+            val seenKeys = HashSet<String>()
             val starts = ArrayList<Int>()
+            val seen = ArrayList<Int>()
             var next = IntArray(1 shl 14)
             var share = ShortArray(1 shl 14)
             var n = 0
@@ -443,9 +496,19 @@ class NgramTable private constructor(
                 val tab = line.indexOf('\t')
                 if (tab <= 0) continue
                 val key = line.substring(0, tab)
-                if (rows.containsKey(key)) continue
+                val space = key.indexOf(' ')
+                if (space == 0 || space == key.length - 1 || (space > 0 && key.indexOf(' ', space + 1) >= 0)) continue
+                if (!seenKeys.add(key)) continue
                 val from = n
                 var at = tab + 1
+                var count = 0
+                // A two-word row's "=n": how often its words were seen together.
+                if (at < line.length && line[at] == '=') {
+                    var end = line.indexOf(' ', at)
+                    if (end < 0) end = line.length
+                    count = line.substring(at + 1, end).toIntOrNull()?.coerceAtLeast(0) ?: 0
+                    at = end + 1
+                }
                 while (at < line.length) {
                     var end = line.indexOf(' ', at)
                     if (end < 0) end = line.length
@@ -462,15 +525,34 @@ class NgramTable private constructor(
                     }
                     at = end + 1
                 }
-                if (n > from) { rows[key] = starts.size; starts += from }
+                if (n == from) continue
+                val row = starts.size
+                starts += from; seen += count
+                if (space > 0) {
+                    val a = id(key.substring(0, space))
+                    val b = id(key.substring(space + 1))
+                    if (a >= MAX_IDS || b >= MAX_IDS || row >= MAX_ROWS) continue
+                    if (twos == twoList.size) twoList = twoList.copyOf(twos * 2)
+                    twoList[twos++] = (pack(a, b) shl ROW_BITS) or row.toLong()
+                } else {
+                    oneKeys += id(key); oneRows += row
+                }
             }
             if (code == null) return null
             starts += n
             val shown = words.toTypedArray()
+            // One string for each spelling: a follower's lower case is the context's own where both are there.
             val lowers = Array(shown.size) { i -> shown[i].lowercase(locale).let { if (it == shown[i]) shown[i] else it } }
-            val known = HashSet<String>(lowers.size * 2)
-            for (l in lowers) if (!rows.containsKey(l)) known += l
-            return NgramTable(code, rows, starts.toIntArray(), next.copyOf(n), share.copyOf(n), shown, lowers, known)
+            for (l in lowers) id(l)
+            val canonical = HashMap<String, String>(ids.size * 2)
+            for (k in ids.keys) canonical[k] = k
+            for (i in lowers.indices) lowers[i] = canonical[lowers[i]] ?: lowers[i]
+            val oneRow = IntArray(ids.size) { -1 }
+            for (k in oneKeys.indices) oneRow[oneKeys[k]] = oneRows[k]
+            val sorted = twoList.copyOf(twos).also { it.sort() }
+            val twoKeys = LongArray(twos) { sorted[it] ushr ROW_BITS }
+            val twoRow = IntArray(twos) { (sorted[it] and ROW_MASK).toInt() }
+            return NgramTable(code, ids, oneRow, twoKeys, twoRow, starts.toIntArray(), seen.toIntArray(), next.copyOf(n), share.copyOf(n), shown, lowers)
         }
     }
 }
@@ -728,7 +810,10 @@ class PersonalPairs {
  * nothing out until it is asked.
  *
  * The blend, with u a faded personal count, U everything the person typed after that context, and B the starter
- * tables' share (the likeliest language's, see [weights]):
+ * tables' share (the likeliest language's, see [weights]). A table's B goes by the two words before where it has a
+ * row for them: B = (n·B₂ + K·B₁) / (n + K), with B₂ the two-word row's share, n how often those two words were
+ * seen together ([NgramTable.seen]) and K [PRIOR_TABLE_TWO]; so "thank" opening a sentence is followed by what
+ * follows it there, and a two-word row seen a handful of times only leans on the one-word share. Then:
  * - after one word: S2 = (u + 8·B) / (U + 8), so with nothing learned it is the starter share, and after a few
  *   dozen words in a context the person's own habits lead;
  * - after two words, where the person has typed that pair before: S = (u + 3·S2) / (U + 3).
@@ -769,12 +854,27 @@ class Scorer(
 
     private fun blend(): HashMap<String, Cand> {
         val out = HashMap<String, Cand>()
+        val key2 = place.prev2?.takeIf { place.prev != NextWordText.START }?.let { "$it ${place.prev}" }
+        // One table's shares here, before they are weighed against the other tables': reused table to table.
+        val mine = HashMap<String, Float>()
+        val shownOf = HashMap<String, String>()
         for (t in tables.indices) {
             val g = weights[t]
-            tables[t].followers(place.prev) { shown, lower, share ->
-                val c = out.getOrPut(lower) { Cand(lower, shown) }
-                if (g * share > c.bundled) { c.bundled = g * share; c.shown = shown }
+            val table = tables[t]
+            val n2 = if (key2 == null) 0 else table.seen(key2)
+            mine.clear()
+            if (n2 > 0) {
+                val two = n2 / (n2 + PRIOR_TABLE_TWO)
+                table.followers(place.prev) { shown, lower, share -> mine[lower] = (1f - two) * share; shownOf.putIfAbsent(lower, shown) }
+                table.followers(key2!!) { shown, lower, share -> mine[lower] = (mine[lower] ?: 0f) + two * share; shownOf.putIfAbsent(lower, shown) }
+            } else {
+                table.followers(place.prev) { shown, lower, share -> mine[lower] = share; shownOf.putIfAbsent(lower, shown) }
             }
+            for ((lower, share) in mine) {
+                val c = out.getOrPut(lower) { Cand(lower, shownOf[lower] ?: lower) }
+                if (g * share > c.bundled) { c.bundled = g * share; c.shown = shownOf[lower] ?: c.shown }
+            }
+            shownOf.clear()
         }
         var total1 = 0f
         var total2 = 0f
@@ -825,14 +925,15 @@ class Scorer(
     fun share(lower: String): Float = cands[lower]?.share ?: 0f
 
     /**
-     * How much the context lifts [lower], a word of frequency [zipf], in Zipf units: log10(1 + 2.33 · share / the
-     * word's own share of all words). Exactly 0 where the context says nothing of the word, so a word is never ranked
-     * down by it, and about 0.5 where the context only agrees with how common the word is anyway.
+     * How much the context lifts [lower], a word of frequency [zipf], in Zipf units: log10(1 + [LIFT_WEIGHT] · share /
+     * the word's own share of all words). Exactly 0 where the context says nothing of the word, so a word is never
+     * ranked down by it. Its rank, zipf plus this, is 9 + log10(own share + weight · share): the context's guess and
+     * the word's frequency added together, the context counting forty times over.
      */
     fun boost(lower: String, zipf: Float): Float {
         val s = share(lower)
         if (s <= 0f) return 0f
-        return log10(1f + 2.33f * s / 10f.pow(zipf - 9f))
+        return log10(1f + LIFT_WEIGHT * s / 10f.pow(zipf - 9f))
     }
 
     /**
@@ -861,6 +962,15 @@ class Scorer(
         /** How many words of the starter tables' say one-word contexts begin with, and two-word contexts of the one-word blend. */
         const val PRIOR_ONE = 8f
         const val PRIOR_TWO = 3f
+        /**
+         * Tuned on held-out sentences with tool/next_word_eval.sh (2026-11-10), which sets them to try others; the
+         * keyboard never changes them. [PRIOR_TABLE_TWO]: how many sightings of a two-word context its starter row
+         * needs to count as much as the one-word row. [LIFT_WEIGHT] and [LIFT_CAP]: see [boost]; the cap is what a
+         * completion's rank may gain from context (a correction's gain has its own, smaller cap in Autocorrect).
+         */
+        @JvmField var PRIOR_TABLE_TWO = 15f
+        @JvmField var LIFT_WEIGHT = 40f
+        @JvmField var LIFT_CAP = 6f
 
         /** See [Scorer.personalZipf]. */
         fun personalZipf(n: Float, isWord: Boolean): Float =

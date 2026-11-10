@@ -1,6 +1,6 @@
 #ghost-ngram	1	ca	Tatoeba export 2026-11-07, CC BY 2.0 FR
-^	no:740 el:606 la:547 en:346 és:212 els:206 em:163 a:143 per:136 vaig:120 si:115 ell:114 les:108 què:106 aquest:102 va:102 he:98 hi:91 jo:88 quan:88 això:86 estic:85 com:80 tinc:78 aquesta:74 qui:74 ella:72 un:72 on:66 es:64 li:60 de:59 ja:57 ho:56 que:51 encara:50 et:49 vull:49 ets:48 quin:48 crec:47 has:45 sóc:45 quina:44 avui:40 m'agradaria:39 tots:39 una:39
-a	la:1815 les:397 casa:344 mi:196 un:169 fer:153 l'escola:153 en:148 veure:111 una:90 dormir:74 ser:74 dir:69 l'estació:69 prop:63 treballar:58 Amèrica:53 quina:53 Austràlia:48 l'agost:48 París:48 punt:48 qui:48 Boston:46 estudiar:42 faltar:42 l'habitació:42 ningú:42 tothom:42 tots:42 tu:42 ella:39 aprendre:37 Europa:37 França:37 poc:37 què:37 temps:37 menjar:36 cada:32 dinar:32 dos:32 l'altra:32 l'estranger:32 l'hivern:32 nova:32 parlar:32 partir:32
+^	no:740 el:606 la:547 en:346 és:212 els:206 em:163 a:143 per:136 vaig:120 si:115 ell:114 les:108 què:106 aquest:102 va:102 he:98 hi:91 jo:88 quan:88 això:86 estic:85 com:80 tinc:78 aquesta:74 qui:74 ella:72 un:72 on:66 es:64 li:60 de:59 ja:57 ho:56 que:51 encara:50 et:49 vull:49 ets:48 quin:48 crec:47 has:45 sóc:45 quina:44 avui:40 m'agradaria:39 tots:39 una:39 té:38 són:37 al:35 tens:34 ells:33 ens:33 i:33 mai:33 sempre:33 ara:32 m'agrada:32 només:32 pots:32 està:31 tot:31 van:30
+a	la:1815 les:397 casa:344 mi:196 un:169 fer:153 l'escola:153 en:148 veure:111 una:90 dormir:74 ser:74 dir:69 l'estació:69 prop:63 treballar:58 Amèrica:53 quina:53 Austràlia:48 l'agost:48 París:48 punt:48 qui:48 Boston:46 estudiar:42 faltar:42 l'habitació:42 ningú:42 tothom:42 tots:42 tu:42 ella:39 aprendre:37 Europa:37 França:37 poc:37 què:37 temps:37 menjar:36 cada:32 dinar:32 dos:32 l'altra:32 l'estranger:32 l'hivern:32 nova:32 parlar:32 partir:32 vegades:32 ell:30 Tòquio:28 ajudar:26 Alemanya:26 Anglaterra:26 aquest:26 aquesta:26 causa:26 corre:26 Espanya:26 fora:26 l'altre:26 l'hotel:26 l'oficina:26 Londres:26
 abans	de:3750 que:833 d'entrar:694 d'anar:556 del:417 no:417 d'arribar:278
 abril	maig:9999
 acaba	de:6364
@@ -35,7 +35,7 @@ així	que:2381 és:1667 no:476 va:476
 això	és:2825 no:987 va:179 em:135 mateix:135 que:135 a:90 amb:90 de:90 era:90 et:90 ho:90 serà:90 sinó:90 són:90
 ajuda	a:2000
 ajudar	a:1176 el:882 els:588
-al	seu:657 Japó:400 meu:319 teu:319 llit:299 final:199 matí:199 Brasil:159 cap:159 cel:159 dia:159 món:159 voltant:159 Canadà:139 mar:139 carrer:120 cinema:120 parc:120 camp:100 mateix:100 nostre:100 que:100 centre:80 concert:80 costat:80 mercat:80 mes:80 metge:80 riu:80 vespre:80 banc:60 col·legi:60 foc:60 gener:60 govern:60 llarg:60 mapa:60 mestre:60 principi:60 segle:60 senyor:60 sofà:60 terra:60 tren:60 contrari:40 cor:40 davant:40 desert:40
+al	seu:657 Japó:400 meu:319 teu:319 llit:299 final:199 matí:199 Brasil:159 cap:159 cel:159 dia:159 món:159 voltant:159 Canadà:139 mar:139 carrer:120 cinema:120 parc:120 camp:100 mateix:100 nostre:100 que:100 centre:80 concert:80 costat:80 mercat:80 mes:80 metge:80 riu:80 vespre:80 banc:60 col·legi:60 foc:60 gener:60 govern:60 llarg:60 mapa:60 mestre:60 principi:60 segle:60 senyor:60 sofà:60 terra:60 tren:60 contrari:40 cor:40 davant:40 desert:40 front:40 futbol:40 futur:40 jardí:40 juliol:40 laboratori:40 llibre:40 mal:40 menys:40 mig:40 migdia:40 pare:40 país:40 peu:40 racó:40 rus:40
 ala	trencada:6536
 ales	d'aquest:4545 estan:2727 d'aquesta:1818
 algun	dia:2083 cop:1250 lloc:1250 llibre:833
@@ -311,7 +311,7 @@ d'ésser	assassinades:9999
 darrer	cop:3333
 darrera	vegada:5000
 davant	de:1429 la:1429
-de	la:1491 les:357 fer:200 temps:152 dir:142 ser:108 menjar:94 mi:78 vegades:78 casa:73 veritat:73 parlar:68 debò:64 tornar:64 nou:59 tu:59 fet:54 l'any:54 llegir:54 tant:54 tres:54 comprar:52 bo:49 l'escola:44 què:44 seguida:44 setmana:44 veure:44 llibres:39 que:39 res:39 tot:39 deu:34 l'amor:34 persones:34 sobte:34 sortir:34 començar:29 cop:29 correus:29 demanar:29 Déu:29 l'accident:29 l'home:29 marxar:29 nosaltres:29 posar:29 prendre:29
+de	la:1491 les:357 fer:200 temps:152 dir:142 ser:108 menjar:94 mi:78 vegades:78 casa:73 veritat:73 parlar:68 debò:64 tornar:64 nou:59 tu:59 fet:54 l'any:54 llegir:54 tant:54 tres:54 comprar:52 bo:49 l'escola:44 què:44 seguida:44 setmana:44 veure:44 llibres:39 que:39 res:39 tot:39 deu:34 l'amor:34 persones:34 sobte:34 sortir:34 començar:29 cop:29 correus:29 demanar:29 Déu:29 l'accident:29 l'home:29 marxar:29 nosaltres:29 posar:29 prendre:29 riure:29 camí:24 coses:24 fred:24 llet:24 morir:24 pensar:24 qualsevol:24 quatre:24 qui:24 sol:24 tenir:24 totes:24 tots:24 vacances:24 vida:24
 decebut	molts:4000
 decidir	que:2000
 declarar	que:9999
@@ -322,7 +322,7 @@ deixar	de:2727 el:909 la:682 a:455 d'existir:455 un:455
 deixat	el:1667 la:1667 passar:1667
 deixis	de:2222 per:2222
 deixo	el:6667
-del	que:740 món:712 seu:603 meu:521 cotxe:178 Brasil:137 mateix:137 nostre:137 pare:137 tot:137 govern:110 teu:110 carrer:82 cel:82 cor:82 dia:82 mal:82 matí:82 moment:82 nord:82 rei:82 teatre:82 temps:82 Japó:72 calendari:55 Canadà:55 cert:55 context:55 desig:55 divendres:55 grup:55 jardí:55 llenguatge:55 mar:55 mes:55 meus:55 nen:55 no:55 partit:55 pi:55 poble:55 primer:55 qual:55 rus:55 seus:55 sol:55 vespre:55 vostre:55
+del	que:740 món:712 seu:603 meu:521 cotxe:178 Brasil:137 mateix:137 nostre:137 pare:137 tot:137 govern:110 teu:110 carrer:82 cel:82 cor:82 dia:82 mal:82 matí:82 moment:82 nord:82 rei:82 teatre:82 temps:82 Japó:72 calendari:55 Canadà:55 cert:55 context:55 desig:55 divendres:55 grup:55 jardí:55 llenguatge:55 mar:55 mes:55 meus:55 nen:55 no:55 partit:55 pi:55 poble:55 primer:55 qual:55 rus:55 seus:55 sol:55 vespre:55 vostre:55 vot:55 gos:29 racisme:13 coronavirus:7
 dels	seus:1298 altres:687 Estats:458 meus:382 teus:305 drets:229 nostres:229 arbres:153 dos:153 déus:153 enemics:153 jugadors:153 millors:153 morts:153 nens:153 plaers:153 que:153 xiquets:153 gats:74
 demanar	al:938 de:625 perdó:625 que:625 un:625 una:625
 demano	per:3333
@@ -404,14 +404,14 @@ ei	com:4000
 eixa	és:2727 guitarra:1309
 eixe	text:4000 llibre:2000
 eixes	dues:9999
-el	meu:884 que:746 seu:614 teu:343 món:151 temps:142 dia:105 llibre:96 mateix:96 cel:87 sol:82 nostre:78 primer:78 senyor:78 cotxe:76 cor:73 vaig:73 nom:60 menjar:57 Japó:56 cap:55 millor:55 més:50 noi:50 nombre:50 rei:50 problema:46 professor:46 tren:46 cafè:41 cos:41 nen:41 peix:41 piano:38 camí:37 mal:37 pare:37 va:37 vi:37 vostre:37 favor:32 francès:32 futur:32 número:32 sopar:32 racisme:32 fill:27 foc:27
+el	meu:884 que:746 seu:614 teu:343 món:151 temps:142 dia:105 llibre:96 mateix:96 cel:87 sol:82 nostre:78 primer:78 senyor:78 cotxe:76 cor:73 vaig:73 nom:60 menjar:57 Japó:56 cap:55 millor:55 més:50 noi:50 nombre:50 rei:50 problema:46 professor:46 tren:46 cafè:41 cos:41 nen:41 peix:41 piano:38 camí:37 mal:37 pare:37 va:37 vi:37 vostre:37 favor:32 francès:32 futur:32 número:32 sopar:32 racisme:32 fill:27 foc:27 mes:27 nou:27 pa:27 preu:27 resultat:27 significat:27 so:27 telèfon:27 terra:27 vent:27 gos:27 gat:25 bus:23 diumenge:23 dret:23 mestre:23
 ell	va:1481 és:1217 no:635 té:370 es:317 era:212 estava:212 ha:212 està:185 sempre:159 parla:132 sabia:112 li:106 sap:106 viu:106 em:79 encara:79 i:79 mai:79 treballa:79 estudia:73 a:53 confia:53 diu:53 en:53 ens:53 ho:53 ja:53 m'agrada:53 m'ha:53 mateix:53 pensa:53 s'assembla:53 sembla:53 sobre:53 sol:53 ve:53 vol:53 odia:25
 ella	va:1769 és:850 no:578 es:442 està:408 li:374 em:340 té:272 sempre:238 ha:204 era:136 sap:136 vol:136 estava:102 tenia:102 amb:68 diu:68 el:68 escriu:68 fa:68 parla:68 que:68 s'ha:68 se:68 viu:68 volia:68 odia:65
 elles	només:3333
 ells	són:1356 van:1356 no:678 varen:678 estan:508 han:339 ja:339
-els	seus:691 meus:451 teus:339 diners:254 que:226 ulls:226 nens:169 altres:141 nostres:141 ocells:127 alumnes:127 deures:125 dies:113 gossos:113 homes:113 cabells:103 humans:99 vaig:99 éssers:99 animals:85 llibres:85 pobres:85 dos:71 mesos:71 pares:71 fruits:56 he:56 uns:56 agraden:53 gats:48 agrada:42 braços:42 de:42 drets:42 errors:42 estudiants:42 fets:42 idiomes:42 llavis:42 millors:42 núvols:42 peixos:42 rics:42 soldats:42 ajudi:28 alemanys:28 balls:28 bitllets:28
+els	seus:691 meus:451 teus:339 diners:254 que:226 ulls:226 nens:169 altres:141 nostres:141 ocells:127 alumnes:127 deures:125 dies:113 gossos:113 homes:113 cabells:103 humans:99 vaig:99 éssers:99 animals:85 llibres:85 pobres:85 dos:71 mesos:71 pares:71 fruits:56 he:56 uns:56 agraden:53 gats:48 agrada:42 braços:42 de:42 drets:42 errors:42 estudiants:42 fets:42 idiomes:42 llavis:42 millors:42 núvols:42 peixos:42 rics:42 soldats:42 ajudi:28 alemanys:28 balls:28 bitllets:28 calen:28 coneix:28 cotxes:28 dijous:28 dits:28 encanta:28 Estats:28 fa:28 francesos:28 infants:28 joves:28 jueus:28 lleons:28 mateixos:28 més:28 músculs:28
 em	va:1781 vaig:926 fa:689 sap:451 sembla:309 pregunto:261 sento:190 van:190 vas:143 pots:143 costa:119 dic:119 penso:119 diuen:95 varen:95 puc:92 vull:75 cal:71 demano:71 fas:71 pensava:71 posa:71 provoca:71 deixis:51 considero:48 creus:48 deia:48 deixes:48 passa:48 porta:48 pot:48 refereixo:48 sentia:48 sents:48 sorprèn:48 ve:48 vol:48 quedaré:35 podries:24 fascina:19 llevo:16
-en	la:622 el:443 un:392 una:290 aquest:213 els:136 què:119 aquesta:102 contra:102 anglès:94 aquell:94 tant:94 John:77 realitat:77 les:68 Tom:67 compte:60 general:60 tinc:60 Tomàs:53 altres:51 pau:51 qualsevol:51 va:51 català:43 francès:43 portuguès:43 tot:43 tu:43 uns:43 cotxe:40 algun:34 cap:34 comparació:34 contacte:34 són:34 totes:34 alemany:26 cada:26 deu:26 Déu:26 ells:26 espanyol:26 este:26 forma:26 gallec:26 Jack:26 Jim:26
+en	la:622 el:443 un:392 una:290 aquest:213 els:136 què:119 aquesta:102 contra:102 anglès:94 aquell:94 tant:94 John:77 realitat:77 les:68 Tom:67 compte:60 general:60 tinc:60 Tomàs:53 altres:51 pau:51 qualsevol:51 va:51 català:43 francès:43 portuguès:43 tot:43 tu:43 uns:43 cotxe:40 algun:34 cap:34 comparació:34 contacte:34 són:34 totes:34 alemany:26 cada:26 deu:26 Déu:26 ells:26 espanyol:26 este:26 forma:26 gallec:26 Jack:26 Jim:26 l'existència:26 perill:26 punt:26 quina:26 tenen:26 tres:26 llatí:24 turc:22 ell:22 aigua:17 allò:17 aquella:17 Bill:17 blanc:17 comptes:17 comú:17
 enamorat	del:6667
 encanta	el:4000
 encara	no:2320 que:1120 és:640 estic:400 més:400 ets:320 hi:320 tens:240 es:160
@@ -579,7 +579,7 @@ guerra	és:938 la:625 mundial:625
 guimerà	i:9999
 guitarra	és:1333
 gust	de:1200 dolç:800
-ha	estat:560 de:388 res:323 anat:280 un:280 una:280 passat:259 fet:237 cap:216 escrit:172 moltes:172 arribat:151 algú:129 començat:129 ningú:129 a:108 alguna:108 dit:108 donat:108 gent:108 molts:108 prou:108 sigut:108 sortit:108 viscut:108 canviat:86 en:86 hagut:86 més:86 perdut:86 sentit:86 vingut:86 deixat:65 guanyat:65 molta:65 acabat:43 al:43 algun:43 augmentat:43 avançat:43 caigut:43 cinc:43 classes:43 començar:43 entre:43 enviat:43 esdevingut:43 fugit:43
+ha	estat:560 de:388 res:323 anat:280 un:280 una:280 passat:259 fet:237 cap:216 escrit:172 moltes:172 arribat:151 algú:129 començat:129 ningú:129 a:108 alguna:108 dit:108 donat:108 gent:108 molts:108 prou:108 sigut:108 sortit:108 viscut:108 canviat:86 en:86 hagut:86 més:86 perdut:86 sentit:86 vingut:86 deixat:65 guanyat:65 molta:65 acabat:43 al:43 algun:43 augmentat:43 avançat:43 caigut:43 cinc:43 classes:43 començar:43 entre:43 enviat:43 esdevingut:43 fugit:43 jugat:43 llegit:43 llet:43 mal:43 marxat:43 massa:43 matat:43 mil:43 molt:43 mort:43 ni:43 obert:43 pa:43 pagat:43 parat:43 per:43
 habilitat	en:4000
 habitació	és:1538
 hagut	de:4286 cap:2857
@@ -614,7 +614,7 @@ hores	i:1429 diàries:952 més:952
 humans	neixen:1111 són:1111 tan:1111 van:1111
 humor	és:5000
 humà	és:3333
-i	la:847 el:484 tot:460 no:242 un:194 va:194 les:182 els:169 de:157 a:145 jo:145 es:109 que:97 una:97 després:85 sense:85 ara:73 en:73 ja:73 mai:73 del:61 em:61 per:61 encara:48 fins:48 mitja:48 té:48 vaig:48 així:36 al:36 amb:36 escoltar:36 escriure:36 l'altre:36 m'ha:36 qui:36 què:36 se'n:36 si:36 toca:36 van:36 és:36 ell:25 això:24 ben:24 cap:24 català:24 consciència:24
+i	la:847 el:484 tot:460 no:242 un:194 va:194 les:182 els:169 de:157 a:145 jo:145 es:109 que:97 una:97 després:85 sense:85 ara:73 en:73 ja:73 mai:73 del:61 em:61 per:61 encara:48 fins:48 mitja:48 té:48 vaig:48 així:36 al:36 amb:36 escoltar:36 escriure:36 l'altre:36 m'ha:36 qui:36 què:36 se'n:36 si:36 toca:36 van:36 és:36 ell:25 això:24 ben:24 cap:24 català:24 consciència:24 direcció:24 dues:24 Déu:24 Eduardo:24 essencial:24 està:24 fer:24 guapa:24 iguals:24 l'agost:24 l'arrogància:24 Maria:24 mentre:24 molts:24 negre:24 polonesa:24
 idioma	al:1333
 idèntiques	per:9999
 igual	a:2000 que:2000
@@ -699,10 +699,10 @@ l'ésser	humà:6000
 l'última	nit:3333 vegada:3333
 l'únic	que:2000
 l'única	noia:3333
-la	seva:687 meva:663 teva:327 vida:201 gent:186 nostra:160 Maria:156 pena:125 nit:114 veritat:114 porta:110 ciutat:99 llengua:91 mateixa:91 guerra:80 música:72 setmana:72 feina:65 mare:65 mort:65 terra:61 història:57 mà:57 paraula:57 pluja:57 casa:53 llum:53 qual:53 vostra:53 dona:49 teua:49 majoria:46 noia:46 situació:46 televisió:46 festa:42 finestra:42 humanitat:42 més:42 policia:42 reunió:42 taula:42 botiga:38 literatura:38 pel·lícula:38 platja:38 prova:38 classe:34
+la	seva:687 meva:663 teva:327 vida:201 gent:186 nostra:160 Maria:156 pena:125 nit:114 veritat:114 porta:110 ciutat:99 llengua:91 mateixa:91 guerra:80 música:72 setmana:72 feina:65 mare:65 mort:65 terra:61 història:57 mà:57 paraula:57 pluja:57 casa:53 llum:53 qual:53 vostra:53 dona:49 teua:49 majoria:46 noia:46 situació:46 televisió:46 festa:42 finestra:42 humanitat:42 més:42 policia:42 reunió:42 taula:42 botiga:38 literatura:38 pel·lícula:38 platja:38 prova:38 classe:34 consciència:34 intel·ligència:34 meua:34 millor:34 persona:34 primera:34 raó:34 va:34 vaig:34 Mary:32 caixa:30 llet:30 llibertat:30 muntanya:30 neu:30 pau:30
 lavabo	públic:3333 que:3333
 lentament	i:3333
-les	seves:534 meves:380 coses:267 persones:251 dones:188 llengües:188 mans:173 claus:157 flors:157 nostres:157 sis:157 paraules:141 vacances:126 ales:110 dents:110 noies:94 quatre:94 teves:94 dues:78 escales:78 escoles:78 quals:78 roses:78 set:78 seues:78 xarxes:78 sabates:66 cames:63 classes:63 deu:63 eleccions:63 fulles:63 matemàtiques:63 nou:63 vuit:63 abelles:48 aus:47 baixes:47 cases:47 cinc:47 finestres:47 mateixes:47 millors:47 més:47 nacions:47 patates:47 portes:47 regles:47
+les	seves:534 meves:380 coses:267 persones:251 dones:188 llengües:188 mans:173 claus:157 flors:157 nostres:157 sis:157 paraules:141 vacances:126 ales:110 dents:110 noies:94 quatre:94 teves:94 dues:78 escales:78 escoles:78 quals:78 roses:78 set:78 seues:78 xarxes:78 sabates:66 cames:63 classes:63 deu:63 eleccions:63 fulles:63 matemàtiques:63 nou:63 vuit:63 abelles:48 aus:47 baixes:47 cases:47 cinc:47 finestres:47 mateixes:47 millors:47 més:47 nacions:47 patates:47 portes:47 regles:47 roques:47 tortugues:45 frases:44 gallines:37 altres:31 armes:31 biblioteques:31 cartes:31 circumstàncies:31 ciutats:31 criatures:31 cultures:31 de:31 estrelles:31 fonts:31 funcions:31
 li	va:1391 agrada:1261 vaig:1000 agraden:570 ha:478 ho:348 he:304 fa:217 van:174 agradava:130 diu:130 encanta:130 cal:87 falta:87 interessa:87 manca:87 passa:87 surt:87 és:87 vas:48 agrade:21
 literal	de:6667
 literatura	anglesa:1250 francesa:1250 en:833
@@ -828,7 +828,7 @@ mà	abans:690
 màniga	curta:9999
 màquina	és:3000
 mèdic	aquest:5000
-més	que:615 gran:527 de:440 alt:220 fàcil:198 important:198 tard:198 a:154 bonica:154 difícil:154 el:132 jove:132 alta:110 en:110 fort:110 petit:110 aviat:88 bonic:88 del:88 interessant:88 maca:88 ràpid:88 útil:88 car:66 d'un:66 diners:66 enllà:66 grans:66 ser:66 temps:66 val:66 amunt:44 baix:44 bell:44 boniques:44 calor:44 feliç:44 feliços:44 les:44 no:44 o:44 parlada:44 per:44 perillós:44 petits:44 proper:44 ric:44 sobre:44
+més	que:615 gran:527 de:440 alt:220 fàcil:198 important:198 tard:198 a:154 bonica:154 difícil:154 el:132 jove:132 alta:110 en:110 fort:110 petit:110 aviat:88 bonic:88 del:88 interessant:88 maca:88 ràpid:88 útil:88 car:66 d'un:66 diners:66 enllà:66 grans:66 ser:66 temps:66 val:66 amunt:44 baix:44 bell:44 boniques:44 calor:44 feliç:44 feliços:44 les:44 no:44 o:44 parlada:44 per:44 perillós:44 petits:44 proper:44 ric:44 sobre:44 tornaria:44 trist:44 trista:44 va:44 bella:32
 mòbil	si:2000
 món	és:714 està:357 i:357 no:357 que:357 es:238 jo:238 per:238 sencer:238
 músculs	de:9999
@@ -855,7 +855,7 @@ new	York:9999
 ni	tan:1321 una:1132 un:943 de:566 el:377 jo:377 parlar:377
 ningú	no:2500 em:500 que:500 li:375 pot:375 a:250 fa:250 més:250 va:250
 nit	en:411 fosca:274 i:274 no:274 que:274 és:274
-no	és:681 hi:424 em:273 es:273 sé:263 tinc:257 ho:252 puc:233 té:220 va:214 vaig:188 li:177 et:161 pot:150 he:145 vull:140 ha:134 sap:107 m'agrada:97 sabia:86 fa:80 tenim:80 ens:75 pots:75 era:70 són:70 crec:59 el:59 podem:59 s'ha:59 sóc:59 cal:54 has:48 entenc:38 està:38 existeix:38 funciona:38 la:38 saben:38 tenen:38 tenia:38 tens:38 val:38 veig:38 vol:38 vols:38 els:32 ets:32
+no	és:681 hi:424 em:273 es:273 sé:263 tinc:257 ho:252 puc:233 té:220 va:214 vaig:188 li:177 et:161 pot:150 he:145 vull:140 ha:134 sap:107 m'agrada:97 sabia:86 fa:80 tenim:80 ens:75 pots:75 era:70 són:70 crec:59 el:59 podem:59 s'ha:59 sóc:59 cal:54 has:48 entenc:38 està:38 existeix:38 funciona:38 la:38 saben:38 tenen:38 tenia:38 tens:38 val:38 veig:38 vol:38 vols:38 els:32 ets:32 fos:32 hagués:32 hem:32 m'ho:32 només:32 podia:32 saps:32 t'agrada:32 us:32 volia:32 soc:31 haver:27 me'n:27 n'hi:27 parla:27 parlo:27
 noi	que:1250 més:833 no:833 és:833
 noia	d'allà:800 de:800 del:800 que:800 va:800 és:800
 nois	que:2222
@@ -952,7 +952,7 @@ pensar	definitivament:1053 en:1053 que:1053 sobre:1053
 pensava	que:7692
 penseu	que:5000
 penso	que:4211 en:1053
-per	a:1653 què:1182 la:772 al:229 fer:205 favor:193 un:157 això:133 mi:133 tu:133 als:121 les:121 una:121 menjar:116 no:97 tot:97 primer:84 aquesta:72 aquí:72 telèfon:72 viure:72 aprendre:60 poder:60 tornar:60 ací:48 anar:48 arribar:48 cert:48 començar:48 descomptat:48 dir:48 esmorzar:48 exemple:48 primera:48 salvar:48 sempre:48 si:48 veure:48 comprar:47 allò:36 aquest:36 culpa:36 donar:36 entendre:36 fi:36 jugar:36 part:36 res:36
+per	a:1653 què:1182 la:772 al:229 fer:205 favor:193 un:157 això:133 mi:133 tu:133 als:121 les:121 una:121 menjar:116 no:97 tot:97 primer:84 aquesta:72 aquí:72 telèfon:72 viure:72 aprendre:60 poder:60 tornar:60 ací:48 anar:48 arribar:48 cert:48 començar:48 descomptat:48 dir:48 esmorzar:48 exemple:48 primera:48 salvar:48 sempre:48 si:48 veure:48 comprar:47 allò:36 aquest:36 culpa:36 donar:36 entendre:36 fi:36 jugar:36 part:36 res:36 ser:36 setmana:36 ell:25 acabar:24 ajudar:24 alguna:24 algú:24 allà:24 aquests:24 cada:24 casualitat:24 deixar:24 demanar:24 ells:24 escriure:24 estudiar:24
 perdre	la:2683 el:1951 les:976 els:488
 perdut	la:3333 el:952
 perfectes	per:6667
@@ -1066,7 +1066,7 @@ quartet	de:9999
 quarts	de:7895 d'una:1053
 quasi	no:3182 tot:909
 quatre	estacions:1667 anys:1250 germanes:833 i:833
-que	no:757 el:373 la:373 és:247 es:241 els:235 va:212 em:201 en:183 vaig:166 hi:138 et:109 ha:109 jo:103 li:103 ho:92 les:92 ell:87 he:80 això:75 estava:75 has:75 ja:75 un:75 a:63 diu:63 fa:63 mai:63 sigui:63 tenia:63 té:63 està:57 ve:57 ella:55 ens:52 era:52 ningú:52 estic:40 encara:34 havia:34 hem:34 passa:34 sí:34 sóc:34 tenim:34 tens:34 una:34 us:34
+que	no:757 el:373 la:373 és:247 es:241 els:235 va:212 em:201 en:183 vaig:166 hi:138 et:109 ha:109 jo:103 li:103 ho:92 les:92 ell:87 he:80 això:75 estava:75 has:75 ja:75 un:75 a:63 diu:63 fa:63 mai:63 sigui:63 tenia:63 té:63 està:57 ve:57 ella:55 ens:52 era:52 ningú:52 estic:40 encara:34 havia:34 hem:34 passa:34 sí:34 sóc:34 tenim:34 tens:34 una:34 us:34 vol:34 ahir:29 més:29 pot:29 pots:29 s'ha:29 tots:29 vas:28 al:23 aquesta:23 avui:23 conec:23 faci:23 fan:23 fer:23 han:23
 queda	bé:2857
 quedant	calb:2663
 quedar	amb:1200 a:800 sense:800
@@ -1349,18 +1349,18 @@ turons	són:9999
 té	un:1653 una:932 el:424 la:339 dos:297 tres:297 més:212 por:212 dret:169 res:169 dues:127 els:127 germanes:127 moltes:127 alguna:85 cap:85 cinc:85 cura:85 diners:85 dotze:85 límits:85 quatre:85 raó:85 sentit:85 set:85 trenta:85 vostè:85 gana:77 ell:43
 ulleres	estan:1333
 ulls	que:789 del:526 ens:526 són:526 bonics:380
-un	bon:212 llibre:203 cotxe:188 dia:175 home:175 altre:166 dels:166 amic:157 cop:129 país:129 poc:120 nou:111 gran:92 nen:92 any:83 fill:83 somni:83 exemple:74 noi:74 problema:74 taxi:74 gos:71 circ:65 munt:55 petit:55 regal:55 arbre:46 grup:46 gust:46 metge:46 moment:46 pas:46 petó:46 tall:46 tuit:46 vestit:46 diccionari:45 accident:37 banc:37 barret:37 de:37 Déu:37 estudiant:37 heroi:37 idioma:37 lloc:37 no:37 ordinador:37
-una	mica:476 llengua:384 cosa:344 bona:278 altra:238 dona:225 carta:212 gran:212 persona:212 hora:159 de:146 setmana:119 vegada:119 cançó:106 casa:93 festa:79 nova:79 pregunta:79 escola:66 estrella:66 mala:66 nit:66 noia:66 ciutat:53 foto:53 guerra:53 manera:53 nena:53 sola:53 aigua:40 cara:40 denúncia:40 estona:40 família:40 feminista:40 flor:40 història:40 llibreria:40 mare:40 mentida:40 molt:40 mà:40 nació:40 novel·la:40 paraula:40 plaça:40 resposta:40 revista:40
+un	bon:212 llibre:203 cotxe:188 dia:175 home:175 altre:166 dels:166 amic:157 cop:129 país:129 poc:120 nou:111 gran:92 nen:92 any:83 fill:83 somni:83 exemple:74 noi:74 problema:74 taxi:74 gos:71 circ:65 munt:55 petit:55 regal:55 arbre:46 grup:46 gust:46 metge:46 moment:46 pas:46 petó:46 tall:46 tuit:46 vestit:46 diccionari:45 accident:37 banc:37 barret:37 de:37 Déu:37 estudiant:37 heroi:37 idioma:37 lloc:37 no:37 ordinador:37 ou:37 peix:37 plaer:37 professor:37 tema:37 got:34 gat:29 bou:28 cas:28 cor:28 cos:28 criminal:28 error:28 examen:28 favor:28 forat:28
+una	mica:476 llengua:384 cosa:344 bona:278 altra:238 dona:225 carta:212 gran:212 persona:212 hora:159 de:146 setmana:119 vegada:119 cançó:106 casa:93 festa:79 nova:79 pregunta:79 escola:66 estrella:66 mala:66 nit:66 noia:66 ciutat:53 foto:53 guerra:53 manera:53 nena:53 sola:53 aigua:40 cara:40 denúncia:40 estona:40 família:40 feminista:40 flor:40 història:40 llibreria:40 mare:40 mentida:40 molt:40 mà:40 nació:40 novel·la:40 paraula:40 plaça:40 resposta:40 revista:40 tempesta:40 ullada:40 vida:40 errada:39 frase:30 bella:29 abraçada:26 ala:26 amanida:26 amiga:26 autèntica:26 Bíblia:26 causa:26 crisi:26 càmera:26 edició:26
 units	i:909 mai:909 és:909
 unió	Europea:9999
 uns	quants:1316 ulls:1053 dies:789 als:526 altres:526 amb:526
 us	plau:4130 he:490 agrada:294 ha:294 heu:294 va:294 permet:196 serà:196
 utilitzar	un:5000
 utilitzo	és:9999
-va	ser:720 dir:533 fer:412 morir:206 passar:206 arribar:196 anar:187 perdre:178 a:159 començar:159 deixar:140 tornar:131 tenir:103 escriure:94 haver:94 posar:94 veure:84 agafar:75 poder:75 sortir:75 acabar:65 demanar:65 donar:65 entrar:65 néixer:65 prometre:65 quedar:65 venir:65 estar:56 guanyar:56 inventar:56 marxar:56 preguntar:56 trencar:56 trobar:56 comprar:54 aturar:47 casar:47 dur:47 enviar:47 explicar:47 treballar:47 aconseguir:37 agradar:37 caure:37 construir:37 convertir:37 crear:37
+va	ser:720 dir:533 fer:412 morir:206 passar:206 arribar:196 anar:187 perdre:178 a:159 començar:159 deixar:140 tornar:131 tenir:103 escriure:94 haver:94 posar:94 veure:84 agafar:75 poder:75 sortir:75 acabar:65 demanar:65 donar:65 entrar:65 néixer:65 prometre:65 quedar:65 venir:65 estar:56 guanyar:56 inventar:56 marxar:56 preguntar:56 trencar:56 trobar:56 comprar:54 aturar:47 casar:47 dur:47 enviar:47 explicar:47 treballar:47 aconseguir:37 agradar:37 caure:37 construir:37 convertir:37 crear:37 córrer:37 decidir:37 estudiar:37 intentar:37 matar:37 mirar:37 ocórrer:37 permetre:37 prendre:37 regalar:37 respondre:37 robar:37 tallar:37 tocar:37 vendre:37 menjar:36
 vacances	a:2353 d'estiu:2353
 vagi	a:4000 bé:4000
-vaig	veure:603 dir:553 anar:503 a:402 fer:402 comprar:340 trobar:327 sentir:251 començar:226 ser:226 néixer:201 poder:176 perdre:151 demanar:126 escriure:126 passar:126 tenir:126 aconseguir:101 agafar:101 arribar:101 conèixer:101 enviar:101 llegir:101 pagar:101 parlar:101 venir:101 voler:101 adonar:75 deixar:75 escoltar:75 estar:75 estudiar:75 haver:75 intentar:75 notar:75 quedar:75 sortir:75 vore:75 ajudar:50 aprendre:50 baixar:50 cometre:50 cremar:50 decidir:50 entendre:50 entrar:50 esperar:50 estimar:50
+vaig	veure:603 dir:553 anar:503 a:402 fer:402 comprar:340 trobar:327 sentir:251 començar:226 ser:226 néixer:201 poder:176 perdre:151 demanar:126 escriure:126 passar:126 tenir:126 aconseguir:101 agafar:101 arribar:101 conèixer:101 enviar:101 llegir:101 pagar:101 parlar:101 venir:101 voler:101 adonar:75 deixar:75 escoltar:75 estar:75 estudiar:75 haver:75 intentar:75 notar:75 quedar:75 sortir:75 vore:75 ajudar:50 aprendre:50 baixar:50 cometre:50 cremar:50 decidir:50 entendre:50 entrar:50 esperar:50 estimar:50 guanyar:50 mirar:50 oblidar:50 pensar:50 posar:50 preguntar:50 reconèixer:50 recordar:50 visitar:50 viure:50 menjar:48 trucar:34 nèixer:28 beure:25 besar:9
 val	la:5000 més:1739 si:435 tant:435
 valia	la:9999
 valor	per:3333
@@ -1452,7 +1452,800 @@ zero	és:3333
 àvia	està:4286
 ès	un:6667
 èxit	en:1538
-és	un:1267 la:831 el:800 una:770 molt:443 més:261 tan:182 a:176 massa:133 fàcil:103 com:91 difícil:79 millor:73 bo:67 de:67 per:61 possible:55 que:55 en:49 important:49 veritat:42 gai:37 aquest:36 aquí:36 cert:36 al:30 aquesta:30 blanc:30 l'únic:30 l'única:30 perillós:30 ridícul:30 tot:30 bastant:24 feliç:24 força:24 hora:24 meu:24 necessari:24 petit:24 realment:24 teu:24 verda:24 absolutament:18 així:18 això:18 algú:18 ara:18
+és	un:1267 la:831 el:800 una:770 molt:443 més:261 tan:182 a:176 massa:133 fàcil:103 com:91 difícil:79 millor:73 bo:67 de:67 per:61 possible:55 que:55 en:49 important:49 veritat:42 gai:37 aquest:36 aquí:36 cert:36 al:30 aquesta:30 blanc:30 l'únic:30 l'única:30 perillós:30 ridícul:30 tot:30 bastant:24 feliç:24 força:24 hora:24 meu:24 necessari:24 petit:24 realment:24 teu:24 verda:24 absolutament:18 així:18 això:18 algú:18 ara:18 ben:18 clar:18 del:18 dura:18 encara:18 estrany:18 feminista:18 gran:18 gratuït:18 igual:18 maca:18 mentida:18 morta:18 negre:18 normal:18 nostre:18
 ésser	humà:3000
 éssers	humans:7000
 útil	per:1818 que:1818
+^ a	=156 la:2051 en:897 quina:449 mi:321 vegades:321 l'estiu:256 les:256 quin:256 ella:247 l'hivern:192 tothom:192 casa:128 Catalunya:128 Galícia:128 l'agost:128 l'hotel:128 on:128 partir:128 què:128 un:128 ell:98
+^ abans	=12 de:3333 d'entrar:1667
+^ ahir	=14 vaig:2857 va:1429 van:1429
+^ això	=94 és:5106 no:1809 em:319 mateix:319 et:213 ho:213 serà:213 són:213 va:213
+^ al	=38 final:1316 meu:789 Canadà:526 llit:526 principi:526 segle:526 Japó:459 Tom:28
+^ algú	=9 em:3333
+^ allò	=11 que:2727 és:2727 va:1818
+^ als	=12 Estats:3333 nens:1667
+^ amb	=19 qui:2632 prou:1053 un:1053 una:1053
+^ anem	=16 a:7500
+^ aquell	=19 que:1579 dia:1053 líder:1053
+^ aquest	=112 és:1429 llibre:1071 matí:625 noi:268 animal:179 dimarts:179 no:179 país:179 peix:179 riu:179 software:179 vi:179 cotxe:165 diccionari:144 capell:75 medicament:52
+^ aquesta	=81 és:1605 nit:617 frase:563 casa:247 sanció:247 situació:247 poma:119
+^ aquestes	=9 tortugues:795
+^ aquests	=12 llibres:2500 turons:1667
+^ aquí	=14 fa:3571 està:2143 hi:1429 és:1429
+^ ara	=35 que:1143 mateix:857 ja:571 és:571
+^ avui	=44 fa:1591 és:1591 he:1136 no:909 dia:455 estava:455
+^ bon	=11 dia:3636 any:1818
+^ cada	=17 dia:4706 diumenge:1765 matí:1176
+^ cal	=10 que:2000
+^ cap	=9 estudiós:660
+^ com	=87 es:1149 que:920 és:920 més:575 estàs:345 et:345 a:230 esteu:230 has:230 ho:230 sabeu:230 serà:230 t'ha:230 us:230 va:230
+^ crec	=51 que:9804
+^ de	=64 vegades:1562 fet:938 debò:781 veritat:781 qui:625 quin:625 sobte:625 la:469 què:469 ben:312 cop:312 tant:312
+^ deixa	=15 de:4000 que:2000
+^ demà	=18 tindrem:1111
+^ des	=8 del:3750 de:2500 que:2500
+^ després	=20 de:6000
+^ deu	=8 anys:2500 haver:2500
+^ digues	=13 no:1538
+^ déu	=17 és:2941 meu:1176 no:1176 va:1176
+^ el	=663 meu:1237 seu:362 que:287 teu:211 sol:196 món:166 temps:151 nostre:136 vaig:121 nen:106 noi:106 professor:106 senyor:106 Japó:92 menjar:87 cel:75 pa:75 gegant:60 marit:60 nombre:60 pare:60 peix:60 rei:60 tren:60
+^ ell	=245 va:2122 és:1551 no:735 es:490 té:490 ha:286 està:245 sempre:245 estava:204 sabia:173 parla:163 em:122 sap:122 viu:122 confia:82 encara:82 ja:82 m'ha:82 sembla:82 sol:82 treballa:82 ve:82 vol:82 estudia:75
+^ ella	=206 va:2233 és:1068 no:631 està:583 es:534 em:485 té:388 ha:243 sempre:243 sap:194 vol:194 era:146 estava:146 tenia:146 diu:97 el:97 fa:97 li:97 parla:97 s'ha:97 se:97 odia:93
+^ ells	=36 van:1944 són:1667 no:1111 varen:1111 estan:833 ja:556
+^ els	=225 meus:444 seus:400 nens:356 que:311 gossos:267 ocells:247 alumnes:222 diners:222 teus:222 ulls:222 vaig:222 pares:178 drets:133 he:133 homes:133 llibres:133 soldats:133 animals:89 dies:89 dijous:89 dos:89 estudiants:89 fruits:89 humans:89
+^ em	=178 vaig:1348 va:1011 sap:843 fa:506 pregunto:506 sembla:449 sento:337 pots:281 vas:247 penso:225 demano:169 dic:169 van:169 varen:169 puc:124 cal:112 costa:112 deixes:112 pensava:112 pot:112 sentia:112 vull:89 podries:56 quedaré:41
+^ en	=378 el:212 la:212 aquest:159 John:159 Tom:147 aquell:132 aquesta:132 Tomàs:107 general:106 Jim:79 una:79 cap:53 comptes:53 espanyol:53 fi:53 primer:53 quin:53 quina:53 tinc:53 Sami:38
+^ encara	=55 no:3455 que:1273 ets:727 estic:545 tens:545 hi:364
+^ ens	=36 cal:833 hem:833 vam:833 agraden:780 ha:556 va:556 van:556 veiem:556
+^ era	=11 una:2727 un:1818
+^ es	=70 va:3429 diu:1000 pot:857 parla:571 van:429 fa:286
+^ escriu	=8 el:3750
+^ espero	=19 que:6842 no:1053
+^ estava	=18 pensant:1111
+^ este	=8 lloc:3750
+^ estem	=15 amb:1333 molt:1333
+^ estic	=93 molt:645 segur:645 a:430 aprenent:323 content:323 buscant:215 de:215 embarassada:215 en:215 escoltant:215 fent:215 ocupat:215 tan:215 cansat:203 tip:166 acostumada:130 acostumat:117
+^ està	=34 aprenent:882 orgullós:588
+^ estàs	=20 d'acord:1000 en:1000
+^ et	=54 vaig:1296 desitjo:556 puc:510 vull:294
+^ ets	=52 un:2500 el:769 la:577 una:577 prou:385 tan:385
+^ fa	=31 molt:1613 cara:968 dos:968 tres:968 gràcia:645 quant:645
+^ faré	=10 els:2000 una:2000
+^ fes	=21 una:1905 el:952
+^ fins	=30 i:4667 ara:1667 a:667 escriure:667
+^ gràcies	=17 per:4118 a:1765
+^ ha	=32 anat:1250 estat:938 fet:625 fugit:625
+^ has	=49 de:3673 d'anar:408 fet:408 llegit:408 tingut:408 trucat:408
+^ hauria	=8 d'haver:3750
+^ he	=107 de:1963 d'anar:654 perdut:654 fet:561 anat:467 vist:467 estat:374 sentit:374 oblidat:280 trobat:280 visitat:280 votat:280 agafat:187 d'escriure:187 llegit:187 comprat:145
+^ hem	=32 de:5312 d'enfrontar:625
+^ heu	=12 de:4167 d'ajudar:1667
+^ hi	=99 ha:7374 havia:1111 podria:202 trobaré:103
+^ ho	=61 he:1311 fa:984 vaig:820 has:656 sap:492 faria:328 saps:328 sento:328 va:328 vas:180
+^ hola	=15 a:2000
+^ i	=36 si:833 així:556 ara:556 de:556 mai:556 va:556 ell:282
+^ ja	=62 no:1613 has:1452 he:1290 estic:484 ha:484 res:484 heu:323 és:323
+^ jo	=96 no:1458 sóc:1042 també:625 ja:417 era:312 havia:312 he:312 tinc:312 treballo:242 estava:208 estic:208 ho:208 sé:208 tampoc:208 vaig:208 soc:199 estudio:45
+^ l'aigua	=13 és:2308 d'aquest:1538 de:1538
+^ l'amor	=11 és:3636 passa:1818
+^ l'home	=13 és:2308
+^ la	=598 meva:884 seva:502 vida:318 gent:268 Maria:217 teva:201 nostra:184 llengua:134 mare:134 noia:134 guerra:117 paraula:117 situació:117 traducció:100 història:84 majoria:84 mort:84 música:84 teua:84 ciutat:67 dona:67 foto:67 intel·ligència:67 llet:67
+^ les	=118 ales:593 coses:339 fulles:339 paraules:339 seues:339 seves:339 dones:254 roses:254 meves:236 matemàtiques:169 nostres:169 persones:169 quatre:169 teves:169 vacances:169 gallines:134 tortugues:121 abelles:103 aparences:85 granotes:80
+^ li	=66 vaig:3182 he:606 ho:606 va:606 agraden:567 agrada:455 ha:303 surt:303 van:303
+^ m'agrada	=35 el:2571 la:1429 molt:1429 aquesta:571
+^ m'agradaria	=43 anar:1163 donar:930 conèixer:698 oblidar:698 que:698 tornar:698 veure:698 parlar:465 trobar:465
+^ m'agraden	=11 els:3636 les:2727
+^ m'ha	=11 preguntat:1818
+^ m'he	=19 fet:1579 cremat:1053 tallat:1053
+^ mai	=36 no:3889 oblidaré:378
+^ mentre	=9 el:3333
+^ mira	=10 el:2000 per:2000
+^ moltes	=10 gràcies:6000 persones:2000
+^ molts	=12 soldats:1667
+^ mon	=11 pare:9091
+^ necessito	=22 un:1818 una:1364 unes:909 ulleres:508
+^ ni	=8 tan:6250
+^ ningú	=30 no:3333 pot:1000 va:667
+^ no	=809 hi:519 sé:519 tinc:433 em:383 puc:375 és:321 vull:304 vaig:297 et:235 ho:222 m'agrada:173 sabia:168 es:148 he:136 li:136 pots:124 va:124 cal:111 crec:111 tenim:111 ha:99 entenc:87 sap:74 sóc:74
+^ només	=35 hi:1143 vull:907 sóc:857 ho:571
+^ nosaltres	=13 ja:2308 no:1538 mengem:1008
+^ on	=72 és:3611 està:417 hi:417 ens:278 ets:278 sóc:278 són:278 va:278 vas:229 soc:133
+^ per	=149 què:5503 a:738 favor:470 cert:268 fi:201 la:201 això:134 als:134 aquest:134 començar:134 descomptat:134 mi:134 quant:134 sort:134 meditar:79
+^ perquè	=15 no:2667
+^ però	=20 així:1000 com:1000 quan:1000 què:1000
+^ podeu	=9 fer:2222
+^ pots	=35 venir:857 ajudar:571 deixar:571 fer:571 confiar:525 fumar:240
+^ potser	=18 que:1667 el:1111
+^ prefereixo	=9 la:2222
+^ puc	=43 demanar:1163 parlar:930 fer:698 menjar:673 ajudar:465 pagar:465 veure:465
+^ quan	=96 era:729 et:521 el:417 la:417 va:417 es:312 vaig:312 vas:229 he:208 hi:208 li:208 m'he:208 serà:208 tornaràs:108 ell:106
+^ quant	=21 de:4762 val:1429 et:952
+^ quantes	=11 vegades:2727 lletres:1818 persones:1818
+^ quants	=15 diners:2000 anys:1333
+^ quasi	=8 no:2500
+^ que	=56 no:1071 em:536 has:536 hi:536 tens:536 en:357 ràpid:357 us:357
+^ qui	=81 és:1481 no:741 ho:617 t'ha:494 va:494 es:370 ha:370 sou:370 ets:247 pot:247 sap:247 sóc:247 t'ho:247 té:247 us:247
+^ quin	=52 és:3269 dia:769 tipus:577 carrer:385 càstig:385 fred:385 llibre:385
+^ quina	=48 és:3542 posta:625 foto:417 situació:417
+^ què	=116 és:948 hi:603 has:517 fas:431 li:431 vas:426 vols:345 seria:259 vol:259 desitja:172 ens:172 et:172 farem:172 ha:172 passa:172 t'ha:172
+^ res	=9 de:3333 no:3333
+^ s'ha	=14 acabat:2857 de:1429
+^ saps	=19 que:1579 alguna:1053 on:1053 qui:1053 què:1053
+^ se	=13 li:2308 m'ha:1538 n'ha:1538 suposa:1538 us:1538
+^ sembla	=17 que:7647
+^ sempre	=36 està:833 em:556 fa:556 he:556 hem:556 tinc:556
+^ si	=126 us:2460 no:952 vols:556 el:317 un:317 els:238 em:238 et:238 hi:238 la:238 una:238 Déu:159 pogués:159 és:159 ell:81 plou:43
+^ sisplau	=8 cridi:709
+^ soc	=34 un:1765 la:882 el:588 una:588
+^ som	=12 el:1667
+^ son	=9 bons:6667 pare:2222
+^ sovint	=8 arriba:2500
+^ sé	=23 que:6957 què:870
+^ sí	=17 que:1176
+^ sóc	=49 un:816 de:612 jo:612 aquí:408 molt:408 una:408
+^ són	=40 dos:2250 els:1250 tres:1250 les:750 gairebé:500 tots:500 idèntiques:438
+^ t'has	=11 rentat:1368
+^ tan	=9 bon:3333 sols:2222
+^ tant	=11 de:8182
+^ tenim	=17 una:1765
+^ tens	=37 un:2162 una:811 algun:541 alguna:541 bona:541 dificultats:541 dos:541
+^ tinc	=85 un:2706 una:824 dos:471 ganes:471 la:353 molta:353 moltes:353 por:353 pressa:353 dues:235 els:235 les:235 mal:235 son:235
+^ tot	=34 el:1765 estava:588 ho:588 i:588 just:588 passa:588 va:588 és:588
+^ tothom	=13 coneix:1538 el:1538
+^ tots	=43 els:3256 dos:1163 estaven:698 ells:465 ens:465
+^ truca'm	=20 demà:2000 si:2000 a:1500 quan:1000
+^ tu	=25 ets:4000 ho:800 i:800 vols:800 parles:737
+^ té	=42 un:2143 una:2143 més:476 por:476
+^ un	=79 dia:759 cop:506 dels:506 any:380 home:253 llop:253 món:253 gos:221 día:74
+^ una	=43 bona:930 de:698 aigua:465 tendència:465
+^ us	=19 he:1579 heu:1053
+^ va	=111 ser:1261 perdre:901 marxar:360 dir:270 fer:270 morir:270 a:180 agafar:180 anar:180 començar:180 deixar:180 demanar:180 estudiar:180 passar:180 presentar:180 prometre:180 venir:180
+^ vaig	=131 anar:840 a:611 veure:611 néixer:305 ser:305 comprar:295 aconseguir:229 arribar:229 estar:229 tenir:229 trobar:229 agafar:153 aprendre:153 baixar:153 començar:153 decidir:153 demanar:153 entrar:153 enviar:153 escriure:153 fer:153 llegir:153 parlar:153 perdre:153
+^ val	=22 la:7273 més:2727
+^ vam	=20 anar:2000 fer:1000
+^ van	=33 arribar:606 començar:606 forçar:606 posar:606
+^ vas	=16 ser:1875 a:1250
+^ vine	=9 aquí:2222
+^ voldria	=12 una:1667
+^ volem	=8 donar:3750
+^ vols	=22 que:1364 fer:909 una:909
+^ vostè	=14 és:3571 no:2143
+^ vull	=67 anar:1194 que:896 un:896 veure:746 aprendre:448 parlar:448 saber:448 viure:448
+^ és	=232 un:2069 una:1034 la:690 molt:603 el:474 difícil:345 més:345 tan:302 massa:172 a:129 aquest:129 bo:129 millor:129 que:129 absolutament:86 clar:86 en:86 evident:86 fins:86 important:86 perillós:86 possible:86 veritat:86
+a boston	=19 abans:1579 amb:1053
+a casa	=65 a:615 meva:571 teva:462 nostra:308 vaig:308 vostra:308
+a dormir	=15 Tom:36
+a ell	=11 li:3636 mateix:1818
+a ella	=19 li:3684 no:1053 que:1053
+a en	=28 Sam:714 Tomàs:222 Tom:181
+a faltar	=8 quan:2500
+a fer	=29 els:1034 allò:690 el:690 un:690
+a l'agost	=9 no:2222
+a l'escola	=29 amb:1379 com:690
+a l'estació	=13 a:2308
+a la	=343 seva:612 meva:514 nit:292 platja:292 nostra:262 feina:233 festa:204 biblioteca:175 Maria:175 teva:175 ciutat:146 gent:146 botiga:117 casa:117 policia:117 porta:117 taula:117 universitat:117 vida:117 cuina:87 fi:87 guerra:87 majoria:87 muntanya:87
+a les	=75 sis:1067 escoles:667 nou:533 set:533 meves:372 baixes:267 cinc:267 deu:267 eleccions:267 muntanyes:267 noies:267 persones:267 quatre:267 vacances:267
+a mi	=37 també:541
+a prop	=12 de:2500 del:1667
+a punt	=9 de:5556
+a qui	=9 li:2222
+a quina	=10 hora:8000
+a ser	=14 un:1429
+a tothom	=8 li:2500 que:2500
+a tots	=8 els:2500
+a treballar	=11 al:1818
+a tu	=8 mateix:2500
+a un	=32 acord:625 nen:625
+a una	=17 altra:1176 dona:1176
+a veure	=21 amb:1429 la:1429 el:952
+abans de	=27 les:1852 la:1111 marxar:1111 morir:741 tornar:741 menjar:714
+agrada la	=9 literatura:2222 música:2222
+agraden les	=13 tortugues:825
+així que	=10 no:2000
+això no	=22 és:4091 em:1364
+això és	=63 un:2063 una:1270 el:635 cosa:317 la:317 molt:317 tot:317 veritat:317 racisme:111
+al cap	=8 i:3750 de:2500
+al final	=10 en:2000
+al japó	=23 amb:870
+al llit	=15 on:1333 Tom:36
+al meu	=16 pare:1875 costat:1250 davant:1250
+al món	=8 i:2500 que:2500
+al seu	=33 jardí:909 amic:606 llibre:606 lloc:606 pare:606 gos:212
+al teu	=16 amic:1250 costat:1250 germà:1250
+al voltant	=8 de:6250 del:2500
+alguna cosa	=35 per:2000 més:1429 a:571
+algú que	=8 em:2500
+allò que	=23 diu:870 no:870 se't:870
+als estats	=14 Units:9999
+als meus	=12 ulls:4167 pares:3333
+amb compte	=8 amb:2500
+amb el	=47 seu:1915 meu:1064 vent:638 llum:426 mateix:426 poeta:426 teu:426
+amb ell	=17 sobre:1176
+amb els	=28 meus:1429 altres:1071 seus:714 teus:714 veïns:714
+amb en	=8 Tom:233
+amb la	=45 meva:2062 teva:1333 gent:667 seva:667 Mary:101
+amb les	=11 mateixes:1818 serps:1276
+amb mi	=27 a:1111
+amb qui	=8 esteu:2500
+amb tu	=27 però:741 Maduro:222
+amb un	=29 amic:690 petit:690 somriure:690
+amb una	=28 gran:714 sola:714
+anar a	=50 la:2800 l'escola:1000 casa:800 dormir:563 Amèrica:400 jugar:400 l'estació:400 l'estranger:400
+anar al	=20 cinema:2000 Japó:1308 metge:1000
+anar de	=8 càmping:2500
+anat a	=13 la:1538
+anem a	=17 l'escola:1765 fer:1176 la:1176
+aquest llibre	=25 és:2000 es:800 està:800 no:800
+aquest matí	=14 hem:2143
+aquest és	=16 el:8750 un:1250
+aquesta frase	=10 a:2000
+aquesta és	=13 la:5385 una:3846
+ara mateix	=15 no:1333
+arribar a	=21 casa:1429 un:1429 l'estació:952 temps:952
+avui no	=8 tinc:2500
+cada dia	=30 que:1333 em:667 més:667
+cal que	=9 siguis:1466
+cap a	=19 la:2105 casa:1579 l'estació:1053 mi:1053
+cap de	=14 setmana:5714 vosaltres:1429
+com a	=33 instrument:606 mínim:606 professor:606 programador:275
+com el	=18 seu:1667 teu:1667
+com en	=8 el:2500 Tom:133
+com es	=17 diu:4706 fa:1765
+com ho	=8 llegeixes:745
+com la	=12 neu:1667 primavera:1667
+com que	=9 feia:2222 no:2222 tenim:2222
+com si	=15 fos:4000 no:1333
+com un	=24 cavaller:833 segell:833
+com és	=9 que:3333
+començar a	=36 aprendre:833 estudiar:833 agradar:556 escriure:556 treballar:556 veure:556 ploure:328
+confiar en	=11 ells:1818 tu:1818 ell:924 ella:699
+contra el	=11 coronavirus:304
+cosa per	=9 menjar:3213 fer:2222
+cosa que	=10 sent:2000
+crec que	=63 no:1111 és:635 a:317 el:317 els:317 en:317 ens:317 hi:317 la:317 Tom:8
+creus que	=17 és:3529 esta:1176
+d'acord amb	=8 Tom:100
+d'anar a	=16 dormir:2931
+de bo	=10 aviat:2000 pogués:2000
+de casa	=15 meva:1856
+de dir	=29 una:1724 quelcom:690
+de fer	=41 això:976 allò:732 alguna:488 el:488
+de l'any	=11 són:1818
+de la	=305 seva:885 meva:761 vida:361 gent:197 setmana:197 ciutat:164 classe:164 nostra:164 pluja:164 teva:164 mort:131 pau:131 qual:131 terra:131 cultura:98 família:98 feina:98 llengua:98 meua:98 nit:98 Xina:98 comarca:66 comunitat:66 Confederació:66
+de les	=73 seves:1096 meves:510 persones:411 quals:411 dues:274 llengües:274 millors:274 paraules:274 frases:127
+de menjar	=20 més:1000
+de mi	=16 mateix:1875
+de parlar	=14 amb:1429
+de que	=8 una:2500
+de ser	=22 aquí:909 difícil:909 músic:909 un:909
+de setmana	=9 passat:2222
+de tant	=11 en:9999
+de temps	=31 que:1613 a:645 passa:645
+de tornar	=13 a:3077 el:2308
+de tot	=8 això:2500
+de tres	=11 en:1818
+de vegades	=16 em:2500
+de veure	=9 el:2222
+deixa de	=9 fer:2222
+deixar de	=12 fumar:1747 parlar:1667 pensar:1667
+del meu	=19 avi:1053
+del que	=27 vaig:1481 els:741 em:741 es:741 la:741 és:741
+del seu	=22 cotxe:1264 cap:909 fill:909
+dels seus	=17 fans:2941 fills:1765 actes:1176
+des de	=13 qualsevol:2308 la:1538
+des del	=11 seu:1818
+després de	=28 la:2143 dinar:714
+deu minuts	=9 després:2222 tard:2222
+dia de	=8 la:3750
+dir que	=58 no:2069 em:690 tenia:517 estava:345 la:345 un:345 va:345 ella:133 havies:106
+dir res	=8 dolent:2500
+dit que	=13 ho:1538 volíem:1538
+diu que	=18 no:2222 el:1111 ell:565
+diuen que	=14 ho:1429 no:1429 és:1429 ell:726
+dos anys	=9 més:2222
+dos quarts	=13 de:8462
+el cap	=12 de:3333
+el cel	=19 i:1053 són:1053 és:1053
+el cor	=16 de:1875 i:1250 no:1250
+el cos	=9 és:2222
+el cotxe	=18 a:1111 és:1111
+el dia	=23 de:870 internacional:870
+el gat	=16 és:1875 d'en:1250 que:1250 va:1250
+el gos	=17 que:2353 va:1765 és:1765
+el japó	=14 és:2143
+el llibre	=21 però:952 que:952
+el mateix	=21 accent:952 que:952
+el menjar	=13 xinès:1886 d'aquí:1538 no:1538
+el meu	=193 pare:881 germà:725 amic:518 oncle:363 cor:311 fill:259 passaport:259 cotxe:240 millor:207 nom:207 apartament:155 avi:155 equip:155 estimat:155 marit:155 nét:155 professor:155 rellotge:151 gos:109 advocat:104 camí:104 cosí:104 cunyat:104 futur:104
+el millor	=12 per:1667
+el més	=11 gran:2727 petit:1818
+el món	=33 és:1515 està:909 no:606 sencer:606
+el nen	=9 es:2222
+el noi	=11 que:2727 més:1818
+el nom	=13 de:3077 del:1538 en:1538
+el nombre	=11 de:2727 d'oracions:1133
+el nostre	=17 suport:1765 equip:1176
+el peix	=9 per:2222
+el primer	=17 cop:2353 a:1765 ministre:1176
+el professor	=10 va:2000
+el que	=163 va:552 em:307 vaig:307 és:307 diu:245 penses:245 vol:245 es:184 està:184 ha:184 pots:184 volia:184 dius:123 era:123 et:123 fa:123 faci:123 has:123 jo:123 no:123 passa:123 penso:123 tenia:123 té:123
+el rei	=11 és:2727 dels:1818
+el senyor	=17 Smith:1765
+el seu	=134 nom:970 germà:522 fill:448 pare:373 exemple:299 cotxe:277 director:224 llibre:224 millor:224 amic:149 amor:149 cor:149 marit:149 paper:149 propi:149 somni:149 temps:149 pais:105 xicot:84 oferiment:60 gos:52
+el sol	=18 és:1667
+el temps	=31 que:968 està:645 vola:411
+el teu	=75 amic:533 llibre:533 nom:400 pare:400 caràcter:267 cos:267 estimat:267 fill:267 restaurant:267 treball:267 ésser:267 gos:140 podcast:128
+el tren	=10 està:2000
+el va	=8 contractar:2500
+el vaig	=16 veure:3750 comprar:1812
+el vostre	=8 gos:875
+ell es	=12 va:6667
+ell estava	=8 al:2500
+ell no	=24 va:1250 és:1250
+ell té	=14 un:3571 tres:2143
+ell va	=56 arribar:714 anar:536 morir:536 tenir:536 a:357 dir:357 perdre:357 tornar:357
+ell és	=46 el:2391 un:1304 molt:870 tres:435
+ella em	=10 va:9999
+ella es	=13 va:6154 una:1538
+ella està	=12 en:1667
+ella li	=11 agrada:3636 va:3636 agraden:1702
+ella no	=17 va:2353 li:1176 té:1176 és:1176
+ella va	=52 anar:577 perdre:577 sortir:577 tornar:577 dir:385 entrar:385 fer:385 respondre:385 ser:385
+ella és	=25 una:1600 la:1200
+els alumnes	=9 han:4444
+els dies	=8 de:5000
+els diners	=18 al:1111 no:1111 que:1111
+els meus	=32 pares:1875 amics:938 fills:625 llibres:625
+els nens	=12 no:1667 que:1667
+els nostres	=10 amics:2000 veïns:2000
+els ocells	=13 volen:2308 tenen:1538
+els seus	=49 pares:1224 fills:612 propis:612 cabells:495 amics:408 infants:408 llibres:408 pensaments:408 sentiments:408
+els teus	=24 pares:1250 fills:833 pits:833 plans:833
+els ulls	=16 del:1250 són:1250
+em fa	=29 mal:1724 vergonya:1034 plorar:690 recordar:690 mandra:288
+em pregunto	=11 si:2727 quantes:1818
+em sap	=19 greu:8947 molt:1053
+em sembla	=13 que:3846
+em sento	=8 millor:2500
+em va	=75 dir:1333 fer:1067 preguntar:800 agradar:400 donar:400 tocar:400 cridar:267 deixar:267 demanar:267 enviar:267 sorprendre:267
+em vaig	=39 sentir:1282 adonar:513 cremar:513 posar:513 quedar:513 trobar:513
+em van	=8 robar:2500 acomiadar:2308
+em vas	=11 tractar:3636 donar:2727
+en aquell	=11 moment:3636 temps:1818
+en aquest	=25 hotel:1200 llac:1200 moment:1200 carrer:800 món:800 planeta:800 poble:800
+en aquesta	=12 sala:1667
+en contra	=12 de:3333 del:2500
+en el	=52 seu:2500 meu:769 món:385 passat:385 teu:385
+en els	=16 seus:1875 altres:1250 teus:1250
+en john	=9 va:4444 no:2222
+en la	=73 seva:822 meva:763 qual:548 teva:548 nostra:411 televisió:411 construcció:274 filmació:274 història:274 majoria:274 mateixa:274 música:274 primera:274 TV:274
+en les	=8 xarxes:3750
+en què	=14 això:1429
+en tomàs	=20 no:1500 va:1000 és:1000
+en un	=46 circ:1522 accident:435 altre:435 any:435 lavabo:188
+en una	=34 hora:1176 llengua:1176 edició:588 nit:588 setmana:588
+encara no	=29 ha:2069 he:1724 s'ha:690 sé:690 tenim:690
+ens hem	=8 divertit:2500 vist:2500
+ens va	=14 dir:2143 passar:1429
+era jove	=9 la:2222
+era un	=16 home:1250 xiquet:886
+es diu	=27 que:1852 aquesta:741
+es fa	=11 per:1818
+es pot	=33 canviar:606 fer:606 confiar:371 beure:306
+es troba	=8 al:2500 bé:2500 en:2500
+es va	=133 fer:677 posar:451 casar:301 quedar:301 trencar:301 aturar:226 convertir:226 tallar:226 aixecar:150 anul·lar:150 apuntar:150 deixar:150 dur:150 oferir:150 prometre:150 publicar:150 revelar:150 suïcidar:150 tornar:150 llevar:143 graduar:129 ofegar:91
+escriure un	=9 tuit:5556 llibre:3333
+espero que	=13 no:1538
+estats units	=22 i:909 mai:909 és:909
+està a	=11 punt:1818
+està en	=11 el:1818
+està prohibit	=10 pescar:856 nadar:435
+et puc	=8 portar:2500
+et vaig	=15 dir:4000 deixar:1333 besar:157
+ets el	=8 meu:7500
+ets un	=14 amic:2143
+fa el	=12 monjo:1667 que:1667
+fa mal	=10 el:3000
+fa molt	=12 de:5833 fred:1667
+fa tres	=8 anys:3750 dies:2500
+fer allò	=12 que:1667
+fer el	=15 favor:2667 que:2667 mal:1333
+fins a	=20 la:3000 dos:1000 les:1000
+fins i	=36 tot:9999
+fins que	=12 ell:1270
+ganes de	=14 dir:2143 ballar:1257
+gent que	=10 es:2000
+gran que	=8 la:3750 tenir:2500
+gràcies per	=10 la:4000 deixar:2000
+ha anat	=13 a:3846 amb:1538
+ha cap	=10 amenaça:2000
+ha de	=18 fer:2222 ser:1667 diferent:1111
+ha escrit	=8 tres:2500
+ha estat	=26 molt:1154 salvat:769 una:769
+ha fet	=11 això:1818 el:1818
+ha moltes	=8 coses:2500
+ha res	=15 més:4667 que:2000
+ha una	=13 llibreria:1538
+has de	=35 fer:2000 deixar:571 venir:571 menjar:551
+has fet	=9 la:2222 mai:2222
+hauria d'haver	=9 dit:2222
+hauria de	=15 ser:4000 fer:1333
+he anat	=8 a:8750
+he de	=38 dir:3158 fer:1053 tornar:789 confessar:526 posar:526
+he fet	=14 a:1429 un:1429
+he perdut	=9 la:6667
+he vist	=10 mai:2000 un:2000
+hem de	=25 fer:1200 respectar:800 seguir:800 comprar:773
+hi ha	=203 res:739 un:640 una:542 cap:443 moltes:394 algú:296 ningú:296 a:246 alguna:246 de:246 gent:246 molts:246 en:197 hagut:197 més:197 al:99 algun:99 anat:99 cinc:99 classes:99 entre:99 estat:99 llet:99 mal:99
+hi havia	=26 una:1923 un:1154 a:769 molta:769
+ho fa	=14 fins:2857 perquè:1429
+ho he	=15 fet:3333 dit:1333
+ho sap	=9 tot:2222
+ho vaig	=11 fer:4545 dir:2727 comprar:1758
+i a	=12 la:2500
+i de	=13 la:2308
+i el	=40 cel:1000 que:1000 cor:500 menyspreu:500 va:500 pronom:48
+i els	=14 que:1429 seus:1429
+i es	=9 va:7778
+i jo	=12 tenim:1667
+i la	=70 Maria:1571 meva:795 seva:429 teva:429 pròpia:286 ceba:237 Mary:178
+i no	=20 hi:1000 sé:1000 és:1000
+i tot	=38 els:1579 en:1316 el:789 escriure:526 estant:526 quan:526 si:526 un:526
+i va	=16 començar:1250 passar:1250
+ja ha	=17 passat:1765 començat:1176 perdut:1176
+ja no	=30 és:1667 puc:919 em:667 hi:667 té:667
+jo no	=22 sóc:1364 ho:909 puc:752
+jo sóc	=17 qui:1765 de:1176 el:1176 més:1176
+jugar a	=10 tennis:1739
+la botiga	=10 tanca:2000
+la casa	=14 que:2143
+la ciutat	=26 ara:769 és:769
+la dona	=13 més:1538 per:1538
+la festa	=11 de:1818
+la gent	=49 gran:1224 no:816 que:816 sempre:816 està:612 bona:408 corrent:408 de:408 li:408 se'n:408
+la guerra	=21 és:952
+la història	=15 i:1333 que:1333
+la intel·ligència	=9 artificial:5589
+la literatura	=10 en:2000
+la llengua	=24 en:1250 llatina:833 portuguesa:833
+la llibertat	=8 d'expressió:2500
+la llum	=14 de:2857 del:2143
+la majoria	=12 de:5000 dels:4167
+la mare	=17 va:1765 de:1176
+la maria	=41 van:976 va:732 el:488 per:488 portava:488 s'estimen:488 sempre:488
+la mateixa	=24 edat:1250 planta:833 errada:823
+la meva	=188 mare:1223 vida:798 germana:633 filla:532 àvia:266 família:213 feina:213 habitació:213 cartera:183 amiga:160 bicicleta:160 casa:160 llengua:160 mà:160 néta:160 estimada:133 agenda:106 classe:106 dona:106 professora:106 resposta:106 terra:106 tia:106 vista:106
+la millor	=9 manera:3333
+la mort	=17 és:1765 de:1176 del:1176
+la mà	=15 abans:1333
+la més	=11 gran:1818 bella:1309
+la música	=19 i:1579 clàssica:1053 més:1053 no:1053
+la nit	=30 i:667
+la noia	=12 va:1667
+la nostra	=42 casa:714 corresponent:714 amiga:476 classe:476 escola:476 mestra:476 època:476 germana:405
+la paraula	=15 més:1333 per:1333
+la pau	=8 és:2500
+la pel·lícula	=10 va:2000
+la pena	=33 intentar:909 considerar:606 estudiar:606 fer:606 recordar:606 veure:606 visitar:606
+la persona	=9 més:5556
+la platja	=10 amb:2000 avui:2000
+la pluja	=15 àcida:454
+la porta	=29 de:690 oberta:690
+la primera	=9 part:2222
+la qual	=14 és:2143
+la que	=8 es:2500 va:2500
+la raó	=9 per:4444
+la reunió	=11 d'avui:2727 anual:1818
+la setmana	=19 passada:4737 que:2105 tanca:1053
+la seva	=181 vida:608 mare:552 dona:442 casa:276 opinió:276 pròpia:276 família:221 germana:188 adreça:166 càmera:166 feina:166 habitació:166 promesa:166 cambra:110 consciència:110 cultura:110 decisió:110 experiència:110 habilitat:110 independència:110 innocència:110 llengua:110 mort:110 nova:110
+la situació	=12 és:2500 de:1667
+la terra	=16 és:1250
+la teua	=13 opinió:2308 bossa:1538 mare:1538
+la teva	=86 cara:465 mare:465 germana:395 feina:349 mirada:349 opinió:349 adreça:233 ajuda:233 camisa:233 carta:233 veu:233 faldilla:31
+la va	=9 fer:2222
+la vaig	=9 veure:3333 conèixer:2222 trobar:2222
+la veritat	=30 a:667 sempre:667
+la vida	=53 és:2453 no:943 de:566 a:377 i:377 per:377
+la vostra	=14 resposta:1429
+les claus	=10 del:7000
+les coses	=17 no:1176 que:1176
+les dones	=12 m'agrada:1667
+les flors	=10 es:2000
+les frases	=9 que:6667
+les llengües	=12 no:1667 que:1667
+les meves	=26 coses:769 orelles:769 ulleres:645 frases:238
+les seves	=34 traduccions:737 cames:588 cries:588 promeses:588 pròpies:588 respostes:588 frases:182
+les sis	=10 en:2000
+les tortugues	=8 són:2500
+les vacances	=8 d'estiu:5000
+li agrada	=29 la:2069 el:1724 molt:1379 llegir:690 veure:690
+li agraden	=14 les:5714 els:2143 molt:1429
+li ha	=11 passat:1818
+li va	=32 dir:625 donar:625 ocórrer:625 passar:625 aconsellar:599
+li vaig	=23 dir:3478 fer:1304 demanar:870 comprar:841
+llibre és	=8 teu:2500
+m'agrada el	=12 vi:1667
+mai més	=12 tornaria:1667 va:1667
+mai no	=29 he:1724 ha:690 hi:690 ho:690 tindré:465
+mare li	=8 agrada:2500 agrade:617
+meu amic	=10 no:2000
+meu germà	=18 gran:1667 té:1111 és:1111
+meu pare	=21 va:1905 és:1429 no:952
+meus pares	=11 són:3636
+meva filla	=10 dormen:1152
+meva germana	=14 es:1429 és:1429
+meva mare	=23 li:1739 va:1304 em:870
+mica de	=15 llet:2000 por:1333
+millor que	=19 la:1579 tots:1579 li:1053 no:1053
+molt bé	=10 el:2000
+molt de	=24 temps:5833 fred:1250 greu:833 mal:833
+mon pare	=13 va:2308 és:2308
+més alt	=10 que:4000 del:3000
+més de	=20 tres:1500 deu:1000
+més fàcil	=9 traduir:786
+més gran	=24 que:3333 de:1250 del:1250 el:833 és:833
+més important	=9 de:2222 en:2222
+més que	=28 jo:1429 un:1429 una:714
+n'hi ha	=8 prou:3750 una:2500
+ningú no	=20 pot:1500 ho:1000 li:1000 sap:1000 sabia:848
+no cal	=10 que:5000
+no crec	=11 que:7273 en:1818
+no el	=11 puc:1002
+no em	=51 va:784 puc:324 deixis:315
+no ens	=14 hem:2143 podem:2143
+no era	=13 conscient:1538
+no es	=51 pot:2157 va:1176 pensava:588 creu:392 veia:392
+no et	=30 puc:367 preocupis:314
+no fa	=15 res:2000 el:1333 fred:1333
+no ha	=25 de:800 estat:800 parat:800
+no has	=9 de:5556
+no he	=27 pogut:1481 d'oblidar:741 experimentat:741 treballat:741 trobat:741 vist:741
+no hi	=79 ha:6456 era:380 havia:380 fa:253 hauria:253 aniré:225
+no ho	=47 sé:851 fa:638 sap:638 havia:426 he:426 sabies:396 facis:294 puc:235
+no li	=33 agrada:2424 ho:909 va:909 agraden:851 interessa:606
+no m'agrada	=18 aquest:1667 que:1667 gaire:1111 usar:1111
+no podem	=11 anar:1818 córrer:1818
+no pot	=28 ser:1429 volar:1071 dir:714 parlar:714
+no pots	=14 anar:1429 dir:1429 venir:1429
+no puc	=79 fer:1013 dir:506 parar:380 ajudar:253 creure:253 entendre:253 esperar:253 estar:253 estudiar:253 oblidar:253 parlar:253 sentir:253 suportar:253 confiar:233
+no s'ha	=11 de:3636
+no sabia	=19 que:6316 res:1579 què:1053
+no sap	=20 res:1500 el:1000 la:1000 on:1000 què:1000 nedar:225
+no soc	=12 gai:2164 homosexual:1667
+no sé	=49 si:2245 què:1837 per:1020 on:816 quan:612 però:408 res:408
+no sóc	=11 el:2727 d'aquest:1818
+no tenim	=15 cap:1333 un:1333 una:1333
+no tinc	=48 temps:2083 cap:1875 ganes:625 res:625 diners:417 la:417 tants:417
+no té	=41 res:976 germanes:732 una:732 cap:488 sentit:488
+no va	=40 dir:1250 poder:1250 a:750 dur:500 ser:500 venir:500
+no vaig	=35 poder:1714 anar:1143 fer:857 voler:857 pagar:571 ser:571
+no vull	=33 tornar:1212 anar:909 sentir:909 que:606 seure:606
+no és	=127 un:945 tan:709 fàcil:551 el:472 més:472 una:472 feliç:315 la:315 a:236 aquí:236 bo:236 res:236 bona:157 cert:157 estrany:157 gaire:157 pas:157 tant:157
+nova york	=8 per:2500
+on és	=29 el:4138 la:3448
+pare va	=8 morir:5000
+pare és	=10 a:2000 un:2000
+parlar amb	=16 la:1875 ell:953 ella:481
+part de	=11 la:7273
+pel que	=10 fa:2000 no:2000
+pel seu	=9 aniversari:3333
+pensava que	=10 havia:2000 la:2000
+penso que	=8 en:2500
+per a	=137 mi:1606 la:1095 tu:292 en:219 les:219 nosaltres:219 protegir:219 que:219 què:219 aquesta:146 demà:146 fer:146 l'estudi:146 l'home:146 totes:146 tots:146 treballar:146 un:146 unir:146 dormir:137 ella:56
+per al	=19 seu:3684 futur:1053
+per fer	=17 allò:1765
+per la	=64 seva:2188 teva:938 porta:625 qual:469 pluja:312 salut:312 serp:281
+per les	=10 meves:1860
+per no	=8 molestar:2500
+per què	=98 no:3061 està:816 estàs:510 va:510 els:408 vas:224 això:204 fas:204 has:204 jo:204 la:204 sempre:204 és:204
+per tot	=8 el:3750 arreu:2500
+per tu	=11 ell:924
+per un	=13 mes:1538
+per una	=10 raó:2000
+perdre el	=8 seu:2500 tren:2500
+perdre la	=11 consciència:1818 seva:1818
+però el	=9 meu:3333 seu:3333
+però la	=12 seva:1667 meva:1546
+però no	=29 hi:1034 és:1034 ho:690 li:690 pot:690 va:690 puc:380
+pot ser	=11 més:1818 senyal:1818 un:1818
+primer cop	=12 que:3333
+prop de	=8 la:5000
+punt de	=9 vista:3333
+quan el	=9 veig:3333
+quan era	=15 jove:4000 petit:1333 un:1333
+quan va	=10 arribar:2000 néixer:2000 ser:2000
+quant de	=12 temps:9999
+quarts de	=15 tres:2667 set:1333 vuit:1333
+que això	=13 és:3846 no:2308
+que diu	=11 el:2727 ell:924
+que el	=65 seu:923 meu:615 món:462 que:462 castellà:308 golf:308 senyor:308 somriure:308 temps:308 vaig:308 Tom:29
+que ell	=30 és:1667 estava:1000 era:667 mai:667
+que ella	=25 va:1600 es:800 no:800 volia:800
+que els	=41 seus:976 ajudi:488 coneix:488 meus:488 nostres:488 teus:488
+que em	=35 va:2857 vaig:1143 van:857 fa:571 vas:471
+que en	=32 Jack:625 són:625 Tom:142
+que ens	=9 vàrem:2222
+que es	=42 va:1190 pot:952 diu:714 troba:476 van:476 veu:476
+que està	=10 fent:2000 passant:2000
+que et	=19 vaig:3158 digui:1053 preocupa:1053
+que fa	=11 a:1818 calor:1818
+que ha	=19 fet:2105 passat:1579 estat:1053
+que has	=13 de:3077 estat:1538
+que he	=14 conegut:1429
+que hi	=24 ha:4583 havia:1250 va:833
+que ho	=16 faci:1250 saben:1250
+que ja	=13 no:2308 ha:1538
+que la	=65 seva:769 meva:571 gent:462 Maria:462 teva:462 ciència:308 intel·ligència:308 lluna:308 vaig:308 Mary:105
+que les	=16 persones:1250
+que li	=18 he:1111
+que mai	=11 no:3636 més:1818
+que ningú	=9 em:2222
+que no	=132 es:455 ho:455 em:303 va:303 és:303 el:227 han:227 hi:227 li:227 podem:227 podia:227 vaig:227 volia:227 puc:167 ens:152 escric:152 et:152 funciona:152 he:152 la:152 parla:152 té:152 veuen:152
+que sigui	=11 un:1818
+que tenia	=11 plans:2727 un:1818
+que té	=11 el:2727
+que va	=37 dir:1081 fer:1081 escriure:541 passar:541 poder:541 ser:541
+que vaig	=29 veure:1724 escriure:1034
+que vas	=9 fer:2222 veure:2222
+que és	=43 un:1163 millor:698 més:698 algú:465 el:465
+qui va	=13 escriure:2308 enviar:1538 inventar:1538
+qui és	=20 aquesta:2000 el:1000
+quin és	=21 el:8095
+quina hora	=11 és:2727 vas:998
+quina és	=18 la:8333
+què està	=15 prohibit:4000 passant:2000
+què has	=8 fet:3750
+què hi	=13 ha:6923 havia:1538
+què li	=8 ha:2500 passa:2500
+què no	=32 m'ho:1250 em:625 ens:625 estàs:625 podem:625 pots:625 t'agrada:625
+què va	=11 passar:2727
+què vas	=13 fer:3846
+què és	=14 això:1429
+res a	=11 veure:3636 dir:1818 fer:1818
+res de	=10 la:2000 nou:2000 tot:2000 tu:2000
+res del	=9 que:4444 teu:2222
+res més	=18 que:2778 útil:1111
+res no	=11 et:1818 és:1818
+s'ha acabat	=8 el:2500
+sabia que	=23 estava:2174 en:870 tenia:870 havies:268
+sap greu	=18 haver:1667 no:1667 però:1667
+se li	=9 va:4444 ha:2222
+se'n va	=13 anar:3846 a:1538
+segur que	=9 sí:2222
+sembla que	=21 en:952 la:952 va:952
+sempre em	=10 deia:2000
+ser la	=8 primera:2500
+ser un	=15 gran:1333
+seu fill	=9 John:2222
+seu germà	=8 no:2500 és:2500
+seva dona	=8 és:2500
+seva mare	=10 que:2000
+seva vida	=11 privada:1818
+si no	=33 hagués:1818 vols:1818 fos:1212 el:606 és:606
+si us	=48 plau:8775
+si vols	=9 estudiar:2222
+si és	=8 la:2500
+sobre el	=23 meu:1304 futur:870 terrat:870 teu:870
+sobre la	=13 taula:1538
+sé que	=18 el:2222 en:1667 no:1667 la:1111
+sé què	=12 hi:2500 fer:1667
+sé si	=11 és:1818
+sóc un	=11 noi:1818
+són dos	=9 quarts:8217
+són els	=16 meus:3125 nostres:1250
+són les	=15 vuit:1333 meves:1240
+són molt	=10 interessants:2000
+tan sols	=10 vull:1587
+tant de	=19 bo:4211 temps:1579 fred:1053
+tant en	=13 tant:7692
+temps per	=8 a:2500
+temps que	=9 no:2222
+tenir un	=8 fill:2500 somni:2500
+tinc temps	=11 per:5455
+tinc un	=25 amic:2400 cotxe:1112 gos:420
+tornar a	=22 casa:2727 la:1364 veure:909
+tot el	=53 que:3585 dia:1887 món:1132 cos:377 nostre:377 temps:377 día:166
+tota la	=20 seva:2500 nit:2000 ciutat:1000 tarda:1000 meva:928
+totes les	=34 seves:1471 coses:588 llengües:588 maneres:588 pomes:123
+tots dos	=9 són:2222
+tots els	=44 dies:909 meus:909 diners:682 homes:682 idiomes:455 jueus:455 mesos:455 éssers:455
+tres anys	=8 més:3750 i:2500
+tres dies	=8 que:2500
+tu ets	=11 el:2727
+té el	=10 cabell:2000 seu:2000
+té la	=8 seva:2500
+té un	=39 gust:1026 clima:513 munt:513 gos:449 podcast:246
+un altre	=18 cop:2222
+un amic	=17 que:2941 meu:2353
+un any	=9 té:2222
+un bon	=23 amic:870 diccionari:468
+un cop	=14 al:1429 d'estat:1429 de:1429
+un cotxe	=22 nou:909 que:909 vermell:909
+un dels	=18 meus:2222 millors:1111
+un dia	=19 que:1053
+un diccionari	=9 mentre:4444
+un gat	=9 blanc:2222
+un gos	=22 negre:909
+un got	=8 d'aigua:7500 de:2500
+un home	=19 vell:1579 que:1053 valent:1053
+un llibre	=22 nou:1364 de:909
+un nen	=10 petit:3000 que:2000
+un nou	=12 assistent:1667
+un poc	=13 de:1538 més:1538
+un problema	=8 seriós:2500
+un taxi	=8 per:2500
+una altra	=18 persona:2222 vegada:2222
+una bona	=21 idea:1429
+una carta	=16 de:2500 als:1250
+una cosa	=26 que:1538 així:769 més:769
+una de	=11 les:9999
+una dona	=17 alta:1176 de:1176 que:1176 bisexual:19
+una gran	=16 quantitat:1250
+una hora	=12 al:2500
+una llengua	=29 estrangera:1379 més:1379 que:1379 difícil:690
+una mica	=36 de:4167 més:1111 massa:556
+una persona	=16 no:1250
+una setmana	=9 que:2222
+una vegada	=9 a:2222
+us plau	=48 no:1042 deixa:417 tanca:417
+va a	=17 l'escola:1765 la:1176 nedar:265
+va anar	=20 a:2000 de:2000 al:1000
+va arribar	=21 a:3333 tard:1429
+va començar	=17 a:8824
+va deixar	=15 de:2000 el:1333
+va dir	=57 que:4912 a:702 en:526 on:351 res:351
+va escriure	=10 aquesta:2000 la:2000
+va fer	=44 una:1136 el:682 de:455 en:455 mal:455 molt:455 plorar:455 res:455 un:455
+va haver	=10 de:4000
+va morir	=22 abans:1818 de:1818 en:1364 fa:1364
+va passar	=22 allò:909
+va perdre	=19 el:2632 la:2632 les:1579
+va poder	=8 venir:2500
+va posar	=10 a:2000 una:2000
+va ser	=77 una:1299 un:1039 el:519 la:519 capaç:260 destruïda:260 escrit:260 cancel·lat:91
+va tenir	=11 un:3636 lloc:2727
+va tornar	=14 a:3571
+va veure	=9 el:2222 que:2222 un:2222 una:2222
+vaig a	=16 l'escola:1875 dir:1250 la:1250
+vaig anar	=20 a:5000 al:3000 de:1000
+vaig començar	=9 a:7778 un:2222
+vaig comprar	=14 un:2143
+vaig dir	=22 que:6364 exactament:1364
+vaig fer	=16 moltes:1250 perquè:1250 un:1250
+vaig néixer	=8 un:2500
+vaig sentir	=10 que:2000
+vaig ser	=9 mai:2222
+vaig veure	=24 fa:833 la:833 una:833
+val la	=23 pena:9999
+val més	=8 que:3750 ser:3750
+vas fer	=9 mentre:2222
+vegada que	=8 vaig:2500 vas:1373
+venir a	=14 la:3571
+veure el	=16 seu:1250 malalt:602
+veure la	=17 pel·lícula:2353 tele:1176 televisió:1176 teva:1176
+veure que	=9 és:3333 estava:2222 no:2222
+vida és	=16 una:1875 curta:1250 dura:1250 un:1250
+viu a	=10 Osaka:1223
+vols que	=8 et:2500
+vull anar	=13 a:6923
+vull que	=11 em:1818 sigui:1818
+és a	=29 la:1724 casa:1379 dir:1379 l'altra:690
+és bo	=11 per:3636 que:1818
+és com	=15 la:2000 una:2000 ho:1333 va:1333
+és de	=11 fet:1818
+és difícil	=13 de:1538
+és el	=132 meu:1364 teu:1212 que:758 seu:530 més:379 millor:303 primer:303 dia:227 problema:227 darrer:152 fill:152 noi:152
+és en	=8 Tom:67
+és fàcil	=17 per:1176
+és important	=8 per:5000
+és la	=137 meva:745 seva:657 teva:657 més:438 llengua:365 millor:365 nostra:365 persona:292 capital:219 paraula:219 raó:219 causa:146 humanitat:146 llibertat:146 noia:146 primera:146 sortida:146 veritat:146 vida:146 vostra:146 germana:124
+és massa	=22 car:2273 curta:2273 difícil:909 tard:909
+és millor	=12 que:4167
+és molt	=73 difícil:822 important:685 popular:548 bonica:411 fort:411 fàcil:411 més:411 divertit:274 famós:274 gran:274 honest:274 intel·ligent:226 bó:201
+és més	=43 fàcil:1395 que:1163 gran:698 car:465 important:465
+és per	=10 a:2000 la:2000
+és possible	=9 que:2222
+és que	=9 no:2222
+és tan	=30 difícil:1000 intel·ligent:827 vell:667
+és un	=209 dels:526 bon:431 país:431 home:287 problema:287 dia:191 noi:191 plaer:191 heroi:144 quart:144 tema:144 amic:96 esport:96 fenomen:96 futbolista:96 llibre:96 lloc:96 miracle:96 número:96 paradís:96 peix:96 poc:96 ganivet:49 préssec:40
+és una	=127 llengua:1181 bona:394 cosa:394 persona:394 de:315 dona:315 escola:236 mica:236 amiga:157 ciutat:157 gran:157 guerra:157 mala:157 nació:157 noia:157 professora:157 qüestió:157 virtut:157

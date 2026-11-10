@@ -418,7 +418,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     /**
      * Next-word prediction's part in the completions of [lower]: each word that is likely next here and begins with
      * it joins [top] ranked by its frequency (or the person's own use of it, if that says more) plus the lift the
-     * context gives it, at most [CONTEXT_LIFT]; so do the person's own often-typed words that begin with it. A word
+     * context gives it, at most [Scorer.LIFT_CAP]; so do the person's own often-typed words that begin with it. A word
      * may then be in [top] twice: [suggest] takes the higher-ranked one, with its capitals where it has them (Monday).
      */
     private fun inContext(now: Now, lower: String, scorer: Scorer, top: ArrayList<Pair<String, Float>>) {
@@ -427,7 +427,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         for (f in scorer.following(lower) { script.plain(it) }) {
             val zipf = words[f.lower] ?: 0f
             val base = maxOf(zipf, scorer.personalZipf(f.lower, zipf > 0f || isWord(f.lower)))
-            if (base > 0f) top += f.shown to base + minOf(scorer.boost(f.lower, base), CONTEXT_LIFT)
+            if (base > 0f) top += f.shown to base + minOf(scorer.boost(f.lower, base), Scorer.LIFT_CAP)
         }
         for (p in scorer.personal(lower)) top += p.shown to p.share
     }
@@ -860,8 +860,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         private const val SCAN_KEEP = 8
         private const val COST_WEIGHT = 1.6f
         private const val MIN_SCORE = 0.8f
-        /** The most the word before may lift a completion's rank, and a correction's score, in Zipf units. */
-        private const val CONTEXT_LIFT = 4.0f
+        /** The most the words before may lift a correction's score, in Zipf units (a completion's: Scorer.LIFT_CAP). */
         private const val CONTEXT_PICK = 1.5f
         /** [slip]'s bar: a fix this likely, and this far ahead of the next word it could have been. */
         private const val SLIP_SCORE = 2.4f

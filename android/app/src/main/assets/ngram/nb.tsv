@@ -1,5 +1,5 @@
 #ghost-ngram	1	nb	Tatoeba export 2026-11-07, CC BY 2.0 FR
-^	jeg:2032 det:633 han:524 du:402 hun:387 vi:304 hva:198 de:171 er:155 hvor:150 dette:122 ikke:109 har:100 hvorfor:97 i:96 kan:95 når:81 hvem:76 den:69 en:67 la:67 denne:64 hvordan:56 alle:50 hvis:47 ingen:45 min:36 for:30 så:30 dere:30 Tom:29 nå:29 men:26 noen:26 på:25 vil:25 da:24 vet:24 å:22 vær:21 alt:21 mange:21 gi:19 ja:19 faren:18 skal:18 kom:17 ta:17
+^	jeg:2032 det:633 han:524 du:402 hun:387 vi:304 hva:198 de:171 er:155 hvor:150 dette:122 ikke:109 har:100 hvorfor:97 i:96 kan:95 når:81 hvem:76 den:69 en:67 la:67 denne:64 hvordan:56 alle:50 hvis:47 ingen:45 min:36 for:30 så:30 dere:30 Tom:29 nå:29 men:26 noen:26 på:25 vil:25 da:24 vet:24 å:22 vær:21 alt:21 mange:21 gi:19 ja:19 faren:18 skal:18 kom:17 ta:17 etter:16 her:16 hvilken:16 og:16 disse:16 folk:15 man:15 nei:15 Maria:15 gjør:15 takk:14 et:13 god:13 liker:13 livet:13 se:13
 a	til:3000
 absolutt	ingenting:5625 mulig:1250
 adressen	hennes:4000
@@ -53,7 +53,7 @@ artikkelen	inneholder:2500
 at	jeg:1670 du:1298 han:1129 det:824 vi:497 hun:474 de:384 dette:203 den:90 en:90 ingen:90 man:90 alle:79 noe:68 folk:56 denne:45 dere:45 Tom:42 min:34 været:30 alt:23 andre:23 et:23 hennes:23 i:23 internett:23 kvinner:23 leserne:23 mannen:23 når:23 tid:23 vann:23 verden:23 Mary:16 Maria:8
 atten	år:5000
 australia	med:500
-av	en:482 deg:307 meg:277 de:246 det:236 å:164 dem:143 den:143 oss:143 et:133 at:123 seg:113 denne:102 disse:92 dere:82 huset:82 alle:72 dette:72 guttene:72 ham:72 og:72 henne:61 livet:61 elevene:51 kreft:51 livets:51 noe:51 sin:51 sitt:51 tre:51 byen:41 hans:41 mennesker:41 mine:41 været:37 alt:31 bussen:31 for:31 gaten:31 lyset:31 penger:31 sine:31 smerte:31 spørsmålene:31 vann:31 våre:31 vinduet:28 buret:20
+av	en:482 deg:307 meg:277 de:246 det:236 å:164 dem:143 den:143 oss:143 et:133 at:123 seg:113 denne:102 disse:92 dere:82 huset:82 alle:72 dette:72 guttene:72 ham:72 og:72 henne:61 livet:61 elevene:51 kreft:51 livets:51 noe:51 sin:51 sitt:51 tre:51 byen:41 hans:41 mennesker:41 mine:41 været:37 alt:31 bussen:31 for:31 gaten:31 lyset:31 penger:31 sine:31 smerte:31 spørsmålene:31 vann:31 våre:31 vinduet:28 buret:20 deres:20 din:20 dørene:20 entusiasme:20 familien:20 faren:20 fengsel:20 flere:20 frykt:20 få:20 gårde:20 han:20 hemmeligheter:20 hodet:20 hva:20 hver:20
 avhenger	av:9999
 avhengig	av:9999
 avisen	er:2222
@@ -217,8 +217,8 @@ datamaskinen	min:4545
 datter	har:2308 døde:1538
 dattera	di:6667
 datteren	min:3750 sin:3750 din:2500
-de	er:609 har:550 fleste:461 ikke:267 andre:253 var:238 hadde:163 vil:163 siste:149 to:149 gjorde:134 som:134 kan:119 må:119 fant:89 sier:89 tre:89 trenger:89 vet:89 bor:74 eneste:74 kommer:74 samme:74 snakker:74 så:74 viktigste:74 visste:74 fikk:59 i:59 kunne:59 sa:59 skal:59 spiser:59 ble:45 bøkene:45 en:45 fattige:45 får:45 gamle:45 giftet:45 gode:45 kom:45 lager:45 mest:45 neste:45 nye:45 på:45 syv:45
-deg	ikke:370 en:301 for:247 om:233 i:219 selv:219 til:178 å:137 og:123 noe:110 på:110 litt:96 med:96 som:96 at:82 igjen:82 så:82 det:68 hva:68 ned:68 vekk:68 ellers:55 hvis:55 når:55 stemme:55 ut:55 uten:55 er:41 her:41 hjem:41 inn:41 men:41 mer:41 mye:41 uansett:41 veldig:41 aldri:27 alene:27 bra:27 eller:27 fra:27 før:27 gjerne:27 har:27 jeg:27 noen:27 opp:27 over:27
+de	er:609 har:550 fleste:461 ikke:267 andre:253 var:238 hadde:163 vil:163 siste:149 to:149 gjorde:134 som:134 kan:119 må:119 fant:89 sier:89 tre:89 trenger:89 vet:89 bor:74 eneste:74 kommer:74 samme:74 snakker:74 så:74 viktigste:74 visste:74 fikk:59 i:59 kunne:59 sa:59 skal:59 spiser:59 ble:45 bøkene:45 en:45 fattige:45 får:45 gamle:45 giftet:45 gode:45 kom:45 lager:45 mest:45 neste:45 nye:45 på:45 syv:45 alle:30 bare:30 bodde:30 bryr:30 diskuterte:30 dro:30 dumme:30 elsker:30 fem:30 flyttet:30 forente:30 forstår:30 få:30 første:30 gav:30 gikk:30
+deg	ikke:370 en:301 for:247 om:233 i:219 selv:219 til:178 å:137 og:123 noe:110 på:110 litt:96 med:96 som:96 at:82 igjen:82 så:82 det:68 hva:68 ned:68 vekk:68 ellers:55 hvis:55 når:55 stemme:55 ut:55 uten:55 er:41 her:41 hjem:41 inn:41 men:41 mer:41 mye:41 uansett:41 veldig:41 aldri:27 alene:27 bra:27 eller:27 fra:27 før:27 gjerne:27 har:27 jeg:27 noen:27 opp:27 over:27 sannheten:27 senere:27 slik:27 tilbake:27 var:27 veien:27 vill:27 våken:27 skoene:27 sokkene:6
 dekket	av:7000 med:2000
 dekorerte	rommet:9999
 del	av:5000 i:1111
@@ -226,16 +226,16 @@ delen	av:6667
 delta	i:5000
 deltatt	i:9999
 dem	som:610 i:305 ikke:244 til:244 en:183 for:183 når:183 igjen:122 nå:122 være:122
-den	er:324 eneste:307 nye:291 som:291 andre:259 beste:227 samme:146 første:129 mest:129 største:129 gamle:113 ikke:113 lille:113 siste:113 butikken:97 ene:97 europeiske:97 bilen:81 der:81 fyren:81 måten:81 tiden:81 boken:73 filmen:65 her:65 jenta:65 mannen:65 blå:49 boka:49 eldste:49 evige:49 for:49 gode:49 høyeste:49 i:49 med:49 menneskelige:49 minste:49 natten:49 nest:49 personen:49 rette:49 store:49 tredje:49 tyske:49 var:49 yngste:49 amerikanske:32
-denne	boken:867 byen:356 setningen:260 filmen:247 boka:192 artikkelen:164 maskinen:137 måten:137 saken:137 tiden:137 romanen:131 typen:110 medisinen:101 bilen:82 butikken:82 dagen:82 er:82 måneden:82 sangen:82 uken:82 gaven:81 hatten:72 elven:68 stolen:55 delen:55 elva:55 gamle:55 gangen:55 gitaren:55 heisen:55 jenta:55 klokken:55 kvinnen:55 listen:55 med:55 musikken:55 oppgaven:55 programvaren:55 regelen:55 stien:55 t:55 teksten:55 vanskelige:55 verden:55 sykkelen:48 skuffelsen:43 blomsten:30 genseren:25
+den	er:324 eneste:307 nye:291 som:291 andre:259 beste:227 samme:146 første:129 mest:129 største:129 gamle:113 ikke:113 lille:113 siste:113 butikken:97 ene:97 europeiske:97 bilen:81 der:81 fyren:81 måten:81 tiden:81 boken:73 filmen:65 her:65 jenta:65 mannen:65 blå:49 boka:49 eldste:49 evige:49 for:49 gode:49 høyeste:49 i:49 med:49 menneskelige:49 minste:49 natten:49 nest:49 personen:49 rette:49 store:49 tredje:49 tyske:49 var:49 yngste:49 amerikanske:32 brune:32 fjerde:32 gutten:32 historien:32 hvite:32 informasjonen:32 italienske:32 kjolen:32 korteste:32 lange:32 lengste:32 neste:32 nåværende:32 polske:32 på:32 riktige:32
+denne	boken:867 byen:356 setningen:260 filmen:247 boka:192 artikkelen:164 maskinen:137 måten:137 saken:137 tiden:137 romanen:131 typen:110 medisinen:101 bilen:82 butikken:82 dagen:82 er:82 måneden:82 sangen:82 uken:82 gaven:81 hatten:72 elven:68 stolen:55 delen:55 elva:55 gamle:55 gangen:55 gitaren:55 heisen:55 jenta:55 klokken:55 kvinnen:55 listen:55 med:55 musikken:55 oppgaven:55 programvaren:55 regelen:55 stien:55 t:55 teksten:55 vanskelige:55 verden:55 sykkelen:48 skuffelsen:43 blomsten:30 genseren:25 skjorten:20 katten:17 dressen:16 vaskemaskinen:15 pennen:15 ordboken:9
 der	er:974 borte:519 i:455 før:390 det:195 inne:195 var:195 alene:130 bortsett:130 du:130 finner:130 for:130 har:130 hvor:130 men:130 må:130 nå:130 og:130 Tom:6
 dere	er:700 ikke:617 alle:288 må:288 burde:206 en:206 har:206 til:206 som:165 dem:123 i:123 om:123 på:123 skulle:123 var:123 vil:123 allerede:82 at:82 begge:82 bør:82 det:82 egentlig:82 et:82 funnet:82 gjorde:82 kommer:82 ned:82 når:82 trenger:82 uten:82
 deres	er:1000
 dermed	ikke:4000
 dersom	du:2500
 dessverre	kan:4194 er:968 ikke:968 jeg:645
-det	er:2412 var:683 ikke:224 du:144 som:124 hele:110 en:97 har:97 jeg:94 kan:94 kommer:94 til:94 i:84 blir:70 gjør:70 ser:70 går:67 siste:67 vil:67 på:64 noe:60 samme:60 bra:54 finnes:54 å:54 for:50 med:50 et:47 skjedde:47 ville:47 noen:43 hadde:40 skal:40 verste:40 beste:37 ble:37 der:37 første:33 greit:33 han:33 igjen:33 ingen:33 må:33 vi:33 eneste:30 høres:30 meste:30 regner:30
-dette	er:3038 var:208 landet:170 prosjektet:170 ikke:151 fenomenet:132 problemet:132 stedet:113 bare:94 huset:94 med:94 din:75 for:75 området:75 vil:75 betyr:57 hotellet:57 igjen:57 kameraet:57 må:57 ordet:57 rommet:57 skulle:57 spørsmålet:57 til:57 brevet:56 albumet:38 argumentet:38 blir:38 diktet:38 emnet:38 en:38 et:38 firmaet:38 før:38 først:38 har:38 her:38 i:38 jeg:38 kan:38 klarer:38 kommer:38 mer:38 sammen:38 spillet:38 språket:38 valget:38
+det	er:2412 var:683 ikke:224 du:144 som:124 hele:110 en:97 har:97 jeg:94 kan:94 kommer:94 til:94 i:84 blir:70 gjør:70 ser:70 går:67 siste:67 vil:67 på:64 noe:60 samme:60 bra:54 finnes:54 å:54 for:50 med:50 et:47 skjedde:47 ville:47 noen:43 hadde:40 skal:40 verste:40 beste:37 ble:37 der:37 første:33 greit:33 han:33 igjen:33 ingen:33 må:33 vi:33 eneste:30 høres:30 meste:30 regner:30 regnet:30 virker:30 mulig:27 sant:27 være:27 fra:23 huset:23 lille:23 mange:23 skjer:23 tok:23 bare:20 dreier:20 ene:20 gjelder:20 nødvendig:20
+dette	er:3038 var:208 landet:170 prosjektet:170 ikke:151 fenomenet:132 problemet:132 stedet:113 bare:94 huset:94 med:94 din:75 for:75 området:75 vil:75 betyr:57 hotellet:57 igjen:57 kameraet:57 må:57 ordet:57 rommet:57 skulle:57 spørsmålet:57 til:57 brevet:56 albumet:38 argumentet:38 blir:38 diktet:38 emnet:38 en:38 et:38 firmaet:38 før:38 først:38 har:38 her:38 i:38 jeg:38 kan:38 klarer:38 kommer:38 mer:38 sammen:38 spillet:38 språket:38 valget:38 året:38 toget:37 bråket:24 skrivebordet:13
 di	er:1333
 din	er:683 hjelp:324 mor:216 har:144 kone:144 venn:144 nye:108 var:108 alder:72 anbefaling:72 ankomst:72 del:72 egen:72 favoritt:72 her:72 i:72 idiot:72 konstant:72 kunnskap:72 med:72 mening:72 måte:72 til:72 ætt:49
 dine	er:449 da:225 i:225 ikke:225 prinsipper:225 på:225 som:225
@@ -261,7 +261,7 @@ drog	til:6250
 dronningen	spurte:5000
 drøm	og:1250
 drømmer	er:1818 og:1818 om:1818
-du	er:794 ikke:582 kan:452 har:433 må:380 vil:224 bør:156 en:133 trenger:133 skal:114 til:114 ha:110 burde:103 klar:103 at:99 om:99 noen:95 vet:95 ser:91 skulle:91 kommer:87 på:87 gjør:72 i:72 det:68 snakker:65 hva:61 får:57 kunne:57 med:57 meg:57 å:57 gjøre:53 gjorde:49 sier:49 tror:49 var:49 virkelig:49 går:46 snill:46 et:42 blir:38 deg:38 hadde:38 liker:38 og:38 sikker:38 så:38
+du	er:794 ikke:582 kan:452 har:433 må:380 vil:224 bør:156 en:133 trenger:133 skal:114 til:114 ha:110 burde:103 klar:103 at:99 om:99 noen:95 vet:95 ser:91 skulle:91 kommer:87 på:87 gjør:72 i:72 det:68 snakker:65 hva:61 får:57 kunne:57 med:57 meg:57 å:57 gjøre:53 gjorde:49 sier:49 tror:49 var:49 virkelig:49 går:46 snill:46 et:42 blir:38 deg:38 hadde:38 liker:38 og:38 sikker:38 så:38 tar:38 vært:38 hvor:34 mener:34 noe:34 ville:34 også:30 sa:30 være:30 den:27 gi:27 gjort:27 hjelpe:27 hvordan:27 lyst:27 snakke:27
 dukke	opp:5000
 dukket	opp:5000
 dum	feil:1176
@@ -300,7 +300,7 @@ elsker	deg:1275 norsk:490 å:490 du:392 henne:392 det:294 ham:294 meg:294 denne:
 elsket	ham:2083 henne:1667 dem:833
 elva	er:4286
 elven	er:1111
-en	gang:252 av:247 stor:210 god:201 ny:191 mann:140 veldig:131 gammel:117 hund:112 bok:103 kvinne:93 time:93 liten:79 dag:75 bil:70 annen:65 katt:65 venn:65 gutt:61 uke:61 jente:56 stund:56 del:51 kniv:51 lang:51 leilighet:51 fin:47 helt:47 person:47 tendens:47 kopp:42 dårlig:37 gave:37 måned:37 setning:37 vakker:37 drøm:33 eller:33 feil:33 hvit:33 idiot:33 måte:33 bedre:28 by:28 flott:28 interessant:28 kan:28 svart:28
+en	gang:252 av:247 stor:210 god:201 ny:191 mann:140 veldig:131 gammel:117 hund:112 bok:103 kvinne:93 time:93 liten:79 dag:75 bil:70 annen:65 katt:65 venn:65 gutt:61 uke:61 jente:56 stund:56 del:51 kniv:51 lang:51 leilighet:51 fin:47 helt:47 person:47 tendens:47 kopp:42 dårlig:37 gave:37 måned:37 setning:37 vakker:37 drøm:33 eller:33 feil:33 hvit:33 idiot:33 måte:33 bedre:28 by:28 flott:28 interessant:28 kan:28 svart:28 så:28 datamaskin:23 fantastisk:23 krone:23 lege:23 linje:23 rik:23 slik:23 sønn:23 søster:23 tjeneste:23 tur:23 ulv:23 vanlig:23 viktig:23 vits:23
 enda	bedre:556 en:556 flere:556 ikke:556 lengre:556
 endelig	har:1000
 ender	opp:6667
@@ -324,10 +324,10 @@ enn	å:854 jeg:488 meg:488 de:407 deg:407 en:366 han:285 alle:203 det:203 du:203
 ennå	ikke:1136 men:455
 ensomhet	er:6667
 epler	enn:1176
-er	en:814 ikke:728 det:638 du:360 et:310 veldig:252 i:172 den:151 så:125 for:114 på:106 dette:67 ganske:58 bare:56 å:56 mange:54 min:54 ingen:52 jeg:50 fra:45 klar:45 fortsatt:43 helt:43 her:43 svært:43 din:41 alltid:39 mye:39 redd:39 vanskelig:39 virkelig:39 alt:37 glad:37 lett:37 litt:37 mer:37 sikker:37 de:34 han:34 nesten:34 viktig:34 at:30 også:30 dere:28 som:28 aldri:26 like:26 stolt:26
+er	en:814 ikke:728 det:638 du:360 et:310 veldig:252 i:172 den:151 så:125 for:114 på:106 dette:67 ganske:58 bare:56 å:56 mange:54 min:54 ingen:52 jeg:50 fra:45 klar:45 fortsatt:43 helt:43 her:43 svært:43 din:41 alltid:39 mye:39 redd:39 vanskelig:39 virkelig:39 alt:37 glad:37 lett:37 litt:37 mer:37 sikker:37 de:34 han:34 nesten:34 viktig:34 at:30 også:30 dere:28 som:28 aldri:26 like:26 stolt:26 bedre:24 best:24 bra:24 lei:24 mitt:24 noe:24 vant:24 alle:22 ingenting:22 opptatt:22 umulig:22 forelsket:19 fullstendig:19 gift:19 hun:19 interessert:19
 erfaring	med:2143
 erfaringer	med:6667
-et	par:301 problem:275 stort:262 brev:210 bilde:183 veldig:170 språk:157 godt:131 sted:131 barn:118 glass:118 nytt:118 annet:105 ord:105 menneske:92 halvt:79 liv:79 tre:79 eller:66 hull:66 hus:66 slikt:66 spørsmål:66 tegn:66 viktig:66 år:66 øyeblikk:66 amerikansk:52 eneste:52 fengsel:52 fint:52 lite:52 rom:52 skip:52 smil:52 vakkert:52 vanskelig:52 bad:39 bra:39 dumt:39 egg:39 flott:39 forferdelig:39 gammelt:39 hvitt:39 kart:39 mareritt:39 slags:39
+et	par:301 problem:275 stort:262 brev:210 bilde:183 veldig:170 språk:157 godt:131 sted:131 barn:118 glass:118 nytt:118 annet:105 ord:105 menneske:92 halvt:79 liv:79 tre:79 eller:66 hull:66 hus:66 slikt:66 spørsmål:66 tegn:66 viktig:66 år:66 øyeblikk:66 amerikansk:52 eneste:52 fengsel:52 fint:52 lite:52 rom:52 skip:52 smil:52 vakkert:52 vanskelig:52 bad:39 bra:39 dumt:39 egg:39 flott:39 forferdelig:39 gammelt:39 hvitt:39 kart:39 mareritt:39 slags:39 slott:39 sterkt:39 strekk:39 stykke:39 spøkelse:38 eple:37 alvorlig:26 angrep:26 av:26 band:26 bestemt:26 demokrati:26 dikt:26 dypt:26 dyr:26 enormt:26
 ett	og:1364 språk:909 år:909
 etter	en:769 å:667 at:615 skolen:308 deg:256 den:256 noe:256 noen:256 denne:205 det:154 meg:154 min:154 oss:154 sin:154 dette:103 dine:103 et:103 fem:103 henne:103 hjelp:103 jeg:103 nøye:103 reglene:103 tre:103 skoletid:62 tennis:54 katten:32
 europa	neste:1818
@@ -391,7 +391,7 @@ flyttet	til:5000 hit:1667
 fokuserer	på:6667
 folk	som:1183 har:753 til:645 begynner:538 sier:430 er:323 fra:323 finner:215 flest:215 i:215 jeg:215 på:215 skal:215 var:215 vil:215
 folks	problemer:6667
-for	å:2428 meg:477 det:342 deg:315 at:279 en:279 sent:243 et:189 mye:135 oss:126 seg:99 ikke:90 alle:81 dem:81 den:81 første:81 de:72 dette:72 henne:72 noen:72 ham:63 alltid:54 langt:54 sin:54 ti:54 to:54 tre:54 denne:45 fort:45 andre:36 eksempel:36 gammel:36 han:36 hva:36 mange:36 noe:36 nå:36 sine:36 tiden:36 øyeblikket:36 helsen:33 alt:27 dere:27 dine:27 dyrt:27 forskjellige:27 godt:27 hunder:27
+for	å:2428 meg:477 det:342 deg:315 at:279 en:279 sent:243 et:189 mye:135 oss:126 seg:99 ikke:90 alle:81 dem:81 den:81 første:81 de:72 dette:72 henne:72 noen:72 ham:63 alltid:54 langt:54 sin:54 ti:54 to:54 tre:54 denne:45 fort:45 andre:36 eksempel:36 gammel:36 han:36 hva:36 mange:36 noe:36 nå:36 sine:36 tiden:36 øyeblikket:36 helsen:33 alt:27 dere:27 dine:27 dyrt:27 forskjellige:27 godt:27 hunder:27 hvor:27 i:27 kort:27 lang:27 lenge:27 Norge:27 sterk:27 store:27 tidlig:27 tvil:27 virkeligheten:27 aldri:18 all:18 bare:18 barn:18 bensin:18
 foran	oss:2000 bygningen:1000 en:1000
 forandret	deg:5000 seg:3333
 forbedret	seg:3333
@@ -593,10 +593,10 @@ halvparten	av:7778
 halvt	år:5714
 ham	om:493 i:423 til:317 ikke:282 at:211 en:211 på:176 for:141 med:141 ut:141 det:106 ennå:70 før:70 løpe:70 men:70 noe:70 noen:70 når:70 rett:70 som:70
 hamburg	er:9999
-han	er:1324 har:714 var:441 hadde:273 ikke:253 vil:221 ble:208 så:175 kom:136 liker:130 kommer:117 sier:110 tok:104 fikk:84 gikk:84 kunne:84 snakker:84 trenger:84 ville:84 kan:78 bor:71 gjorde:71 la:58 sa:58 skal:58 skulle:58 visste:58 døde:52 mistet:52 går:45 jobbet:45 ser:45 viste:45 begynte:39 blir:39 dro:39 gjør:39 må:39 seg:39 til:39 vet:39 fortalte:33 ga:32 holdt:32 jobber:32 kjøpte:32 på:32 sitter:32
+han	er:1324 har:714 var:441 hadde:273 ikke:253 vil:221 ble:208 så:175 kom:136 liker:130 kommer:117 sier:110 tok:104 fikk:84 gikk:84 kunne:84 snakker:84 trenger:84 ville:84 kan:78 bor:71 gjorde:71 la:58 sa:58 skal:58 skulle:58 visste:58 døde:52 mistet:52 går:45 jobbet:45 ser:45 viste:45 begynte:39 blir:39 dro:39 gjør:39 må:39 seg:39 til:39 vet:39 fortalte:33 ga:32 holdt:32 jobber:32 kjøpte:32 på:32 sitter:32 skrev:32 snakket:32 spurte:32 tenker:32 trengte:32 trodde:32 spiste:28 aldri:26 det:26 følte:26 gav:26 kjenner:26 løftet:26 løper:26 med:26 og:26
 handler	om:3333 på:1667
 hans	er:843 ble:301 var:241 og:181 foreldre:120 har:120 hjelp:120 kone:120 lønn:120 navn:120 på:120 taktikk:120 teori:120
-har	du:1006 ikke:814 en:679 vært:316 aldri:254 blitt:197 allerede:182 ingen:161 et:150 gjort:150 ingenting:145 jeg:130 det:114 fått:114 gått:114 sett:114 to:109 dere:99 han:99 alltid:83 lyst:83 mange:78 tre:78 vi:78 bare:73 hatt:73 rett:73 skjedd:73 bodd:62 lest:62 noe:62 bestemt:57 kjøpt:57 funnet:52 hun:52 mistet:52 nettopp:52 begynt:47 gitt:47 kommet:47 lagt:47 på:47 skrevet:47 dårlig:41 tatt:41 ventet:41 noen:36 de:31
+har	du:1006 ikke:814 en:679 vært:316 aldri:254 blitt:197 allerede:182 ingen:161 et:150 gjort:150 ingenting:145 jeg:130 det:114 fått:114 gått:114 sett:114 to:109 dere:99 han:99 alltid:83 lyst:83 mange:78 tre:78 vi:78 bare:73 hatt:73 rett:73 skjedd:73 bodd:62 lest:62 noe:62 bestemt:57 kjøpt:57 funnet:52 hun:52 mistet:52 nettopp:52 begynt:47 gitt:47 kommet:47 lagt:47 på:47 skrevet:47 dårlig:41 tatt:41 ventet:41 noen:36 de:31 endret:31 glemt:31 god:31 i:31 jobbet:31 lært:31 snakket:31 store:31 vokst:31 den:26 kjent:26 ofte:26 også:26 oppnådd:26 sagt:26 tenkt:26
 hardere	enn:3333
 hardt	arbeid:1379 for:690 og:690
 hater	å:1132 edderkopper:566 deg:377 den:377 dere:377 ham:377 meg:377 Mary:38 Tom:17
@@ -660,7 +660,7 @@ hotellet	i:3000
 hovedkontoret	vårt:9999
 hovedstaden	i:9999
 hull	i:7500
-hun	er:1300 har:838 var:806 hadde:290 ble:279 så:247 ikke:204 liker:150 vil:150 gjorde:118 tok:107 dro:97 ser:97 bor:86 kommer:86 sa:86 sier:86 ville:86 ga:75 gikk:75 la:75 snakker:75 trengte:75 går:64 kunne:64 trenger:64 gjør:54 kan:54 kom:54 sang:54 skrev:54 skulle:54 spurte:54 avviste:43 bestemte:43 besøkte:43 blir:43 elsker:43 holdt:43 levde:43 må:43 slo:43 tar:43 tenkte:43 visste:43 bare:32 begynte:32 en:32
+hun	er:1300 har:838 var:806 hadde:290 ble:279 så:247 ikke:204 liker:150 vil:150 gjorde:118 tok:107 dro:97 ser:97 bor:86 kommer:86 sa:86 sier:86 ville:86 ga:75 gikk:75 la:75 snakker:75 trengte:75 går:64 kunne:64 trenger:64 gjør:54 kan:54 kom:54 sang:54 skrev:54 skulle:54 spurte:54 avviste:43 bestemte:43 besøkte:43 blir:43 elsker:43 holdt:43 levde:43 må:43 slo:43 tar:43 tenkte:43 visste:43 bare:32 begynte:32 en:32 gav:32 giftet:32 hater:32 hjalp:32 i:32 kjente:32 kjøpte:32 lurte:32 om:32 prøvde:32 prøver:32 skal:32 skriker:32 snakket:32 snudde:32 til:32
 hund	er:682 og:455 beit:309
 hunden	min:2157 er:1176 sin:784 til:588 vår:588 din:392 sover:206
 hunder	lukter:1333
@@ -671,7 +671,7 @@ huset	mitt:1512 ditt:814 sitt:698 er:465 vårt:465 hans:349 med:349 var:349 har:
 husk	å:5000
 huske	å:2500 første:1250
 husker	du:2963 ikke:1111 det:741 meg:741
-hva	er:1455 som:1049 jeg:751 du:454 han:407 skal:391 vil:235 har:219 gjør:203 med:188 slags:188 synes:188 var:172 det:141 de:125 heter:125 ville:125 kan:110 betyr:94 i:94 tror:94 vet:94 vi:94 liker:78 mer:78 sa:78 sier:78 skjedde:78 denne:63 hun:63 kommer:63 mener:63 om:63 skulle:63 spiser:63 tenker:63 en:47 enn:47 folk:47 holder:47 ser:47 snakker:47 ønsker:47 dere:31 dette:31 får:31 gjorde:31 hvis:31
+hva	er:1455 som:1049 jeg:751 du:454 han:407 skal:391 vil:235 har:219 gjør:203 med:188 slags:188 synes:188 var:172 det:141 de:125 heter:125 ville:125 kan:110 betyr:94 i:94 tror:94 vet:94 vi:94 liker:78 mer:78 sa:78 sier:78 skjedde:78 denne:63 hun:63 kommer:63 mener:63 om:63 skulle:63 spiser:63 tenker:63 en:47 enn:47 folk:47 holder:47 ser:47 snakker:47 ønsker:47 dere:31 dette:31 får:31 gjorde:31 hvis:31 hørte:31 kaller:31 lager:31 leser:31 minner:31 skjer:31 skylder:31 står:31 så:31 søren:31 Tom:8 Mary:5
 hvem	er:2000 som:944 vil:722 skal:556 var:500 sin:389 har:333 det:278 jeg:278 av:222 du:222 skrev:222 tror:222 eier:167 vet:167 bestilte:111 blant:111 de:111 den:111 snakker:111 venter:111 ville:111
 hver	dag:4773 morgen:795 gang:682 forsker:568 kveld:341 mandag:227 måned:227
 hverandre	gjennom:526 hele:526 i:526 lenge:526
@@ -708,13 +708,13 @@ høye	lyder:1818
 høyere	enn:5000
 høyre	arm:1538
 høyt	og:1429
-i	dag:609 går:459 en:438 morgen:343 det:296 et:193 denne:137 den:120 kveld:107 fjor:103 nærheten:94 dette:86 rommet:77 verden:73 Norge:64 Japan:64 byen:60 ferd:56 løpet:56 Tyskland:56 livet:51 tre:51 uken:51 Australia:48 hagen:47 hele:47 klassen:47 London:47 to:47 USA:47 de:43 fare:43 mange:43 stand:43 å:43 år:43 fred:39 hodet:39 leiligheten:39 min:39 mitt:39 Paris:39 øyeblikket:39 fengsel:34 huset:34 morges:33 all:30 alle:30
+i	dag:609 går:459 en:438 morgen:343 det:296 et:193 denne:137 den:120 kveld:107 fjor:103 nærheten:94 dette:86 rommet:77 verden:73 Norge:64 Japan:64 byen:60 ferd:56 løpet:56 Tyskland:56 livet:51 tre:51 uken:51 Australia:48 hagen:47 hele:47 klassen:47 London:47 to:47 USA:47 de:43 fare:43 mange:43 stand:43 å:43 år:43 fred:39 hodet:39 leiligheten:39 min:39 mitt:39 Paris:39 øyeblikket:39 fengsel:34 huset:34 morges:33 all:30 alle:30 Amerika:30 samme:30 stedet:30 tide:30 utlandet:30 vekt:30 begynnelsen:26 engelsk:26 fire:26 forrige:26 gang:26 landet:26 mørket:26 Oslo:26 parken:26 Roma:26
 ideer	og:2222
 idet	han:8000
 idé	å:2000
 idéen	er:9999
 igjen	og:432 i:288 til:216 døra:144 en:144 senere:144
-ikke	å:393 noe:289 så:152 at:148 på:145 en:141 ha:141 er:137 det:130 til:122 hva:108 kan:108 sant:108 gå:100 i:100 om:82 være:82 med:78 gjøre:74 den:70 for:70 finne:67 hadde:67 se:67 snakke:67 har:63 vær:63 et:59 lenger:59 si:59 la:56 bare:52 jeg:52 var:52 engang:48 glem:48 alle:44 hvordan:44 leve:44 bli:41 helt:41 hvorfor:41 sett:41 veldig:41 alltid:37 komme:37 kommet:37 kunne:37
+ikke	å:393 noe:289 så:152 at:148 på:145 en:141 ha:141 er:137 det:130 til:122 hva:108 kan:108 sant:108 gå:100 i:100 om:82 være:82 med:78 gjøre:74 den:70 for:70 finne:67 hadde:67 se:67 snakke:67 har:63 vær:63 et:59 lenger:59 si:59 la:56 bare:52 jeg:52 var:52 engang:48 glem:48 alle:44 hvordan:44 leve:44 bli:41 helt:41 hvorfor:41 sett:41 veldig:41 alltid:37 komme:37 kommet:37 kunne:37 min:37 rør:37 tro:37 vet:37 ville:37 vært:37 her:33 hvor:33 kommer:33 mange:33 mye:33 ta:33 blir:30 fortelle:30 få:30 gi:30
 imot	dem:1429 jeg:1429
 imponert	over:6000
 importerer	te:6667
@@ -756,7 +756,7 @@ januar	er:6667
 japan	er:1667 i:952 har:714 for:476 og:476 var:476
 japansk	film:1154 bil:769
 jeans	som:3333
-jeg	er:1060 har:1037 vil:540 vet:279 kan:277 liker:267 tror:236 skulle:232 var:232 skal:177 ikke:170 hadde:158 kunne:134 må:131 trenger:113 så:103 elsker:101 ble:94 kommer:90 ser:90 bor:84 ville:78 trodde:68 blir:64 forstår:57 håper:57 kom:55 snakker:55 føler:53 hater:53 kjøpte:53 synes:51 tar:51 lurer:49 kjenner:47 ønsker:47 går:43 få:41 får:41 tok:41 fikk:39 gjorde:39 spiser:39 tenker:39 visste:39 gikk:37 hørte:37 leste:35
+jeg	er:1060 har:1037 vil:540 vet:279 kan:277 liker:267 tror:236 skulle:232 var:232 skal:177 ikke:170 hadde:158 kunne:134 må:131 trenger:113 så:103 elsker:101 ble:94 kommer:90 ser:90 bor:84 ville:78 trodde:68 blir:64 forstår:57 håper:57 kom:55 snakker:55 føler:53 hater:53 kjøpte:53 synes:51 tar:51 lurer:49 kjenner:47 ønsker:47 går:43 få:41 får:41 tok:41 fikk:39 gjorde:39 spiser:39 tenker:39 visste:39 gikk:37 hørte:37 leste:35 prøvde:35 måtte:33 burde:31 ga:31 gjør:31 leser:31 fant:29 møtte:29 å:29 drar:27 prøver:27 jobber:25 meg:25 spiste:25 aldri:23 glemte:23
 jenta	hadde:1111 svømme:186
 jente	i:1111 som:1111
 jentene	er:4000
@@ -779,7 +779,7 @@ kalles	det:2857
 kalte	meg:5000 katten:1055
 kameraet	mitt:6364
 kampen	mot:2500
-kan	ikke:1900 du:1510 jeg:1218 gjøre:292 være:280 se:146 vi:146 gå:134 ta:134 bli:122 snakke:122 få:110 ha:110 man:97 bruke:85 noen:85 bare:73 det:73 en:73 hjelpe:73 lese:73 vinne:73 dere:61 gi:61 komme:61 leve:61 si:61 låne:60 beskytte:49 brukes:49 dra:49 lære:49 skje:49 stole:49 de:37 fly:37 forstå:37 fortelle:37 kjøpe:37 klare:37 aldri:24 deles:24 et:24 forutse:24 godt:24 han:24 hun:24 hverken:24
+kan	ikke:1900 du:1510 jeg:1218 gjøre:292 være:280 se:146 vi:146 gå:134 ta:134 bli:122 snakke:122 få:110 ha:110 man:97 bruke:85 noen:85 bare:73 det:73 en:73 hjelpe:73 lese:73 vinne:73 dere:61 gi:61 komme:61 leve:61 si:61 låne:60 beskytte:49 brukes:49 dra:49 lære:49 skje:49 stole:49 de:37 fly:37 forstå:37 fortelle:37 kjøpe:37 klare:37 aldri:24 deles:24 et:24 forutse:24 godt:24 han:24 hun:24 hverken:24 høre:24 ingen:24 knapt:24 la:24 lett:24 like:24 løpe:24 nesten:24 også:24 ramme:24 spise:24 svare:24 telles:24 variere:24 velge:24 vise:24
 kanskje	jeg:1087 ikke:870 det:652 du:652 hun:652 et:435 har:435 gal:428
 karakter	og:4000
 kart	over:4000
@@ -1028,9 +1028,9 @@ martine	er:5000
 mat	til:952 er:714 i:714 på:476
 matematikk	er:2727
 maten	de:1000 i:1000 var:1000
-med	deg:642 å:529 en:500 meg:472 oss:359 henne:312 ham:293 det:283 dem:274 et:255 på:142 den:123 dette:123 denne:113 de:85 seg:85 noen:76 i:66 sin:57 alle:47 arbeidet:47 barna:47 han:47 hverandre:47 livet:47 andre:38 at:38 dere:38 faren:38 mine:38 skjegg:38 vilje:38 hendene:32 dagen:28 dukker:28 god:28 jobben:28 mindre:28 språket:28 til:28 vennene:28 venner:28 øynene:28 Tom:22 Maria:19 alt:19 bare:19 barn:19
+med	deg:642 å:529 en:500 meg:472 oss:359 henne:312 ham:293 det:283 dem:274 et:255 på:142 den:123 dette:123 denne:113 de:85 seg:85 noen:76 i:66 sin:57 alle:47 arbeidet:47 barna:47 han:47 hverandre:47 livet:47 andre:38 at:38 dere:38 faren:38 mine:38 skjegg:38 vilje:38 hendene:32 dagen:28 dukker:28 god:28 jobben:28 mindre:28 språket:28 til:28 vennene:28 venner:28 øynene:28 Tom:22 Maria:19 alt:19 bare:19 barn:19 bilen:19 Bill:19 din:19 dine:19 disse:19 elevene:19 fly:19 folk:19 for:19 foreldrene:19 gamle:19 glede:19 halen:19 hit:19 hånden:19 inflasjonen:19
 medlem	av:6667
-meg	ikke:359 for:321 en:246 i:236 selv:236 med:198 om:179 til:170 på:161 et:151 hva:142 litt:142 at:132 å:132 men:104 noe:104 og:104 som:85 det:76 mye:76 når:66 forklare:57 er:47 gjøre:47 hvis:47 igjen:47 lenger:47 over:47 så:47 tilbake:47 være:47 den:38 fra:38 inn:38 jeg:38 rundt:38 se:38 veldig:38 bedre:28 her:28 hvordan:28 hvorfor:28 norsk:28 skylden:28 tenke:28 tre:28 uten:28 albumet:19
+meg	ikke:359 for:321 en:246 i:236 selv:236 med:198 om:179 til:170 på:161 et:151 hva:142 litt:142 at:132 å:132 men:104 noe:104 og:104 som:85 det:76 mye:76 når:66 forklare:57 er:47 gjøre:47 hvis:47 igjen:47 lenger:47 over:47 så:47 tilbake:47 være:47 den:38 fra:38 inn:38 jeg:38 rundt:38 se:38 veldig:38 bedre:28 her:28 hvordan:28 hvorfor:28 norsk:28 skylden:28 tenke:28 tre:28 uten:28 albumet:19 aldri:19 av:19 beskjed:19 blir:19 denne:19 dette:19 din:19 dårlig:19 enig:19 få:19 gå:19 hjem:19 hver:19 hvor:19 ingenting:19 lykkelig:19
 melde	meg:9999
 melk	i:1071 fra:714 hver:714
 mellom	de:606 to:606 Frankrike:455 oss:455 disse:303 gode:303 problemer:303 seg:303
@@ -1060,7 +1060,7 @@ metodene	for:6667
 mette	Marit:4000
 midt	i:6667 på:3333
 mike	er:3333
-min	er:571 har:324 mor:305 bror:190 far:152 hund:152 til:152 var:152 ble:133 på:133 kone:114 venn:114 bestemor:95 onkel:95 søster:95 egen:76 går:76 i:76 jobber:76 mann:76 skyld:76 beste:57 bor:57 drøm:57 døde:57 elsker:57 en:57 fra:57 første:57 gjorde:57 høyre:57 mening:57 sa:57 snakker:57 så:57 sønn:57 adresse:38 da:38 drar:38 familie:38 fars:38 feil:38 ga:38 gjør:38 greie:38 hater:38 kjøpte:38 kjører:38
+min	er:571 har:324 mor:305 bror:190 far:152 hund:152 til:152 var:152 ble:133 på:133 kone:114 venn:114 bestemor:95 onkel:95 søster:95 egen:76 går:76 i:76 jobber:76 mann:76 skyld:76 beste:57 bor:57 drøm:57 døde:57 elsker:57 en:57 fra:57 første:57 gjorde:57 høyre:57 mening:57 sa:57 snakker:57 så:57 sønn:57 adresse:38 da:38 drar:38 familie:38 fars:38 feil:38 ga:38 gjør:38 greie:38 hater:38 kjøpte:38 kjører:38 ligger:38 liker:38 metode:38 og:38 sjel:38 skriker:38 slutter:38 store:38 tante:38 tror:38 verden:38
 mindre	enn:1667 du:833 ost:833
 mine	egne:538 venner:538 er:462 ble:231 for:231 foreldre:231 elsker:154 hender:154 i:154 kommer:154 tanker:154 til:154 setninger:67
 minner	meg:2500
@@ -1160,10 +1160,10 @@ nøl	med:9999
 nøyaktig	som:2857
 ofte	til:753 at:430 ikke:323 om:323 bør:215 drar:215 kommer:215 mellom:215 på:215 ting:215 tennis:114 forvekslet:55
 oftere	nå:3333
-og	jeg:401 det:204 en:197 de:91 så:91 ikke:83 et:76 med:76 mer:76 er:68 gikk:68 se:68 vi:68 å:68 den:53 til:53 Mary:50 engelsk:38 få:38 han:38 har:38 hun:38 hva:38 meg:38 sa:38 slett:38 andre:30 du:30 for:30 gjøre:30 går:30 i:30 igjen:30 nå:30 ser:30 skal:30 slo:30 spiser:30 spurte:30 ta:30 tysk:30 vår:30 at:23 aviser:23 barn:23 begynte:23 da:23 deretter:23
+og	jeg:401 det:204 en:197 de:91 så:91 ikke:83 et:76 med:76 mer:76 er:68 gikk:68 se:68 vi:68 å:68 den:53 til:53 Mary:50 engelsk:38 få:38 han:38 har:38 hun:38 hva:38 meg:38 sa:38 slett:38 andre:30 du:30 for:30 gjøre:30 går:30 i:30 igjen:30 nå:30 ser:30 skal:30 slo:30 spiser:30 spurte:30 ta:30 tysk:30 vår:30 at:23 aviser:23 barn:23 begynte:23 da:23 deretter:23 fisk:23 hjelpe:23 holdt:23 hører:23 ingen:23 kan:23 la:23 løsninger:23 neppe:23 noen:23 rødt:23 sett:23 slå:23 spise:23 to:23 tre:23
 også	en:549 et:440 at:220 deg:220 i:220 å:220
 olje	og:2500 på:2500
-om	det:879 å:531 jeg:448 han:431 du:398 at:299 en:299 dagen:282 hva:249 dette:166 ham:166 henne:166 morgenen:166 noen:166 bord:149 noe:149 deg:133 hun:133 natten:116 sommeren:116 meg:100 vinteren:100 de:83 oss:83 vi:83 den:66 hjelp:66 i:66 kvelden:66 denne:50 golf:50 natta:50 penger:50 råd:50 saken:50 ting:50 unnskyldning:50 alle:33 andre:33 bare:33 brannen:33 dem:33 dere:33 et:33 feminisme:33 fremtiden:33 gangen:33 hans:33
+om	det:879 å:531 jeg:448 han:431 du:398 at:299 en:299 dagen:282 hva:249 dette:166 ham:166 henne:166 morgenen:166 noen:166 bord:149 noe:149 deg:133 hun:133 natten:116 sommeren:116 meg:100 vinteren:100 de:83 oss:83 vi:83 den:66 hjelp:66 i:66 kvelden:66 denne:50 golf:50 natta:50 penger:50 råd:50 saken:50 ting:50 unnskyldning:50 alle:33 andre:33 bare:33 brannen:33 dem:33 dere:33 et:33 feminisme:33 fremtiden:33 gangen:33 hans:33 hvor:33 hvordan:33 hvorfor:33 høsten:33 krig:33 mange:33 min:33 sin:33 veien:33 nettene:28 broren:21 Tom:12 Boston:7
 ombord	på:3333
 omkring	meg:5000
 omringet	av:9999
@@ -1269,7 +1269,7 @@ pulver	kan:4000
 puss	tennene:8981
 pusser	tennene:5132 du:2857
 pusten	din:3000
-på	det:396 en:351 meg:340 at:255 å:227 grunn:221 seg:204 skolen:176 den:170 deg:164 denne:125 så:113 bordet:108 ham:108 hva:102 vei:96 et:91 henne:91 TV:91 om:85 veien:85 spørsmålet:79 noe:68 dette:62 engelsk:62 landet:57 møtet:51 de:45 med:45 samme:45 tide:45 søndager:41 alle:40 ferie:40 hvor:40 jorden:40 oss:40 festen:37 besøk:34 dem:34 din:34 himmelen:34 kino:34 side:34 sine:34 ski:34 sofaen:34 Arbeiderpartiet:28
+på	det:396 en:351 meg:340 at:255 å:227 grunn:221 seg:204 skolen:176 den:170 deg:164 denne:125 så:113 bordet:108 ham:108 hva:102 vei:96 et:91 henne:91 TV:91 om:85 veien:85 spørsmålet:79 noe:68 dette:62 engelsk:62 landet:57 møtet:51 de:45 med:45 samme:45 tide:45 søndager:41 alle:40 ferie:40 hvor:40 jorden:40 oss:40 festen:37 besøk:34 dem:34 din:34 himmelen:34 kino:34 side:34 sine:34 ski:34 sofaen:34 Arbeiderpartiet:28 gulvet:28 kjøkkenet:28 Mars:28 musikk:28 rommet:28 toget:28 alt:23 bildet:23 bilen:23 bussen:23 fjellet:23 flyplassen:23 gata:23 hotellet:23 huset:23 hvorfor:23
 påkjørt	av:5000
 påvirker	det:6667
 radioen	og:1538
@@ -1490,7 +1490,7 @@ soldaten	ofret:5000
 solen	skinner:1429
 solgte	bilen:2500
 solidaritet	er:9999
-som	er:568 en:517 jeg:341 ikke:331 om:289 helst:279 har:238 et:217 du:196 kan:186 skjedde:176 det:165 skjer:155 mulig:124 vil:124 hadde:114 han:114 deg:93 var:93 å:93 ble:83 den:83 meg:83 regel:83 de:72 hun:72 må:72 vi:72 alle:62 blir:62 kommer:62 snakker:62 allerede:52 bor:52 din:52 gjør:52 sier:52 tror:52 at:41 barn:41 jobber:41 krever:41 bruker:31 denne:31 feiler:31 finnes:31 gikk:31 går:31
+som	er:568 en:517 jeg:341 ikke:331 om:289 helst:279 har:238 et:217 du:196 kan:186 skjedde:176 det:165 skjer:155 mulig:124 vil:124 hadde:114 han:114 deg:93 var:93 å:93 ble:83 den:83 meg:83 regel:83 de:72 hun:72 må:72 vi:72 alle:62 blir:62 kommer:62 snakker:62 allerede:52 bor:52 din:52 gjør:52 sier:52 tror:52 at:41 barn:41 jobber:41 krever:41 bruker:31 denne:31 feiler:31 finnes:31 gikk:31 går:31 heter:31 i:31 John:31 kjører:31 leder:31 med:31 ser:31 spiller:31 står:31 morsmål:27 alltid:21 bare:21 dere:21 dette:21 døde:21 elsker:21
 sommeren	er:2143
 sov	godt:2381 i:1429 ikke:952 på:952
 sove	på:2000
@@ -1589,7 +1589,7 @@ synger	ikke:1538
 syntes	at:1667 synd:1667
 systemet	er:5000
 syv	i:1429
-så	mye:694 jeg:457 du:442 snill:363 mange:300 på:300 er:221 fort:221 lenge:221 deg:189 det:174 ham:142 meg:142 god:126 godt:126 vi:126 en:110 ut:110 vidt:110 bra:95 han:95 langt:95 hun:79 snart:79 stor:79 dere:63 et:63 fint:63 henne:63 ikke:63 tidlig:63 de:47 den:47 enkelt:47 gjerne:47 ofte:47 skal:47 viktig:47 billig:32 bussen:32 da:32 der:32 dum:32 dyr:32 faren:32 har:32 hardt:32 hva:32
+så	mye:694 jeg:457 du:442 snill:363 mange:300 på:300 er:221 fort:221 lenge:221 deg:189 det:174 ham:142 meg:142 god:126 godt:126 vi:126 en:110 ut:110 vidt:110 bra:95 han:95 langt:95 hun:79 snart:79 stor:79 dere:63 et:63 fint:63 henne:63 ikke:63 tidlig:63 de:47 den:47 enkelt:47 gjerne:47 ofte:47 skal:47 viktig:47 billig:32 bussen:32 da:32 der:32 dum:32 dyr:32 faren:32 har:32 hardt:32 hva:32 irriterende:32 jenta:32 klart:32 kort:32 kåt:32 langsomt:32 mannen:32 med:32 noen:32 opptatt:32 overrasket:32 pent:32 redd:32 rekker:32 romantisk:32 seg:32
 sånn	er:2105 som:1053
 såvidt	toget:3945
 sønn	er:1304 av:870 døde:870 eller:870 som:870
@@ -1640,7 +1640,7 @@ tide	å:4000 at:1333
 tiden	på:577 var:577 av:385 da:385 er:385 flyr:385
 tidlig	på:1000 i:750 for:500
 tidligere	i:1579 var:1579
-til	å:3038 meg:294 felles:223 en:179 deg:172 at:160 det:147 skolen:121 et:102 den:89 og:83 henne:70 de:64 i:64 slutt:64 Australia:62 middag:57 min:57 oss:57 stasjonen:51 neste:45 annen:38 Europa:38 ham:38 han:38 USA:38 festen:36 Boston:34 dem:32 denne:32 engelsk:32 frokost:32 høyre:32 London:32 lunsj:32 noen:32 Paris:32 stranden:32 venstre:32 tannlegen:26 dette:26 hjelp:26 hverandre:26 New:26 parken:26 sin:26 stede:26 ti:26
+til	å:3038 meg:294 felles:223 en:179 deg:172 at:160 det:147 skolen:121 et:102 den:89 og:83 henne:70 de:64 i:64 slutt:64 Australia:62 middag:57 min:57 oss:57 stasjonen:51 neste:45 annen:38 Europa:38 ham:38 han:38 USA:38 festen:36 Boston:34 dem:32 denne:32 engelsk:32 frokost:32 høyre:32 London:32 lunsj:32 noen:32 Paris:32 stranden:32 venstre:32 tannlegen:26 dette:26 hjelp:26 hverandre:26 New:26 parken:26 sin:26 stede:26 ti:26 tross:26 utlandet:26 læreren:25 sengs:23 alle:19 alt:19 Amerika:19 B:19 byen:19 dags:19 historien:19 jul:19 kona:19 Oslo:19 rette:19 side:19
 tilbake	til:2088 i:659 etter:220 før:220 innen:220 neste:220 og:220
 tilbrakte	hele:2500 sammen:1667
 tilbringe	mer:5714
@@ -1770,7 +1770,7 @@ vanskelig	å:5172 for:517 situasjon:345 språk:345 spørsmål:345
 vanskeligheter	med:4000
 vansker	med:9999
 vant	til:5526 kampen:789 en:526
-var	en:753 ikke:693 det:462 i:351 veldig:341 så:181 den:171 et:151 på:151 du:131 helt:100 her:100 aldri:90 bare:90 for:90 kledd:80 syk:80 full:70 ganske:70 ingen:70 mer:70 alltid:60 der:60 forelsket:60 gravid:60 jo:60 med:60 redd:60 til:60 borte:50 dårlig:50 han:50 interessert:50 jeg:50 liten:50 rik:50 tomt:50 ung:50 bedre:40 de:40 din:40 litt:40 min:40 nesten:40 noe:40 også:40 trist:40 alt:30
+var	en:753 ikke:693 det:462 i:351 veldig:341 så:181 den:171 et:151 på:151 du:131 helt:100 her:100 aldri:90 bare:90 for:90 kledd:80 syk:80 full:70 ganske:70 ingen:70 mer:70 alltid:60 der:60 forelsket:60 gravid:60 jo:60 med:60 redd:60 til:60 borte:50 dårlig:50 han:50 interessert:50 jeg:50 liten:50 rik:50 tomt:50 ung:50 bedre:40 de:40 din:40 litt:40 min:40 nesten:40 noe:40 også:40 trist:40 alt:30 altfor:30 barn:30 blitt:30 dette:30 død:30 flere:30 ment:30 mørkt:30 opptatt:30 rett:30 svært:30 triste:30 ute:30 utrolig:30 vanskelig:30 varmt:30
 vare	på:7857
 varianter	av:7500
 variert	som:9999
@@ -1790,7 +1790,7 @@ veien	til:1569 hjem:1176 er:784 for:392 og:392
 vekk	nå:1304 meg:870 Tom:39
 vekket	deg:6667
 vel	ikke:1818 det:1515 hva:909
-veldig	godt:510 glad:350 lite:255 god:223 interessant:223 mye:223 vanskelig:223 bra:191 lei:191 varmt:191 søt:159 høyt:127 opptatt:127 smart:127 intelligent:113 trøtt:106 fin:96 flink:96 fort:96 interessert:96 kaldt:96 koselig:96 lett:96 pen:96 på:96 redd:96 stort:96 vakker:96 bekymret:64 billig:64 deprimert:64 dårlig:64 enkel:64 fint:64 forsiktig:64 gammel:64 glade:64 gøy:64 hardt:64 hyggelig:64 irritert:64 klok:64 mange:64 merkelig:64 overbevisende:64 stolt:64 syk:64 takknemlig:64
+veldig	godt:510 glad:350 lite:255 god:223 interessant:223 mye:223 vanskelig:223 bra:191 lei:191 varmt:191 søt:159 høyt:127 opptatt:127 smart:127 intelligent:113 trøtt:106 fin:96 flink:96 fort:96 interessert:96 kaldt:96 koselig:96 lett:96 pen:96 på:96 redd:96 stort:96 vakker:96 bekymret:64 billig:64 deprimert:64 dårlig:64 enkel:64 fint:64 forsiktig:64 gammel:64 glade:64 gøy:64 hardt:64 hyggelig:64 irritert:64 klok:64 mange:64 merkelig:64 overbevisende:64 stolt:64 syk:64 takknemlig:64 tynn:64 ut:64 viktig:64 vis:64 ensom:60 sulten:45 utadvendt:25 sta:11 grådig:4
 velge	hvilken:2000
 velkommen	til:5556 her:1111 ombord:1111
 venn	av:1698 på:755 i:566 med:566 som:566 men:377 ringte:345
@@ -1812,12 +1812,12 @@ verken	røyker:2857
 verne	om:9999
 verste	de:1538 du:1538
 vet	ikke:2013 at:1509 du:1384 hva:660 hvor:346 ingenting:283 jeg:252 hvorfor:220 hvem:189 hvordan:189 om:157 veldig:157 dere:126 det:126 har:126 alt:94 er:94 godt:94 nesten:94 noen:94 begge:63 de:63 fortsatt:63 sannsynligvis:63 Tom:7
-vi	har:1254 må:673 er:661 kan:285 skal:262 var:262 ikke:194 hadde:171 trenger:171 vet:160 bør:137 vil:137 gikk:114 skulle:114 bor:103 kunne:103 ble:91 kommer:80 liker:68 ønsker:68 gjør:57 går:57 lever:57 lærer:57 sees:57 ser:57 skiller:57 snakket:57 spiser:57 så:57 tror:57 burde:46 fikk:46 får:46 gå:46 i:46 snakker:46 spise:46 ville:46 alle:34 begynne:34 beskytte:34 drar:34 finne:34 fortsatt:34 gjøre:34 ha:34 kaller:34
+vi	har:1254 må:673 er:661 kan:285 skal:262 var:262 ikke:194 hadde:171 trenger:171 vet:160 bør:137 vil:137 gikk:114 skulle:114 bor:103 kunne:103 ble:91 kommer:80 liker:68 ønsker:68 gjør:57 går:57 lever:57 lærer:57 sees:57 ser:57 skiller:57 snakket:57 spiser:57 så:57 tror:57 burde:46 fikk:46 får:46 gå:46 i:46 snakker:46 spise:46 ville:46 alle:34 begynne:34 beskytte:34 drar:34 finne:34 fortsatt:34 gjøre:34 ha:34 kaller:34 lager:34 lo:34 og:34 starter:34 tar:34 trengte:34 visste:34 tilbrakte:28 spiste:24 bare:23 begynner:23 ber:23 dro:23 et:23 fanger:23 fant:23
 vidt	jeg:7143
 viktig	å:1837 for:612 at:408 det:408 og:408
 viktigere	enn:8000
 viktigste	i:1429
-vil	ikke:1224 du:1122 ha:962 at:364 bli:364 være:277 gjerne:233 gjøre:219 jeg:219 bare:175 det:146 aldri:131 alltid:117 heller:117 snakke:117 vite:117 gå:102 se:102 drepe:87 fortelle:87 få:87 lære:87 si:87 høre:73 kjøpe:73 ta:73 han:58 koste:58 vi:58 trøste:47 beholde:44 dø:44 fortsette:44 følge:44 gi:44 hjelpe:44 hun:44 komme:44 lese:44 møte:44 nok:44 skje:44 snart:44 dra:29 egentlig:29 eller:29 elske:29 gifte:29
+vil	ikke:1224 du:1122 ha:962 at:364 bli:364 være:277 gjerne:233 gjøre:219 jeg:219 bare:175 det:146 aldri:131 alltid:117 heller:117 snakke:117 vite:117 gå:102 se:102 drepe:87 fortelle:87 få:87 lære:87 si:87 høre:73 kjøpe:73 ta:73 han:58 koste:58 vi:58 trøste:47 beholde:44 dø:44 fortsette:44 følge:44 gi:44 hjelpe:44 hun:44 komme:44 lese:44 møte:44 nok:44 skje:44 snart:44 dra:29 egentlig:29 eller:29 elske:29 gifte:29 hjem:29 i:29 klare:29 leve:29 ligge:29 man:29 også:29 passe:29 reise:29 ringe:29 sannsynligvis:29 savne:29 skrive:29 spise:29 spørre:29 så:29
 vilje	til:2222
 ville	ikke:1510 ha:729 være:729 aldri:469 du:417 jeg:417 bli:312 komme:260 skje:260 at:208 det:208 snakke:208 vite:208 gjøre:156 overnatte:156 vi:156 alltid:104 bare:104 dra:104 gi:104 gjerne:104 gå:104 han:104 holde:104 la:104 se:104 stige:104 tatt:104 vært:104
 villig	til:9999
@@ -1858,7 +1858,7 @@ være	en:828 alene:491 i:491 der:368 et:276 her:276 med:276 så:276 hjemme:215 s
 været	var:1739 er:1304 vil:870
 vært	i:1758 der:848 en:485 her:424 gift:242 borte:182 gjennom:182 mye:182 på:182 syk:182 fiender:121 for:121 greit:121 noe:121 noen:121 opptatt:121 sammen:121 så:121 tre:121 ute:121 uten:121 veldig:121 våken:121 sta:10
 yngre	enn:5556 ut:3333
-å	være:512 gjøre:472 bli:292 gå:247 se:225 spise:216 lære:202 ta:193 få:189 ha:180 snakke:180 si:171 skrive:153 komme:135 drikke:126 kjøpe:126 studere:117 finne:108 lese:108 spille:108 ikke:103 leve:103 gi:99 holde:99 jobbe:99 lage:99 forstå:90 dra:81 spørre:81 fortelle:76 bo:72 forklare:67 hjelpe:67 regne:63 røyke:60 høre:58 redde:54 synge:54 vite:54 møte:49 skje:49 svare:49 bruke:45 dø:45 miste:45 prøve:45 reise:45 stå:45
+å	være:512 gjøre:472 bli:292 gå:247 se:225 spise:216 lære:202 ta:193 få:189 ha:180 snakke:180 si:171 skrive:153 komme:135 drikke:126 kjøpe:126 studere:117 finne:108 lese:108 spille:108 ikke:103 leve:103 gi:99 holde:99 jobbe:99 lage:99 forstå:90 dra:81 spørre:81 fortelle:76 bo:72 forklare:67 hjelpe:67 regne:63 røyke:60 høre:58 redde:54 synge:54 vite:54 møte:49 skje:49 svare:49 bruke:45 dø:45 miste:45 prøve:45 reise:45 stå:45 kjøre:40 kunne:40 løse:40 sove:40 tape:40 vente:40 reparere:40 besøke:36 betale:36 føle:36 nå:36 sitte:36 snø:36 tenke:36 drepe:31 legge:31
 ånden	til:9999
 åpen	og:1429 på:1429
 åpenbart	at:4000
@@ -1881,3 +1881,1433 @@ yngre	enn:5556 ut:3333
 øye	med:2857
 øyne	er:714 som:714
 øynene	mine:2188 dine:1250 for:938 hennes:625 til:625
+^ alle	=93 er:753 ser:645 har:538 barna:430 i:323 lo:323 vet:323 elsket:220 drømmer:215 guttene:215 kan:215 liker:215 likte:215
+^ alt	=38 er:3158 jeg:789 dette:526 du:526 har:526 smaker:526
+^ av	=9 en:2222 og:2222
+^ bare	=21 en:952 én:952
+^ barna	=14 er:1429 leker:1429 trenger:1429 var:1429
+^ beklager	=21 men:2857 det:952 jeg:952
+^ bilen	=11 er:1818 min:1818
+^ bill	=11 er:1818 hvis:1818 stod:1818 var:1818 gråt:1223
+^ bli	=9 der:2222 her:2222
+^ broren	=18 min:8889
+^ da	=45 jeg:4667 han:667 hun:667 vi:667
+^ de	=317 har:946 er:915 fleste:442 gjorde:252 var:221 fant:189 hadde:189 må:189 andre:158 bor:158 sier:158 så:158 sa:126 trenger:126 vil:126 visste:126 ble:95 kan:95 kom:95 snakker:95 som:95 vet:95 bodde:63 bryr:63
+^ den	=127 er:1102 som:866 nye:472 fyren:315 gamle:236 lille:236 brune:157 ene:157 eneste:157 europeiske:157 evige:157 gode:157 siste:157 tilhører:157 hunden:130
+^ denne	=118 boken:997 byen:424 romanen:323 artikkelen:254 er:254 filmen:254 bilen:169 heisen:169 kvinnen:169 sangen:169 gaven:167 stolen:114 medisinen:104 blomsten:94 katten:54 skjorten:41 pennen:18
+^ der	=18 er:2778 det:1111
+^ dere	=55 er:2545 må:1273 burde:727 har:545 skulle:545 bør:364 trenger:364
+^ dessverre	=19 kan:6316 er:1053 jeg:1053
+^ det	=1171 er:4833 var:1315 har:188 ser:179 kan:162 kommer:145 finnes:128 blir:120 går:120 skjedde:94 vil:94 ble:77 gjør:77 høres:68 virker:68 eneste:60 regnet:60 tok:60 der:51 hadde:51 jeg:51 må:51 sies:51 blåser:43
+^ dette	=225 er:6311 var:400 vil:178 argumentet:89 firmaet:89 har:89 hotellet:89 huset:89 kan:89 klarer:89 kommer:89 landet:89 må:89 problemet:89 stedet:89 skrivebordet:20
+^ din	=22 ankomst:909 kone:909
+^ disse	=29 husene:987 er:690 problemene:690 skoene:338
+^ du	=744 er:1841 kan:1169 må:1156 har:1022 bør:511 trenger:390 burde:323 ser:309 skulle:215 vil:202 vet:188 får:134 kommer:134 tror:134 gjorde:108 og:108 snakker:94 blir:67 gjør:67 hadde:67 fikk:54 liker:54 skal:54 tar:54
+^ en	=123 av:813 mann:407 fremmed:244 gutt:244 hund:244 bil:163 dag:163 gang:163 kan:163 katt:163 krone:163 sky:163 stor:163 to:163
+^ er	=286 du:3706 det:3357 dette:524 de:315 dere:245 han:245 hun:105 butikkene:70 den:70 denne:70 disse:70 ikke:70 moren:70 romanen:67 hendene:59 katten:22 Tom:8
+^ et	=24 glass:833 hvert:833
+^ etter	=30 å:1667 at:1333 denne:1000 en:1000 det:667 min:667 noen:667
+^ faren	=33 min:6970 hans:909 til:606
+^ finnes	=8 det:7500
+^ flyet	=8 vårt:2500
+^ folk	=28 har:2143 som:1786 er:714 sier:714
+^ for	=56 å:2679 en:1607 et:1607 meg:893 noen:536 mye:357
+^ foreldrene	=8 mine:5000
+^ fortell	=13 meg:6154 oss:1538
+^ få	=9 på:2222 studenter:2222
+^ følg	=8 meg:2500
+^ gi	=35 meg:7143 henne:571 opp:571 oss:571
+^ gjett	=8 hva:3750 hvem:2500
+^ gjør	=27 det:5556 ditt:741 noe:741 som:741
+^ god	=24 natt:4583 ettermiddag:833 morgen:833
+^ gud	=8 velsigne:674
+^ gå	=21 og:3333 tilbake:952 vekk:952
+^ går	=10 du:4000 det:3000
+^ ha	=17 det:4706 en:2941 i:1176
+^ han	=970 er:1711 har:959 var:454 ble:258 hadde:227 vil:175 så:165 kom:155 liker:144 tok:144 snakker:124 bor:103 fikk:103 gjorde:93 gikk:82 la:82 sier:82 døde:72 går:72 kan:72 trenger:72 viste:72 begynte:62 kunne:62
+^ har	=185 du:7784 dere:811 han:324 vi:162 de:108 det:108 hun:108 jeg:108 Tom:7
+^ hei	=22 du:909 John:909
+^ hele	=8 livet:3750
+^ her	=30 er:6000 har:667 kommer:667
+^ hold	=16 kjeft:3125
+^ hun	=716 er:1313 har:1020 var:810 ble:307 så:293 hadde:265 vil:182 liker:168 tok:140 gjorde:126 ser:126 bor:98 dro:98 ga:98 snakker:98 trengte:98 går:84 sier:84 kan:70 kom:70 la:70 sa:70 sang:70 skrev:70
+^ hunden	=27 min:2593 er:1481 til:1111 vår:1111 sover:390
+^ huset	=20 mitt:3000 ditt:1000 med:1000 til:1000
+^ husk	=10 å:5000
+^ husker	=9 du:8889
+^ hva	=367 er:2425 skal:681 vil:409 har:327 synes:327 gjør:272 slags:272 var:272 med:218 heter:191 betyr:163 i:163 tror:163 vet:163 liker:136 sa:136 sier:136 skjedde:136 kan:109 mener:109 mer:109 spiser:109 tenker:109 ville:109
+^ hvem	=140 er:2429 vil:929 skal:714 sin:500 var:500 har:429 av:286 skrev:286 tror:286 eier:214 vet:214 bestilte:143 blant:143 snakker:143 som:143 venter:143 ville:143
+^ hver	=9 gang:5556
+^ hvilke	=11 språk:1818
+^ hvilken	=30 er:1333 farge:667 gate:667 klasse:667
+^ hvilket	=15 språk:3333
+^ hvis	=87 du:4598 det:1609 jeg:1264 han:345 en:230 mine:230
+^ hvor	=278 er:2050 mange:1547 lenge:1187 mye:935 ofte:540 gammel:252 lang:252 langt:216 skal:216 bor:180 har:180 kan:180 kommer:180 i:144 ble:108 kjøpte:108 la:108 leste:108 lærte:108 druknet:72 gamle:72 høy:72 kjøper:72 så:72
+^ hvordan	=104 kan:1635 er:673 har:673 var:673 kommer:481 går:385 kunne:385 klarte:288 ser:288 ble:192 foregår:192 fungerer:192 gikk:192 kom:192 lager:192 påvirker:192 sier:192
+^ hvorfor	=180 er:1500 snakker:444 har:389 vil:389 hører:278 spiser:278 var:278 ble:222 kan:222 kom:222 trenger:222 dro:167 ikke:167 må:167 blir:111 det:111 flytter:111 gjorde:111 gjør:111 i:111 lar:111 lider:111 plager:111 sier:111
+^ i	=177 dag:1525 går:1017 denne:452 en:339 løpet:282 morgen:282 det:226 fjor:226 min:226 den:169 Norge:169 stedet:169 tillegg:169 Japan:120 et:113 India:113 Italia:113 leiligheten:113 Sverige:113 teorien:113 øyeblikket:113
+^ ikke	=202 vær:842 glem:545 gå:446 alle:396 la:396 rør:396 si:297 bekymre:198 se:198 spis:183 drikk:149 kom:149 snakk:149 ta:149 tenk:149 skyt:109 bli:99 fortell:99 gi:99 gjenta:99 jeg:99 kast:99 legg:99 prøv:99
+^ ingen	=84 vet:714 bryr:476 kan:476 har:357 her:357 ser:357 vil:357 ville:357 andre:238 er:238 forstår:238 får:238 kjenner:238 spurte:238
+^ ingenting	=14 er:3571 kan:1429
+^ ja	=35 det:2857 jeg:2000 men:1143
+^ jeg	=3758 er:1224 har:1219 vil:633 liker:335 vet:319 tror:314 kan:311 skulle:277 var:189 skal:152 må:149 trenger:128 elsker:109 så:109 bor:104 hadde:104 ble:101 ser:93 ville:90 kommer:82 håper:77 trodde:77 blir:69 føler:69
+^ jo	=10 mer:4000 flere:2000
+^ john	=14 er:2143
+^ kan	=175 du:5257 jeg:3543 noen:343 dere:171 man:171 han:114 hun:114 ikke:114 vi:114
+^ kanskje	=23 jeg:1739 det:1304 du:1304 hun:1304 har:870
+^ katten	=13 er:3077 ligger:1538
+^ kom	=32 hit:1250 igjen:1250 og:1250 deg:625 hjem:625 så:625 til:625
+^ kommer	=14 du:5000 dere:2143
+^ kunne	=18 du:8889
+^ la	=123 oss:5691 meg:2358 dem:163 det:163 ham:163 litt:163
+^ les	=8 dette:2500
+^ liker	=24 du:7083 dere:2083
+^ livet	=24 er:6667 mitt:833
+^ læreren	=14 vår:2143 gav:1429 min:1429
+^ mamma	=13 er:1538 jeg:1538
+^ man	=28 kan:2857 skal:1429 må:1071 bør:714
+^ mange	=38 av:789 mennesker:789 takk:789 tenker:789 bekker:526 spådommer:141
+^ mannen	=11 som:3636
+^ maria	=81 har:1358 er:1111 og:864 føler:741 vil:370 kommer:247 sa:247 tar:247 trenger:247 var:247 vet:247
+^ men	=49 det:1429 jeg:1224 du:816 hvordan:816 hva:408 i:408
+^ min	=66 mor:1515 far:758 hund:758 søster:758 bror:606 onkel:606 kone:455 mann:455 bestemor:303 metode:303 tante:303 venn:303
+^ mine	=9 venner:3333
+^ mitt	=11 liv:1818 navn:1818
+^ mor	=8 er:2500
+^ moren	=18 min:5556 din:1111
+^ må	=12 jeg:4167 vi:3333
+^ nei	=28 jeg:2143 det:1786 du:714 takk:714
+^ nesten	=9 alle:5556
+^ noe	=9 er:4444
+^ noen	=48 ganger:3750 folk:833 mennesker:833 av:625 har:417
+^ nå	=54 er:2037 har:926 frykter:556 kan:556 må:556 skal:556 som:556 til:556 du:370 ligger:370 snakker:370
+^ når	=150 jeg:1133 du:867 er:600 kommer:533 ble:333 kan:333 man:333 begynner:267 begynte:267 folk:267 tror:267 drar:200 en:200 høsten:200 reiser:200 reiste:200 skal:200 var:200 alle:133 går:133 har:133 starter:133 står:133 vi:133
+^ og	=30 jeg:1667 det:1000 er:1000 du:667 hva:667 hvem:667 nå:667
+^ om	=13 vinteren:2308 du:1538 kvelden:1538
+^ pass	=13 på:6923
+^ politiet	=11 arresterte:2526
+^ prøv	=16 å:5625 og:1250
+^ på	=47 grunn:2340 denne:638 hotellet:426 kjøkkenet:426 kysten:426
+^ ring	=12 meg:7500
+^ rommet	=8 var:3750 mitt:2500
+^ sa	=8 Tom:113
+^ sannsynligvis	=8 hver:2500 skal:2500
+^ se	=24 på:5417 opp:833
+^ selv	=17 om:6471
+^ ser	=9 du:4444 jeg:2222 ut:2222
+^ si	=14 meg:2857 det:2143 fra:1429 til:1429
+^ siden	=9 han:3333 jeg:3333
+^ skal	=33 vi:3636 du:3333 jeg:1212
+^ skriv	=22 så:2727 klare:909 til:909
+^ slutt	=15 å:8667
+^ snakk	=8 med:2500
+^ snakker	=16 du:6250 dere:3125
+^ som	=15 du:1333 en:1333 jeg:1333
+^ spør	=9 om:2222
+^ synes	=12 du:9999
+^ så	=56 du:714 vidt:714 fort:536 jeg:536 der:357 fint:357 hva:357 lenge:357
+^ ta	=31 av:1935 på:1613 deg:1290 med:1290 den:645 kontakt:645 til:645
+^ takk	=26 for:6154 skal:769
+^ til	=15 slutt:2667 og:2000 tross:2000 min:1333
+^ trenger	=8 du:7500
+^ tror	=15 du:9333
+^ uansett	=11 hva:3636 hvor:3636
+^ unnskyld	=23 meg:3913 jeg:1304 kan:870
+^ uten	=12 ærlighet:1667
+^ var	=20 det:3500 du:3500 besteforeldrene:351
+^ ved	=8 å:5000
+^ vel	=9 det:4444 hva:2222
+^ velkommen	=11 til:4545 ombord:1818
+^ vennligst	=24 ikke:833 kom:833 send:833 ta:833 vent:833
+^ vent	=12 her:3333 på:1667
+^ verden	=8 er:6250
+^ vet	=44 du:7955 dere:455 noen:455 Tom:41
+^ vi	=562 har:1619 må:890 er:854 kan:249 skal:249 var:249 hadde:231 trenger:214 vet:214 bør:196 ble:142 bor:142 vil:142 gikk:107 kommer:107 liker:107 skulle:107 ønsker:107 sees:89 skiller:89 snakket:89 går:71 så:71 tror:71
+^ vil	=46 du:9348 det:435
+^ vis	=11 meg:4545 at:1818 kortene:1818
+^ vær	=39 så:4103 snill:1795 forsiktig:1282 stille:1282 vennlig:513
+^ å	=41 lære:1220 være:1220 nei:488 spise:488
+^ øynene	=8 mine:3750
+absolutt ingenting	=9 felles:4444 til:4444
+akkurat nå	=9 så:2222
+aldri sett	=8 en:5000
+aldri til	=15 å:6000
+aldri vært	=16 i:5000 der:1250
+alle andre	=11 her:1818
+alle er	=9 klare:2222
+alt dette	=17 bare:2941 er:1176
+alt er	=17 så:1176
+alt for	=25 dem:1600 henne:1600 meg:1600 ham:1200
+alt jeg	=12 vet:4167 har:3333 kan:1667
+alt som	=10 er:3000
+at de	=34 ikke:2647 er:882 var:882 skal:588 vet:588
+at det	=73 er:2740 var:1370 ikke:1096 skal:548 ville:548 aldri:274 kommer:274 vil:274
+at dette	=18 er:3889 ikke:2778 skulle:1667
+at du	=115 ikke:1478 er:1304 skal:1217 har:435 kan:435 vil:435 kommer:348 skulle:348 kunne:261 får:174 hører:174 kom:174 var:174 vet:174
+at en	=8 av:2500
+at han	=100 ikke:1400 er:900 hadde:700 kommer:600 har:500 ville:500 aldri:400 liker:400 skal:400 var:400 eier:200 måtte:200 skulle:200 så:200 trodde:200 vil:200 visste:200
+at hun	=42 var:2381 er:1429 ikke:1190 hadde:714 ville:714 ble:476 skulle:476 så:476
+at jeg	=148 ikke:1486 er:743 har:608 skal:541 elsker:473 kom:405 hadde:338 skulle:338 kunne:270 var:270 vil:270 elsket:230 aldri:203 burde:203 kommer:203 nesten:203 alltid:135 behøver:135 ble:135 liker:135 må:135 tok:135 ville:135
+at man	=8 ikke:2500
+at vi	=44 har:1364 ikke:1136 skal:1136 skulle:909 var:682 er:455 fortsatt:455 kan:455 kunne:455 må:455
+av at	=12 du:3333 de:1667
+av de	=24 to:1667 andre:1250 siste:833 viktigste:833
+av deg	=30 skoene:326 sokkene:144
+av den	=14 siste:1429
+av denne	=10 måneden:2000 typen:2000
+av dere	=8 som:3750
+av det	=23 dårlige:870 som:870
+av en	=47 ny:851 eller:426 lang:426 lastebil:426 stor:426 slange:408 demon:391
+av huset	=8 mitt:3750
+av meg	=27 selv:1111
+av seg	=11 selv:2727
+av å	=16 spise:1250 være:1250
+bare en	=22 eksempel:909 måte:909
+bare for	=11 seg:1818 å:1818
+bare én	=8 feil:2500 gang:2500
+bedre enn	=25 min:1200 dette:800 han:800 ti:800 å:800
+begynner å	=14 bli:1429 gå:1429 sammenligne:1429 trekke:1429
+begynte å	=28 føle:714 lukte:714 oppføre:714 snø:714
+ber deg	=8 stemme:5000 om:2500
+bestemte seg	=14 for:9999
+bilde av	=15 deg:2000 ham:1333 Tom:61
+bilen min	=19 er:1053 var:1053
+ble det	=8 av:2500 også:2500
+ble født	=23 i:6522
+ble hjemme	=11 fordi:1818
+ble ikke	=11 forklart:1818
+bli med	=9 i:2222
+bo i	=11 et:2727 byen:1818
+bodd i	=8 Boston:512
+bodde i	=9 Australia:1543 Boston:455
+boken er	=11 et:1818
+bor i	=64 en:1250 nærheten:1250 et:1094 New:469 det:312 dette:312 Kairo:312 Oslo:312 Roma:312 Tokyo:148 Boston:64
+bor på	=8 den:2500 landet:2500
+bra med	=8 meg:3750 Tom:170
+brev til	=10 deg:2000 Tom:136
+broren min	=25 er:1200 gjorde:800 jobber:800
+bryr seg	=9 om:5556 ikke:3333
+burde ikke	=16 ha:4375 måtte:1250
+byen i	=11 Sveits:3636
+bør ikke	=9 gå:3333
+da han	=14 var:4286 kom:2143 så:1429
+da hun	=8 var:3750
+da jeg	=37 var:4054 kom:1892 gikk:811 hørte:541 ankom:471
+dag er	=11 det:6364
+dag har	=9 jeg:3333 allerede:2222
+de andre	=17 i:1765 jentene:1176 som:1176
+de er	=41 ikke:1707 evakuert:732 begge:488 pene:488 veldig:488
+de fleste	=31 andre:1613 av:645 datamaskiner:645 tilfeller:645
+de gjorde	=9 alt:6667
+de hadde	=11 ikke:1818
+de har	=37 ikke:2162 ingenting:2162 forbedret:541
+de ikke	=18 er:1667 på:1111 trenger:1111
+de kan	=8 gjøre:2500
+de siste	=10 hundre:2000
+de som	=9 ikke:2222 tror:2222
+de to	=10 landene:2000
+de var	=16 altfor:1250
+de vil	=11 ha:1818
+deg en	=22 god:909 historie:909 drink:808
+deg for	=18 hvor:1111
+deg i	=16 kveld:1875 morgen:1875 dag:1250 går:1250
+deg ikke	=27 sant:1111
+deg og	=9 meg:3333
+deg om	=17 å:1765 hva:1176 noe:1176
+deg til	=13 å:4615 skolen:1538
+del av	=9 problemet:2222
+dem som	=10 allerede:3000 hater:2000 ikke:2000
+den andre	=16 siden:3125
+den beste	=14 måten:1429 spilleren:1429
+den eneste	=19 måten:2105 som:1579 i:1053
+den er	=20 veldig:1500 ganske:1000 snart:1000
+den nye	=18 paven:1111 læreren:613
+den som	=18 ikke:2222 vet:1111 vil:1111
+den største	=8 byen:6250
+denne boken	=35 er:2000 til:1143 vil:1143 skal:857
+denne byen	=13 er:2308 har:1538
+denne filmen	=9 var:2222
+denne setningen	=14 betyr:1429
+der borte	=8 er:5000
+der er	=15 ingen:2000 mange:1333
+dere er	=17 så:1765 ikke:1176
+dere ikke	=15 med:1333
+dessverre kan	=13 jeg:9999
+det beste	=11 ut:1818
+det ble	=11 en:1818
+det blir	=21 ikke:952 regn:952
+det bra	=16 med:1250
+det der	=11 er:3636 må:1818
+det du	=43 sier:1395 gjør:930 vil:930 egentlig:465 har:465 kan:465 leter:465 synes:465
+det en	=29 gang:1724
+det eneste	=9 som:2222
+det er	=721 en:985 ikke:985 et:513 mange:305 det:291 ingen:250 veldig:208 bare:180 for:180 så:153 vanskelig:139 alt:125 ingenting:125 på:125 umulig:125 lett:111 noe:111 viktig:111 mye:97 varmt:83 bra:69 jeg:69 nok:69 svært:69
+det et	=14 sted:2143
+det finnes	=16 ingen:2500 ikke:1875 mange:1250
+det for	=15 dem:1333 Tom:182
+det første	=10 toget:2959
+det gjør	=21 du:3810 vondt:1905 ikke:952
+det greit	=10 om:4000 for:2000 å:2000
+det går	=20 bra:3000 ikke:1500
+det hadde	=12 vært:4167 jeg:1667
+det han	=10 sa:2000 sier:2000
+det har	=29 ikke:1379 jeg:1379 skjedd:1379 aldri:1034 vært:1034 gått:690
+det hele	=33 tatt:8182
+det høres	=9 ikke:3333
+det i	=25 dag:1200 en:1200 morgen:1200 det:800 går:800
+det ikke	=67 er:1493 var:597 for:448 med:448 noe:448 vært:299
+det ingen	=10 som:2000
+det jeg	=28 har:1429 trenger:1071 gjør:714 sa:714 vil:714
+det kan	=28 være:2500 ikke:1429 du:714 jeg:714 også:714 skje:714
+det kommer	=28 til:5714 an:1786 ikke:714
+det med	=15 en:1333 et:1333 Tom:151
+det meste	=9 ut:2222
+det mulig	=8 å:7500
+det må	=10 være:3000 gjøres:2000 ha:2000
+det noe	=18 du:2222 annet:1667 om:1111
+det noen	=13 som:2308 andre:1538
+det på	=19 en:1579 det:1053
+det regner	=9 i:4444
+det samme	=18 som:1667 for:1111
+det sant	=8 at:6250
+det ser	=21 ut:6190 jeg:952
+det siste	=20 toget:1479
+det skal	=12 være:3333 bli:1667 jeg:1667
+det skjedde	=14 en:1429
+det som	=37 er:1622 skjedde:1351 et:1081 har:541 ser:541
+det til	=28 deg:1429 å:1429 noen:1071 Tom:32
+det var	=204 en:1667 ikke:882 et:392 bare:343 ingen:294 så:294 veldig:294 det:245 ganske:196 helt:196 flere:147 jo:147 mørkt:147 noe:147 varmt:147 aldri:98 alt:98 dårlig:98 ingenting:98 jeg:98 mange:98 meningen:98 mer:98 på:98
+det verste	=12 de:1667 du:1667
+det vi	=10 kaller:2000 ser:2000
+det vil	=20 ikke:2000 koste:1000 ta:1000
+det ville	=14 være:5000 vært:1429
+det virker	=9 som:5556
+det å	=16 regne:2500 lære:1250
+dette er	=161 en:1988 et:1366 ikke:870 den:497 det:373 mitt:186 veldig:186 virkelig:186 enkelt:124 huset:124 rett:124 hesten:123
+dette ikke	=8 er:2500
+dette var	=11 en:3636
+din er	=19 ikke:1579 bedre:1053
+din hjelp	=9 ville:2222
+dra til	=16 Amerika:1250 Australia:868 Boston:384
+dreier seg	=8 om:7500 ikke:2500
+du at	=26 du:2692 jeg:2692 Tom:70
+du blir	=10 ikke:2000 voksen:2000
+du burde	=27 ikke:2222 ha:1111 ringe:741
+du bør	=41 ikke:1707 dra:488 følge:488 gjøre:488 gå:488 roe:488 slutte:488 spørre:488 være:488 skynde:78
+du deg	=10 til:3000
+du en	=35 regjering:1143
+du er	=209 en:1053 ikke:813 klar:526 så:431 veldig:383 den:335 min:191 virkelig:191 for:144 her:144 i:144 nødt:144 redd:144 trygg:144 velkommen:144 akkurat:96 alltid:96 bare:96 dum:96 gammel:96 heldig:96 lykkelig:96 mye:96 på:96
+du får	=15 det:1333
+du gjorde	=13 det:1538
+du gjør	=19 det:2632 meg:1579 er:1053 ikke:1053
+du gjøre	=14 det:3571 med:1429 på:1429
+du går	=12 på:1667
+du ha	=29 en:1724 litt:1379 mer:1034 noe:1034 til:690
+du hadde	=10 en:2000
+du har	=114 ikke:877 blitt:526 en:526 gjort:526 rett:526 aldri:351 et:263 ingen:263 allerede:175 bare:175 ingenting:175 jobbet:175 kunnskap:175 lagt:175 mange:175 vært:175
+du hva	=16 jeg:2500 denne:1250 som:1250 Tom:57
+du hvor	=9 hun:3333 jeg:2222
+du i	=19 ferien:1053 Boston:216
+du ikke	=153 blir:392 ender:261 forteller:261 kan:261 med:261 på:261 ville:261 det:196 har:196 vet:196 brenner:131 er:131 går:131 ha:131 hadde:131 la:131 snakke:131 var:131 vil:131 være:131 fransk:61
+du kan	=119 ikke:2941 gjøre:672 bruke:420 få:420 gå:420 komme:252 stole:252 bli:168 la:168 like:168 se:168 snakke:168 ta:168 velge:168 låne:165 svømme:42
+du klar	=27 for:4444 til:2963 over:1111
+du kommer	=23 til:2609 fra:1304 for:870 fram:870 ikke:870
+du kunne	=15 ha:1333
+du liker	=10 ikke:2000
+du med	=15 Tom:91
+du meg	=15 ikke:2000
+du mener	=9 at:2222
+du må	=100 passe:1400 være:1200 ikke:1100 finne:400 gjøre:400 ta:400 gå:300 ha:300 studere:280 hjelpe:200 jobbe:200 komme:200 tilbringe:200 tro:200 vente:200
+du noen	=25 gang:6000
+du og	=10 jeg:8000
+du også	=8 deg:2500
+du om	=26 ham:1154 han:1154 den:769 noen:769
+du på	=23 med:870
+du sa	=8 at:5000
+du ser	=24 ikke:1667 veldig:1250 sunn:833 trøtt:554
+du sier	=13 det:1538
+du sikker	=10 på:9000
+du skal	=30 bli:667 feire:667 ha:667 jobbe:667 komme:667 møte:667 være:667
+du skulle	=24 ha:2500 ikke:1667 vært:1667
+du snakker	=17 om:2353 engelsk:1176
+du så	=10 snill:2000
+du tar	=10 feil:4000
+du til	=30 å:4333 Australia:695
+du trenger	=35 ikke:5143 bare:571 å:571
+du tror	=13 ikke:5385
+du var	=13 i:1538
+du vet	=25 at:2000 hvorfor:2000 ikke:1200 om:800
+du vil	=59 bli:847 ikke:678 komme:508 alltid:339 få:339 si:339
+du ville	=9 ikke:2222
+du virkelig	=13 at:1538
+du være	=8 så:3750
+du vært	=10 i:6000
+du å	=15 lære:2667 finne:1333
+eldre enn	=9 deg:2222 meg:2222
+elsker deg	=13 mer:1538
+en av	=53 de:1509 dem:1132 guttene:1132 disse:566 dørene:377 hans:377 livets:377 oss:377 våre:377 Toms:14
+en bil	=15 foran:1333 som:1333
+en bok	=22 i:1818
+en dag	=16 bli:1250
+en del	=11 av:6364
+en dårlig	=8 skuespiller:2500
+en fin	=10 dag:2000 helg:2000
+en gammel	=25 venn:3600 mann:2000 japansk:591
+en gang	=54 i:2407 en:926 til:926 at:370 var:370
+en gave	=8 til:2500
+en god	=43 idé:698 bok:465 jobb:465 mann:465 pris:465 skole:465
+en gutt	=13 ikke:1538 og:1538
+en helt	=10 vanlig:3000 annen:2000
+en jente	=12 som:2500
+en katt	=14 og:2857
+en kniv	=11 i:1818
+en kopp	=9 te:4444 kaffe:3333
+en kvinne	=20 som:1500
+en lang	=11 dag:1818 historie:1818
+en liten	=17 boks:1176
+en mann	=30 av:2667 som:1667
+en ny	=41 bil:976 dag:732 sykkel:732 kjæreste:488 kontrakt:488
+en person	=10 som:4000 jeg:2000
+en setning	=8 med:2500
+en stor	=45 familie:667 suksess:667 dam:444 tabbe:444 å:444
+en stund	=12 til:2500
+en tendens	=10 til:9999
+en time	=20 siden:2500
+en veldig	=28 god:1786 fin:714 utadvendt:210
+en venn	=14 av:4286
+eneste som	=8 er:2500 tror:2500
+enig med	=12 deg:4167 meg:1667 Tom:76
+enn de	=10 fleste:4000
+enn en	=9 time:3333
+enn jeg	=12 er:1667 har:1667 trodde:1667
+enn å	=21 si:1429 gjøre:952 spise:952 vente:952
+er aldri	=12 for:1667
+er alle	=10 de:2000
+er alltid	=18 noen:1111
+er alt	=17 jeg:3529 for:2941
+er at	=14 det:2143 du:2143 jeg:2143 vi:1429
+er bare	=26 en:3462 dårlig:769 et:769
+er bedre	=11 enn:7273 å:1818
+er best	=11 om:1818
+er bra	=11 at:1818 for:1818
+er den	=70 eneste:1571 beste:1143 største:714 høyeste:429 mest:429 som:429 yngste:429 eldste:286 korteste:286 nest:286 nye:286 tredje:286
+er det	=296 du:541 en:473 ikke:473 noe:372 et:304 greit:304 noen:304 ingen:236 mulig:236 sant:236 som:236 nødvendig:203 i:169 mange:135 beste:101 fredag:101 jeg:101 mye:101 på:101 siste:101 vanskelig:101 verste:101 viktig:101 alt:68
+er dette	=31 din:1290 et:645 for:645
+er din	=19 favoritt:1053
+er du	=167 klar:1617 snill:719 sikker:599 ikke:539 ferdig:299 så:299 flink:240 ledig:180 med:180 opptatt:180 en:120 et:120 fortsatt:120 fra:120 født:120 sliten:120 som:120 tilbake:120 virkelig:120 allergisk:85 trøtt:80 døv:19
+er en	=378 god:450 av:397 mann:344 veldig:317 stor:185 gammel:159 gutt:132 jente:132 kvinne:132 person:132 viktig:132 del:106 annen:79 by:79 helt:79 idiot:79 katt:79 ny:79 sterk:79 verdifull:66 amerikansk:53 bil:53 drøm:53 dårlig:53
+er et	=144 veldig:486 problem:417 stort:417 viktig:278 menneske:208 sterkt:208 vakkert:208 alvorlig:139 av:139 bilde:139 bra:139 dumt:139 fint:139 flott:139 forferdelig:139 godt:139 interessant:139 land:139 lite:139 rundt:139 sirkus:139 slott:139 tegn:139 vanskelig:139
+er for	=53 sent:755 gammel:566 langt:566 liten:377 mange:377 store:377
+er forelsket	=9 i:7778
+er fortsatt	=20 på:1000 singel:1000
+er fra	=21 Australia:1654 Russland:952 Tyskland:952
+er gal	=8 etter:3750
+er gammel	=8 nok:7500
+er ganske	=27 glad:741 sikker:741 sint:741 sta:127
+er gift	=9 med:4444 og:2222
+er glad	=17 i:3529 for:2353 du:1176
+er han	=16 ikke:1250
+er helt	=20 enig:1500
+er her	=20 for:1000
+er hun	=9 ikke:3333
+er i	=80 ferd:875 en:750 dag:375 live:375 stand:375 dårlig:250 fare:250 godt:250 morgen:250 samme:250 stadig:250 Boston:102
+er ikke	=338 en:651 noe:414 den:325 et:266 så:266 det:237 min:207 lett:178 alltid:148 ferdig:148 flink:148 hjemme:148 like:148 vant:148 sulten:124 bra:118 for:118 her:118 lenger:118 sikker:118 viktig:118 fra:89 god:89 hans:89
+er ingen	=24 som:1667 vits:833 fartsgrense:450
+er ingenting	=10 jeg:2000 som:2000
+er interessert	=9 i:8889
+er jeg	=23 som:1304 en:870 i:870
+er klar	=21 til:1429 for:952
+er laget	=9 av:9999
+er lei	=11 av:6364 seg:1818
+er lett	=17 å:7059 som:1176
+er like	=12 gamle:1667 høy:1667 høye:1667
+er litt	=17 for:1765
+er mange	=25 ting:1200 folk:800 gamle:800
+er mer	=17 enn:2353
+er min	=25 beste:1200 bror:800 første:800 skyld:800 venn:800
+er mye	=18 yngre:1667 tyngre:1111
+er nesten	=16 ferdig:2500 ikke:1250 klar:1250
+er noe	=11 jeg:3636 vi:1818
+er også	=14 et:2143 en:1429
+er opptatt	=10 akkurat:2000 med:2000
+er på	=49 vei:2041 tide:816 bordet:510 den:408 ferie:408 ingen:408 rett:408 pulten:56
+er redd	=18 for:7222
+er sikker	=17 på:9999
+er som	=13 en:2308 å:1538
+er stolt	=12 av:5833 over:4167
+er sulten	=12 som:1667
+er svært	=20 komplekst:1233
+er så	=58 mye:1034 mange:690 billig:345 irriterende:345 sta:74
+er til	=9 salgs:2222
+er umulig	=10 å:5000 for:3000
+er vanskelig	=18 å:6667
+er vant	=11 til:9999
+er veldig	=117 glad:598 lei:513 vanskelig:427 varmt:427 søt:342 interessert:256 smart:256 intelligent:228 bekymret:171 bra:171 interessant:171 klok:171 redd:171 tynn:171 vakker:171 viktig:171 sulten:120 sta:15 grådig:7
+er viktig	=16 å:4375 at:1250
+er virkelig	=18 en:1667 et:1111 glad:1111
+er å	=26 bli:769 gjøre:769
+et annet	=8 sted:3750
+et bilde	=14 av:9286
+et brev	=16 til:5625 fra:1250
+et glass	=9 vann:6667
+et godt	=10 liv:2000
+et nytt	=9 språk:2222
+et ord	=8 som:2500
+et par	=23 dager:1304 spørsmål:870 timer:870
+et problem	=21 med:952 som:952
+et språk	=12 som:3333
+et sted	=10 du:2000 og:2000
+et stort	=20 problem:1500 hus:1000
+et veldig	=13 stort:2308 interessant:1538 lite:1538
+etter at	=12 han:2500 hun:1667 jeg:1667
+etter en	=15 leilighet:2000 stund:1333
+etter å	=13 ha:9231
+faren min	=32 har:1250 er:938 drar:625 liker:625
+felles med	=58 dem:3276 oss:2931 henne:1552 ham:1379
+ferd med	=13 å:9999
+ferdig med	=22 arbeidet:2273 å:1818 dette:1364 det:909
+finne ut	=16 hvordan:7500 hva:1250
+finnes det	=12 et:1667
+flink til	=14 å:9286
+folk som	=11 ikke:2727
+for at	=31 du:2903 jeg:2258 det:968 leserne:645 noe:645
+for de	=8 fleste:3750 som:2500
+for deg	=35 selv:1143 at:571 å:571
+for dem	=9 en:3333
+for det	=38 meste:1842 som:1053 du:526 lyver:526
+for en	=31 time:1613
+for et	=21 halvt:952 menneske:952
+for første	=9 gang:8889
+for ikke	=10 å:9999
+for meg	=53 selv:943 er:566 å:566
+for mye	=15 for:1333 stress:1333
+for noen	=8 år:2500
+for oss	=14 å:2143
+for seg	=11 selv:7273
+for sent	=27 for:1852 på:1111 til:1111 å:1111
+for å	=270 se:593 bli:519 være:519 studere:449 få:333 gjøre:333 skrive:259 forklare:222 dra:185 gå:185 ha:185 nå:185 redde:185 holde:148 hvile:148 ikke:148 oppnå:148 si:148 spise:148 unngå:148 handle:111 kjøpe:111 komme:111 lage:111
+fordi det	=11 er:7273 hadde:1818
+fordi jeg	=22 er:1364 ikke:1364 var:1364 har:909 skal:909
+forelsket i	=14 en:2143 deg:1429 meg:1429
+fornøyd med	=9 det:2222 resultatet:2222
+forstår ikke	=16 hva:1250
+forstår meg	=9 ikke:2222 tror:2222
+fortalt meg	=8 det:2500 hva:2500
+fortalte meg	=18 at:6111
+fortell meg	=9 hva:4444
+fortelle deg	=19 en:2105 noe:1053 sannheten:1053
+fortelle meg	=12 hva:2500 hvorfor:1667 litt:1667
+fortsatte å	=8 gå:2500
+fortsette å	=9 leve:2222 realisere:1957
+får ikke	=12 opp:1667 sove:1667
+fått nok	=10 av:9000
+føler meg	=16 litt:1250 mye:1250 som:1250
+føler seg	=14 ikke:7857
+følge med	=10 deg:3000 Maria:1001
+før du	=14 går:2857 legger:2857
+før han	=14 ble:1429 kjøpte:1429 svarte:1429
+før jeg	=11 drar:1818 legger:1818
+første gang	=12 jeg:2500 på:1667
+ga meg	=16 en:1875 dette:1250 nesten:1250
+gammel venn	=9 på:4444 i:2222
+gang har	=8 lest:2500 spist:2500
+gang i	=19 uken:3158 året:1579 blant:1053 måneden:1053 tiden:1053 uka:1053
+gang jeg	=9 ser:3333
+gi deg	=11 en:4545
+gi meg	=39 noe:1538 litt:1026 skylden:769 beskjed:513 det:513 en:513 et:513
+giftet seg	=12 med:5833
+gikk inn	=11 i:8182
+gitt meg	=8 en:2500
+gjorde alt	=24 for:6250 dette:2083
+gjorde det	=25 bra:800 ikke:800 på:800
+gjorde en	=8 stor:2500
+gjort det	=29 for:1379 med:1379 sammen:1034 før:690
+gjør det	=47 du:638 ikke:426 mens:426 noe:426 raskere:426 vondt:426
+gjør du	=32 ikke:1875 det:625 for:625 på:625
+gjør meg	=8 lykkelig:2500 så:2500 gal:2463
+gjøre det	=100 igjen:500 alene:300 enten:200 for:200 gjør:200 i:200 med:200 selv:200 umulige:200
+gjøre dette	=17 igjen:1176 sammen:1176
+gjøre noe	=28 med:2143 som:714
+glad for	=12 at:4167 å:3333
+glad i	=12 alt:1667 søtsaker:287
+glemte å	=15 låse:2000 spørre:1333
+god natt	=13 og:1538
+grunn av	=38 en:789 at:526 sin:526 snøen:526 sykdom:526
+gå og	=14 hent:1098
+gå på	=16 kino:1875 skole:1875 skolen:1875 ski:1250
+gå til	=13 tannlegen:1558
+går det	=8 bra:2500 med:2500
+går ikke	=10 an:2000 tilbake:2000
+går på	=9 skolen:4444
+ha det	=11 bra:2727
+ha en	=35 hund:1143 god:857 kopp:857 blå:571 negativ:571 ny:571 stor:571
+ha et	=14 glass:1429 par:1429
+ha gjort	=18 det:7222
+ha noe	=14 å:5000
+ha vært	=14 der:1429 syk:1429
+hadde ikke	=27 noe:4074
+hadde ingen	=10 grunn:2000 anelse:1298
+hadde ingenting	=13 felles:3846 til:3077 å:1538
+hadde jeg	=10 ikke:3000
+hadde på	=15 seg:8000 meg:1333
+hadde sett	=8 et:3750 på:2500
+hadde vært	=16 der:1875
+ham i	=12 det:1667 morgen:1667
+ham om	=14 han:2143 å:2143
+ham til	=9 å:4444 en:2222
+han ble	=32 født:1250 arrestert:625 sendt:625
+han bor	=11 i:9091
+han døde	=8 for:2500
+han er	=204 en:1912 ikke:882 veldig:490 den:147 redd:147 vant:147 intelligent:131 alltid:98 død:98 fortsatt:98 fra:98 god:98 i:98 litt:98 med:98 min:98 smart:98 sterkere:98 syk:98 så:98 gal:97 sta:8 grådig:8
+han gikk	=13 og:1538 på:1538
+han gjorde	=11 alt:4545 seg:1818
+han hadde	=42 ikke:952 på:714 sett:714 absolutt:476 en:476 vært:476
+han har	=110 ikke:1182 en:1091 allerede:455 gjort:455 blitt:364 ingenting:364 aldri:273 absolutt:182 dårlig:182 god:182 ingen:182 lagt:182 lite:182 rett:182 snakket:182 store:182 tre:182 vist:182 vært:182
+han ikke	=39 hadde:1282 måtte:769 var:769 visste:769 skal:513
+han kan	=12 ikke:1667 svømme:279
+han kom	=21 til:1905 tilbake:1905 i:1429 ikke:1429 hjem:952
+han kommer	=18 til:2778 aldri:1111 hit:1111 ikke:1111
+han kunne	=13 ikke:5385 snakke:1538
+han la	=9 ikke:2222 seg:2222
+han liker	=20 å:2500 henne:1000
+han mistet	=8 alle:2500
+han sa	=9 at:3333 det:2222
+han sier	=17 han:2353 ikke:1176
+han skal	=9 gjøre:2222 ha:2222
+han skulle	=9 gjøre:3333
+han så	=27 på:1852 det:1111 ut:1111 deg:741 en:741 et:741
+han tok	=16 feil:1250
+han var	=68 en:735 så:441 aldri:294 alltid:294 ikke:294 veldig:294
+han vil	=34 ha:1765 gjøre:1176 at:882 kjøpe:882 være:882 bli:588 møte:588
+han ville	=13 ha:2308
+han visste	=9 at:2222
+hans er	=14 å:1429
+har aldri	=49 vært:3265 hatt:816 hørt:816 sett:816 hendt:408 møtt:408 spurt:408
+har allerede	=35 gått:1143 skrevet:1143 fortalt:857 begynt:571 fullført:571 gitt:571 gjort:571 hatt:571 vært:571
+har alltid	=16 vært:2500 ønsket:1250
+har bare	=14 en:1429 et:1429 én:1429
+har begynt	=9 å:9999
+har bestemt	=11 seg:5455 meg:4545
+har blitt	=38 utsatt:789 av:526 dyrere:526 mye:526
+har bodd	=12 i:5000 her:4167
+har dere	=19 en:1579 funnet:1053
+har det	=22 bra:1818 ikke:1364 blitt:909 vært:909 travelt:872
+har du	=194 noen:979 en:928 vært:515 lyst:361 funnet:309 ikke:309 tenkt:309 et:258 gjort:258 bestemt:206 det:206 sett:206 spist:206 hørt:155 kjent:155 lest:155 besøkt:103 gått:103 hatt:103 kanskje:103 levert:103 møtt:103 noe:103 rett:103
+har en	=131 tendens:763 stor:687 katt:382 veldig:382 god:305 hund:305 del:153 drøm:153 følelse:153 hvit:153 ny:153 sønn:153 vakker:153 venn:153
+har et	=29 problem:2069 stort:690
+har funnet	=10 en:2000 ut:2000
+har fått	=22 nok:4545 en:1818
+har gitt	=9 meg:5556
+har gjort	=29 det:2414 for:690
+har gått	=22 opp:1364 bort:909 inn:909 ned:909 Tom:41
+har han	=19 ikke:1579 blitt:1053 løftet:1053 vært:1053
+har hatt	=14 en:2143 det:1429
+har hun	=10 blitt:2000
+har ikke	=157 noe:1720 sett:637 råd:446 kommet:382 fortalt:318 lyst:318 tid:318 vært:318 mange:255 gjort:191 nok:191 spist:191 alle:127 bedt:127 blitt:127 den:127 engang:127 funnet:127 fått:127 hørt:127 mye:127 møtt:127 peiling:127 snakket:127
+har ingen	=31 venner:968 anelse:838 naboer:645 penger:645
+har ingenting	=28 til:3214 å:2857 felles:2500 i:714
+har jeg	=25 aldri:1200 gjort:800 ikke:800 lært:800
+har kjøpt	=11 en:4545 meg:1818
+har kommet	=9 for:2222 hit:2222
+har lagt	=9 på:8889
+har lest	=12 alle:1667
+har lyst	=16 til:8125 på:1250
+har mange	=15 bøker:1333 venner:1333
+har nettopp	=10 lest:2000 spist:2000
+har noe	=12 å:4167 til:1667
+har på	=9 seg:5556
+har rett	=14 til:2143
+har sett	=22 henne:1364 deg:909 nok:909 Tom:83
+har skjedd	=14 med:1429
+har tatt	=8 en:2500 på:2500
+har to	=21 barn:1429 døtre:952 katter:866
+har ventet	=8 på:3750
+har vi	=15 nok:1333
+har vært	=61 i:1148 der:820 en:656 her:656 gift:328 gjennom:328 opptatt:328 tre:328 våken:328
+hele dagen	=16 på:1875
+henne i	=9 det:2222
+her er	=26 det:1154 et:1154 tingene:1154 alt:769 en:769 ikke:769
+her i	=14 går:1429 nærheten:1429 tre:1429
+hjelpe deg	=18 å:1111
+hjemme i	=9 dag:3333 hele:2222
+holde følge	=8 med:9999
+holdt på	=9 med:4444 å:3333
+hull i	=9 hagen:2222
+hun ble	=26 født:1923 mistenkt:769 tatt:769
+hun bor	=8 i:5000
+hun dro	=9 til:2222
+hun er	=121 en:1653 veldig:909 ikke:496 redd:248 alltid:165 besatt:165 den:165 død:165 ekstremt:165 flink:165 for:165 gammel:165 sint:165 stolt:165
+hun gjorde	=11 alt:3636 en:1818 sin:1818
+hun hadde	=27 ingenting:2222 ikke:1481 på:1481 absolutt:741 blitt:741
+hun har	=78 ikke:1026 ingenting:897 en:641 gjort:385 sett:385 aldri:256 allerede:256 arr:256 bare:256 bestemt:256 fått:256 gått:256 ingen:256 plukket:256 på:256
+hun ikke	=19 har:1579 med:1053
+hun kommer	=8 til:2500
+hun liker	=14 å:2143 ham:1429
+hun sa	=8 noe:2500
+hun ser	=9 ut:4444 på:2222 veldig:2222
+hun sier	=8 at:7500
+hun så	=23 på:3913 deg:1304 dere:870
+hun tok	=10 seg:2000
+hun var	=75 ikke:800 kledd:800 gravid:667 en:400 for:400 veldig:400 et:267 forelsket:267 i:267 med:267 redd:267 rik:267 syk:267
+hun vil	=14 ha:2143 ligge:1429 være:1429
+hun ville	=8 ikke:2500 overnatte:2500
+hunden min	=11 ligger:1818
+huset mitt	=13 er:3077
+hva det	=9 er:3333 dreier:2222
+hva du	=29 mener:1724 vil:1379 gjorde:1034 har:690 sa:690 sier:690 ønsker:690
+hva er	=93 det:2581 forskjellen:430 adressen:323 dette:323 din:323 en:323 et:323 den:215 formålet:215 i:215 meningen:215
+hva gjør	=13 du:6154 vi:1538
+hva han	=26 sier:1923 vil:1923 skulle:1154 tenker:769
+hva har	=14 du:5000 skjedd:1429 vi:1429
+hva heter	=8 den:2500 denne:2500 du:2500
+hva jeg	=48 skal:2917 mener:1667 sier:833 vil:833 tenker:625 burde:417 har:417 skulle:417 trenger:417
+hva med	=12 å:5000 deg:1667
+hva skal	=25 du:4800 vi:2000 jeg:1600 det:800
+hva slags	=12 mat:1667
+hva som	=67 er:1791 skjedde:1791 skjer:1642 helst:896 ble:448 foregikk:299 foregår:299 gikk:299 hadde:299 kan:299 må:299
+hva synes	=12 du:7500
+hva var	=11 det:5455
+hva vil	=15 du:6000 hun:1333
+hva ville	=8 du:6250
+hvem er	=36 det:1667 de:556 din:556 du:556 gutten:556 jeg:556 Tom:25
+hvem skal	=10 trøste:2036 du:2000
+hvem som	=17 helst:3529 er:1176 kjørte:1176
+hvem var	=9 den:4444
+hvem vil	=13 trøste:2506 ha:2308
+hver dag	=42 etter:476 i:476
+hvis det	=21 er:3810 regner:2857 ikke:1905
+hvis du	=76 ikke:1579 vil:1053 er:395 har:395 bare:263 blir:263 fortsetter:263 gjør:263 kommer:263 skal:263 trenger:263
+hvis jeg	=17 hadde:2353 var:1176
+hvor du	=11 vil:3636 er:1818 kommer:1818 skal:1818
+hvor er	=60 det:667 din:500 du:333 mine:333 søsteren:333 nøkkelen:333 boken:302 sokkene:72
+hvor gammel	=10 er:5000
+hvor han	=8 er:3750 har:2500
+hvor jeg	=12 bor:1667 er:1667 har:1667
+hvor lang	=11 tid:7273 er:1818
+hvor lenge	=33 har:3636 blir:1818 vil:909 kommer:606
+hvor mange	=48 ganger:1667 av:1042 kopper:625 bøker:417 mennesker:417 personer:417 stjerner:417
+hvor mye	=39 koster:2308 kostet:1026 det:769 du:769 er:769 penger:769
+hvor ofte	=15 bør:1333 drar:1333 kommer:1333
+hvordan du	=8 gjør:2500 kan:2500
+hvordan er	=8 det:2500 du:2500
+hvordan jeg	=14 kan:3571 skal:1429
+hvordan kan	=18 jeg:3889 vi:2222 du:1667
+hvordan man	=16 lager:1875 kan:1250 knytter:1250
+hvorfor er	=27 du:3704 det:1481 dere:741 han:741 Tom:50
+hvorfor jeg	=11 er:1818
+hvorfor snakker	=8 du:6250 dere:2500
+hører du	=8 meg:2500 på:2500
+hører på	=10 musikk:3000 den:2000 radio:2000
+i dag	=142 er:704 har:493 skal:352 kanskje:141 men:141
+i de	=10 fleste:3000
+i den	=28 andre:1071 butikken:714 ene:714
+i denne	=32 byen:2188 boken:1131 elva:625 vanskelige:625 verden:625 elven:518
+i det	=69 hele:3913 siste:2174 huset:290 minste:290 store:290 sure:290
+i dette	=20 landet:2500 området:1500 huset:1000 rommet:1000
+i en	=102 leilighet:588 uke:392 alder:294 bok:294 liten:294 av:196 by:196 gift:196 måned:196 stor:196 ulykke:196 fei:143 trafikkulykke:109
+i et	=45 stort:889 strekk:667 tre:667 veldig:667 annet:444 band:444 gammelt:444
+i ferd	=13 med:9999
+i fjor	=24 leste:833 var:833
+i går	=107 kveld:1776 var:467 natt:280 blåste:187 for:187
+i hele	=11 dag:1818 kroppen:1818 natt:1818
+i hodet	=9 mitt:2222
+i japan	=21 er:1905 i:952
+i leiligheten	=9 min:2222
+i london	=11 i:1818
+i løpet	=13 av:9231
+i mange	=10 år:5000
+i min	=9 verden:2222
+i mitt	=9 liv:3333 land:2222
+i morgen	=80 er:500 ettermiddag:375 det:250 tidlig:250
+i norge	=15 har:1333 med:1333
+i nærheten	=22 av:4545
+i stand	=10 til:9999
+i to	=11 år:2727 og:1818 timer:1818
+i tre	=12 år:5000 dager:2500
+i usa	=11 til:1818
+i å	=10 være:2000
+ikke alle	=12 fakta:1667
+ikke at	=40 du:2000 jeg:2000 han:500 hun:500 Tom:125
+ikke bli	=11 en:1818
+ikke blir	=8 finere:2500
+ikke den	=19 eneste:1579 mest:1053
+ikke det	=35 er:1143 minste:857 fint:571 ordet:571
+ikke en	=38 idiot:526 grådig:54
+ikke engang	=13 at:1538 begynt:1538
+ikke er	=37 en:541 her:541
+ikke et	=16 ord:2500
+ikke finne	=18 noen:2778 noe:1111
+ikke for	=19 å:3684 det:1053 sent:1053
+ikke fortelle	=8 foreldrene:2500
+ikke gi	=8 meg:5000 opp:3750
+ikke gjøre	=20 noe:4000 det:3000 dette:1500
+ikke glem	=13 å:4615 at:2308
+ikke gå	=27 ut:2222 på:1111 så:1111 alene:741
+ikke ha	=38 gjort:2895 noe:1053 en:526 gått:526
+ikke hadde	=18 noe:1667 sett:1667 penger:1111
+ikke har	=17 noe:2353 en:1176
+ikke helt	=11 sikker:1818
+ikke her	=9 i:2222
+ikke huske	=8 å:3750
+ikke hva	=29 som:2759 jeg:2414 du:1379 det:1034 han:690
+ikke hvor	=9 jeg:2222
+ikke hvordan	=12 man:3333 du:1667 jeg:1667
+ikke hvorfor	=11 jeg:1818 Tom:165
+ikke i	=27 det:2593 denne:741 en:741 går:741 stand:741
+ikke jeg	=14 heller:1429 kan:1429 som:1429
+ikke kan	=29 kjøpe:690 komme:690 leve:690 snakke:690
+ikke komme	=10 på:2000 til:2000
+ikke kommer	=9 til:5556
+ikke kommet	=10 ennå:3000 enda:2000
+ikke kunne	=10 gjøre:4000
+ikke la	=15 meg:2000 han:1333
+ikke leve	=12 uten:5000
+ikke med	=21 meg:2381 henne:1905 deg:1429
+ikke noe	=78 til:1667 felles:1282 problem:769 å:641 annet:385 spesielt:385 av:256 fra:256 noen:256 om:256 svar:256 særlig:256 valg:256
+ikke om	=22 jeg:2727 hva:1364 det:909
+ikke på	=39 skolen:1282 meg:1026 det:769 ham:769 historien:513 oss:513
+ikke råd	=8 til:9999
+ikke rør	=10 den:3000 noe:3000
+ikke se	=18 på:2222 noe:1111
+ikke sett	=11 deg:4545 ham:1818
+ikke si	=16 noe:3125 det:1875 til:1250
+ikke snakke	=18 med:3889 engelsk:1111 om:1111
+ikke så	=41 mye:1951 bra:732 mange:732 god:488
+ikke til	=33 å:6667 i:606 kona:606
+ikke trenger	=8 å:7500
+ikke tro	=10 på:3000 at:2000 mine:2000
+ikke var	=14 her:1429 opptatt:1429
+ikke veldig	=11 overbevisende:1818
+ikke vet	=10 hvordan:2000
+ikke ville	=10 bli:2000 la:2000
+ikke vær	=17 så:2941 redd:2353 dum:1176
+ikke være	=22 alene:909 i:909 så:909
+ikke vært	=10 noe:2000 noen:2000
+ikke å	=106 være:755 holde:660 gå:566 kjøpe:472 jobbe:377 se:377 lage:283 si:283 bo:189 dø:189 finne:189 forstyrre:189 gi:189 gjøre:189 ha:189 komme:189 lukke:189 nå:189 skuffe:189 sove:189 spise:189 vinne:189
+ingenting felles	=16 med:9375
+ingenting om	=13 henne:1538
+ingenting til	=17 felles:9999
+ingenting å	=14 tape:4286 bekymre:1429
+inn i	=38 leiligheten:1053 det:789 et:789 en:526 rommet:526 skapet:526 to:526
+interessert i	=22 hva:1364 sport:1364 å:909
+ja det	=11 er:4545 har:2727 kan:1818
+jeg aldri	=12 har:2500
+jeg ba	=10 ham:3000 deg:2000
+jeg ber	=8 deg:8750
+jeg ble	=48 født:1250 hjemme:1250 invitert:625 bedt:417 fortalt:417 ikke:417 kjent:417 nesten:417 tvunget:417
+jeg blir	=33 hjemme:909 ofte:606 stor:606 til:606
+jeg bor	=43 i:5581 ikke:1163 på:698
+jeg burde	=16 ikke:2500 gjøre:1250
+jeg drar	=14 til:3571 ofte:1429
+jeg drikker	=13 ikke:4615
+jeg elsker	=52 deg:2115 norsk:962 henne:577 å:577 lukten:385
+jeg er	=544 ikke:1562 en:496 veldig:404 sikker:312 glad:276 i:202 stolt:184 den:147 på:147 for:129 lei:129 redd:129 så:129 vant:129 et:110 gift:110 interessert:110 forelsket:92 ganske:92 helt:92 klar:92 litt:92 også:92 opptatt:92
+jeg fant	=15 det:2000 en:1333
+jeg fikk	=20 et:1000 ham:1000 ikke:1000 maskinen:1000 sønnen:1000
+jeg forstår	=29 ikke:5172 at:690
+jeg fortalte	=9 ham:4444 deg:2222
+jeg få	=21 låne:1867 en:1429 se:952
+jeg får	=21 ikke:3810 tid:1429 ofte:952
+jeg føler	=27 meg:5926 ikke:1481 at:741
+jeg ga	=16 ham:2500 en:1250 henne:1250 broren:788 Tom:57
+jeg gikk	=19 ikke:1053 inn:1053 mye:1053 på:1053 ut:1053
+jeg gir	=8 deg:2500
+jeg gjorde	=20 det:3500 alt:3000
+jeg gjør	=16 det:3750 mye:1250
+jeg glemte	=12 å:6667 det:1667
+jeg går	=22 på:1818 til:1364 ikke:909 og:909
+jeg hadde	=81 en:988 ikke:864 bare:247 blitt:247 dratt:247 et:247 forventet:247 gjort:247 hatt:247 hørt:247 ingen:247 ingenting:247 jo:247 lyst:247 mistet:247 på:247 rett:247 visst:247
+jeg har	=532 ikke:1165 en:771 aldri:545 vært:414 ingen:263 allerede:226 fått:226 lyst:207 alltid:188 sett:188 et:169 mistet:169 to:169 det:132 gjort:132 hatt:113 lest:113 nettopp:113 tre:113 ventet:113 bestemt:94 noe:94 vondt:94 bare:75
+jeg hater	=27 å:1481
+jeg heter	=11 Ricardo:640 Tom:83
+jeg holder	=10 på:4000 alltid:3000 ikke:2000
+jeg husker	=12 ikke:2500
+jeg håper	=29 at:2414 det:2414 du:1034 jeg:690 Tom:31
+jeg hører	=11 på:2727 du:1818
+jeg hørte	=19 en:2632 at:2105 deg:1579 den:1053
+jeg ikke	=87 finne:1264 hadde:575 kan:575 forstår:345 trenger:345 vet:345 det:230 er:230 har:230 liker:230 om:230 skjønner:230 vil:230
+jeg jobber	=13 for:1538 i:1538 ikke:1538
+jeg kan	=142 ikke:4859 se:282 bare:211 beskytte:211 gjøre:211 lese:211 ta:211 fortelle:141 få:141 godt:141 klare:141 knapt:141 lære:141 nesten:141 si:141 snakke:141 vinne:141 vise:141 være:141 svømme:24
+jeg kjenner	=24 ikke:833 mange:833 til:833
+jeg kjøpte	=27 denne:1852 et:1481 en:1111 dette:741 like:741 meg:741
+jeg klarer	=11 ikke:8182
+jeg klarte	=9 ikke:5556 å:3333
+jeg kom	=28 til:2500 hjem:1786 for:1071 tilbake:714
+jeg kommer	=46 til:2174 fra:1087 ikke:870 tilbake:870 aldri:652 hjem:652 for:435
+jeg kunne	=69 ikke:2609 finne:2174 ha:435 dra:290 hjelpe:290 stole:290 svare:290 være:290
+jeg legger	=9 meg:5556 til:2222
+jeg leser	=16 ikke:2500 denne:1250
+jeg leste	=18 om:2222 en:1667 alle:1111
+jeg liker	=137 ikke:2555 å:2044 det:438 virkelig:292 deg:219 både:146 din:146 ham:146 høsten:146 også:146 våren:146
+jeg likte	=8 det:2500 å:2500
+jeg lurer	=25 på:9600
+jeg meg	=13 til:1538
+jeg mente	=10 ikke:7000 det:2000
+jeg må	=67 snakke:746 ta:746 gå:597 gjøre:448 si:448 bli:299 dra:299 fortelle:299 ha:299 kjøpe:299 tenke:299
+jeg måtte	=17 beskytte:1765 få:1176 gjøre:1176
+jeg møtte	=15 en:3333 henne:1333
+jeg prøvde	=18 å:7222
+jeg prøver	=14 å:7143
+jeg ringer	=8 deg:5000
+jeg sa	=11 til:2727 at:1818
+jeg savner	=8 deg:3750
+jeg ser	=46 på:1304 en:870 du:652 et:652 at:435 deg:435 dette:435 etter:435 frem:435 henne:435 ikke:435
+jeg setter	=8 meg:2500 nøkkelen:2499
+jeg sier	=12 til:2500
+jeg skal	=91 gjøre:1538 gi:659 til:440 prøve:330 si:330 ta:330 aldri:220 begynne:220 besøke:220 bli:220 fortelle:220 få:220 gifte:220 gå:220 ikke:220 jobbe:220 lage:220 selge:220 spille:220 spørre:220
+jeg skulle	=119 ønske:7143 ikke:504 ha:336 gjerne:252 komme:252 få:168 gjøre:168
+jeg snakker	=28 ikke:3929 litt:714 norsk:714
+jeg snakket	=11 med:9999
+jeg spiser	=20 ikke:1500 aldri:1000 brød:958
+jeg spiste	=18 for:1111 frokost:1111 middag:1111
+jeg stoler	=8 ikke:5000 på:5000
+jeg studerer	=8 engelsk:2500
+jeg står	=9 opp:6667
+jeg synes	=26 det:3077 du:1923 ikke:1154 han:769
+jeg så	=53 deg:1132 ham:1132 en:566 henne:566 faren:377 ikke:377 jenta:377 på:377 gavene:335 Tom:43
+jeg tar	=26 det:769 en:769 et:769 feil:769 hånd:769
+jeg tenker	=20 på:4000 de:1000 du:1000 han:1000
+jeg tenkte	=9 du:2222
+jeg tok	=21 en:1429 av:952 feil:952 med:952
+jeg trenger	=58 ikke:2069 en:1724 et:517 trøst:517 din:345 er:345 litt:345 noen:345 å:345
+jeg trodde	=35 du:2000 at:1143 det:1143 jeg:1143 ikke:857 vi:571 Tom:39
+jeg tror	=121 ikke:1488 jeg:1488 det:1074 du:992 at:909 han:496 vi:496 denne:331 hun:248 på:165 Tom:68
+jeg var	=119 ikke:1261 i:672 veldig:672 en:420 liten:336 på:336 syk:336 så:252 ung:252 aldri:168 borte:168 der:168 her:168 nødt:168 redd:168 rett:168 sliten:168 student:168
+jeg vet	=143 ikke:3566 at:1818 hva:769 hvor:490 hvem:350 ingenting:280 det:210 godt:210 har:210 fortsatt:140 hvorfor:140 om:140
+jeg vil	=277 ikke:2202 ha:1480 at:650 gjerne:542 bare:361 heller:289 bli:253 gjøre:253 vite:253 lære:217 aldri:181 fortelle:181 alltid:144 se:144 du:108 følge:108 gå:108 høre:108 lese:108 være:108 dra:72 egentlig:72 elske:72 få:72
+jeg ville	=40 ikke:3000 bli:750 aldri:500 alltid:500 bare:500 gjøre:500 snakke:500 være:500
+jeg visste	=20 ikke:4000 at:2000 allerede:1000 han:1000
+jeg å	=15 lese:1333 være:1333
+jeg ønsker	=24 å:6250 ikke:1667 meg:1250
+jobber for	=10 et:3000 en:2000
+kan du	=124 ikke:1129 hjelpe:565 gjøre:484 gi:403 holde:323 komme:323 si:323 ta:323 snakke:242 anbefale:161 fortelle:161 gjenta:161 kjøre:161 ri:161 skille:161 vise:161 være:161
+kan få	=9 denne:2222
+kan gjøre	=24 det:2083 er:1250 for:1250 i:833
+kan gå	=11 galt:1818 hjem:1818
+kan ha	=9 en:3333 vært:3333
+kan ikke	=156 leve:449 gjøre:385 huske:385 annet:256 få:256 se:256 si:256 stoppe:256 tro:256 finne:192 forestille:192 gi:192 hjelpe:192 holde:192 kjøre:192 ta:192 bruke:128 dra:128 drepe:128 du:128 gå:128 klatre:128 komme:128 lenger:128
+kan jeg	=100 få:1900 ikke:1500 låne:490 bruke:400 ta:400 gå:300 hjelpe:300 kjøpe:300 si:300 drikke:200 gjøre:200 komme:200 spise:200 stille:200 vite:200 være:200
+kan man	=8 virkelig:2500
+kan se	=12 deg:1667
+kan snakke	=10 fransk:938
+kan ta	=11 ansvar:2727 vare:1818
+kan være	=23 bedre:870 et:870
+kjøpe en	=14 ny:3571 bil:1429
+kjøpte en	=9 bok:2222 kjole:2222
+kjøpte et	=8 par:2500
+klar for	=19 å:5789
+klar over	=8 det:5000 at:3750
+klar til	=11 å:9999
+klarer ikke	=12 å:5000
+klarte ikke	=9 å:8889
+kledd i	=8 svart:2500
+kom for	=9 sent:5556 å:4444
+kom til	=22 å:2727 meg:1364 skolen:909 Japan:644
+kommer aldri	=8 til:7500
+kommer du	=26 til:4231 tilbake:1154 deg:769 for:769 ikke:769
+kommer fra	=17 Norge:1176
+kommer ikke	=19 til:7895
+kommer til	=73 å:8767
+kristoffer columbus	=8 en:2500
+kunne du	=21 gitt:952 lukket:952 skrudd:952
+kunne finne	=16 ut:6875
+kunne ha	=11 gjort:3636 forutsett:1266
+kunne ikke	=32 komme:938 gjøre:625 gå:625 holde:625 høre:625 motstå:625 se:625
+la meg	=38 forklare:1316 være:1316 se:1053 tenke:789 få:526 spise:526 ta:526
+la oss	=74 se:676 gjøre:541 gå:541 snakke:541 ta:541 ikke:405 kjøpe:405 prøve:405 sette:405 tenke:405 gi:270 håpe:270 lage:270 vente:270 være:270
+laget av	=9 tre:2222
+lagt på	=9 seg:5556 deg:2222
+lang tid	=14 tar:2857 det:1429 før:1429 vil:1429
+langt fra	=10 skolen:2000
+latin er	=9 et:2222 ikke:2222
+lei av	=11 å:4545
+lei meg	=9 for:5556
+lenge har	=14 du:5000 han:1429
+leter etter	=14 en:2857
+lett å	=21 lære:1429 finne:952
+leve uten	=11 vann:1818
+ligger på	=10 bordet:3329 skrivebordet:458
+liker det	=10 ikke:2000 når:2000
+liker du	=26 best:1154 ikke:769
+liker ikke	=46 å:3696 denne:435 maten:435
+liker å	=55 spille:1091 gå:727 spise:545 gjøre:364 lage:364 leke:364 lese:364 reise:364 se:364 sove:364 ta:364 være:364 studere:339
+litt mer	=10 om:2000
+livet er	=21 et:1905 for:1905 fullt:1905 en:1429 kort:1429
+lov til	=9 å:9999
+lurer på	=25 om:5200 hva:1200 hvorfor:1200 hvilken:800 hvor:800
+lyst til	=34 å:9412
+lære å	=15 spille:2667 elske:1333 forstå:1333 skrive:1333
+løpet av	=12 de:1667 prosjektet:1667
+man kan	=14 ikke:2857 se:1429
+mange av	=15 dem:2000 elevene:1333 mine:1333 ordene:1333
+mange bøker	=9 som:3333
+mange ganger	=16 har:1250
+mange mennesker	=11 tror:2727 av:1818 så:1818
+maria er	=11 en:1818
+maria har	=12 en:2500
+maria og	=8 jeg:3750 Tom:227
+med deg	=68 om:588 hvis:441 i:441 men:294
+med dem	=29 som:1034 i:690
+med den	=13 polske:1538 tyske:1538
+med denne	=12 oppgaven:1667
+med det	=30 jeg:1000 mannlige:667 som:667 blotte:235
+med dette	=13 prosjektet:1538
+med en	=53 gang:2830 rik:566 kniv:377 kvinne:377 klype:331
+med et	=27 smil:1111 brev:741 eneste:741 uendelig:741
+med ham	=31 i:645
+med henne	=33 i:1212
+med meg	=50 lenger:600 selv:400 unge:400
+med oss	=38 fra:526
+med på	=15 å:2000
+med å	=56 gå:714 forstå:536 få:536 skje:536 spørre:536 begynne:357 hvile:357 lese:357 ta:357
+meg at	=14 han:4286 de:1429 hun:1429 jeg:1429
+meg det	=8 jeg:2500
+meg en	=26 ny:1154 bok:769 hund:769
+meg et	=16 bilde:1875 stykke:1250
+meg for	=34 å:3824 at:1176 det:588 hva:588
+meg hva	=15 du:4000 jeg:3333 som:1333
+meg i	=25 går:1200 en:800 morgen:800
+meg ikke	=38 om:1053 i:789 at:526 gå:526 noe:526 så:526
+meg litt	=15 penger:2000 mer:1333 vann:1333
+meg med	=21 en:1905 et:1429 å:952
+meg men	=11 jeg:3636
+meg mye	=8 bedre:2500
+meg noe	=11 å:6364
+meg og	=11 jeg:1818
+meg om	=19 å:1579 det:1053 veien:1053
+meg på	=17 nervene:1646 hva:1176
+meg selv	=25 ikke:800 og:800
+meg som	=9 en:3333
+meg til	=18 å:5000
+men det	=25 er:5600 var:1200
+men du	=12 er:2500 vil:2500 kan:1667
+men han	=10 er:3000
+men jeg	=52 har:962 er:769 forstår:769 kan:769 liker:577 vil:577 gjorde:385 glemte:385 ser:385 snakker:385 tenker:385 vet:385
+mener du	=8 med:2500
+mens du	=8 var:3750 kan:2500
+mens han	=11 gikk:1818 jobbet:1818
+mens jeg	=9 spiser:2222
+mente ikke	=8 å:9999
+mer enn	=43 en:930 fem:698 det:465 et:465 halvparten:465 noe:465 nok:465 tusen:465
+mer tid	=8 med:5000 til:2500
+merke til	=14 at:2143 det:1429
+min bror	=10 fant:2000 har:2000
+min er	=30 ikke:1667 å:1000 en:667 liten:667 ødelagt:667
+min har	=17 en:2353 blitt:1176
+min mor	=16 kjøpte:1875 sa:1250
+min til	=8 å:3750
+min var	=8 borte:2500 veldig:2500
+mitt er	=13 gammelt:2308 lite:1538
+moren min	=19 elsker:1053 har:1053 snakker:1053
+mye bedre	=9 enn:2222 i:2222
+mye koster	=9 den:3333 denne:3333 en:2222
+mye mer	=9 enn:3333 penger:2222
+mye penger	=16 som:1875
+må du	=14 ikke:1429
+må finne	=8 ut:3750 en:2500
+må gjøre	=22 noe:3182 det:2727 dette:909
+må gå	=9 på:2222
+må ha	=15 gått:2000 vært:1333
+må hjelpe	=8 dem:3750 ham:2500
+må ikke	=21 snakke:1429 gjøre:952 hjelpe:952 skjule:952
+må jeg	=14 gjøre:1429
+må passe	=15 på:9999
+må ta	=13 en:1538 på:1538
+må vi	=11 beskytte:1818 og:1818
+må være	=28 en:1429 akkurat:714 medlem:714 veldig:714
+måte å	=12 tjene:2500 snakke:1667 fordrive:652
+måtte gjøre	=9 det:3333 noe:2222
+ned i	=9 vekt:4444
+ned på	=8 en:2500
+noe annet	=15 valg:2000 enn:1333 i:1333
+noe du	=9 ikke:3333
+noe felles	=15 med:7333
+noe i	=8 dag:2500
+noe om	=11 det:1818 jeg:1818
+noe som	=15 helst:3333 feiler:1333
+noe til	=20 felles:7500 Tom:45
+noe å	=38 drikke:2632 spise:2368 si:1053 fortelle:789 bry:526 gjøre:526 lese:526 skrive:526
+noen andre	=12 enn:1667
+noen av	=13 de:1538 oss:1538 vennene:1538
+noen gang	=27 har:2593 sett:1481 vært:1111
+noen ganger	=25 er:2000 blir:800 har:800 med:800 synes:800
+noen som	=17 snakker:1765 kan:1176
+nok av	=11 deg:1818 å:1818
+nok til	=18 å:9999
+nå er	=13 det:4615
+når de	=12 hadde:1667
+når det	=15 er:2667 gjelder:2667
+når du	=46 er:2609 blir:652 går:652 snakker:652 har:435 kommer:435 skal:435 drikker:331
+når er	=9 du:4444
+når han	=16 er:1875 ikke:1250
+når hun	=11 er:1818 ikke:1818
+når jeg	=44 er:1136 kommer:909 ser:909 blir:682 var:682 gikk:455 har:455
+når kommer	=9 du:4444 hun:2222
+når man	=15 er:2667 blir:1333
+når vi	=8 er:3750
+nødt til	=8 å:9999
+og de	=12 andre:2500 er:1667 kan:1667 som:1667
+og det	=27 er:4444 var:1111 andre:741 skal:741
+og en	=26 svart:1154 hund:769
+og er	=9 det:3333
+og et	=10 halvt:2000
+og gikk	=9 inn:4444 til:2222
+og jeg	=53 er:3019 har:1509 vil:755 var:377 vet:377
+og med	=10 jeg:2000
+og mer	=10 av:2000
+og se	=9 hva:3333
+og så	=12 er:1667
+og vi	=9 er:2222 har:2222
+og å	=9 ta:2222
+om at	=18 jeg:2222 det:1111 du:1111 han:1111
+om det	=53 er:1132 i:755 var:755 ikke:566 over:377 som:377
+om du	=24 vinner:1667 er:1250 ikke:1250 kan:833 skulle:833 tar:833 vil:833
+om en	=18 ny:1111 tjeneste:1111
+om ham	=10 i:2000 som:2000
+om han	=26 hadde:1154 ikke:1154 har:769 var:769
+om hun	=8 ikke:2500
+om hva	=15 som:3333 du:1333
+om jeg	=27 har:1481 er:741 flytter:741 fortsatt:741 får:741 var:741
+om noen	=10 gode:2000
+om å	=32 gjøre:1250 få:938 komme:625 reise:625 vente:625
+opp i	=22 en:1364 vekt:1364
+opp med	=12 meg:2500 ham:1667 å:1667
+opp på	=11 Mt:683
+opp tidlig	=12 for:1667 i:1667
+over at	=13 du:2308 jeg:1538
+pass på	=9 så:5556 å:2222
+passe på	=17 så:8235
+pleide å	=18 være:4444 hate:1111
+prøv å	=11 ikke:4545
+prøvde å	=33 redde:1212 drepe:909 ikke:909 hjelpe:606 overtale:606 skrive:606
+prøve å	=16 gjøre:1250 komme:1250 overbevise:1250 svare:1250
+prøver å	=16 få:1250
+på at	=45 jeg:1111 det:889 du:889 dette:667 han:667 vi:667 de:444 Tom:71
+på deg	=29 en:690 selv:690 skoene:338
+på den	=30 andre:1333 måten:1333 tiden:667
+på denne	=22 måten:2273 tiden:2273 dagen:1364 listen:909
+på det	=70 samme:714 verste:571 du:286 ene:286 i:286 lokale:286 rene:286 spørsmålet:286
+på en	=62 dag:645 eller:484 buss:323 film:323 gammel:323 måte:323 time:323
+på grunn	=39 av:9744
+på ham	=19 med:1579
+på henne	=16 med:2500
+på hva	=18 jeg:3333 som:2778 Tom:50
+på meg	=60 med:667 som:500 den:333 og:333 selv:333
+på møtet	=9 i:4444
+på noe	=12 Tom:76
+på om	=15 Tom:272
+på samme	=8 dag:2500
+på seg	=36 en:3056 selv:1111 i:833 et:556 solbriller:545
+på skolen	=31 i:2258
+på spørsmålet	=14 ditt:2857 hans:1429 mitt:1429
+på så	=20 du:9500
+på tide	=8 å:7500 at:2500
+på vei	=17 til:4706 hjem:2941
+på veien	=15 hjem:2000
+på å	=40 dø:500 fjerne:500 ha:500 lære:500 sovne:500 spise:500 studere:466
+redd for	=26 å:4231 hunder:1154 slanger:760 katter:466
+reise til	=11 Europa:1818 Paris:1818 USA:1818 Boston:372
+resten av	=8 livet:6250
+rett til	=11 å:7273
+ring meg	=10 hvis:2000 på:2000
+råd til	=11 å:8182
+sa at	=50 han:4000 de:1000 hun:1000 det:800 jeg:800 du:600 denne:400 Mary:41 Tom:27
+sa det	=11 med:1818 var:1818
+sa til	=10 meg:2000 Mary:305 Tom:136
+sammen med	=28 deg:1786 henne:1071 noen:1071 oss:714 Tom:97
+se deg	=10 igjen:2000
+se på	=33 meg:1515 TV:1515 de:909 det:909 den:606 kartet:606
+seg en	=12 maske:1667 ny:1667 svart:1667
+seg et	=9 språk:3333
+seg for	=26 å:7692 ikke:769
+seg i	=24 det:1250 den:833 en:833 Maria:278
+seg ikke	=27 om:1481 å:741
+seg med	=18 en:3333 dem:1667
+seg ned	=10 på:4000 for:2000
+seg og	=12 gikk:3333 de:1667
+seg om	=16 deg:1250 hva:1250 meg:1250
+seg selv	=35 i:857 og:571
+seg å	=9 være:4444
+selv om	=20 det:3500 han:1500 vi:1500 jeg:1000
+ser du	=13 etter:1538 på:1538
+ser ikke	=10 så:3000
+ser på	=26 meg:1923 deg:769 dere:769 en:769 TV:769
+ser ut	=31 som:4839 til:4516
+sett deg	=9 før:2222 på:2222
+sett en	=12 så:1667 UFO:1093 elefant:572
+si at	=8 det:2500 du:2500
+si det	=20 til:2000 på:1000
+si meg	=9 enig:2222 veien:2222
+si noe	=16 til:1250
+siden av	=17 henne:1765 gaten:1176
+sier at	=31 hun:2581 han:2258 de:645 det:645
+sier du	=8 at:3750 til:2500
+sier han	=13 trenger:2308 liker:1538 vil:1538
+sikker på	=35 at:6286 det:1429 dette:571 hva:571
+sin egen	=13 teori:3846
+skal du	=34 gjøre:1471 ha:1176 bruke:588 med:588 sende:588
+skal gjøre	=22 det:2727 om:909
+skal ha	=8 sagt:2500
+skal jeg	=20 besøke:1500 fortelle:1000 gjøre:1000
+skal ta	=8 med:2500
+skal vi	=29 finne:1034 gjøre:1034 gå:1034 spise:1034 begynne:690 ikke:690 vinne:690
+skolen i	=9 dag:6667 går:2222
+skulle ha	=22 blitt:1818 vært:1364 holdt:909 hørt:909 kommet:909 snakket:909
+skulle ikke	=14 ha:7143
+skulle ønske	=88 jeg:6250 du:1023 at:795 det:682 dette:227 han:227 hun:227 Tom:10
+slik at	=10 jeg:3000 du:2000
+slutte å	=13 drikke:3077 røyke:2928 late:1538
+sluttet å	=11 røyke:3461
+snakke med	=44 deg:3864 meg:1364 ham:682 dere:455 faren:455 henne:455 Tom:52
+snakke om	=16 det:3125
+snakker dere	=8 alle:2500 ikke:2500 om:2500
+snakker du	=20 om:2000 ikke:1500
+snakker ikke	=18 engelsk:1667 fransk:521
+snakket med	=29 meg:1379 den:1034 henne:1034 et:690 venner:690 Mary:70 Tom:47
+snill og	=11 kom:1818
+som ble	=8 sagt:3750
+som den	=8 pleide:2452
+som det	=16 er:3125
+som du	=19 har:1579 vil:1053
+som en	=50 helt:400 mann:400 måte:400 ulv:400 venn:400
+som er	=55 i:1091 best:727 eller:364 igjen:364 kjent:364 på:364
+som et	=21 tegn:1429 esel:952
+som hadde	=11 skjedd:2727 blitt:1818 vært:1818
+som han	=11 ikke:1818
+som har	=23 en:1304 skjedd:1304
+som helst	=27 for:1111 kan:741
+som ikke	=32 kan:3125 er:938 har:938 forstår:625 tar:625
+som jeg	=33 ikke:909 hadde:606 hater:606 kan:606 kjeder:606 trodde:606
+som kan	=18 ta:1667 være:1111
+som om	=28 han:2500 hun:1429 du:1071 jeg:1071 de:714 Tom:32
+som skjedde	=17 med:1765
+som skjer	=15 i:3333
+som vil	=12 ha:1667 snakke:1667
+spiser du	=9 ikke:3333 vanligvis:2222
+språk som	=13 er:1538 var:1538
+stand til	=11 å:9999
+stole på	=11 ham:1818
+stolt av	=13 meg:1538 å:1538
+stå opp	=16 tidlig:3125 før:1250
+største byen	=9 i:9999
+svare på	=21 spørsmålet:4762 alle:1429 det:1429 brevet:565
+synes det	=10 er:9000
+synes du	=27 om:2963 at:1111 ikke:1111 bør:741 virkelig:741 Tom:34
+så deg	=12 ikke:4167 på:1667 var:1667
+så det	=11 ikke:3636
+så du	=28 ikke:7143 kunne:714
+så er	=14 det:5000
+så fort	=14 du:2143 som:1429
+så godt	=8 som:3750
+så ham	=9 rett:2222
+så jeg	=29 kan:1034 får:690 har:690 inn:690 måtte:690
+så lenge	=14 du:1429
+så mange	=19 mennesker:1579 bøker:1053 folk:1053
+så meg	=9 rundt:2222
+så mye	=44 penger:1136 jeg:909 at:455 kjøtt:455
+så på	=19 meg:2632 ham:2105 henne:2105 TV:1053
+så snill	=23 og:3043 å:2609 ikke:1304
+så vi	=8 må:2500
+sønnen min	=10 er:2000 til:2000
+ta av	=10 deg:8000
+ta en	=16 spasertur:1250 snarvei:1071
+ta med	=11 et:1818 noen:1818 paraply:488
+ta på	=10 deg:4000 meg:2000
+ta vare	=10 på:9999
+takk for	=23 alt:870 at:870 et:870
+tar det	=10 å:3000 som:2000 Tom:91
+tendens til	=11 å:9999
+tenke på	=15 det:3333
+tenker du	=9 på:3333 om:2222 skjønner:2222 å:2222
+tenker på	=15 det:2000 meg:2000 deg:1333
+tenkt å	=11 bli:2727
+tenkte på	=9 det:3333
+tid til	=22 å:5455 annen:2727
+til at	=25 jeg:2800 vi:1200 du:800 han:800 Tom:54
+til australia	=14 med:1429
+til de	=10 fleste:2000
+til deg	=27 i:1111
+til den	=14 gamle:1429
+til en	=28 viss:714
+til et	=16 amerikansk:2500
+til felles	=35 med:8857
+til i	=10 morgen:6000
+til meg	=46 selv:870 at:435 i:435 om:435
+til og	=13 med:6154
+til å	=476 være:735 gjøre:588 bli:546 gå:378 kjøpe:252 ta:252 snakke:189 se:168 si:168 spise:168 synge:168 skje:147 skrive:147 hjelpe:126 lage:126 like:126 spille:126 studere:118 dra:105 lykkes:105 sitte:105 finne:84 få:84 føle:84
+tilbake til	=19 Boston:216
+to ganger	=10 i:2000 om:2000
+tok av	=9 seg:5556 meg:2222
+tre dager	=10 til:2000 å:2000
+tre ganger	=9 i:3333 så:2222
+tre år	=19 siden:2105 i:1053
+trenger du	=10 en:3000
+trenger en	=19 hammer:1053 jobb:1053 taxi:1053
+trenger ikke	=35 å:3143 jobbe:571 stå:571
+trenger å	=10 gjøre:6000 vite:2000
+tro at	=8 du:3750 jeg:2500
+trodde at	=8 hun:2500 Tom:113
+tror at	=22 det:1818 jeg:1364 hun:909 i:909 Tom:83
+tror det	=17 er:5882 kommer:1176 var:1176
+tror du	=44 at:1136 vet:909 er:682 gjorde:455 han:455 ikke:455 på:455 virkelig:455 Tom:31
+tror han	=9 er:4444 har:2222
+tror ikke	=28 at:1786 på:1786 det:1429 jeg:1429 virkelig:1071 Tom:49
+tror jeg	=29 er:1379 har:1034 hadde:690 ikke:690 vet:690 vil:690
+uansett hva	=8 som:5000 han:2500
+unnskyld meg	=9 men:3333 jeg:2222
+ut av	=29 huset:1379 det:1034 vinduet:927 buret:690 fengsel:690 hånda:690
+ut hvordan	=12 jeg:6667 man:3333
+ut i	=18 dag:2222 det:1111
+ut på	=16 natta:1875 å:1875 natt:1250
+ut som	=32 om:1875 en:1250 John:938 at:625 din:625 han:625
+ut til	=16 å:6250 at:3125
+uten å	=31 si:1613 gjøre:968 spørre:968 vite:968 betale:645 jobbe:645
+vanskelig å	=30 forstå:1333 forklare:667 gjøre:667 snakke:667 spille:667
+vant til	=21 å:7143 det:952
+var bare	=9 en:5556
+var den	=17 eneste:1765 første:1765
+var det	=46 du:870 en:870 noen:652 som:652 bare:435 et:435 ikke:435 ingen:435 jeg:435 mange:435 torsdag:435
+var du	=13 i:2308 med:2308
+var en	=75 av:533 stor:533 gang:400 feil:267 god:267 veldig:267 grådig:11
+var et	=15 barn:1333 slags:1333
+var for	=9 forskjellige:2222
+var her	=10 i:2000
+var i	=35 ferd:1714 dusjen:571 en:571 endring:571 fare:571 går:571
+var ikke	=69 en:725 så:725 her:580 den:435 fornøyd:435 jeg:435 veldig:435 hjemme:290 min:290 noe:290 på:290 redd:290 til:290 Tom:20
+var kledd	=8 i:8750
+var på	=15 tide:1333 vei:1333
+var syk	=8 så:2500
+var så	=18 mange:1667 varm:1111 trøtt:738
+var veldig	=34 flink:588 kaldt:588 trøtt:586 ensom:552 sta:50
+vare på	=11 Tom:83
+ved siden	=10 av:9999
+ved å	=21 holde:952 selge:952 være:952
+vei til	=8 skolen:2500 Toms:63
+veldig glad	=11 i:3636 for:2727 ut:1818
+veldig lite	=8 om:5000
+velkommen til	=10 å:4000
+venn av	=9 meg:5556
+venter på	=13 ham:2308
+ventet på	=11 at:1818 henne:1818 meg:1818
+verden er	=11 full:1818 ikke:1818
+vet at	=48 jeg:2083 du:833 det:625 hun:625 vi:625 han:417 Tom:132
+vet du	=44 hvor:2045 om:2045 hva:1818 hvordan:1364 hvem:682 hvorfor:682 at:455
+vet hva	=21 som:5238 jeg:1905 du:952
+vet hvor	=11 han:3636
+vet ikke	=64 hva:1875 om:1406 hvordan:1250 hvorfor:1094 hvor:938 hvem:469 en:312 helt:312 noe:312 når:312
+vet ingenting	=9 om:8889
+vet jeg	=8 ikke:2500
+vi bor	=9 i:6667
+vi bør	=12 respektere:1667
+vi er	=58 ikke:862 i:690 alle:345 bekymret:345 en:345 ganske:345 veldig:345 venner:345
+vi gikk	=10 inn:2000
+vi hadde	=15 ikke:2000 en:1333 ingenting:1333
+vi har	=110 ikke:1000 en:727 vært:545 bare:455 gått:364 to:364 allerede:273 bodd:273 et:273 opplevd:273 alle:182 diskutert:182 fire:182 glemt:182 hatt:182 ingen:182 lov:182
+vi ikke	=17 noe:1176
+vi kan	=25 ikke:3200 se:800
+vi kunne	=9 ha:2222 se:2222
+vi må	=59 gjøre:1186 hjelpe:847 ikke:678 ta:678 alle:339 arbeide:339 bli:339 finne:339 følge:339
+vi skal	=23 gjøre:1304 ha:870 ikke:870 møtes:870 på:870 til:870
+vi skulle	=10 ha:2000
+vi trenger	=15 en:2000 flere:1333 mer:1333
+vi var	=23 barn:870 for:870 gode:870
+vi vet	=14 nesten:2143 veldig:2143 at:1429 begge:1429
+vi vil	=12 ha:2500 ikke:1667
+viktig å	=9 tenke:2222
+vil aldri	=9 lære:2222
+vil alltid	=8 elske:2500 være:2500
+vil at	=25 du:4800 vi:1600 jeg:800 Tom:73
+vil bare	=12 være:3333 at:1667
+vil bli	=25 til:1200 en:800 lærer:800
+vil det	=10 ta:3000 alltid:2000
+vil du	=77 ha:2727 at:649 bli:649 ikke:519 være:519 finne:390 skal:390 gjerne:260 høre:260 lære:260 se:260 snakke:260 spise:260 virkelig:260 vite:260 høste:258
+vil gjerne	=16 ha:2500 stille:1250
+vil gjøre	=15 det:2000
+vil ha	=66 en:1364 et:1364 noe:909 deg:455 den:455 mer:455 din:303 mange:303 penger:303
+vil heller	=8 dø:2500 gå:2500
+vil ikke	=84 være:1071 at:833 ha:714 gå:595 se:595 gjøre:476 bo:357 leve:357 snakke:357 bli:238 fortelle:238 hjelpe:238 melde:238 risikere:238 spille:238 ta:238
+vil jeg	=15 bli:2000
+vil snakke	=8 med:6250 om:3750
+vil trøste	=8 deg:2500 ham:2500 henne:2500
+vil vite	=8 hvem:3750 hvorfor:2500
+vil være	=19 en:1579 alene:1053 sammen:1053
+ville aldri	=9 ha:5556
+ville du	=8 snakke:2500
+ville ha	=14 vært:2143 en:1429
+ville ikke	=29 ha:2414 snakke:1034 være:1034 at:690
+ville jeg	=8 ha:5000
+ville være	=14 en:1429
+visste at	=18 jeg:3333 det:1667 han:1111
+visste ikke	=13 at:3846 hva:2308
+viste meg	=9 et:3333 albumet:2222
+vondt i	=12 hodet:2500 halsen:1667 hele:1667 øynene:1667
+vær så	=26 snill:6923 god:769
+være der	=12 før:1667
+være en	=27 av:1111 god:741 stor:741 misforståelse:710
+være et	=9 selvmord:2222 stort:2222
+være i	=16 fred:3750 stand:1875 Boston:256
+være med	=9 deg:3333 på:3333 oss:2222
+være så	=9 snill:3333
+vært der	=14 før:2857
+vært i	=29 utlandet:1034 Japan:733 Paris:690 Russland:690
+å betale	=8 for:2500 regningene:2500
+å bli	=65 en:1385 i:769 ferdig:462 konge:308 kvitt:308 lærer:308
+å bo	=16 i:3750 på:2500 alene:1875
+å bruke	=10 denne:2000
+å dra	=18 til:3889 på:1667 hjem:1111
+å dø	=10 for:2000
+å finne	=24 en:1667 et:1250 arbeid:833 veien:833
+å forklare	=15 dette:4000
+å forstå	=20 hva:1000
+å fortelle	=17 deg:2353 meg:2353 sannheten:2353 ham:1176
+å få	=42 tak:952 noe:714 det:476 leve:476 muligheten:476
+å føle	=8 deg:2500
+å gi	=22 opp:1818 deg:1364 meg:1364 Tom:62
+å gjøre	=105 det:3905 feil:667 noe:571 dette:381 en:190 er:190 med:190 seg:190 ting:190
+å gå	=55 på:1455 ut:727 til:545 i:364 med:364 rundt:364 Tom:25
+å ha	=40 besøkt:750 en:750 gjort:500 sett:500
+å hjelpe	=15 dem:2000 oss:2000
+å holde	=22 følge:2273 en:909 på:909 pusten:649
+å høre	=13 på:3846 hva:1538
+å ikke	=23 tenke:1304 fortelle:870 gråte:870
+å jobbe	=22 i:1364 med:1364 hardt:909
+å kjøpe	=28 en:2500 den:1429 nye:1071 det:714
+å kjøre	=9 bil:3333
+å komme	=30 seg:2000 overens:1000 inn:667 med:667
+å kunne	=9 snakke:2222
+å lage	=22 mat:1364 en:909 kjøttboller:604
+å lese	=24 denne:1667
+å leve	=23 i:2174
+å lære	=45 et:1111 meg:889 seg:889 språk:889 å:889 engelsk:444 mer:444 tysk:444 latin:241
+å løse	=9 problemet:5556
+å miste	=10 innflytelse:2000
+å møte	=11 deg:4545 ham:1818
+å nå	=8 det:5000 toget:2466
+å prøve	=10 å:6000
+å regne	=14 i:1429
+å reise	=10 til:5000
+å reparere	=9 bilen:2222 den:2222
+å se	=50 på:1400 deg:800 at:600 meg:600 dem:400 den:400 dere:400 etter:400 ham:400 her:400 noe:400
+å si	=38 det:2368 noe:1579 at:1316 om:789 farvel:526 grusomme:526 opp:526
+å sitte	=8 oppe:2500 på:2500
+å skrive	=34 med:882 til:882 den:588 effektivt:588 en:588 hva:588 om:588
+å snakke	=40 med:3250 om:1250 et:500 på:500 fransk:235
+å snø	=8 i:2500
+å sove	=9 på:3333
+å spille	=24 gitar:1250 tennis:882 fotball:833 golf:833 piano:742
+å spise	=48 dette:417 i:417
+å spørre	=18 ham:1111 henne:1111 meg:1111 om:1111
+å studere	=28 i:1071 til:714
+å stå	=10 opp:9000
+å svare	=11 på:9091
+å ta	=43 vare:1395 en:1163 over:698 betalt:465 imot:465 vanskelige:465 klesvasken:170 oppvasken:144
+å tenke	=8 på:3750
+å vente	=9 her:2222 på:2222
+å vite	=12 at:1667 hva:1667
+å være	=114 en:965 her:702 alene:439 der:439 ærlig:439 et:351 hjemme:351 i:351 med:351 sammen:263 berømt:175 hyggelig:175 lykkelig:175 sant:175 sint:175 så:175 våken:175
+år siden	=29 jeg:1034 men:690
+én gang	=9 i:5556
+ønske at	=8 du:3750 jeg:3750
+ønske du	=9 hadde:3333 kunne:3333
+ønske jeg	=57 kunne:5965 hadde:2982 var:877
+ønsker å	=33 lære:1212 bli:909 si:909 snakke:606 være:606

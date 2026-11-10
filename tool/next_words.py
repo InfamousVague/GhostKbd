@@ -113,8 +113,18 @@ MIN_PAIRS = 5_000
 MIN_GAIN = 8.0
 SCALE = 8.0
 DROP_CONTEXT = 0.25
-FOLLOWERS = 48
-MAX_BYTES = 12_000_000
+#: Followers kept for one context: English's, and every other language's. More followers is what lets the word
+#: before rank completions (after "the" and "p", the p-words that follow "the"); tool/next_word_eval.sh measured it.
+FOLLOWERS_EN = 160
+FOLLOWERS = 64
+#: Two-word contexts (Matt, 2026-11-10: "it should work based off previous word concatenations and sentences"): a row
+#: for two words in a row ("how are", "^ thank": "thank" opening a sentence) where they were seen at least
+#: TRIPLE_CONTEXT times, holding the followers seen at least the pair minimum, at most TRIPLE_FOLLOWERS of them.
+TRIPLE_CONTEXT = 8
+TRIPLE_FOLLOWERS = 24
+#: Where held-out sentences are written for tool/next_word_eval.sh (ignored by git; never in the app).
+EVAL = os.path.join(ROOT, "build", "ngram-eval")
+MAX_BYTES = 32_000_000
 
 
 def joiners_of(lang):
@@ -369,10 +379,11 @@ def count(lang):
     vocab = vocabulary(lang)
     classes = Classes(joiners_of(lang), ENDS.get(lang, ""))
     pairs = collections.Counter()      # (context, word) in the counted sentences
+    triples = collections.Counter()    # (two-word context, word): "how are" + "you"
     starts = collections.Counter()     # how many sentences started with a word, listed or not
     unigrams = collections.Counter()
     casing = collections.defaultdict(collections.Counter)
-    held = []                          # (context, word) events of the held-out sentences
+    held = []                          # (two-word context or None, context, word, raw) events of the held-out sentences
     users = set()
     read = collections.Counter()
     known = {}
@@ -397,25 +408,31 @@ def count(lang):
         out = n % HOLD_OUT == 0
         words, _ = walk(normalise(text, lang), classes, lang)
         before_listed = False   # the word before this one is in the list
+        context = None          # the context of the word before this one, as worked out for it
         counted = False
-        for _, prev, raw, _, _, ok in words:
+        for prev2, prev, raw, _, _, ok in words:
             if prev == START and not out:
                 starts[START] += 1
             # walk()'s own context, except that a word the list lacks ends it as a symbol would.
+            last = context
             context = prev if prev == START or (prev is not None and before_listed) else None
+            # Two words: the word before had a context of its own (a word, or a sentence's start) and both stand.
+            context2 = f"{prev2} {prev}" if context not in (None, START) and last is not None and prev2 is not None else None
             word = lower(raw, lang)
             before_listed = ok and bool(listed(word))
             if not before_listed:
                 continue
             if out:
                 if context is not None:
-                    held.append((context, word))
+                    held.append((context2, context, word, raw))
                 continue
             unigrams[word] += 1
             if context is None:
                 continue
             counted = True
             pairs[(context, word)] += 1
+            if context2 is not None:
+                triples[(context2, word)] += 1
             form = shown(raw, context == START)
             if form:
                 casing[word][form] += 1
@@ -423,7 +440,7 @@ def count(lang):
             users.add(user)
     if n == 0:
         return None
-    return {"lang": lang, "vocab": vocab, "pairs": pairs, "starts": starts[START], "unigrams": unigrams, "casing": casing,
+    return {"lang": lang, "vocab": vocab, "pairs": pairs, "triples": triples, "starts": starts[START], "unigrams": unigrams, "casing": casing,
             "held": held, "users": users, "read": dict(read), "sentences": n, "listed": {w: p for w, p in known.items() if p}}
 
 
@@ -452,8 +469,9 @@ def build(c):
         return (c["starts"] if context == START else unigrams[context]) or 1
 
     minimum = 3 if c["sentences"] >= 300_000 else 2
-    # Fewer than first planned (60,000 and 40,000), to keep every table together under MAX_BYTES.
-    cap = 100_000 if lang == "en" else 50_000 if c["sentences"] >= 400_000 else 35_000
+    # English, the keyboard's first language, has the largest table: about 10 MB in memory with its two-word rows.
+    cap = 250_000 if lang == "en" else 60_000 if c["sentences"] >= 400_000 else 42_000
+    followers = FOLLOWERS_EN if lang == "en" else FOLLOWERS
     kept = []
     for (context, word), n in c["pairs"].items():
         if n < minimum or word in bad or context in bad or word == context:
@@ -471,7 +489,7 @@ def build(c):
         if pairs >= cap:
             break
         row = by_context[context]
-        if len(row) >= FOLLOWERS:
+        if len(row) >= followers:
             continue
         row.append((word, weight))
         pairs += 1
@@ -482,30 +500,72 @@ def build(c):
 
     rows = []
     for context in sorted(by_context, key=lambda k: (k != START, k)):
-        rows.append((context, [(display(w), max(1, min(9999, round(weight * 10_000 / seen(context))))) for w, weight in by_context[context]]))
+        rows.append((context, None, [(display(w), max(1, min(9999, round(weight * 10_000 / seen(context))))) for w, weight in by_context[context]]))
+
+    # Two-word rows. Seen is how often the two words stood together in the counted sentences: the pair's own count.
+    def seen2(context2):
+        a, b = context2.split(" ", 1)
+        return c["pairs"].get((a, b), 0)
+
+    cap2 = 375_000 if lang == "en" else 60_000 if c["sentences"] >= 400_000 else 30_000
+    kept2 = []
+    for (context2, word), n in c["triples"].items():
+        if n < minimum or word in bad:
+            continue
+        a, b = context2.split(" ", 1)
+        if a in bad or b in bad or b == word:
+            continue
+        if (a != START and scale(a) < DROP_CONTEXT) or scale(b) < DROP_CONTEXT:
+            continue
+        total2 = seen2(context2)
+        if total2 < TRIPLE_CONTEXT:
+            continue
+        kept2.append((n * scale(word), context2, word, total2))
+    kept2.sort(key=lambda k: (-k[0], k[1], k[2]))
+    by_context2 = collections.defaultdict(list)
+    seen_of = {}
+    pairs2 = 0
+    for weight, context2, word, total2 in kept2:
+        if pairs2 >= cap2:
+            break
+        row = by_context2[context2]
+        if len(row) >= TRIPLE_FOLLOWERS:
+            continue
+        row.append((word, weight))
+        seen_of[context2] = total2
+        pairs2 += 1
+    for context2 in sorted(by_context2):
+        total2 = seen_of[context2]
+        rows.append((context2, total2, [(display(w), max(1, min(9999, round(weight * 10_000 / total2)))) for w, weight in by_context2[context2]]))
 
     # The gate: on the held-out sentences, how often the word typed was among the table's first three for its context,
     # against always offering the language's three commonest words.
-    top = {context: [lower(s, lang) for s, _ in followers[:3]] for context, followers in rows}
+    top = {context: [lower(s, lang) for s, _ in followers[:3]] for context, _, followers in rows}
     common = [w for w, _ in unigrams.most_common(3)]
-    hit1 = hit3 = base = 0
-    for context, word in c["held"]:
+    hit1 = hit3 = base = hit3two = 0
+    for context2, context, word, _ in c["held"]:
         guess = top.get(context, ())
         hit1 += guess[:1] == [word]
         hit3 += word in guess
         base += word in common
+        # With the two words before where there is a row for them: only a report, the gate goes by one word.
+        hit3two += word in (top.get(context2) or guess)
     events = len(c["held"]) or 1
     most_scaled = sorted((w for w in unigrams if unigrams[w] >= 20), key=scale)[:30]
     report = {"lang": lang, "sentences": c["sentences"], "pairs": pairs, "contexts": len(rows), "events": len(c["held"]),
               "top1": 100.0 * hit1 / events, "top3": 100.0 * hit3 / events, "baseline": 100.0 * base / events,
+              "top3two": 100.0 * hit3two / events, "pairs2": pairs2, "contexts2": len(by_context2),
               "scaled": most_scaled, "read": c["read"]}
     report["passed"] = pairs >= MIN_PAIRS and report["top3"] - report["baseline"] >= MIN_GAIN
     return rows, report
 
 
 def encode(lang, rows, dates):
+    """A table's file. A two-word row opens with "=n", how often its two words were seen together: a keyboard of
+    version 1 skips the entry (it has no colon) and the row (its context has a space it never looks up)."""
     head = f"#ghost-ngram\t1\t{lang}\tTatoeba export {dates}, CC BY 2.0 FR\n"
-    return (head + "".join(context + "\t" + " ".join(f"{s}:{n}" for s, n in followers) + "\n" for context, followers in rows)).encode("utf-8")
+    return (head + "".join(context + "\t" + (f"={seen} " if seen else "") + " ".join(f"{s}:{n}" for s, n in followers) + "\n"
+                           for context, seen, followers in rows)).encode("utf-8")
 
 
 def serbian(rows):
@@ -523,15 +583,19 @@ def serbian(rows):
             return None
         return cyr.capitalize() if word[:1].isupper() and not word.isupper() else cyr.upper() if word.isupper() and len(word) > 1 else cyr
 
+    def turn_key(context):
+        parts = [p if p == START else turn(p) for p in context.split(" ")]
+        return None if None in parts else " ".join(p.lower() for p in parts)
+
     out = []
-    for context, followers in rows:
-        key = context if context == START else turn(context)
+    for context, seen, followers in rows:
+        key = turn_key(context)
         if key is None:
             continue
         mine = [(t, n) for t, n in ((turn(s), n) for s, n in followers) if t is not None]
         if mine:
-            out.append((key, mine))
-    out.sort(key=lambda r: (r[0] != START, r[0]))
+            out.append((key, seen, mine))
+    out.sort(key=lambda r: (" " in r[0], r[0] != START, r[0]))
     return out
 
 
@@ -541,6 +605,11 @@ def make(lang):
     if c is None:
         return lang, None, None, set(), []
     rows, report = build(c)
+    # The held-out words in order, for tool/next_word_eval.sh: two-word context, context, the word as written.
+    os.makedirs(EVAL, exist_ok=True)
+    with open(os.path.join(EVAL, f"{lang}.tsv"), "w", encoding="utf-8") as f:
+        for context2, context, _, raw in c["held"]:
+            f.write(f"{context2 or ''}\t{context}\t{raw}\n")
     sources = []
     for iso in ISO3[lang]:
         path = os.path.join(SRC, f"{iso}_sentences_detailed.tsv.bz2")
@@ -621,6 +690,7 @@ def main(argv):
             continue
         verdict = "written" if report["passed"] else "NOT WRITTEN (gate)"
         print(f"{lang:4} {report['sentences']:9} {report['pairs']:7} {report['top1']:6.1f} {report['top3']:6.1f} {report['baseline']:8.1f}  {verdict}")
+        print(f"     two-word rows: {report['contexts2']:,} contexts, {report['pairs2']:,} pairs; top 3 going by them: {report['top3two']:.1f}")
         print(f"     scaled down most: {' '.join(report['scaled'])}")
         if not report["passed"]:
             continue
@@ -630,7 +700,7 @@ def main(argv):
         sources += src
         if lang == "sh":
             cyr = serbian(rows)
-            pairs = sum(len(f) for _, f in cyr)
+            pairs = sum(len(f) for c, _, f in cyr if " " not in c)
             if pairs >= MIN_PAIRS:
                 written["sr"] = (encode("sr", cyr, dates), dict(report, pairs=pairs, lang="sr"), dates)
                 print(f"sr   {'':9} {pairs:7} {'':6} {'':6} {'':8}  written (sh's table in Cyrillic)")

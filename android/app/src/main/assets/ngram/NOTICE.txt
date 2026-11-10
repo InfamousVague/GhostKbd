@@ -18,40 +18,40 @@ language's word list were left out, the counts of words Tatoeba uses far more th
 names) were scaled down, and words on the LDNOOBW list were removed.
 
 The exports read (language, export date, sentences, pairs kept):
-  ar   2026-11-07     68,750 sentences   12,302 pairs
-  bg   2026-11-07     25,721 sentences    8,638 pairs
-  ca   2026-11-07     10,965 sentences    5,642 pairs
-  cs   2026-11-07     90,156 sentences   23,764 pairs
-  da   2026-11-07     66,554 sentences   21,252 pairs
-  de   2026-11-07    786,418 sentences   50,000 pairs
-  el   2026-11-07     43,058 sentences   13,628 pairs
-  en   2026-11-07  2,040,567 sentences  100,000 pairs
-  es   2026-11-07    443,166 sentences   50,000 pairs
-  fa   2026-11-07     31,856 sentences   14,736 pairs
-  fi   2026-11-07    155,018 sentences   35,000 pairs
-  fil  2026-11-07     79,138 sentences   26,509 pairs
-  fr   2026-11-07    730,079 sentences   50,000 pairs
-  he   2026-11-07    212,926 sentences   35,000 pairs
-  id   2026-11-07     28,418 sentences    9,909 pairs
-  is   2026-11-07     13,394 sentences    5,770 pairs
-  it   2026-11-07    991,553 sentences   50,000 pairs
-  lt   2026-11-07    159,332 sentences   32,282 pairs
-  lv   2026-11-07     20,234 sentences    6,169 pairs
-  mk   2026-11-07     78,260 sentences   15,011 pairs
-  ms   2026-11-07     10,062 sentences    5,245 pairs
-  nb   2026-11-07     18,898 sentences    7,847 pairs
-  nl   2026-11-07    201,505 sentences   35,000 pairs
-  pl   2026-11-07    137,212 sentences   33,879 pairs
-  pt   2026-11-07    445,685 sentences   50,000 pairs
-  ro   2026-11-07     41,914 sentences   14,895 pairs
-  ru   2026-11-07  1,235,743 sentences   50,000 pairs
-  sh   2026-11-07     60,446 sentences   18,529 pairs
-  sk   2026-11-07     33,329 sentences    9,430 pairs
-  sr   2026-11-07     60,446 sentences   18,500 pairs
-  sv   2026-11-07     56,869 sentences   16,302 pairs
-  tr   2026-11-07    750,219 sentences   50,000 pairs
-  uk   2026-11-07    188,941 sentences   33,618 pairs
-  vi   2026-11-07     33,274 sentences   18,217 pairs
+  ar   2026-11-07     68,750 sentences   12,815 pairs
+  bg   2026-11-07     25,721 sentences    9,180 pairs
+  ca   2026-11-07     10,965 sentences    5,954 pairs
+  cs   2026-11-07     90,156 sentences   25,288 pairs
+  da   2026-11-07     66,554 sentences   22,609 pairs
+  de   2026-11-07    786,418 sentences   60,000 pairs
+  el   2026-11-07     43,058 sentences   14,397 pairs
+  en   2026-11-07  2,040,567 sentences  205,399 pairs
+  es   2026-11-07    443,166 sentences   60,000 pairs
+  fa   2026-11-07     31,856 sentences   15,276 pairs
+  fi   2026-11-07    155,018 sentences   37,977 pairs
+  fil  2026-11-07     79,138 sentences   27,720 pairs
+  fr   2026-11-07    730,079 sentences   60,000 pairs
+  he   2026-11-07    212,926 sentences   42,000 pairs
+  id   2026-11-07     28,418 sentences   10,535 pairs
+  is   2026-11-07     13,394 sentences    6,066 pairs
+  it   2026-11-07    991,553 sentences   60,000 pairs
+  lt   2026-11-07    159,332 sentences   34,550 pairs
+  lv   2026-11-07     20,234 sentences    6,581 pairs
+  mk   2026-11-07     78,260 sentences   15,919 pairs
+  ms   2026-11-07     10,062 sentences    5,533 pairs
+  nb   2026-11-07     18,898 sentences    8,360 pairs
+  nl   2026-11-07    201,505 sentences   42,000 pairs
+  pl   2026-11-07    137,212 sentences   36,030 pairs
+  pt   2026-11-07    445,685 sentences   60,000 pairs
+  ro   2026-11-07     41,914 sentences   15,713 pairs
+  ru   2026-11-07  1,235,743 sentences   60,000 pairs
+  sh   2026-11-07     60,446 sentences   19,575 pairs
+  sk   2026-11-07     33,329 sentences    9,821 pairs
+  sr   2026-11-07     60,446 sentences   19,545 pairs
+  sv   2026-11-07     56,869 sentences   17,419 pairs
+  tr   2026-11-07    750,219 sentences   60,000 pairs
+  uk   2026-11-07    188,941 sentences   36,097 pairs
+  vi   2026-11-07     33,274 sentences   19,536 pairs
 
 Languages with a word list and no file here have no starter table: hu, sl, ur. There the keyboard
 suggests from what the person types and from how common words are.

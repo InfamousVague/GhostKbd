@@ -17,13 +17,16 @@ nothing of it to stop.
 
 Two things, blended in `Scorer` (`NextWordModel.kt`):
 
-- **Starter tables**, one a language, inside the app: for a word, or for the start of a sentence, the words that
-  most often came next in Tatoeba's sentences and each one's share. They are bigrams: one word of context.
+- **Starter tables**, one a language, inside the app: for a word, for two words in a row, or for the start of a
+  sentence, the words that most often came next in Tatoeba's sentences and each one's share. A two-word row ("how
+  are", "^ thank" for thank opening a sentence) carries how often its two words were seen together.
 - **What the person types**, counted on the phone (`PersonalPairs`): how often each word followed the word before
   it, and the two words before it.
 
 With `u` a personal count, `U` everything the person has typed after that context, and `B` the starter share:
 
+    the starter share: B  = (n·B₂ + 15·B₁) / (n + 15)  where the table has a row for the two words before, seen n times
+                                                       (else B = B₁, the one-word row's share)
     after one word:    S2 = (u + 8·B) / (U + 8)
     after two words:   S  = (u + 3·S2) / (U + 3)      where the person has typed that pair of words before
 
@@ -38,7 +41,7 @@ Several languages can be on at once. Each table is weighed by how many of the la
 language being written leads without being chosen.
 
 For completions, a word's rank is its Zipf frequency (or what the person's own use of it comes to, if more) plus
-`log10(1 + 2.33 · S / the word's own share of all words)`, at most 4. That lift is exactly 0 where the context says
+`log10(1 + 40 · S / the word's own share of all words)`, at most 6. That lift is exactly 0 where the context says
 nothing, so context never ranks a word down. For corrections the same lift counts for at most 1.5, and only among
 candidates that were good enough corrections without it: context never causes a correction.
 
@@ -84,9 +87,12 @@ Fading and pruning run when the keyboard hides.
     #ghost-ngram	1	en	Tatoeba export 2026-11-07, CC BY 2.0 FR
     ^	I:1429 the:486 he:416
     thank	you:7779 God:397 me:274
+    ^ thank	=1352 you:9194 God:459 goodness:141
 
 A line is a context in lower case (`^` is a sentence's start), a tab, then `word:share` entries, likeliest first. The
-share is in ten-thousandths of everything that followed the context. A word is written as it is usually cased in the
+share is in ten-thousandths of everything that followed the context. A context of two words opens with `=n`, how
+often they were seen together; a keyboard from before two-word rows skips that entry and never looks the row up.
+In memory a context is its words' numbers, so the two-word rows cost no strings (English: about 10 MB). A word is written as it is usually cased in the
 middle of a sentence. `NOTICE.txt` and `CREDITS.txt` beside them carry the attribution.
 
 **What is learned**: `next_words.tsv` in the app's no-backup files, so it is not in Android's cloud backup and is
@@ -121,12 +127,28 @@ always on a background thread and by way of a temporary file. Killing the app lo
 Tatoeba reads like a phrasebook and loves a few names, so each word's counts are scaled by how much more often
 Tatoeba uses it than wordfreq says people do; "Tom", "Mary" and "Boston" go without a list of names per language.
 
+### How it is measured
+
+`tool/next_word_eval.sh` types the held-out sentences (written to `build/ngram-eval/` by the generator) through the
+keyboard's own `Scorer` and `Autocorrect.suggest`: how often the next word is in the row before a letter is typed,
+and the share of keystrokes saved by tapping a word in the row as soon as it is one of the first three. English,
+20,000 held-out words, on 2026-11-10:
+
+| | Top one | Top three | Keystrokes saved |
+| --- | ---: | ---: | ---: |
+| One-word tables (100,000 pairs, 48 followers) | 14.0% | 25.5% | 45.3% |
+| Two-word rows, larger tables, context weighed 40 | 20.0% | 33.7% | 50.2% |
+
+Learning on these sentences as if one person typed them all lowers the numbers a little (they are many people's,
+which the starter table already holds), so the personal blend was left as it was; it is for one person's habits.
+
 ### Which languages have one
 
 A table ships only if, on every 20th sentence held out from the counting, its top three were right at least 8
 points more often than always offering the language's three commonest words, and it has at least 5,000 pairs.
 **These numbers are measured on Tatoeba's own sentences and flatter real messages**; nothing has been measured on
-anyone's real typing. Made from the exports of 2026-11-07:
+anyone's real typing. Made from the exports of 2026-11-07, with the first (one-word) tables; the pairs each table
+keeps now are in `assets/ngram/NOTICE.txt`:
 
 | Language | Sentences | Pairs kept | Top one | Top three | Three commonest words | Starter table |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
