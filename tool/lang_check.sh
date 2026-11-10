@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
 out="${TMPDIR:-/tmp}/ghost-kbd-lang-check-$$.jar"
 trap 'rm -f "$out"' EXIT
-kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/NextWordModel.kt" \
+kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/SampleCleaner.kt" "$src/NextWordModel.kt" \
   tool/lang_check/stubs/android/graphics/PointF.kt tool/lang_check/Golden.kt tool/lang_check/LangCheck.kt \
   -include-runtime -d "$out" 2>&1 | grep -v "^warning:" || true
 [ -f "$out" ] || { echo "lang_check: the keyboard's language code did not compile"; exit 1; }

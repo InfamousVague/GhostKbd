@@ -10,3 +10,4 @@ android/gradlew
 android/gradlew.bat
 android/gradle/wrapper/gradle-wrapper.jar
 android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/app/.cxx/

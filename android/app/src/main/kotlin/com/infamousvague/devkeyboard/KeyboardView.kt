@@ -404,6 +404,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val keyPadY get() = dp(6f)
     private val keyRadius get() = dp(6f)
     private var navInset = 0
+    private var seenInset = -1
 
     /** The letters page sets the height; the symbol pages spread their rows over the same space, as Gboard does. */
     private val rowCount get() = if (numberRow) 5 else 4
@@ -417,7 +418,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             } else {
                 @Suppress("DEPRECATION") insets.systemWindowInsetBottom
             }
-            if (!embedded && bottom != navInset) { navInset = bottom; requestLayout() }
+            // onMeasure works the strip out afresh (bottomInset); this only asks for it when Android's number moves.
+            if (!embedded && bottom != seenInset) { seenInset = bottom; requestLayout() }
             insets
         }
     }
@@ -428,13 +430,29 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     /**
+     * Settings › Look & feel › Keys › Space under the keys. "auto": room for Android's own buttons (see [bottomInset]);
+     * "more": that and [MORE_SPACE_DP] again, for a phone whose buttons still crowd the bottom row; "none": only what
+     * Android itself reports.
+     */
+    var bottomSpace = "auto"
+        set(value) { if (field != value) { field = value; requestLayout() } }
+
+    /**
      * The strip Android keeps under the keyboard for its own buttons (collapse, switch keyboard) and the gesture bar.
      * Read from the window itself each layout, so it is right however the insets were dispatched.
+     *
+     * With gesture navigation Android draws those two buttons over the keyboard's own window, in a strip
+     * [NAV_BUTTONS_DP] tall, but some phones report only the thin gesture bar's height as the inset; the buttons then
+     * sat on the bottom row (Matt, 2026-11-09: "The keyboard needs to be higher the bottom stock android keyboard
+     * collapse and select are intercepting the UI"). So wherever there is a gesture bar at all, the keys keep at
+     * least the buttons' height clear.
      */
     private fun bottomInset(): Int {
         if (embedded) return 0
         val insets = rootWindowInsets ?: return navInset
-        val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        var gestures = 0
+        val reported = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            gestures = maxOf(insets.getInsets(WindowInsets.Type.systemGestures()).bottom, insets.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom)
             maxOf(
                 insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
                 insets.getInsets(WindowInsets.Type.tappableElement()).bottom,
@@ -442,8 +460,15 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         } else {
             @Suppress("DEPRECATION") insets.systemWindowInsetBottom
         }
-        return maxOf(bottom, navInset)
+        lastReported = maxOf(reported, lastReported)
+        if (bottomSpace == "none") return lastReported
+        val buttons = if (lastReported > 0 || gestures > 0 || hadGestures) { hadGestures = true; ceil(dp(NAV_BUTTONS_DP)).toInt() } else 0
+        return maxOf(lastReported, buttons) + if (bottomSpace == "more") ceil(dp(MORE_SPACE_DP)).toInt() else 0
     }
+
+    /** The most Android has reported for the strip, and whether it has ever had a gesture bar: neither flickers back as insets are re-sent. */
+    private var lastReported = 0
+    private var hadGestures = false
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -875,16 +900,36 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         drawPackIcon(canvas, RowIcon.MIC, cx, cy, dp(22f) * scale, color)
     }
 
-    /** The listening panel, over the keys: a ring that swells with the voice, and what to do. */
+    private val arcBox = RectF()
+
+    /** The listening panel, over the keys: a ring that swells with the voice, and what to do; arcs that turn while it writes. */
     private fun drawDictation(canvas: Canvas) {
         fill.color = theme.background
         canvas.drawRect(0f, keysTop, width.toFloat(), keysTop + keysHeight + bottomPad, fill)
         val cx = width / 2f
         val cy = keysTop + keysHeight * 0.42f
         val r = dp(34f)
+        if (dictation == DictationPhase.TRANSCRIBING) {
+            // Turning speech into words: two arcs chasing round the mic, the AI's violet into the accent, until done.
+            val t = if (animationsOn()) android.os.SystemClock.uptimeMillis() % 1100L / 1100f else 0f
+            val ring = r + dp(10f)
+            arcBox.set(cx - ring, cy - ring, cx + ring, cy + ring)
+            stroke.strokeWidth = dp(3f)
+            stroke.color = theme.accent
+            stroke.alpha = 50
+            canvas.drawCircle(cx, cy, ring, stroke)
+            stroke.alpha = 255
+            stroke.color = RowTint.AI.ink(theme)
+            canvas.drawArc(arcBox, 360f * t - 90f, 70f, false, stroke)
+            stroke.color = theme.accent
+            canvas.drawArc(arcBox, 360f * t + 90f, 70f, false, stroke)
+            if (animationsOn()) postInvalidateOnAnimation()
+        } else {
+            fill.color = theme.accent
+            fill.alpha = 60
+            canvas.drawCircle(cx, cy, r + dp(26f) * level.coerceIn(0f, 1f) + dp(4f), fill)
+        }
         fill.color = theme.accent
-        fill.alpha = 60
-        canvas.drawCircle(cx, cy, r + dp(26f) * level.coerceIn(0f, 1f) + dp(4f), fill)
         fill.alpha = 255
         canvas.drawCircle(cx, cy, r, fill)
         drawMic(canvas, cx, cy + dp(1f), theme.onAccent, 1.6f)
@@ -1331,13 +1376,26 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     private fun onLongPress(t: Touch) {
         when (t.key.type) {
-            // With more than one layout on, the space bar and the globe key open the list of them; with one, the space
-            // bar opens Android's keyboard picker as it always has.
-            KeyType.SPACE, KeyType.GLOBE -> {
+            // Holding the space bar starts cursor control where it is on (Matt, 2026-11-09: "Holding spacebar is opening
+            // the keyboard selection which makes cursor navigation hard"): a tick, and every slide from here moves the
+            // cursor at once, with no first stretch to cross. Let go without sliding and nothing is typed. With cursor
+            // control off, the hold opens the list of layouts where more than one is on, else Android's keyboard
+            // picker; the globe key always opens the list. Android's own switch button, under the keys, opens the
+            // picker either way.
+            KeyType.SPACE -> if (spaceCursor) {
+                performHapticFeedback(LONG_PRESS)
+                t.cursorMoved = true
+                t.cursorAnchor = t.lastX
+                t.lineAnchor = t.lastY
+            } else {
+                t.longPressed = true
+                val panel = makeLayoutPanel(t.rect)
+                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() } else listener.onShowPicker()
+            }
+            KeyType.GLOBE -> {
                 t.longPressed = true
                 val panel = makeLayoutPanel(t.rect)
                 if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() }
-                else if (t.key.type == KeyType.SPACE) listener.onShowPicker()
             }
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
             KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
@@ -1447,6 +1505,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
         /** The least height a long-press panel's cell is squeezed to, so a choice can still be read and hit. */
         private const val PANEL_CELL_MIN_DP = 30f
+        /** The strip Android draws its collapse and switch-keyboard buttons in, with gesture navigation (dp). */
+        const val NAV_BUTTONS_DP = 48f
+        /** What "More" adds under the keys (dp). */
+        const val MORE_SPACE_DP = 20f
         /**
          * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
          * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps

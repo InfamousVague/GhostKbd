@@ -54,15 +54,17 @@ carry more than Ghost Keyboard reads.
 | `words.learned` | Words autocorrect should leave alone. |
 | `words.next` | Next-word prediction's counts ([next-word.md](next-word.md)): for a context, the words that followed it and how often. A context is one word in lower case, two words with a space between (the two before), or `^` for the start of a sentence, which may also be the first of two (`"^ on"`). A following word is written as it should be shown (`Monday`, `I`); a count is any number above 0. Optional; older keyboards pass over it. |
 | `style.profile` | A description of how the person writes and texts, for Mockingbird and Ghostwriter (plain text or Markdown, under 6,000 characters). |
-| `style.samples` | Things the person wrote: `text`, and `kind` `"chat"` (texting) or `"writing"`. |
+| `style.profileVersion` | Optional. Which of Ghost Keyboard's style rules trained the profile (`1`: before slips were told from habits; `2`: now). Ghost Keyboard writes it on export and reads it back only from its own files (`source.app` `"Ghost Keyboard"`; `1` when missing), so an old profile stays due its retrain after a trip through a file. Other apps leave it out. |
+| `style.samples` | Things the person wrote: `text`, and `kind` `"chat"` (texting) or `"writing"`. Ghost Keyboard exports them as its AI reads them: obvious slips ("teh") repaired, everything else, and any spelling the person repeats, as typed. Where it repaired one, the sample exactly as typed is beside it as `typed`. |
 
 ## How Ghost Keyboard takes one in
 
 - **keys**: blended with what it has learned, each side weighted by its touches (`samples`), so a big report moves a
   new keyboard's aims and nudges an experienced one's. An aim is used at most a third of a key from the middle, and
-  only once it stands on 15 touches.
-- **slips**: each counts three times for the letter meant, at the point given or, without one, part way toward the
-  key pressed on that layout; those with `x`/`y` show on the heatmap.
+  only once it stands on 15 touches. Like every nudge it then drifts back toward the key's middle: a little with each
+  clean touch, and by half every two weeks.
+- **slips**: each moves the letter meant a little (3% of the way, up to 60 times a slip) toward the point given or,
+  without one, part way toward the key pressed on that layout; those with `x`/`y` show on the heatmap.
 - **words.learned**: added to autocorrect's learned words.
 - **words.next**: counts are added to what the keyboard has, under the same caps and fading as its own (at most
   50,000 pairs from one file, each counting at most 1,000; then 30,000 pairs kept, 32 followers a context). They are
@@ -70,7 +72,8 @@ carry more than Ghost Keyboard reads.
   A profile does not say what language a pair is in, so a word shown with capitals is put in lower case by its own
   letters: Turkish's rule where it has İ or ı, the plain rule otherwise (`I` is `i`), whichever layout is on.
 - **style.profile**: becomes Mockingbird's style profile (its source shown as the file's); **style.samples** join
-  Mockingbird's samples.
+  Mockingbird's samples (from `typed` where a sample has it, else `text`), and like anything typed have their obvious
+  slips repaired on the way in.
 
 Keys and slips go to the layout they name: each layout has its own learned aims, since where a thumb lands on
 QWERTY's `e` says nothing of where it lands on Russian's `у`. A name that is not a letter key of that layout is passed

@@ -20,7 +20,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** The small drawn icons the plugin row's buttons use. */
-enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER, CARET_LEFT, CARET_RIGHT, CARET_UP, CARET_DOWN, OFFLINE }
+enum class RowIcon {
+    SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER, CARET_LEFT, CARET_RIGHT, CARET_UP, CARET_DOWN, OFFLINE,
+    // The tools' and states' own (RowIconsMore.kt).
+    CLIPBOARD, EMOJI, GIF_TEXT, SPARKLE, WAND, FEATHER, GHOST, INCOGNITO, UNDO, REDO, BOLD, ITALIC, STRIKE, CODE, CODE_BLOCK,
+    LINK, HEADING, LIST, TASK, QUOTE, WIKI, HASH, TODAY, CALLOUT, TABLE, MATH, DIAGRAM, DIVIDER, TRASH, CLOSE, WARNING,
+    RETRY, CHECK, NOTE,
+}
 
 /**
  * One thing a plugin puts in the row above the keys.
@@ -30,7 +36,11 @@ enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELET
  * - [view]: a view of the plugin's own, shown as it is (a password manager's inline suggestion).
  * - [wide]: a suggestion: shares the row's width with the others, a third each, as Gboard's do.
  * - [fill]: takes all the width the others leave (a search bar).
- * - [dim]: drawn faint: something that cannot be used as things stand (a network chip while Offline is on).
+ * - [tint]: the chip's colour (RowTint): its icon in the hue, on a faint ground of it.
+ * - [busy]: the AI is working on it: drawn as a ThinkingView, a sparkle and the words with a light passing over them.
+ * - [description]: what a reader says for an icon with no words (TalkBack).
+ * - [dim]: drawn faint: something that cannot be used as things stand (a network chip while Offline is on, which
+ *   still says why when tapped; Undo with nothing to undo, which has no [onTap] and so takes no tap).
  */
 class RowItem(
     val id: String,
@@ -41,6 +51,9 @@ class RowItem(
     val chip: Boolean = false,
     val view: View? = null,
     val fill: Boolean = false,
+    val tint: RowTint? = null,
+    val busy: Boolean = false,
+    val description: String? = null,
     val dim: Boolean = false,
     val onTap: (() -> Unit)? = null,
 )
@@ -124,7 +137,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
     fun setItems(next: List<RowItem>) {
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all.
-        if (next.map { it.id to it.label?.toString() to it.bold to it.view } == items.map { it.id to it.label?.toString() to it.bold to it.view }) return
+        if (next.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) } == items.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) }) return
+        // The same buttons with one lit or dimmed (Undo, after a tap on it) stay where they were scrolled to: the
+        // arrows must not slide out from under the thumb that is tapping them.
+        val keepScroll = if (next.map { it.id } == items.map { it.id }) scroll.scrollX else 0
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
@@ -141,19 +157,50 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 if (item.view != null) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.MATCH_PARENT,
             )
             lp.gravity = Gravity.CENTER_VERTICAL
-            if (item.chip || item.view != null) { lp.leftMargin = dp(4f); lp.rightMargin = dp(4f); lp.topMargin = dp(6f); lp.bottomMargin = dp(6f) }
+            if (item.chip || item.view != null || item.busy) { lp.leftMargin = dp(4f); lp.rightMargin = dp(4f); lp.topMargin = dp(6f); lp.bottomMargin = dp(6f) }
             strip.addView(v, lp)
         }
-        scroll.scrollTo(0, 0)
+        // A filling item (a search bar, the AI's words, an error) shares the row with the buttons beside it and is cut
+        // short to leave them room: a long error no longer pushes Retry and the close button off the end.
+        if (next.any { it.fill }) {
+            var others = 0
+            for (i in 0 until strip.childCount) {
+                if (next.getOrNull(i)?.fill == true) continue
+                val c = strip.getChildAt(i)
+                val lp = c.layoutParams as LinearLayout.LayoutParams
+                if (lp.width > 0) others += lp.width else {
+                    c.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(dp(36f), MeasureSpec.EXACTLY))
+                    others += c.measuredWidth
+                }
+                others += lp.leftMargin + lp.rightMargin
+            }
+            val fills = next.count { it.fill }
+            val cap = ((room - others) / fills - dp(8f)).coerceAtLeast(room / 3)
+            for (i in 0 until strip.childCount) if (next.getOrNull(i)?.fill == true) when (val c = strip.getChildAt(i)) {
+                is TextView -> c.maxWidth = cap
+                is ThinkingView -> c.maxWidth = cap
+            }
+        }
+        scroll.scrollTo(keepScroll, 0)
     }
 
     private fun makeView(item: RowItem): View {
+        if (item.busy) {
+            return ThinkingView(context, item.label ?: "Thinking…", theme).apply {
+                isClickable = item.onTap != null
+                setOnClickListener { tap(item) }
+            }
+        }
         if (item.icon != null && item.label == null) {
             return IconButton(context, item.icon).apply {
-                color = theme.toolbarIcon
+                color = item.tint?.ink(theme) ?: theme.toolbarIcon
                 minimumWidth = dp(44f)
-                if (item.dim) alpha = DIM
+                contentDescription = item.description
+                // A tool's chip: the icon alone on a pill, in its colour where it has one.
+                if (item.chip) background = pressable(true, item.tint)
                 setOnClickListener { tap(item) }
+                if (item.dim) alpha = DIM
+                isClickable = item.onTap != null
             }
         }
         return TextView(context).apply {
@@ -166,12 +213,13 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             setTextColor(theme.text)
             val padX = if (item.wide) dp(6f) else dp(12f)
             setPadding(padX, 0, padX, 0)
-            background = pressable(item.chip)
-            if (item.dim) alpha = DIM
-            isClickable = item.onTap != null
+            background = pressable(item.chip, item.tint)
+            contentDescription = item.description
             setOnClickListener { tap(item) }
+            isClickable = item.onTap != null
+            if (item.dim) alpha = DIM
             if (item.icon != null) {
-                setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f)), null, null, null)
+                setCompoundDrawablesRelative(IconDrawable(item.icon, item.tint?.ink(theme) ?: theme.toolbarIcon, dp(18f)), null, null, null)
                 compoundDrawablePadding = dp(6f)
             }
         }
@@ -183,11 +231,11 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         try { action() } catch (t: Throwable) { android.util.Log.e("GhostKeyboard", "row item ${item.id} failed", t) }
     }
 
-    private fun pressable(chip: Boolean): StateListDrawable {
+    private fun pressable(chip: Boolean, tint: RowTint? = null): StateListDrawable {
         fun shape(color: Int) = GradientDrawable().apply { cornerRadius = dp(18f).toFloat(); setColor(color) }
         return StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), shape(theme.keyPressed))
-            addState(intArrayOf(), shape(if (chip) theme.functionKey else 0))
+            addState(intArrayOf(), shape(if (!chip) 0 else tint?.wash(theme) ?: theme.functionKey))
         }
     }
 
@@ -329,13 +377,19 @@ class IconDrawable(private val icon: RowIcon, var ink: Int, size: Int) : android
  */
 @SuppressLint("ViewConstructor")
 class KeyboardFrame(context: Context, val keyboard: KeyboardView, val row: PluginRow, val panel: FrameLayout) : FrameLayout(context) {
+    /** The line along the top of the keys that runs while something works (RowStyle.kt). */
+    val working = WorkingLine(context)
+
     init {
         clipChildren = false
         addView(row)
         addView(keyboard)
         addView(panel)
+        addView(working)
         panel.visibility = GONE
     }
+
+    private val lineHeight get() = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2.5f, resources.displayMetrics).toInt().coerceAtLeast(2)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         keyboard.measure(widthMeasureSpec, heightMeasureSpec)
@@ -343,6 +397,7 @@ class KeyboardFrame(context: Context, val keyboard: KeyboardView, val row: Plugi
         val h = keyboard.measuredHeight
         row.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(rowHeight(), MeasureSpec.EXACTLY))
         panel.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((keyboard.keysBottom - keyboard.rowBottom).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY))
+        working.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(lineHeight, MeasureSpec.EXACTLY))
         setMeasuredDimension(w, h)
     }
 
@@ -358,6 +413,9 @@ class KeyboardFrame(context: Context, val keyboard: KeyboardView, val row: Plugi
         val top = kotlin.math.floor(keyboard.rowTop).toInt()
         row.layout(0, top, row.measuredWidth, top + row.measuredHeight)
         panel.layout(0, keyboard.rowBottom.toInt(), panel.measuredWidth, keyboard.rowBottom.toInt() + panel.measuredHeight)
+        // Along the row's lower edge, where the keys begin.
+        val line = keyboard.rowBottom.toInt()
+        working.layout(0, line - working.measuredHeight, working.measuredWidth, line)
     }
 
     // Nothing here consumes touches itself: the children decide.

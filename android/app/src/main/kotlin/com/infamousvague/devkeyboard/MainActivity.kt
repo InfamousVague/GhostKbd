@@ -388,7 +388,7 @@ class MainActivity : FlutterActivity() {
             "samples" to samples.size,
             "chatSamples" to samples.count { it.chat },
             "writingSamples" to samples.count { !it.chat },
-            "profile" to profile?.let { mapOf("text" to it.text, "at" to it.at, "samples" to it.samples, "provider" to it.provider, "model" to it.model) },
+            "profile" to profile?.let { mapOf("text" to it.text, "at" to it.at, "samples" to it.samples, "provider" to it.provider, "model" to it.model, "outdated" to Mockingbird.outdated(it)) },
             "training" to Mockingbird.training,
             "error" to Mockingbird.lastError,
             "ghostInstalled" to (GhostMd.installed(this) != null),

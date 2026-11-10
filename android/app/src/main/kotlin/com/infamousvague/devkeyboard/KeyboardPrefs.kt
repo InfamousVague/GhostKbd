@@ -73,6 +73,9 @@ class KeyboardPrefs(context: Context) {
     /** One-handed typing on a phone: "off", or the keys narrowed toward the "left" or "right" thumb. */
     val oneHanded: String get() = prefs.getString(ONE_HANDED, DEFAULTS[ONE_HANDED] as String)!!
 
+    /** Space under the keys for Android's own buttons: "auto", "more" or "none" (KeyboardView.bottomSpace). */
+    val bottomSpace: String get() = prefs.getString(BOTTOM_SPACE, DEFAULTS[BOTTOM_SPACE] as String)!!
+
     /** Cursor control: sliding left from backspace deletes a word at a time. */
     val deleteSwipe: Boolean get() = bool(DELETE_SWIPE)
 
@@ -320,6 +323,7 @@ class KeyboardPrefs(context: Context) {
         const val WIDE_LAYOUT = "wide_layout"
         const val ONE_HANDED = "one_handed"
         const val DELETE_SWIPE = "delete_swipe"
+        const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
@@ -396,6 +400,7 @@ class KeyboardPrefs(context: Context) {
             WIDE_LAYOUT to "split",
             ONE_HANDED to "off",
             DELETE_SWIPE to true,
+            BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",
             PREVIEW_OPEN to false,

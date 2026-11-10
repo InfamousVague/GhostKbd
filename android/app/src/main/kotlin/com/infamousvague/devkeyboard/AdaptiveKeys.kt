@@ -8,16 +8,24 @@ import org.json.JSONObject
  * The adaptive keys plugin (Matt, 2026-11-09: "learns common mistakes you make in typing and adjusts the touch area of
  * keys to correct for common mistakes made", with "a heatmap of mistake areas").
  *
- * What it learns, for each letter key on the letters page, is where you actually aim at it: the mean of your touches
- * meant for it, as an offset from its middle in fractions of the key (so it holds on a folded or unfolded screen).
- * Touches that were never corrected count once for their key; a touch you took back (backspace, then a neighbouring
- * letter) or one autocorrect swapped for a neighbouring letter counts [MISTAKE_WEIGHT] times for the letter you meant,
- * and is kept, up to [MAX_MISTAKES], for the heatmap.
+ * What it keeps, for each letter key on the letters page, is a nudge: how far the place the key listens has moved
+ * from its middle, in fractions of the key (so it holds on a folded or unfolded screen).
  *
- * Using it: a touch goes to whichever of the key under it and that key's neighbours has its learned aim nearest
- * (KeyboardView.keyAt). An aim moves at most [MAX_SHIFT] of a key from the middle, and a key needs [MIN_SAMPLES]
- * touches before its aim counts, so a key is never taken over from its middle, and a new keyboard behaves as before.
- * Nothing is learned in password fields or while incognito.
+ * The nudge is a pair of training wheels, not a new layout (Matt, 2026-11-09: "The correcting of the key placement
+ * should be very slow and gradual and over time drift back to the defaults to get the user on the right track"):
+ * - **Slow.** Only a slip moves a key: a touch you took back (backspace, then a neighbouring letter) or one autocorrect
+ *   swapped for a neighbouring letter moves the letter you meant [LEARN] of the way toward where the slip landed. It
+ *   takes about ten slips on a key before the difference can be felt. Each slip is kept, up to [MAX_MISTAKES], for the
+ *   heatmap.
+ * - **Back to the defaults.** Every clean touch on a key, one inside its own outline that was never corrected, lets
+ *   it [RELAX] of the way back to its middle; and whatever you type, every nudge halves each [HALF_LIFE_DAYS] days.
+ *   So a key helps most while you are slipping on it, and hands the letter back as your aim comes right. A touch that
+ *   only counted because of the nudge (outside the key's own outline) neither moves it nor lets it back.
+ *
+ * Using it: a touch goes to whichever of the key under it and that key's neighbours has its nudged middle nearest
+ * (KeyboardView.keyAt). A nudge is at most [MAX_SHIFT] of a key, and a key needs [MIN_SAMPLES] touches before it has
+ * one, so a key is never taken over from its middle, and a new keyboard behaves as before. Nothing is learned in
+ * password fields or while incognito.
  *
  * There is one model for each layout ([layout], Layouts.SPECS' ids): where a thumb aims at QWERTY's e says nothing of
  * where it aims at Russian's у, though they share a place. QWERTY's is the one every keyboard had before layouts.
@@ -25,9 +33,16 @@ import org.json.JSONObject
 class AdaptiveKeys private constructor(private val context: Context, val layout: String) {
     companion object {
         const val MIN_SAMPLES = 15
-        const val MAX_SHIFT = 0.35f
-        const val MISTAKE_WEIGHT = 3
+        const val MAX_SHIFT = 0.3f
         const val MAX_MISTAKES = 400
+        /** One slip moves its key this much of the way toward where the slip landed. */
+        const val LEARN = 0.03f
+        /** One clean touch lets its key this much of the way back to its middle. */
+        const val RELAX = 1f / 500
+        /** Every nudge halves in this many days, typing or not. */
+        const val HALF_LIFE_DAYS = 14
+        /** A nudge smaller than this (of a key) is no nudge: the key is back at its default. */
+        const val MIN_SHIFT = 0.02f
         private const val FILE = "adaptive_keys"
 
         private val shared = HashMap<String, AdaptiveKeys>()
@@ -48,12 +63,12 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
 
         /** Settings › Adaptive keys › Forget what it learned: every layout's model, in memory and in storage. */
         fun resetAll(context: Context) {
-            synchronized(shared) { shared.values.forEach { it.aims.clear(); it.mistakes.clear(); it.dirty = false } }
+            synchronized(shared) { shared.values.forEach { it.aims.clear(); it.mistakes.clear(); it.dirty = false; it.agedAt = System.currentTimeMillis() } }
             context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().clear().apply()
         }
     }
 
-    /** A key's learned aim: its mean offset from the middle, in fractions of the key, and how many touches made it. */
+    /** A key's nudge: how far from its middle it listens, in fractions of the key, and how many touches it has seen. */
     class Aim(var dx: Float = 0f, var dy: Float = 0f, var n: Int = 0)
 
     /** A mistake, for the heatmap: where the touch landed (fractions of the letters' area) and the letters. */
@@ -63,12 +78,28 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
     val mistakes = ArrayDeque<Mistake>()
     private var dirty = false
 
-    init { load() }
+    /** When the nudges were last aged ([age]); 0 until the first time. */
+    private var agedAt = 0L
+
+    init { load(); age() }
+
+    /** The drift back to the defaults with time alone: every nudge halves each [HALF_LIFE_DAYS] days. Checked at most hourly. */
+    private fun age() {
+        val now = System.currentTimeMillis()
+        val elapsed = now - agedAt
+        if (agedAt == 0L || elapsed < 0) { agedAt = now; dirty = true; return }
+        if (elapsed < 3_600_000L) return
+        val keep = Math.pow(0.5, elapsed / (HALF_LIFE_DAYS * 86_400_000.0)).toFloat()
+        aims.values.forEach { it.dx *= keep; it.dy *= keep }
+        agedAt = now
+        dirty = true
+    }
 
     private fun prefs() = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     private fun load() = runCatching {
         val o = JSONObject(prefs().getString(slot(layout), "{}")!!)
+        agedAt = o.optLong("at", 0L)
         o.optJSONObject("aims")?.let { a -> a.keys().forEach { k -> a.optJSONArray(k)?.let { v -> aims[k[0]] = Aim(v.getDouble(0).toFloat(), v.getDouble(1).toFloat(), v.getInt(2)) } } }
         o.optJSONArray("mistakes")?.let { m ->
             for (i in 0 until m.length()) m.optJSONArray(i)?.let { v -> mistakes.addLast(Mistake(v.getDouble(0).toFloat(), v.getDouble(1).toFloat(), v.getString(2)[0], v.getString(3)[0])) }
@@ -77,36 +108,57 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
 
     /** Writes what changed; called when a word ends, so at most once a word. */
     fun save() {
+        age()
         if (!dirty) return
         dirty = false
         val a = JSONObject()
         aims.forEach { (k, v) -> a.put(k.toString(), JSONArray().put(v.dx.toDouble()).put(v.dy.toDouble()).put(v.n)) }
         val m = JSONArray()
         mistakes.forEach { m.put(JSONArray().put(it.x.toDouble()).put(it.y.toDouble()).put(it.pressed.toString()).put(it.meant.toString())) }
-        prefs().edit().putString(slot(layout), JSONObject().put("aims", a).put("mistakes", m).toString()).apply()
+        prefs().edit().putString(slot(layout), JSONObject().put("aims", a).put("mistakes", m).put("at", agedAt).toString()).apply()
     }
 
-    /** Where to aim for [c]: its learned offset, or none until it has [MIN_SAMPLES] touches; at most [MAX_SHIFT]. */
+    /**
+     * Where [c] listens: its nudge, at most [MAX_SHIFT]; none until it has [MIN_SAMPLES] touches, and none once it has
+     * drifted back under [MIN_SHIFT].
+     */
     fun offset(c: Char): Pair<Float, Float> {
         val a = aims[c.lowercaseChar()] ?: return 0f to 0f
         if (a.n < MIN_SAMPLES) return 0f to 0f
+        if (kotlin.math.abs(a.dx) < MIN_SHIFT && kotlin.math.abs(a.dy) < MIN_SHIFT) return 0f to 0f
         return a.dx.coerceIn(-MAX_SHIFT, MAX_SHIFT) to a.dy.coerceIn(-MAX_SHIFT, MAX_SHIFT)
     }
 
-    fun learnedKeys() = aims.count { it.value.n >= MIN_SAMPLES }
+    /** The keys being helped now: those with a nudge. */
+    fun learnedKeys() = aims.keys.count { offset(it) != (0f to 0f) }
+
+    private fun usable(c: Char, dx: Float, dy: Float) =
+        c.isLetter() && !dx.isNaN() && !dy.isNaN() && kotlin.math.abs(dx) <= 1.5f && kotlin.math.abs(dy) <= 1.5f
 
     /**
-     * A touch meant for [c], [dx] and [dy] from its middle in fractions of the key: a running mean that settles
-     * after a few hundred touches and still follows a change of grip.
+     * A touch meant for [c] that stood, [dx] and [dy] from its middle in fractions of the key. Inside the key's own
+     * outline it was a clean touch: the key goes [RELAX] of the way back to its default. Outside it, the nudge is what
+     * made it count, which says nothing either way.
      */
-    fun hit(c: Char, dx: Float, dy: Float, weight: Int = 1) {
-        if (!c.isLetter() || dx.isNaN() || dy.isNaN() || kotlin.math.abs(dx) > 1.5f || kotlin.math.abs(dy) > 1.5f) return
+    fun hit(c: Char, dx: Float, dy: Float) {
+        if (!usable(c, dx, dy)) return
         val a = aims.getOrPut(c.lowercaseChar()) { Aim() }
-        repeat(weight) {
-            a.n++
-            val rate = 1f / a.n.coerceAtMost(200)
-            a.dx += (dx - a.dx) * rate
-            a.dy += (dy - a.dy) * rate
+        if (a.n < 100_000) a.n++
+        if (kotlin.math.abs(dx) <= 0.5f && kotlin.math.abs(dy) <= 0.5f) {
+            a.dx -= a.dx * RELAX
+            a.dy -= a.dy * RELAX
+        }
+        dirty = true
+    }
+
+    /** A slip meant for [c] that landed [dx], [dy] from its middle, [times] over: each moves the key [LEARN] of the way there. */
+    private fun learn(c: Char, dx: Float, dy: Float, times: Int = 1) {
+        if (!usable(c, dx, dy)) return
+        val a = aims.getOrPut(c.lowercaseChar()) { Aim() }
+        repeat(times) {
+            if (a.n < 100_000) a.n++
+            a.dx += (dx - a.dx) * LEARN
+            a.dy += (dy - a.dy) * LEARN
         }
         dirty = true
     }
@@ -116,7 +168,7 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
     /** Every learned aim, for an export. */
     fun aims(): Map<Char, Aim> = aims.toSortedMap()
 
-    /** An aim from a typing profile, blended with what is here, each weighted by its touches. */
+    /** A nudge from a typing profile, blended with what is here, each weighted by its touches. It drifts back like any other. */
     fun importAim(c: Char, dx: Float, dy: Float, samples: Int) {
         val k = c.lowercaseChar()
         if (!k.isLetter() || samples <= 0) return
@@ -144,7 +196,7 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
         val mp = places[m] ?: return
         val n = count.coerceIn(1, 500)
         // Most of the way to the shared edge: where a slip between the two lands.
-        hit(m, (pp.first - mp.first) * 0.6f, (pp.second - mp.second) * 0.6f, n * MISTAKE_WEIGHT)
+        learn(m, (pp.first - mp.first) * 0.6f, (pp.second - mp.second) * 0.6f, n.coerceAtMost(60))
         if (x != null && y != null) repeat(n.coerceAtMost(20)) { mistakes.addLast(Mistake(x.coerceIn(0f, 1f), y.coerceIn(0f, 1f), p, m)) }
         while (mistakes.size > MAX_MISTAKES) mistakes.removeFirst()
         dirty = true
@@ -152,7 +204,7 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
 
     /** A touch on [pressed] that was meant for [meant]: it teaches [meant]'s aim, and goes on the heatmap at ([x], [y]). */
     fun mistake(pressed: Char, meant: Char, dx: Float, dy: Float, x: Float, y: Float) {
-        hit(meant, dx, dy, MISTAKE_WEIGHT)
+        learn(meant, dx, dy)
         mistakes.addLast(Mistake(x, y, pressed.lowercaseChar(), meant.lowercaseChar()))
         while (mistakes.size > MAX_MISTAKES) mistakes.removeFirst()
         dirty = true

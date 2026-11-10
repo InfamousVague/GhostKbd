@@ -15,6 +15,7 @@ const Map<String, String> narration = {
   'choose': 'Now make it the keyboard you type with. Tap Switch, and pick Ghost Keyboard. You can change back any time, by holding the space bar.',
   'code': 'Beside the space bar is the curly braces key. It opens a page of what code is made of. Brackets and quotes come in pairs, with the cursor already inside. Hold any key for its family: equals gives you double and triple equals, the arrow gives you more arrows.',
   'voice': 'Would you rather talk? Add Dictation, and a microphone joins the space bar. It runs whisper on your phone, the same speech model Ghost uses, so nothing you say leaves it.',
+  'defaults': 'A few things are on from the start: autocorrect, swipe typing, keys that nudge toward your slips, typing stats, the cursor slides and clipboard history. Keep them, or switch off any you’d rather not have. What they learn stays on this phone.',
   'plugins': 'Autocorrect, swipe typing, the clipboard, undo and emoji are already on, and the rest are switches in Settings. Dictation, your password manager and Ghost.md are in the Market. Adding one is a switch, and so is taking it away.',
   'look': 'Pick a look. Light, dark, or follow your phone. You can turn key borders on if you like a shape behind every key.',
   'start': 'That’s the tour, and you’re ready. Try it in the box below. Everything you’ve seen is in Settings, whenever you want it.',

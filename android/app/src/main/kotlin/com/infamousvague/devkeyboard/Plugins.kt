@@ -12,8 +12,11 @@ package com.infamousvague.devkeyboard
  * - `swipe` (Autocorrect.swipe, KeyboardView): glide across the letters to spell a word.
  * - `passwords` (DevKeyboardService's inline suggestions): the autofill service's logins in the plugin row.
  * - `gifs` (Gifs.kt): search GIPHY from the plugin row and send a GIF.
- * - `markdown`, `terminal`, `clipboard`, `undo`, `incognito`: buttons in the plugin row (DevKeyboardService.refreshRow);
+ * - `markdown`, `terminal`, `clipboard`, `incognito`: buttons in the plugin row (DevKeyboardService.refreshRow);
  *   markdown and terminal show in the apps they suit (AppContext.kt) unless set to everywhere.
+ * - `undo` (EditHistory.kt, FieldEditor.kt, ConnectionPort.kt): Undo and Redo arrows in the row. Every edit the keyboard
+ *   makes goes through FieldEditor, which keeps a history of them for the field in hand and plays it back; where it has
+ *   nothing of its own it asks the app to undo.
  * - `emoji` (Emoji.kt): an emoji panel and search, every emoji of Unicode's latest standard; :shortcodes and
  *   emoji for the word typed in the row.
  * - `ghostmd` (GhostMd.kt): [[note]] and #tag completion and Ghost.md's blocks in Ghost.md; save a selection to it

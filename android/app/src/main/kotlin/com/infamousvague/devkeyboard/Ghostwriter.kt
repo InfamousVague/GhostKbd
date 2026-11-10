@@ -142,6 +142,7 @@ object Ghostwriter {
                   Never invent specifics. Leave a short [bracketed blank] only for a fact you could not find.
                 - Fit the field: in a chat app keep it as short and casual as their texts; elsewhere match their
                   writing. Use the field's language. Continue naturally from the text before the request.
+                - ${VoiceRules.WRITING}
                 - Reply with the replacement text only: no quotes, no preface, no sources, citations or links unless
                   asked for, and no explanation of what you did or searched.
                 """.trimIndent(),

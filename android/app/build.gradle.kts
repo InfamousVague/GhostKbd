@@ -80,4 +80,6 @@ flutter {
 dependencies {
     // The passwords plugin: the style Android's inline autofill suggestions are drawn in.
     implementation("androidx.autofill:autofill:1.1.0")
+    // The undo history's self-check (src/test): plain JUnit on a desk, no device.
+    testImplementation("junit:junit:4.13.2")
 }

@@ -23,14 +23,16 @@ object TypingProfile {
 
     /**
      * This keyboard's learning as a profile. Message samples only with [samples], since they are the person's words;
-     * the word pairs next-word prediction has counted with [pairs], since they can show phrases and names.
+     * they go out as Mockingbird's AI reads them, with the obvious slips cleaned out, and as typed beside that
+     * where the two differ. Waits for that cleaning, so not for the main thread. The word pairs next-word prediction
+     * has counted go only with [pairs], since they can show phrases and names.
      */
     fun export(context: Context, samples: Boolean, pairs: Boolean = true): String {
         val prefs = KeyboardPrefs(context)
         val o = JSONObject()
             .put("format", FORMAT).put("version", VERSION)
             .put("created", Instant.now().toString())
-            .put("source", JSONObject().put("app", "Ghost Keyboard"))
+            .put("source", JSONObject().put("app", Retrain.OWN_APP))
         // The layout being typed on names the file's own keys and slips; what other layouts have learned rides beside
         // them under "layouts", which older keyboards pass over.
         val active = prefs.layout
@@ -55,10 +57,16 @@ object TypingProfile {
         if (pairs) NextWords.get(context).exportPairs().takeIf { it.length() > 0 }?.let { words.put("next", it) }
         if (words.length() > 0) o.put("words", words)
         val style = JSONObject()
-        Mockingbird.profile(context)?.let { style.put("profile", it.text) }
+        // The profile goes with the version of the style rules it was trained under, so an old one stays due its retrain.
+        Mockingbird.profile(context)?.let { style.put("profile", it.text).put("profileVersion", Retrain.exportVersion(it.version, it.provider, it.model)) }
         if (samples) {
             val a = JSONArray()
-            Mockingbird.samples(context).forEach { a.put(JSONObject().put("text", it.text).put("kind", if (it.chat) "chat" else "writing")) }
+            Mockingbird.cleanedSamples(context).forEach {
+                val s = JSONObject().put("text", it.text).put("kind", if (it.chat) "chat" else "writing")
+                // Where a slip was repaired, the sample as typed goes too: the keyboard that takes it in judges for itself.
+                if (it.raw != null) s.put("typed", it.raw)
+                a.put(s)
+            }
             if (a.length() > 0) style.put("samples", a)
         }
         if (style.length() > 0) o.put("style", style)
@@ -151,14 +159,17 @@ object TypingProfile {
             if (!Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) lines += "Writing style skipped: add Mockingbird to use it"
             else {
                 style.optString("profile").takeIf { it.isNotBlank() }?.let {
-                    Mockingbird.importProfile(context, it, "Imported" + (source?.let { s -> " from $s" } ?: ""))
+                    // Ghost Keyboard's own export says which style rules trained the profile; one that says nothing is from before there were two.
+                    val version = Retrain.importVersion(o.optJSONObject("source")?.optString("app"), if (style.has("profileVersion")) style.optInt("profileVersion", 1) else null)
+                    Mockingbird.importProfile(context, it, Retrain.importedBy(source), version)
                     lines += "Style profile replaced"
                 }
                 style.optJSONArray("samples")?.let { a ->
                     var n = 0
                     for (i in 0 until a.length()) {
                         val s = a.optJSONObject(i) ?: continue
-                        val t = s.optString("text").takeIf { it.isNotBlank() } ?: continue
+                        // As typed where the file has it: this keyboard cleans a sample itself, against this person's other samples.
+                        val t = s.optString("typed").takeIf { it.isNotBlank() } ?: s.optString("text").takeIf { it.isNotBlank() } ?: continue
                         Mockingbird.recordImported(context, t, s.optString("kind") == "chat"); n++
                     }
                     lines += count(n, "writing sample", "writing samples") + " added"
