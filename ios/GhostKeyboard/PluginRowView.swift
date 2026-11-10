@@ -259,6 +259,9 @@ final class PluginRowView: UIView {
             addSubview(label)
             layer.cornerRadius = 16
             layer.cornerCurve = .continuous
+            // A view that draws itself paints its ground into its own picture, which the corner radius alone does not
+            // cut: without the mask the chip is a plain rectangle.
+            layer.masksToBounds = true
             isOpaque = false
             contentMode = .redraw
             isAccessibilityElement = true

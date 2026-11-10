@@ -59,11 +59,11 @@ extension KeyboardUITests {
     func testShots3_Swipe() {
         openField()
         type("glide to ")
-        let from = point(row: -1) { $0.text == "t" }!, mid = point(row: -1) { $0.text == "y" }!, to = point(row: -1) { $0.text == "p" }!
-        shotLater("04-swipe", after: 1.0)
-        let a = origin.withOffset(CGVector(dx: from.x, dy: from.y)), b = origin.withOffset(CGVector(dx: mid.x, dy: mid.y + 6)), c = origin.withOffset(CGVector(dx: to.x, dy: to.y))
-        _ = b
-        a.press(forDuration: 0.05, thenDragTo: c, withVelocity: 90, thenHoldForDuration: 0.6)
+        // "typing", drawn as a finger would: fast enough not to be a long press, then held at the end for the picture.
+        let pts = ["t", "y", "p", "i", "n", "g"].map { c in point(row: -1) { $0.text == c }! }
+        let from = origin.withOffset(CGVector(dx: pts[0].x, dy: pts[0].y)), to = origin.withOffset(CGVector(dx: pts[2].x, dy: pts[2].y))
+        shotLater("04-swipe", after: 1.4)
+        from.press(forDuration: 0.02, thenDragTo: to, withVelocity: 260, thenHoldForDuration: 1.5)
         sleep(1)
     }
 
@@ -87,15 +87,20 @@ extension KeyboardUITests {
         shot("07-answer")
     }
 
-    /// The app's own pages: Look & feel.
+    /// The app's own pages: Look & feel, and Setup's account of Full Access. The rows are tapped where Settings draws
+    /// them on a 440-point-wide phone, as fractions of the screen.
     func testShots6_Settings() {
         let app = ghost
         app.launch()
-        let row = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Look & feel")).firstMatch
-        let other = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Look & feel")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 8) || other.exists, app.debugDescription)
-        (row.exists ? row : other).tap()
+        sleep(3)
+        tap(CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.392))
         sleep(2)
         shot("08-look-and-feel")
+        app.terminate()
+        app.launch()
+        sleep(3)
+        tap(CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.232))
+        sleep(2)
+        shot("09-setup")
     }
 }

@@ -233,11 +233,12 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         autocorrect.setLearned(prefs.learnedWords)
         autocorrect.setSlang(prefs.slang)
         lastDark = systemDark
-        let theme = KeyboardTheme.resolve(prefs: prefs, systemDark: lastDark)
+        let chosen = KeyboardTheme.resolve(prefs: prefs, systemDark: lastDark)
+        let backdrop = chosen == .dark || chosen == .light
+        let theme = backdrop ? chosen.onSystemBackdrop() : chosen
         keyboard.theme = theme
         // The default themes take iOS's own keyboard backdrop, so the keyboard and the strip iOS draws under it (the
         // globe and dictation keys, which a keyboard cannot remove) read as one surface. A chosen theme keeps its colour.
-        let backdrop = theme == .dark || theme == .light
         keyboard.systemBackdrop = backdrop
         row.systemBackdrop = backdrop
         keyboard.globeKey = needsInputModeSwitchKey

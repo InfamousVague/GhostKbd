@@ -73,6 +73,19 @@ public struct KeyboardTheme: Hashable {
         dark: true
     )
 
+    /// This theme for drawing over iOS's own keyboard backdrop (a grey glass, not this theme's background): in the dark,
+    /// the keys, the space bar and the row's chips are a see-through white, so each is a step lighter than whatever
+    /// the backdrop is. The light theme's white keys already are.
+    public func onSystemBackdrop() -> KeyboardTheme {
+        guard dark else { return self }
+        var t = self
+        t.key = 0x29FFFFFF
+        t.keyPressed = 0x4DFFFFFF
+        t.functionKey = 0x1FFFFFFF
+        t.functionKeyPressed = 0x3DFFFFFF
+        return t
+    }
+
     /// The theme the settings ask for: the themes plugin's preset or own theme where it is added, else Gboard's.
     /// `systemDark` is the system's appearance (UITraitCollection.userInterfaceStyle == .dark), used for "system".
     public static func resolve(prefs: KeyboardPrefs, systemDark: Bool) -> KeyboardTheme {

@@ -261,8 +261,8 @@ final class KeyboardUITests: XCTestCase {
         XCTAssertEqual(text, "The cat ")
         sleep(1)
         shot("tools")
-        // The row with nothing being typed: ✦ Rewrite, undo, redo, Clipboard.
-        tapRowStrip(at: 0.41)
+        // The row with nothing being typed: Rewrite, undo, redo, the clipboard.
+        tapRowStrip(at: 0.40)
         XCTAssertEqual(text, "The cat", "undo takes back the space")
         // A word is under the cursor again, so the row is suggestions; a space brings the tools back.
         key("space")

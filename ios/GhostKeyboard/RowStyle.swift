@@ -54,6 +54,7 @@ final class ThinkingView: UIControl {
         isOpaque = false
         contentMode = .redraw
         layer.cornerCurve = .continuous
+        layer.masksToBounds = true
         isAccessibilityElement = true
         accessibilityLabel = words
         accessibilityTraits = .updatesFrequently

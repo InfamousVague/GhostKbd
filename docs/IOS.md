@@ -15,6 +15,7 @@ ios/
     KeyboardView.swift             Android's KeyboardView: the keys, drawn; touch; previews; swipe trail.
     PluginRowView.swift            Android's PluginRow: the row above the keys.
     Icons.swift                    RowIcons + an SVG path reader (Phosphor's drawings).
+    RowStyle.swift                 Android's RowStyle: the tools' own colours, the AI's working sparkle and line.
   GhostCore/         everything with no UI in it, as a Swift package: Layouts, KeyboardTheme, Backlight,
                      KeyboardPrefs, Plugins, Autocorrect, AdaptiveKeys, Ghostwriter, AiClient, Mockingbird,
                      ClipHistory, Rewrite, GitHubCommits. `swift test` runs its unit tests on a Mac; the same
@@ -63,6 +64,7 @@ consent screen in the app (`ai_consent`).
 | Clipboard listener | none; reading the pasteboard shows iOS's paste notice | The clipboard is read only when its chip is tapped. |
 | Password fields | iOS shows its own keyboard there | Nothing to do; the backlight and learning rules for private fields still apply to anything marked no-autocorrect. |
 | Input method picker (long-press space) | globe key | A globe key where iOS asks for one (`needsInputModeSwitchKey`): tap for the next keyboard, hold for the list. |
+| A keyboard draws everything down to the screen's edge | on a phone with no home button iOS draws a strip under every keyboard (its globe and dictation keys), which a keyboard cannot remove or cover | The default light and dark themes draw no background of their own, so iOS's keyboard backdrop shows through and the keys and the strip read as one surface. A chosen theme keeps its colour. Setup says how the person can make the globe and microphone go. |
 | Vibrator, sound packs | haptics with Full Access; the system click | Haptics: light/medium/strong impact. Sound: the system's keyboard click. |
 
 ## v1
@@ -113,7 +115,7 @@ works before it finishes. `didReceiveMemoryWarning` drops every language but the
 
 ## Tests
 
-- `ios/GhostCore`: 81 unit tests (`swift test`): layouts, themes, backlight, settings and secrets, autocorrect against
+- `ios/GhostCore`: 96 unit tests (`swift test`): layouts, themes, backlight, settings and secrets, autocorrect against
   the real word lists, swipe decoding, the touch model, the `<<request>>` parser, every AI provider's request and
   response, Mockingbird, the clipboard history, Rewrite, GitHub search.
 - `test/ios_app_test.dart`: the settings app on iOS (walkthrough, consent, the iOS pages) and Android unchanged.
@@ -144,6 +146,21 @@ On the Simulator (iPhone 17, iOS 27), by the UI tests, typing in Safari:
   reach the app.
 - The app launches into the iOS walkthrough. A release archive builds unsigned.
 
+- (2026-11-10) Android 0.9.5 brought across: the row's tools as icons in their own colours, seen in the Simulator;
+  the default theme on iOS's backdrop, seen; the developer page's long-press panel, a glide's trail and the Retro
+  keycaps, seen (the store screenshots). On an iPad Pro 13-inch Simulator the keyboard comes up in its split layout
+  and types from the developer page; the app's pages lay out.
+- A release archive signed for the App Store builds and exports (`docs/store/ios/SUBMIT.md`); the app and the
+  extension carry the App Group and the shared Keychain group.
+
+## Known gaps against Android 0.9.5
+
+Android's undo and redo were rebuilt on a model of the field (`FieldEditor.kt`, `EditHistory.kt`). iOS keeps its
+simpler journal (`TextEditor.swift`), which differs where it matters in these ways: undoing a delete is not checked
+against the text around it; the journal is not dropped when the field changes while the keyboard stays up; an edit
+that moves the cursor (a pair, a markdown wrap) cannot be undone and trying empties the history; every backspace and
+every chunk of an AI answer is its own step; the arrows are not dimmed when there is nothing to undo.
+
 ## Not verified
 
 Nothing here has run on a real iPhone or iPad. Not exercised at all, beyond compiling and unit tests of their logic:
@@ -160,7 +177,9 @@ Nothing here has run on a real iPhone or iPad. Not exercised at all, beyond comp
   the OpenAI-compatible path ran, against the stand-in).
 - The settings cog opening the app from the keyboard.
 - The settings app's pages beyond the first walkthrough screen, on a device or the Simulator (its widget tests pass).
-- Signing: the identifiers are not registered (`docs/store/ios/SUBMIT.md`).
+- The AI's working sparkle and line, a held space bar starting cursor control, adaptive keys' slow drift and
+  Mockingbird's sample cleaning inside the extension (its one-off re-clean of stored samples was not timed there):
+  compiled and unit-tested, not watched.
 
 ## Changes outside `ios/`
 
