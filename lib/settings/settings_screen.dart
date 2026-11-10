@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
+import '../platform.dart';
 import '../settings_store.dart';
 import 'keyboard_preview.dart';
 import 'kit/settings_icons.dart';
@@ -151,8 +152,11 @@ class _TryBar extends StatelessWidget {
                 padding: EdgeInsets.fromLTRB(gutter, t.space(2), gutter, typing || previewing ? t.space(2) : t.space(2) + safeBottom),
                 child: Row(
                   children: [
+                    // iOS: the keyboard says it has run (and with Full Access or not) only as it is used, so typing here asks again.
+                    if (isIOS) Expanded(child: GlacierInput(placeholder: 'Try the keyboard here', ariaLabel: 'Try the keyboard', size: GlacierFieldSize.md, onChange: (_) => store?.refreshStatus())) else
                     const Expanded(child: GlacierInput(placeholder: 'Try the keyboard here', ariaLabel: 'Try the keyboard', size: GlacierFieldSize.md)),
-                    if (store != null) ...[SizedBox(width: t.space(2)), KeyboardPreviewButton(store: store)],
+                    // The live preview is Android's own view (keyboard_preview.dart): no button for it on iOS.
+                    if (store != null && !isIOS) ...[SizedBox(width: t.space(2)), KeyboardPreviewButton(store: store)],
                   ],
                 ),
               ),
@@ -161,7 +165,7 @@ class _TryBar extends StatelessWidget {
           ),
         );
     if (store == null) return bar(false);
-    return ListenableBuilder(listenable: store, builder: (context, _) => bar(store.flag('preview_open') && !typing));
+    return ListenableBuilder(listenable: store, builder: (context, _) => bar(store.flag('preview_open') && !typing && !isIOS));
   }
 }
 

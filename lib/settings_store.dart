@@ -125,6 +125,14 @@ class SettingsStore extends ChangeNotifier {
   /// Whether Dev Keyboard is the keyboard in use.
   bool selected = false;
 
+  /// iOS only: whether the keyboard last ran with Allow Full Access on (false until it has run with it). Android's
+  /// `status` has no such key, and it stays false there.
+  bool fullAccess = false;
+
+  /// iOS only: whether the person agreed to what the AI features send (lib/ios/ai_consent.dart). The keyboard refuses
+  /// AI without it. Not in [defaults]: Android has no such setting.
+  bool get aiConsent => _values['ai_consent'] == true;
+
   bool loaded = false;
 
   /// The app's own updates (Updater.kt): `phase` is idle, disabled, checking, upToDate, available, downloading,
@@ -713,9 +721,11 @@ class SettingsStore extends ChangeNotifier {
     if (raw is! Map) return;
     final nextEnabled = raw['enabled'] == true;
     final nextSelected = raw['selected'] == true;
-    if (nextEnabled == enabled && nextSelected == selected) return;
+    final nextFullAccess = raw['fullAccess'] == true;
+    if (nextEnabled == enabled && nextSelected == selected && nextFullAccess == fullAccess) return;
     enabled = nextEnabled;
     selected = nextSelected;
+    fullAccess = nextFullAccess;
     notifyListeners();
   }
 }

@@ -12,7 +12,9 @@ import 'package:glacier/glacier.dart';
 
 import '../art/lucide.g.dart';
 import '../art/lucide_more.dart';
+import '../ios/ai_consent.dart';
 import '../onboarding/band.dart';
+import '../platform.dart';
 import '../plugins/catalogue.dart';
 import '../settings/kit/settings_kit.dart';
 import '../settings/kit/settings_type.dart';
@@ -47,7 +49,7 @@ class _MarketScreenState extends State<MarketScreen> {
             child: PluginDetail(
               plugin: plugin,
               added: store.pluginOn(plugin.id),
-              onSwitch: (on) => store.setPlugin(plugin.id, on),
+              onSwitch: (on) => setPluginAsking(context, store, plugin.id, on),
               onSettings: plugin.hasPage ? () => _openSettings(plugin) : null,
             ),
           ),
@@ -65,7 +67,7 @@ class _MarketScreenState extends State<MarketScreen> {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
-        final featured = marketCatalogue.where((p) => p.soon == null).toList();
+        final featured = marketCatalogue.where((p) => p.soon == null && p.unavailable == null).toList();
         final shown = marketCatalogue.where((p) => _filter == null || p.category == _filter).toList();
         final categories = {for (final p in marketCatalogue) p.category}.toList();
         final added = marketCatalogue.where((p) => store.pluginOn(p.id)).toList();
@@ -94,7 +96,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     label: 'Browse Discover',
                     padding: EdgeInsets.all(t.space(4)),
                     child: Text(
-                      'Nothing added from the Market yet. Dictation, Ghostwriter, Rewrite and more are in Discover.',
+                      isIOS ? 'Nothing added from the Market yet. Ghostwriter, Mockingbird and Rewrite are in Discover.' : 'Nothing added from the Market yet. Dictation, Ghostwriter, Rewrite and more are in Discover.',
                       style: pageText(t, t.fontSize('sm'), height: 1.4, color: t.color('app-ink-2')),
                     ),
                   )
@@ -148,7 +150,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 height: t.lenOf('13rem'),
                 children: [
                   for (final plugin in featured)
-                    FeaturedPluginCard(plugin: plugin, added: store.pluginOn(plugin.id), onAdd: () => store.setPlugin(plugin.id, true), onOpen: () => _open(plugin)),
+                    FeaturedPluginCard(plugin: plugin, added: store.pluginOn(plugin.id), onAdd: () => setPluginAsking(context, store, plugin.id, true), onOpen: () => _open(plugin)),
                 ],
               ),
               SizedBox(height: t.space(6)),
@@ -167,7 +169,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 most: 2,
                 children: [
                   for (final plugin in shown)
-                    MarketPluginCard(plugin: plugin, added: store.pluginOn(plugin.id), onAdd: () => store.setPlugin(plugin.id, true), onOpen: () => _open(plugin)),
+                    MarketPluginCard(plugin: plugin, added: store.pluginOn(plugin.id), onAdd: () => setPluginAsking(context, store, plugin.id, true), onOpen: () => _open(plugin)),
                 ],
               ),
             ],

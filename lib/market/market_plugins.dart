@@ -93,6 +93,8 @@ Widget _addOrAdded(PluginManifest plugin, {required bool added, required VoidCal
   if (plugin.soon != null) {
     return MarketTag(label: 'In ${plugin.soon}', ground: onColour ? const Color(0x33000000) : null, ink: onColour ? _white : null);
   }
+  // iOS, for a plugin its keyboard has not (catalogue.dart `unavailable`): said, where Add would stand.
+  if (plugin.unavailable != null) return MarketTag(label: 'Not on iPhone', ground: onColour ? const Color(0x33000000) : null, ink: onColour ? _white : null);
   if (added) return MarketAdded(name: plugin.name, color: onColour ? _white : null);
   return MarketButton(
     key: ValueKey('market-add-${plugin.id}'),
@@ -118,7 +120,7 @@ class PluginCostLine extends StatelessWidget {
     final ink = color ?? t.color('app-ink-3');
     final downloads = plugin.permissions.any((p) => p.kind == Permission.download);
     return Text(
-      plugin.soon != null ? 'Coming in ${plugin.soon}' : (downloads ? 'Downloads 60 MB once' : 'Built in, nothing to download'),
+      plugin.soon != null ? 'Coming in ${plugin.soon}' : (plugin.unavailable != null ? 'Its page says why' : (downloads ? 'Downloads 60 MB once' : 'Built in, nothing to download')),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: pageText(t, t.fontSize('xs'), weight: 'medium', color: ink),
@@ -247,7 +249,8 @@ class PluginDetail extends StatelessWidget {
     // The servers it may reach: the guard's own list where the app has it (Net.kt's ledger), the catalogue's otherwise.
     final hosts = [for (final h in SettingsStore.current?.netHosts(plugin.id) ?? plugin.hosts) hostWords(h)];
     final quiet = pageText(t, t.fontSize('sm'), height: 1.4, color: t.color('app-ink-3'));
-    final status = plugin.soon != null ? 'Coming in ${plugin.soon}' : (added ? 'Added' : 'Not added');
+    final unavailable = plugin.unavailable;
+    final status = plugin.soon != null ? 'Coming in ${plugin.soon}' : (unavailable != null ? 'Not on iPhone' : (added ? 'Added' : 'Not added'));
 
     Widget section(String title, List<Widget> children) => Padding(
           padding: EdgeInsets.only(top: gap * 1.5),
@@ -333,15 +336,15 @@ class PluginDetail extends StatelessWidget {
           children: [
             MarketButton(
               key: ValueKey(added ? 'market-remove-${plugin.id}' : 'market-add-${plugin.id}'),
-              label: plugin.soon != null ? 'Coming in ${plugin.soon}' : (added ? 'Remove' : 'Add to Ghost Keyboard'),
+              label: plugin.soon != null ? 'Coming in ${plugin.soon}' : (unavailable != null ? 'Not on iPhone' : (added ? 'Remove' : 'Add to Ghost Keyboard')),
               semantics: '${added ? 'Remove' : 'Add'} ${plugin.name}',
               icon: added ? Lucide.minus : Lucide.plus,
               look: added ? MarketButtonLook.ring : MarketButtonLook.filled,
               color: deep,
               large: true,
-              onPress: plugin.soon != null ? null : () => onSwitch(!added),
+              onPress: plugin.soon != null || unavailable != null ? null : () => onSwitch(!added),
             ),
-            if (added && onSettings != null)
+            if (added && onSettings != null && unavailable == null)
               MarketButton(label: 'Settings', semantics: '${plugin.name} settings', icon: Lucide.settings, look: MarketButtonLook.ring, large: true, onPress: onSettings),
           ],
         ),
@@ -349,11 +352,13 @@ class PluginDetail extends StatelessWidget {
         Text(
           plugin.soon != null
               ? 'Listed now so you know it is on its way.'
-              : added
+              : unavailable ?? (added
                   ? 'Removing it keeps its settings: add it again and it is as it was.'
-                  : 'Built in: adding it is a switch.',
+                  : 'Built in: adding it is a switch.'),
           style: quiet,
         ),
+        // What follows describes Android's plugin: left unsaid for one this phone's keyboard has not.
+        if (unavailable == null) ...[
         section('What it does', [Text(plugin.description, style: body)]),
         if (plugin.adds.isNotEmpty || plugin.hasPage)
           section('What it adds', [
@@ -369,6 +374,7 @@ class PluginDetail extends StatelessWidget {
               hint: permission.kind == Permission.network && hosts.isNotEmpty ? '${permission.why} It talks to ${joinAnd(hosts)} and nowhere else.' : permission.why,
             ),
         ]),
+        ],
         Padding(
           padding: EdgeInsets.only(top: gap * 1.5),
           child: Text('${plugin.category.label} · ${plugin.author} · version ${plugin.version}', style: quiet),

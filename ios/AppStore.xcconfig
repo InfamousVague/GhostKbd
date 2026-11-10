@@ -1,0 +1,8 @@
+// Signing for an App Store archive, given to xcodebuild with -xcconfig (docs/store/ios/SUBMIT.md). The project itself
+// stays on automatic signing for development; this names the two App Store profiles by target.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Distribution
+DEVELOPMENT_TEAM = F6ZAL7ANAD
+GHOST_PROFILE_Runner = Ghost Keyboard App Store
+GHOST_PROFILE_GhostKeyboard = Ghost Keyboard Extension App Store
+PROVISIONING_PROFILE_SPECIFIER = $(GHOST_PROFILE_$(TARGET_NAME))
