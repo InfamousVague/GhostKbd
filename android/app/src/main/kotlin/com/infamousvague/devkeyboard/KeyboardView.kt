@@ -763,16 +763,36 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         drawPackIcon(canvas, RowIcon.MIC, cx, cy, dp(22f) * scale, color)
     }
 
-    /** The listening panel, over the keys: a ring that swells with the voice, and what to do. */
+    private val arcBox = RectF()
+
+    /** The listening panel, over the keys: a ring that swells with the voice, and what to do; arcs that turn while it writes. */
     private fun drawDictation(canvas: Canvas) {
         fill.color = theme.background
         canvas.drawRect(0f, keysTop, width.toFloat(), keysTop + keysHeight + bottomPad, fill)
         val cx = width / 2f
         val cy = keysTop + keysHeight * 0.42f
         val r = dp(34f)
+        if (dictation == DictationPhase.TRANSCRIBING) {
+            // Turning speech into words: two arcs chasing round the mic, the AI's violet into the accent, until done.
+            val t = if (animationsOn()) android.os.SystemClock.uptimeMillis() % 1100L / 1100f else 0f
+            val ring = r + dp(10f)
+            arcBox.set(cx - ring, cy - ring, cx + ring, cy + ring)
+            stroke.strokeWidth = dp(3f)
+            stroke.color = theme.accent
+            stroke.alpha = 50
+            canvas.drawCircle(cx, cy, ring, stroke)
+            stroke.alpha = 255
+            stroke.color = RowTint.AI.ink(theme)
+            canvas.drawArc(arcBox, 360f * t - 90f, 70f, false, stroke)
+            stroke.color = theme.accent
+            canvas.drawArc(arcBox, 360f * t + 90f, 70f, false, stroke)
+            if (animationsOn()) postInvalidateOnAnimation()
+        } else {
+            fill.color = theme.accent
+            fill.alpha = 60
+            canvas.drawCircle(cx, cy, r + dp(26f) * level.coerceIn(0f, 1f) + dp(4f), fill)
+        }
         fill.color = theme.accent
-        fill.alpha = 60
-        canvas.drawCircle(cx, cy, r + dp(26f) * level.coerceIn(0f, 1f) + dp(4f), fill)
         fill.alpha = 255
         canvas.drawCircle(cx, cy, r, fill)
         drawMic(canvas, cx, cy + dp(1f), theme.onAccent, 1.6f)

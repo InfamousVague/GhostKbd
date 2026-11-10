@@ -50,6 +50,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     // --- the plugin row and its plugins' state ------------------------------------------------------------------------
 
     private var row: PluginRow? = null
+    private var frame: KeyboardFrame? = null
     private var gifPanel: GifPanel? = null
     private var emojiPanel: EmojiPanel? = null
     /** Where a plugin's panel goes, over the keys: the GIF results or the emoji. */
@@ -170,6 +171,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         emojiPanel = emoji
         panelHost = host
         val frame = KeyboardFrame(this, view, strip, host)
+        this.frame = frame
         applySettings()
         return frame
     }
@@ -270,6 +272,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
+        frame?.working?.theme = theme
         emojiPanel?.theme = theme
         if (!Plugins.isOn(prefs, Plugins.EMOJI)) closeEmoji()
         if (!Plugins.isOn(prefs, Plugins.GIFS)) closeGifs()
@@ -643,10 +646,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onLevel(level: Float) { keyboard?.level = level }
 
-    override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING }
+    override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING; updateWorking() }
 
     override fun onDictated(text: String) {
         keyboard?.dictation = DictationPhase.OFF
+        updateWorking()
         if (text.isEmpty()) return
         val ic = currentInputConnection ?: return
         // A space before the words where they follow other words, none where they start a line.
@@ -658,6 +662,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onError(message: String) {
         keyboard?.dictation = DictationPhase.OFF
+        updateWorking()
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
 
@@ -693,6 +698,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * and with nothing being typed, the plugins' own buttons.
      */
     private fun refreshRow() {
+        updateWorking()
         val strip = row ?: return
         if (strip.visibility != View.VISIBLE) return
         val items = ArrayList<RowItem>()
@@ -718,11 +724,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         if (showingClips) {
-            items += RowItem("clips-back", icon = RowIcon.BACK) { showingClips = false; scheduleRow() }
+            items += RowItem("clips-back", icon = RowIcon.BACK, description = "Back") { showingClips = false; scheduleRow() }
             val clips = ClipHistory.all(this)
             if (clips.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
             for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
-            if (clips.isNotEmpty()) items += RowItem("clips-clear", label = "Clear") { ClipHistory.clear(this); scheduleRow() }
+            if (clips.isNotEmpty()) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear clipboard history") { ClipHistory.clear(this); scheduleRow() }
             strip.setItems(items)
             return
         }
@@ -783,41 +789,41 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Mockingbird: the selection rewritten as you.
         if (Plugins.isOn(prefs, Plugins.MOCKINGBIRD) && aiAllowed() && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
-                items += RowItem("voice", label = "✦ In my voice", bold = true, chip = true) { rewriteSelection(selected) }
+                items += RowItem("voice", label = "In my voice", icon = RowIcon.FEATHER, tint = RowTint.AI, bold = true, chip = true) { rewriteSelection(selected) }
             }
         }
         // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
         if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
-            items += RowItem("rewrite", label = "✦ Rewrite", bold = selStart != selEnd, chip = true) { showingRewrite = true; scheduleRow() }
+            items += RowItem("rewrite", label = "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd, chip = true) { showingRewrite = true; scheduleRow() }
         }
         // Selected text in another app: to Ghost.md as a note.
         if (ghost && !inGhost && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
-                items += RowItem("ghost-save", label = "Save to Ghost.md", bold = true, chip = true) {
+                items += RowItem("ghost-save", label = "Save to Ghost.md", icon = RowIcon.GHOST, tint = RowTint.GHOST, bold = true, chip = true) {
                     if (!GhostMd.save(this, selected)) android.widget.Toast.makeText(this, "Ghost.md isn’t on this phone", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
         if (ghost && inGhost) {
-            items += RowItem("g-link", label = "[[ ]]", chip = true) { insertSnippet("[[¦]]") }
-            items += RowItem("g-tag", label = "#", chip = true) { insertSnippet("#") }
-            items += RowItem("g-task", label = "☐", chip = true) { linePrefix("- [ ] ") }
-            items += RowItem("g-today", label = "Today", chip = true) { insertSnippet("[[" + java.time.LocalDate.now() + "]]") }
-            items += RowItem("g-callout", label = "Callout", chip = true) { insertSnippet("> [!note] ¦") }
-            items += RowItem("g-table", label = "Table", chip = true) { insertSnippet("| ¦ |  |\n| --- | --- |\n|  |  |") }
-            items += RowItem("g-math", label = "∑ Math", chip = true) { insertSnippet("$$\n¦\n$$") }
-            items += RowItem("g-diagram", label = "Diagram", chip = true) { insertSnippet("```mermaid\n¦\n```") }
-            items += RowItem("g-divider", label = "—", chip = true) { insertSnippet("\n---\n") }
-            items += RowItem("g-voice", label = "Voice note", chip = true) { GhostMd.voice(this) }
+            items += RowItem("g-link", icon = RowIcon.WIKI, tint = RowTint.GHOST, chip = true, description = "Link to a note") { insertSnippet("[[¦]]") }
+            items += RowItem("g-tag", icon = RowIcon.HASH, tint = RowTint.GHOST, chip = true, description = "Tag") { insertSnippet("#") }
+            items += RowItem("g-task", icon = RowIcon.TASK, tint = RowTint.GHOST, chip = true, description = "Task") { linePrefix("- [ ] ") }
+            items += RowItem("g-today", icon = RowIcon.TODAY, tint = RowTint.GHOST, chip = true, description = "Link to today") { insertSnippet("[[" + java.time.LocalDate.now() + "]]") }
+            items += RowItem("g-callout", icon = RowIcon.CALLOUT, tint = RowTint.GHOST, chip = true, description = "Callout") { insertSnippet("> [!note] ¦") }
+            items += RowItem("g-table", icon = RowIcon.TABLE, tint = RowTint.GHOST, chip = true, description = "Table") { insertSnippet("| ¦ |  |\n| --- | --- |\n|  |  |") }
+            items += RowItem("g-math", icon = RowIcon.MATH, tint = RowTint.GHOST, chip = true, description = "Math") { insertSnippet("$$\n¦\n$$") }
+            items += RowItem("g-diagram", icon = RowIcon.DIAGRAM, tint = RowTint.GHOST, chip = true, description = "Diagram") { insertSnippet("```mermaid\n¦\n```") }
+            items += RowItem("g-divider", icon = RowIcon.DIVIDER, tint = RowTint.GHOST, chip = true, description = "Divider") { insertSnippet("\n---\n") }
+            items += RowItem("g-voice", icon = RowIcon.MIC, tint = RowTint.GHOST, chip = true, description = "Voice note") { GhostMd.voice(this) }
         }
         if (Plugins.isOn(prefs, Plugins.INCOGNITO)) {
-            items += RowItem("incognito-$incognito", label = if (incognito) "Incognito on" else "Incognito", bold = incognito, chip = true) {
+            items += RowItem("incognito-$incognito", label = if (incognito) "Incognito on" else null, icon = RowIcon.INCOGNITO, bold = incognito, chip = true, description = "Incognito") {
                 incognitoOn = !incognitoOn; scheduleRow()
             }
         }
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) {
             ClipHistory.fresh?.takeIf { System.currentTimeMillis() - it.at < 90_000 }?.let { clip ->
-                items += RowItem("fresh-${clip.at}", label = preview(clip.text), bold = true, chip = true) { pasteClip(clip.text) }
+                items += RowItem("fresh-${clip.at}", label = preview(clip.text), icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, bold = true, chip = true) { pasteClip(clip.text) }
             }
         }
         // An app's profile decides for that app; without one, the plugin's own rule (the apps it suits, or everywhere).
@@ -826,35 +832,35 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("tab", label = "Tab", chip = true) { sendKey(KeyEvent.KEYCODE_TAB) }
             items += RowItem("ctrl-$ctrlOn", label = "Ctrl", bold = ctrlOn, chip = true) { ctrlOn = !ctrlOn; scheduleRow() }
             items += RowItem("alt-$altOn", label = "Alt", bold = altOn, chip = true) { altOn = !altOn; scheduleRow() }
-            items += RowItem("left", label = "←", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
-            items += RowItem("up", label = "↑", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_UP) }
-            items += RowItem("down", label = "↓", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
-            items += RowItem("right", label = "→", chip = true) { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
+            items += RowItem("left", icon = RowIcon.CARET_LEFT, chip = true, description = "Left") { sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
+            items += RowItem("up", icon = RowIcon.CARET_UP, chip = true, description = "Up") { sendKey(KeyEvent.KEYCODE_DPAD_UP) }
+            items += RowItem("down", icon = RowIcon.CARET_DOWN, chip = true, description = "Down") { sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
+            items += RowItem("right", icon = RowIcon.CARET_RIGHT, chip = true, description = "Right") { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
             for (c in listOf("|", "~", "/", "-", "&&", ">")) items += RowItem("t$c", label = c, chip = true) { currentInputConnection?.commitText(c, 1) }
         }
         if (profile?.flag("markdown") ?: (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN))) {
-            items += RowItem("md-b", label = "B", bold = true, chip = true) { wrap("**", "**") }
-            items += RowItem("md-i", label = "I", chip = true) { wrap("_", "_") }
-            items += RowItem("md-s", label = "S̶", chip = true) { wrap("~~", "~~") }
-            items += RowItem("md-code", label = "</>", chip = true) { wrap("`", "`") }
-            items += RowItem("md-block", label = "```", chip = true) { wrap("```\n", "\n```") }
-            items += RowItem("md-link", label = "Link", chip = true) { link() }
-            items += RowItem("md-h", label = "#", chip = true) { linePrefix("# ") }
-            items += RowItem("md-list", label = "•", chip = true) { linePrefix("- ") }
-            items += RowItem("md-task", label = "☐", chip = true) { linePrefix("- [ ] ") }
-            items += RowItem("md-quote", label = "❝", chip = true) { linePrefix("> ") }
+            items += RowItem("md-b", icon = RowIcon.BOLD, chip = true, description = "Bold") { wrap("**", "**") }
+            items += RowItem("md-i", icon = RowIcon.ITALIC, chip = true, description = "Italic") { wrap("_", "_") }
+            items += RowItem("md-s", icon = RowIcon.STRIKE, chip = true, description = "Strikethrough") { wrap("~~", "~~") }
+            items += RowItem("md-code", icon = RowIcon.CODE, chip = true, description = "Code") { wrap("`", "`") }
+            items += RowItem("md-block", icon = RowIcon.CODE_BLOCK, chip = true, description = "Code block") { wrap("```\n", "\n```") }
+            items += RowItem("md-link", icon = RowIcon.LINK, chip = true, description = "Link") { link() }
+            items += RowItem("md-h", icon = RowIcon.HEADING, chip = true, description = "Heading") { linePrefix("# ") }
+            items += RowItem("md-list", icon = RowIcon.LIST, chip = true, description = "List") { linePrefix("- ") }
+            items += RowItem("md-task", icon = RowIcon.TASK, chip = true, description = "Task") { linePrefix("- [ ] ") }
+            items += RowItem("md-quote", icon = RowIcon.QUOTE, chip = true, description = "Quote") { linePrefix("> ") }
             // Ghost.md's own: a link to another note.
-            if (!ghost && inGhost) items += RowItem("md-wiki", label = "[[ ]]", chip = true) { wrap("[[", "]]") }
+            if (!ghost && inGhost) items += RowItem("md-wiki", icon = RowIcon.WIKI, chip = true, description = "Link to a note") { wrap("[[", "]]") }
         }
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
-            items += RowItem("undo", icon = RowIcon.BACK, chip = true) { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
-            items += RowItem("redo", icon = RowIcon.FORWARD, chip = true) {
+            items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo") { sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON) }
+            items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo") {
                 sendKey(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
             }
         }
-        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", label = "Clipboard", chip = true) { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", label = "😀 Emoji", chip = true) { openEmoji() }
-        if (Plugins.isOn(prefs, Plugins.GIFS)) items += RowItem("gifs", label = "GIFs", icon = RowIcon.GIF, chip = true) { openGifs() }
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
+        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
+        if (Plugins.isOn(prefs, Plugins.GIFS)) items += RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
         if (Plugins.isOn(prefs, Plugins.PASSWORDS) && isPassword(currentInputEditorInfo)) {
             items += RowItem("passwords-hint", label = "Logins appear here", icon = RowIcon.KEY)
         }
@@ -947,18 +953,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // Never silent: in a private field (a password, incognito, or an app that asks keyboards not to learn) say why.
             if (!aiAllowed()) {
                 if (tag != null || FILL_OPEN.containsMatchIn(before)) {
-                    items += RowItem("fill-private", label = "✦ Ghostwriter is off in private fields", chip = true, fill = true)
+                    items += RowItem("fill-private", label = "Ghostwriter is off in private fields", icon = RowIcon.SPARKLE, chip = true, fill = true)
                     return true
                 }
                 return false
             }
             tag?.let { (request, _) ->
-                items += RowItem("fill-$request", label = "✦ Fill: ${preview(request)}", bold = true, chip = true, fill = true) { fillAtCursor() }
+                items += RowItem("fill-$request", label = "Fill: ${preview(request)}", icon = RowIcon.SPARKLE, tint = RowTint.AI, bold = true, chip = true, fill = true) { fillAtCursor() }
                 return true
             }
             FILL_OPEN.find(before)?.let { m ->
                 val request = m.groupValues[1].trim()
-                items += RowItem("fill-open", label = if (request.length < 2) "✦ Ghostwriter: say what to write, then >>" else "✦ Fill: ${preview(request)}", chip = true, fill = true) {
+                items += RowItem("fill-open", label = if (request.length < 2) "Ghostwriter: say what to write, then >>" else "Fill: ${preview(request)}", icon = RowIcon.SPARKLE, tint = RowTint.AI, chip = true, fill = true) {
                     if (request.length >= 2) { currentInputConnection?.commitText(">>", 1); fillAtCursor() }
                 }
                 return true
@@ -1210,24 +1216,40 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /**
+     * The line along the top of the keys runs while something works for the person: the AI writing, rewriting or
+     * typing out an answer, or dictation turning speech into words. Every change to those comes through the row's
+     * refresh or dictation's callbacks, which call this.
+     */
+    private fun updateWorking() {
+        frame?.working?.on = typing != null || aiJob?.running == true || keyboard?.dictation == DictationPhase.TRANSCRIBING
+    }
+
+    /** What the row says the AI is doing for [job]: writing the request, rewriting as asked, or in the person's voice. */
+    private fun doing(job: Ghostwriter.Job): String {
+        Rewrite.mode(prefs, job.mode)?.let { return "${it.label}…" }
+        if (job.selection) return "Rewriting in your voice…"
+        return "Writing \u201C${preview(job.request)}\u201D…"
+    }
+
     /** The row while an answer is on its way, failed, or couldn't be placed. True when it filled [items]. */
     private fun aiRow(items: ArrayList<RowItem>): Boolean {
         if (typing != null) {
-            items += RowItem("ai-typing", label = "✦ Typing…", chip = true, fill = true)
-            items += RowItem("ai-skip", label = "Skip", bold = true, chip = true) { finishTyping() }
+            items += RowItem("ai-typing", label = "Typing it out…", busy = true, fill = true)
+            items += RowItem("ai-skip", label = "Skip", icon = RowIcon.FORWARD, bold = true, chip = true) { finishTyping() }
             return true
         }
         val job = aiJob ?: return false
         if (job.cancelled) { aiJob = null; return false }
-        val dismiss = RowItem("ai-x-${job.id}", label = "✕", chip = true) { job.cancelled = true; aiJob = null; scheduleRow() }
+        val dismiss = RowItem("ai-x-${job.id}", icon = RowIcon.CLOSE, chip = true, description = if (job.running) "Stop" else "Dismiss") { job.cancelled = true; aiJob = null; scheduleRow() }
         when {
             job.running -> {
-                items += RowItem("ai-run-${job.id}", label = "✦ Writing “${preview(job.request)}”…", chip = true, fill = true)
+                items += RowItem("ai-run-${job.id}", label = doing(job), busy = true, fill = true)
                 items += dismiss
             }
             job.error != null -> {
-                items += RowItem("ai-err-${job.id}", label = "✦ ${job.error}", chip = true, fill = true) { onOpenSettings() }
-                items += RowItem("ai-retry-${job.id}", label = "Retry", bold = true, chip = true) {
+                items += RowItem("ai-err-${job.id}", label = job.error, icon = RowIcon.WARNING, tint = RowTint.ERROR, chip = true, fill = true) { onOpenSettings() }
+                items += RowItem("ai-retry-${job.id}", label = "Retry", icon = RowIcon.RETRY, bold = true, chip = true) {
                     aiJob = null
                     val mode = Rewrite.mode(prefs, job.mode)
                     if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
@@ -1237,7 +1259,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
             else -> {
                 val text = job.result.orEmpty()
-                items += RowItem("ai-put-${job.id}", label = "Insert: ${preview(text)}", bold = true, chip = true, fill = true) {
+                items += RowItem("ai-put-${job.id}", label = "Insert: ${preview(text)}", icon = RowIcon.CHECK, tint = RowTint.DONE, bold = true, chip = true, fill = true) {
                     currentInputConnection?.commitText(text, 1); aiJob = null; scheduleRow()
                 }
                 items += dismiss
