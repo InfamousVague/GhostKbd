@@ -329,6 +329,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The field is gone, and its history with it. */
     override fun onFinishInput() {
         super.onFinishInput()
+        runCatching { AccuracyLog.flush(this); AccuracyLog.clearTaps() }
         fieldKey = null
         editor.detach()
     }
@@ -711,7 +712,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(before, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
-        val fixed = autocorrect.correct(word, scorer) ?: return false
+        val found = autocorrect.correct(word, scorer)
+        if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
+        val fixed = found ?: return false
         // One step in the history, after the separator as typed: undo gives back the word as typed, with its space.
         if (!editor.replaceBefore(word, fixed + separator, Kind.CORRECTION, typedFirst = separator)) return false
         adaptiveCorrected(word, fixed)
@@ -727,6 +730,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun undoCorrection(ic: InputConnection, keepSeparator: Boolean): Boolean {
         val (typed, fixed, separator) = lastCorrection ?: return false
         lastCorrection = null
+        if (accuracyOn()) AccuracyLog.settle(this, "undone")
+        stats { TypingStats.undone(this) }
         val tail = fixed + separator
         if (!editor.replaceBefore(tail, if (keepSeparator) typed + separator else typed, Kind.CORRECTION)) return false
         lastSpaceAt = 0L
@@ -748,6 +753,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (emojiMode == GifMode.TYPING) { hangul = Hangul.State(); if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
         stats { TypingStats.backspace(this) }
+        if (accuracyOn()) AccuracyLog.deleted()
         learner.deleted()
         autoSpaced = false
         // Korean: backspace on the block being built takes one letter of it, not the whole syllable.
@@ -772,6 +778,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             lastSwipe = null
             val tail = swipe.lead + swipe.word
             if (ic.getTextBeforeCursor(tail.length, 0)?.toString() == tail) {
+                stats { TypingStats.swipeDeleted(this) }
                 editor.deleteBefore(tail)
                 // The swiped word is gone whole: nothing entered by hand is left at the cursor.
                 learner.deleted(whole = true)
@@ -1632,6 +1639,26 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /** A swipe's path, point times and word before, from onSwipe until typeSwipe records it. */
+    private var swipeRecord: Triple<List<android.graphics.PointF>, List<Long>, String?>? = null
+
+    /** The accuracy record may keep this: its switch on, and a field whose text says how you type, not incognito. */
+    private fun accuracyOn(): Boolean {
+        if (!prefs.accuracyLog || incognito) return false
+        val info = currentInputEditorInfo
+        if (info == null || isPassword(info) || !collectable(info)) { AccuracyLog.drop(); return false }
+        return true
+    }
+
+    /** A finished word into the accuracy record, with the keys as they are and the two words before it. */
+    private fun recordWord(typed: String, auto: String?, before: String) {
+        runCatching {
+            keyboard?.letterLayout()?.let { (keys, w) -> if (keys.isNotEmpty()) AccuracyLog.layout(this, language.spec.id, language.dictionaries, keys, w) }
+            val context = before.trimEnd().split(Regex("\\s+")).filter { it.isNotEmpty() }.takeLast(2).joinToString(" ")
+            AccuracyLog.word(this, typed, auto, context, currentInputEditorInfo?.packageName)
+        }
+    }
+
     /** The message in a chat app's box as it stands, while Sherlock is on: kept by [trackSent] when it is sent. */
     private var chatDraft = ""
 
@@ -1806,6 +1833,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private fun adaptiveTyped(text: String) {
         val typed = keyboard?.takeTyped()
+        if (accuracyOn() && text.length == 1 && text[0].isLetter()) {
+            if (typed != null) AccuracyLog.tap(text[0], typed.x, typed.y, typed.rect.width(), typed.rect.height()) else AccuracyLog.tap(text[0], -1f, -1f, 0f, 0f)
+        }
         if (!adaptiveOn()) { wordTouches.clear(); takenTouch = null; return }
         // Several letters from one long-press (Arabic's لا) are part of the word, each with no touch of its own.
         if (text.length > 1 && text.all { it.isLetter() }) { repeat(text.length) { wordTouches += null }; takenTouch = null; return }
@@ -2088,6 +2118,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val ic = currentInputConnection ?: return
         if (!currentWord(ic).equals(typed, ignoreCase = false)) { scheduleRow(); return }
         if (!editor.replaceBefore(typed, "$word ", Kind.SUGGESTION)) { scheduleRow(); return }
+        if (accuracyOn()) { recordWord(typed, null, ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString().orEmpty().dropLast(word.length + 1)); AccuracyLog.settle(this, "picked:$word") }
         lastCorrection = null
         lastSpaceAt = System.currentTimeMillis()
         // The word was chosen by hand: it counts as typed, and its space gives way to a full stop typed next.
@@ -2103,6 +2134,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun keepTyped(word: String) {
         val ic = currentInputConnection ?: return
         if (!incognito) { prefs.learn(word, locale); autocorrect.setLearned(prefs.learnedWords) }
+        if (accuracyOn()) { recordWord(word, null, ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString().orEmpty().dropLast(word.length)); AccuracyLog.settle(this, "typed") }
         editor.type(" ")
         lastCorrection = null
         lastSpaceAt = System.currentTimeMillis()
@@ -2177,6 +2209,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val at = selStart to selEnd
         val points = path.map { android.graphics.PointF(it.x, it.y) }
         val centres = HashMap(keys)
+        swipeRecord = Triple(points, keyboard?.lastSwipeTimes.orEmpty(), prior)
+        if (accuracyOn()) AccuracyLog.layout(this, language.spec.id, language.dictionaries, centres, keyWidth)
         swipeWorker.execute {
             val started = android.os.SystemClock.elapsedRealtime()
             val found = runCatching { autocorrect.swipe(points, centres, keyWidth, prior) }.getOrDefault(emptyList())
@@ -2210,6 +2244,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastCorrection = null
         lastSpaceAt = 0L
         lastSwipe = SwipeState(lead, words[0], words)
+        swipeRecord?.let { (path, times, prior) -> if (accuracyOn()) AccuracyLog.swipe(this, path, times, found, prior, currentInputEditorInfo?.packageName) }
+        swipeRecord = null
         // A swiped word is entered by hand, and is still at the cursor: it is taken up when something ends it (a
         // space, a full stop, the next swipe's space), not now. It ends the word before it only where it put a
         // space after that word; else that word ended at its own space and was taken up then.
@@ -2225,6 +2261,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val tail = swipe.lead + swipe.word
         // The swapped word stays the one step the swipe was.
         if (!editor.replaceBefore(tail, swipe.lead + word, Kind.SWIPE)) { lastSwipe = null; scheduleRow(); return }
+        if (accuracyOn()) AccuracyLog.settle(this, "picked:$word")
+        stats { TypingStats.swipeChanged(this) }
         swipe.word = word
         learner.word(word.length)
         if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(word)

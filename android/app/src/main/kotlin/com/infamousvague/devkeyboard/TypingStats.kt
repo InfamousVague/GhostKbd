@@ -25,7 +25,8 @@ object TypingStats {
     /** A pause longer than this is not time spent typing: the clock stops until the next key. */
     private const val IDLE_MS = 5000L
 
-    private class Day(var chars: Int = 0, var words: Int = 0, var ms: Long = 0, var slips: Int = 0, var corrections: Int = 0, var swipes: Int = 0)
+    private class Day(var chars: Int = 0, var words: Int = 0, var ms: Long = 0, var slips: Int = 0, var corrections: Int = 0, var swipes: Int = 0,
+        var undone: Int = 0, var swipesChanged: Int = 0, var swipesDeleted: Int = 0)
 
     private var days: java.util.TreeMap<String, Day>? = null
     private val letters = IntArray(26)
@@ -43,7 +44,7 @@ object TypingStats {
             o.optJSONObject("days")?.let { d ->
                 for (key in d.keys()) {
                     val a = d.getJSONArray(key)
-                    map[key] = Day(a.optInt(0), a.optInt(1), a.optLong(2), a.optInt(3), a.optInt(4), a.optInt(5))
+                    map[key] = Day(a.optInt(0), a.optInt(1), a.optLong(2), a.optInt(3), a.optInt(4), a.optInt(5), a.optInt(6), a.optInt(7), a.optInt(8))
                 }
             }
             o.optJSONArray("letters")?.let { a -> for (i in 0 until minOf(26, a.length())) letters[i] = a.optInt(i) }
@@ -102,6 +103,15 @@ object TypingStats {
         changed(context)
     }
 
+    /** An autocorrection was undone: it was wrong. */
+    fun undone(context: Context) { today(context).undone++; changed(context) }
+
+    /** A swiped word was swapped for another of its readings in the row. */
+    fun swipeChanged(context: Context) { today(context).swipesChanged++; changed(context) }
+
+    /** A swiped word was deleted straight away with backspace. */
+    fun swipeDeleted(context: Context) { today(context).swipesDeleted++; changed(context) }
+
     /** Autocorrect fixed a word. */
     fun correction(context: Context) {
         today(context).corrections++
@@ -145,7 +155,7 @@ object TypingStats {
         if (unsaved == 0) return
         unsaved = 0
         val d = JSONObject()
-        for ((key, day) in map) d.put(key, JSONArray().put(day.chars).put(day.words).put(day.ms).put(day.slips).put(day.corrections).put(day.swipes))
+        for ((key, day) in map) d.put(key, JSONArray().put(day.chars).put(day.words).put(day.ms).put(day.slips).put(day.corrections).put(day.swipes).put(day.undone).put(day.swipesChanged).put(day.swipesDeleted))
         val l = JSONArray()
         letters.forEach { l.put(it) }
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("stats", JSONObject().put("days", d).put("letters", l).toString()).apply()
@@ -164,6 +174,13 @@ object TypingStats {
     /** How much of what was typed stood, as a percentage: slips and autocorrect's fixes are what didn't. */
     private fun accuracy(day: Day): Int = if (day.chars < 20) 0 else (100.0 * (1.0 - (day.slips + day.corrections).toDouble() / day.chars)).roundToInt().coerceIn(0, 100)
 
+    /** Of autocorrect's fixes, the share that stood (not undone), as a percentage; 0 until there are five. */
+    private fun kept(day: Day): Int = if (day.corrections < 5) 0 else (100.0 * (day.corrections - day.undone).coerceAtLeast(0) / day.corrections).roundToInt()
+
+    /** Of swiped words, the share whose first reading stood (not swapped or deleted), as a percentage; 0 until there are five. */
+    private fun swipesFirst(day: Day): Int = if (day.swipes < 5) 0 else
+        (100.0 * (day.swipes - day.swipesChanged - day.swipesDeleted).coerceAtLeast(0) / day.swipes).roundToInt()
+
     /** What Settings › Typing › Typing stats shows: today, the last seven days, everything kept, and the busiest keys. */
     fun state(context: Context): Map<String, Any> {
         val map = load(context)
@@ -175,7 +192,8 @@ object TypingStats {
             mapOf("day" to date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()), "words" to d.words, "wpm" to wpm(d.chars, d.ms))
         }
         val all = Day()
-        for (d in map.values) { all.chars += d.chars; all.words += d.words; all.ms += d.ms; all.slips += d.slips; all.corrections += d.corrections; all.swipes += d.swipes }
+        for (d in map.values) { all.chars += d.chars; all.words += d.words; all.ms += d.ms; all.slips += d.slips; all.corrections += d.corrections; all.swipes += d.swipes
+            all.undone += d.undone; all.swipesChanged += d.swipesChanged; all.swipesDeleted += d.swipesDeleted }
         val pressed = letters.sum()
         val top = if (pressed < 50) emptyList() else letters.indices.sortedByDescending { letters[it] }.take(6)
             .map { "${('a' + it).uppercaseChar()} ${(100.0 * letters[it] / pressed).roundToInt()}%" }
@@ -183,11 +201,13 @@ object TypingStats {
             "today" to mapOf(
                 "chars" to t.chars, "words" to t.words, "wpm" to wpm(t.chars, t.ms), "accuracy" to accuracy(t),
                 "slips" to t.slips, "corrections" to t.corrections, "swipes" to t.swipes, "minutes" to (t.ms / 60_000.0).roundToInt(),
+                "correctionsKept" to kept(t), "swipesFirst" to swipesFirst(t),
             ),
             "week" to week,
             "all" to mapOf(
                 "words" to all.words, "wpm" to wpm(all.chars, all.ms), "accuracy" to accuracy(all), "days" to map.values.count { it.chars > 0 },
                 "minutes" to (all.ms / 60_000.0).roundToInt(),
+                "corrections" to all.corrections, "correctionsKept" to kept(all), "swipes" to all.swipes, "swipesFirst" to swipesFirst(all),
             ),
             "topKeys" to top,
         )

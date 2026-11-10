@@ -176,6 +176,8 @@ class KeyboardPrefs(context: Context) {
     val sherlockAutoreply: Boolean get() = bool(SHERLOCK_AUTOREPLY)
     /** Sherlock looks up your Ghost.md notes that match the conversation, as Ghostwriter's <<requests>> do. */
     val sherlockNotes: Boolean get() = bool(SHERLOCK_NOTES)
+    /** Settings › Typing stats › Keep a record for accuracy tests (AccuracyLog). */
+    val accuracyLog: Boolean get() = bool(ACCURACY_LOG)
     /** Your usernames and display names in chats (Discord, Slack, groups), comma-separated: messages under them are yours. */
     val sherlockNames: String get() = prefs.getString(SHERLOCK_NAMES, "")!!
     /** Settings › Developer is showing: the version in About was tapped five times. */
@@ -329,6 +331,7 @@ class KeyboardPrefs(context: Context) {
         const val SHERLOCK_FILL = "sherlock_fill"
         const val SHERLOCK_AUTOREPLY = "sherlock_autoreply"
         const val SHERLOCK_NOTES = "sherlock_notes"
+        const val ACCURACY_LOG = "accuracy_log"
         const val SHERLOCK_NAMES = "sherlock_names"
         const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
         const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
@@ -412,6 +415,7 @@ class KeyboardPrefs(context: Context) {
             SHERLOCK_FILL to false,
             SHERLOCK_AUTOREPLY to false,
             SHERLOCK_NOTES to true,
+            ACCURACY_LOG to false,
             SHERLOCK_NAMES to "",
             GHOSTWRITER_MEMORY to true,
             GHOSTWRITER_CLIPBOARD to false,

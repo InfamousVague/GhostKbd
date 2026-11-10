@@ -685,6 +685,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private var fadingSwipe: List<PointF>? = null
     private var fadingSince = 0L
 
+    /** Each letter key's centre and a letter key's width, for the accuracy record. */
+    fun letterLayout(): Pair<Map<Char, PointF>, Float> =
+        letterCenters() to (keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: 0f)
+
     /** Each letter key's centre, for the swipe decoder. */
     private fun letterCenters(): Map<Char, PointF> = keyRects
         .filter { (k, _) -> k.type == KeyType.CHAR && k.text.length == 1 && k.text[0].isLetter() }
@@ -1286,6 +1290,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     return true
                 }
                 val (key, rect) = keyAt(x, y) ?: return true
+                downAt = event.eventTime
                 press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second })
             }
             MotionEvent.ACTION_MOVE -> {
@@ -1293,7 +1298,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 val i = event.findPointerIndex(t.pointerId)
                 if (i < 0) return true
                 // A swipe takes the points Android batched between frames too, so its trail follows the finger closely.
-                t.swipe?.let { path -> for (h in 0 until event.historySize) addSwipePoint(path, event.getHistoricalX(i, h), event.getHistoricalY(i, h)) }
+                t.swipe?.let { path -> for (h in 0 until event.historySize) addSwipePoint(path, event.getHistoricalX(i, h), event.getHistoricalY(i, h), event.getHistoricalEventTime(h)) }
+                moveAt = event.eventTime
                 move(t, event.getX(i), event.getY(i))
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
@@ -1365,6 +1371,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     kotlin.math.hypot(x - t.downX, y - t.downY) > t.rect.width() * 0.9f
                 ) {
                     t.swipe = arrayListOf(PointF(t.downX, t.downY), PointF(x, y))
+                    swipeTimes.clear(); swipeTimes += downAt; swipeTimes += moveAt
                     timer.removeCallbacks(longPress)
                     invalidate()
                     return
@@ -1387,11 +1394,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     /** A point on a swipe's path, unless it is within a hair of the last (jitter that would kink the curve). */
-    private fun addSwipePoint(path: ArrayList<PointF>, x: Float, y: Float) {
+    private fun addSwipePoint(path: ArrayList<PointF>, x: Float, y: Float, at: Long = moveAt) {
         val last = path.lastOrNull()
         if (last != null && kotlin.math.hypot(x - last.x, y - last.y) < dp(1.5f)) return
         path.add(PointF(x, y))
+        swipeTimes += at
     }
+
+    /** When each point of the swipe being drawn was made (ms, uptime): the finger slows at the letters it means. */
+    private val swipeTimes = ArrayList<Long>()
+    private var downAt = 0L
+    private var moveAt = 0L
+    /** The last finished swipe's point times, alongside the path given to onSwipe, for the accuracy record. */
+    var lastSwipeTimes: List<Long> = emptyList()
+        private set
 
     private fun onLongPress(t: Touch) {
         when (t.key.type) {
@@ -1448,6 +1464,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         when {
             swipe != null -> {
                 val unitW = keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: t.rect.width()
+                lastSwipeTimes = swipeTimes.toList()
                 listener.onSwipe(swipe, letterCenters(), unitW)
                 fadingSwipe = swipe
                 fadingSince = android.os.SystemClock.uptimeMillis()

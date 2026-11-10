@@ -484,19 +484,22 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * words in one stroke ("hey what's up"). [before] is the word before the cursor in lower case, "^" at a
      * sentence's start, or null. The decoding is [SwipeDecoder]'s, over the lexicon in use.
      */
-    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null): List<String> {
+    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null): List<String> =
+        swipePlain(path.map { it.x to it.y }, keys.mapValues { (_, p) -> p.x to p.y }, keyW, before)
+
+    /** [swipe] in plain numbers, as the accuracy replay (src/test AccuracyReplay) calls it off the device. */
+    fun swipePlain(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null): List<String> {
         val now = now
         if (now.lexicon.words.isEmpty() || path.size < 2 || keyW <= 0f) return emptyList()
         return synchronized(decoder) {
             // Another board's words: the shapes worked out for the last lexicon are no use.
-            if (now.lexicon !== decoderLexicon) { decoder.clear(); decoderLexicon = now.lexicon; swipeKeysFrom = null }
+            if (now.lexicon !== decoderLexicon) { decoder.clear(); decoderLexicon = now.lexicon; swipeKeys = emptyMap() }
             // The same keys keep the same map, so the decoder keeps the words' shapes it has worked out for them.
-            if (keys != swipeKeysFrom) {
-                swipeKeysFrom = HashMap(keys.mapValues { (_, p) -> android.graphics.PointF(p.x, p.y) })
-                swipeKeys = keys.mapValues { (_, p) -> p.x to p.y }
+            if (keys != swipeKeys) {
+                swipeKeys = HashMap(keys)
                 warm(swipeKeys, now.lexicon)
             }
-            decoder.decode(path.map { it.x to it.y }, swipeKeys, keyW, before)
+            decoder.decode(path, swipeKeys, keyW, before)
         }
     }
 
@@ -514,7 +517,6 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
     }
 
-    private var swipeKeysFrom: Map<Char, android.graphics.PointF>? = null
     @Volatile private var swipeKeys: Map<Char, Pair<Float, Float>> = emptyMap()
 
     /** What a word should be: [word], and whether autocorrect is [sure] enough to change it by itself (else it is only offered). */

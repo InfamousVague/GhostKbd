@@ -101,6 +101,7 @@ class SettingsStore extends ChangeNotifier {
     'sherlock_autoreply': false,
     'sherlock_notes': true,
     'sherlock_names': '',
+    'accuracy_log': false,
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
     'ghostwriter_web': true,
@@ -422,6 +423,42 @@ class SettingsStore extends ChangeNotifier {
   Future<void> openSherlockSettings() => _call('sherlockOpen');
   Future<void> requestNotifications() => _call('requestNotifications');
 
+  /// The accuracy record (AccuracyLog): how many words and swipes it holds, saving it to Downloads, deleting it.
+  int accuracyCount = 0;
+  Future<void> refreshAccuracy() async {
+    try {
+      final r = await _channel.invokeMapMethod<String, Object>('accuracyState');
+      accuracyCount = r?['count'] as int? ?? 0;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// What the last Save said: the file's name in Downloads, or why it couldn't be saved.
+  String accuracySaid = '';
+  Future<void> exportAccuracy() async {
+    try {
+      final name = await _channel.invokeMethod<String>('accuracyExport');
+      accuracySaid = 'Saved to Downloads as $name';
+    } on PlatformException catch (e) {
+      accuracySaid = e.message ?? 'Couldn’t save it';
+    } on MissingPluginException {
+      accuracySaid = 'Only on Android';
+    }
+    notifyListeners();
+  }
+
+  Future<void> clearAccuracy() async {
+    try {
+      await _channel.invokeMethod<Object>('accuracyClear');
+    } on MissingPluginException {
+      return;
+    }
+    accuracyCount = 0;
+    notifyListeners();
+  }
+
   /// The clipboard plugin's history: how many it holds, and clearing it.
   int clipCount = 0;
   Future<void> refreshClipboard() async {
@@ -579,7 +616,10 @@ class SettingsStore extends ChangeNotifier {
   /// `week` (seven of day, words, wpm, oldest first), `all` (words, wpm, accuracy, days, minutes) and `topKeys`.
   Map<String, Object?> stats = const {};
 
-  Future<void> refreshStats() => _statsCall('statsState');
+  Future<void> refreshStats() async {
+    await _statsCall('statsState');
+    await refreshAccuracy();
+  }
   Future<void> resetStats() => _statsCall('statsReset');
 
   Future<void> _statsCall(String method) async {

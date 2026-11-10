@@ -84,4 +84,15 @@ dependencies {
     implementation("com.google.mlkit:text-recognition:16.0.1")
     // The undo history's self-check (src/test): plain JUnit on a desk, no device.
     testImplementation("junit:junit:4.13.2")
+    // The accuracy replay (src/test AccuracyReplay) reads the record's JSON lines off the device.
+    testImplementation("org.json:json:20240303")
+}
+
+// tool/accuracy-replay.sh passes the record with -PaccuracyLog=<file>: the replay test reads it, and runs again when it changes.
+tasks.withType<Test>().configureEach {
+    val log = (project.findProperty("accuracyLog") as String?).orEmpty()
+    systemProperty("accuracyLog", log)
+    inputs.property("accuracyLog", log)
+    if (log.isNotEmpty() && file(log).exists()) inputs.file(log)
+    testLogging { showStandardStreams = log.isNotEmpty() }
 }

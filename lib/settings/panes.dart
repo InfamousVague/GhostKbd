@@ -1484,6 +1484,14 @@ List<Widget> _statsPart(BuildContext context, SettingsStore store) {
         SettingRow(label: 'Words swiped', value: Text('${_stat(today, 'swipes')}')),
       ],
     ),
+    PaneSection(
+      title: 'How right it gets it, last 30 days',
+      footer: const Text('Fixes kept: autocorrect’s fixes you didn’t undo. Swipes right first time: swiped words you didn’t swap for another or delete. They show once there are five of each.'),
+      children: [
+        SettingRow(label: 'Autocorrect fixes kept', value: Text('${percent(_stat(all, 'correctionsKept'))} of ${_stat(all, 'corrections')}')),
+        SettingRow(label: 'Swipes right first time', value: Text('${percent(_stat(all, 'swipesFirst'))} of ${_stat(all, 'swipes')}')),
+      ],
+    ),
     if (week.isNotEmpty) PaneSection(title: 'Last 7 days', footer: const Text('Words typed each day.'), children: [SettingRowBox(child: _WeekBars(week: week))]),
     PaneSection(
       title: 'Last 30 days',
@@ -1492,6 +1500,17 @@ List<Widget> _statsPart(BuildContext context, SettingsStore store) {
         SettingRow(label: 'Accuracy', value: Text(percent(_stat(all, 'accuracy')))),
         SettingRow(label: 'Words', value: Text('${_stat(all, 'words')} over ${_stat(all, 'days')} ${_stat(all, 'days') == 1 ? 'day' : 'days'}')),
         if (top.isNotEmpty) SettingRow(label: 'Busiest keys', hint: Text(top.join('  ·  '))),
+      ],
+    ),
+    PaneSection(
+      title: 'Accuracy record',
+      footer: const Text('For testing changes to autocorrect and swipe against your real typing: each word with where your taps landed, each swipe’s path, and what you kept. Unlike the counts above it keeps your words, so it is off unless you turn it on. Never in password fields, addresses or searches, or while incognito; kept on this phone until you delete it, and saved to Downloads only when you tap Save.'),
+      children: [
+        _toggle(store, 'accuracy_log', 'Keep a record for accuracy tests'),
+        SettingRow(label: 'Recorded', value: Text('${store.accuracyCount} words and swipes')),
+        if (store.accuracyCount > 0)
+          SettingRow(label: 'Save to Downloads', hint: store.accuracySaid.isEmpty ? null : Text(store.accuracySaid), onPress: store.exportAccuracy),
+        if (store.accuracyCount > 0) SettingRow(label: 'Delete the record', onPress: store.clearAccuracy),
       ],
     ),
     PaneSection(

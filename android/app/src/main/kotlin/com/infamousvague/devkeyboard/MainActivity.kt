@@ -315,6 +315,9 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "statsState" -> result.success(TypingStats.state(this@MainActivity))
+                    "accuracyState" -> result.success(mapOf("count" to AccuracyLog.count(this@MainActivity)))
+                    "accuracyExport" -> background(result) { AccuracyLog.export(this@MainActivity) ?: throw IllegalStateException("Nothing recorded yet") }
+                    "accuracyClear" -> { AccuracyLog.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
                     "statsReset" -> { TypingStats.reset(this@MainActivity); result.success(TypingStats.state(this@MainActivity)) }
                     "profilesState" -> result.success(AppProfiles.state(prefs))
                     "profileAdd" -> {
