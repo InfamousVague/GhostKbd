@@ -36,7 +36,7 @@ class SwipeDecoderTest {
         private val pairs: Map<String, Map<String, Float>> by lazy {
             val f = listOf("android/app/src/main/assets/ngram/en.tsv", "src/main/assets/ngram/en.tsv").map(::File).first { it.exists() }
             f.readLines().drop(1).mapNotNull { l ->
-                val t = l.indexOf('\t'); if (t <= 0) return@mapNotNull null
+                val t = l.indexOf('\t'); if (t <= 0 || l.indexOf(' ') in 0 until t) return@mapNotNull null
                 l.substring(0, t).lowercase() to l.substring(t + 1).split(' ').mapNotNull { e ->
                     val c = e.lastIndexOf(':'); if (c <= 0) null else e.substring(0, c).lowercase() to (e.substring(c + 1).toFloatOrNull() ?: return@mapNotNull null) / 10_000f
                 }.toMap()

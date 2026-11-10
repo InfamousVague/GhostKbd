@@ -135,7 +135,12 @@ class Autocorrect(context: Context) {
             app.assets.open("ngram/$lang.tsv").bufferedReader().useLines { lines ->
                 lines.drop(1).forEach { line ->
                     val tab = line.indexOf('\t')
-                    if (tab > 0) { val key = line.substring(0, tab).lowercase(); if (key !in rows) rows[key] = line.substring(tab + 1) }
+                    // One word's row only: swipe typing asks what follows a word, never two ("how are"), and an
+                    // entry with no colon (a row's "=n" total) is passed over when the row is read.
+                    if (tab > 0 && line.indexOf(' ') !in 0 until tab) {
+                        val key = line.substring(0, tab).lowercase()
+                        if (key !in rows) rows[key] = line.substring(tab + 1)
+                    }
                 }
             }
         }
