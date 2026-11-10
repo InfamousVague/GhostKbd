@@ -32,7 +32,7 @@ final class KeyboardUITests: XCTestCase {
     /// The strip iOS keeps under a keyboard on an iPhone with no home button (its globe and dictation keys).
     var systemBar: CGFloat = 75
     /// As KeyboardView: iOS's own row spacing, taller on the widest phones; the row above the keys; the side margin.
-    lazy var rowHeight: CGFloat = min(screenSize.width, screenSize.height) >= 430 ? 56 : 54
+    lazy var rowHeight: CGFloat = min(screenSize.width, screenSize.height) >= 420 ? 56 : 54
     let rowStrip: CGFloat = 46
     let sidePad: CGFloat = 3.67
 
@@ -265,8 +265,8 @@ final class KeyboardUITests: XCTestCase {
         shot("tools")
         // The row with nothing being typed: Rewrite, undo, redo, the clipboard.
         tapRowStrip(at: 0.40)
-        XCTAssertEqual(text, "The cat", "undo takes back the space")
-        // A word is under the cursor again, so the row is suggestions; a space brings the tools back.
+        XCTAssertEqual(text, "The ", "undo takes back the last word with its space, as on Android")
+        // The row stays on its tools after an undo.
         key("space")
         sleep(1)
         tapRowStrip(at: 0.23)

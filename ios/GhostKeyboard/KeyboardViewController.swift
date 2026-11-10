@@ -73,6 +73,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
 
     var rowRefresh: DispatchWorkItem?
 
+    /// After an undo, a redo or a paste the row stays on its tools, the arrows among them, until the next key or a tap
+    /// in the text. Without it an undo that leaves the cursor at the end of a word brings up that word's suggestions,
+    /// the arrows go, and the rest cannot be undone (DevKeyboardService's toolsHeld).
+    var toolsHeld = false
+
     // --- lifecycle ----------------------------------------------------------------------------------------------------
 
     override func loadView() {
@@ -104,6 +109,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         row.onArrow = { [weak self] name in self?.arrow(name) }
         row.onHide = { [weak self] in self?.onHideKeyboard() }
         row.onTapFeedback = { [weak self] in self?.keyFeedback(.mode) }
+        editor.onChange = { [weak self] in self?.scheduleRow() }
         autocorrect.onReady = { [weak self] in self?.memoryMark("dictionary"); self?.scheduleRow() }
         // The app changed a setting while the keyboard is up: it shows on the next frame.
         let me = Unmanaged.passUnretained(self).toOpaque()
@@ -184,8 +190,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         applySettings()
         lastSpaceAt = 0; lastCorrection = nil; lastSwipe = nil
         wordTouches.removeAll(); takenTouch = nil
-        showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false
-        editor.forget()
+        showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; toolsHeld = false
+        editor.start(recordable: undoRecordable(), document: documentID)
         keyboard.reset()
         keyboard.enterIcon = enterIcon()
         // Number and phone fields open on the ?123 page, as Gboard opens them.
@@ -201,6 +207,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
 
     /// iOS's word for "the text or the cursor moved under you": the selection, the field, or what is in it.
     override func textDidChange(_ textInput: UITextInput?) {
+        fieldChanged()
         // The field emptied under us (a chat app's send button): the message just sent is a sample.
         if !draft.isEmpty, editor.before.isEmpty, editor.after.isEmpty, !editor.hasSelection { flushDraft() }
         keyboard.enterIcon = enterIcon()
@@ -211,9 +218,30 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     }
 
     override func selectionDidChange(_ textInput: UITextInput?) {
+        fieldChanged()
         updateShift()
         scheduleRow()
     }
+
+    /// The text, the cursor or the field changed under the keyboard: the undo history is checked, or started again
+    /// for another field; and a change that is not the keyboard's own (a tap in the text) lets the row go back to
+    /// suggestions.
+    /// The field's identifier, where iOS has one. Swift declares it never missing, but iOS hands a keyboard none at
+    /// times (between fields), and reading it straight then crashes the keyboard: it is asked for through Objective-C.
+    private var documentID: UUID? {
+        let proxy = textDocumentProxy as AnyObject, get = NSSelectorFromString("documentIdentifier")
+        guard proxy.responds(to: get) else { return nil }
+        return proxy.perform(get)?.takeUnretainedValue() as? UUID
+    }
+
+    private func fieldChanged() {
+        let own = editor.justEdited
+        editor.changed(recordable: undoRecordable(), document: documentID)
+        if !own && toolsHeld { toolsHeld = false }
+    }
+
+    /// Whether this field's edits are written down for undo: the plugin is on, and it is not a password.
+    func undoRecordable() -> Bool { Plugins.isOn(prefs, Plugins.undo) && !isPrivateField }
 
     // --- settings -----------------------------------------------------------------------------------------------------
 
@@ -317,9 +345,10 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as the control character a terminal reads.
         if (ctrlOn || altOn), text.count == 1, sendWithModifiers(text.first!) { return }
         lastSpaceAt = 0
+        toolsHeld = false
         let single = text.count == 1 ? text.first : nil
         // A letter straight after a swiped word starts a new word: a space first, as Gboard does.
-        if lastSwipe != nil, let c = single, c.isLetter || c.isNumber { editor.insert(" ") }
+        if lastSwipe != nil, let c = single, c.isLetter || c.isNumber { editor.type(" ") }
         lastSwipe = nil
         // Punctuation ends a word, as space does: autocorrect it first.
         if caretBack == 0, let c = single, Self.wordEnds.contains(c), correctLastWord(separator: text) { endWord(); updateShift(); return }
@@ -330,9 +359,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
             if c == ">" { checkFill() }
             return
         }
-        editor.insert(text)
-        // A pair's cursor goes inside it.
-        if caretBack > 0 { editor.move(-caretBack) }
+        // A pair's cursor goes inside it, and the pair is a step of its own.
+        editor.type(text, caretBack: caretBack)
         adaptiveTyped(text)
         if text.hasSuffix(">") { checkFill() }
         if let c = single, Self.wordEnds.contains(c) { snapshotDraft() }
@@ -376,10 +404,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         if let next = editor.after.first, next.isLetter || next.isNumber || next == "'" { return false }
         guard let fixed = autocorrect.correct(word) else { return false }
         adaptiveCorrected(word, fixed)
-        editor.batch {
-            editor.deleteBackward(word.count)
-            editor.insert(fixed + separator)
-        }
+        // The separator is written down as typed after the word, so undoing the fix gives back "teh " and not "teh".
+        editor.replaceBefore(word, with: fixed + separator, kind: .correction, typedFirst: separator)
         lastCorrection = (word, fixed, separator)
         scheduleRow()
         return true
@@ -392,11 +418,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         guard let (typed, fixed, separator) = lastCorrection else { return false }
         lastCorrection = nil
         let tail = fixed + separator
-        guard editor.before.hasSuffix(tail) else { return false }
-        editor.batch {
-            editor.deleteBackward(tail.count)
-            editor.insert(keepSeparator ? typed + separator : typed)
-        }
+        guard editor.replaceBefore(tail, with: keepSeparator ? typed + separator : typed, kind: .correction) else { return false }
         lastSpaceAt = 0
         if !incognito { prefs.learn(typed); autocorrect.setLearned(prefs.learnedWords) }
         scheduleRow()
@@ -407,6 +429,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         finishTyping()
         _ = keyboard.takeTyped()
         takenTouch = wordTouches.popLast().flatMap { $0 }.map { ($0, CACurrentMediaTime()) }
+        toolsHeld = false
         defer { updateShift(); scheduleRow() }
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if lastCorrection != nil, undoCorrection(keepSeparator: false) { return }
@@ -414,14 +437,15 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         if let swipe = lastSwipe {
             lastSwipe = nil
             let tail = swipe.lead + swipe.word
-            if editor.before.hasSuffix(tail) { editor.deleteBackward(tail.count); return }
+            if editor.before.hasSuffix(tail) { editor.deleteBefore(tail); return }
         }
-        editor.deleteBackward(1)
+        editor.backspace()
         lastSpaceAt = 0
     }
 
     func onSpace() {
         finishTyping()
+        toolsHeld = false
         space()
         endWord()
         updateShift()
@@ -436,19 +460,20 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
             // Gboard's double-space full stop: "word␣" + space becomes "word.␣".
             let before = Array(editor.before.suffix(2))
             if before.count == 2, before[1] == " ", before[0].isLetter || before[0].isNumber {
-                editor.batch { editor.deleteBackward(1); editor.insert(". ") }
+                editor.replaceBefore(" ", with: ". ", kind: .correction, typedFirst: " ")
                 lastSpaceAt = 0
                 return
             }
         }
         if correctLastWord(separator: " ") { lastSpaceAt = now; return }
         lastCorrection = nil
-        editor.insert(" ")
+        editor.type(" ")
         lastSpaceAt = now
     }
 
     func onEnter() {
         finishTyping()
+        toolsHeld = false
         enter()
         endWord()
         updateShift()
@@ -466,7 +491,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         case .search, .google, .yahoo: draft = ""
         default: flushDraft()
         }
-        editor.insert("\n")
+        editor.insert("\n", kind: .enter)
     }
 
     func onCursor(_ steps: Int) {
@@ -481,7 +506,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         wordTouches.removeAll(); takenTouch = nil; lastCorrection = nil; lastSwipe = nil
         lastSpaceAt = 0
         defer { updateShift(); scheduleRow() }
-        if editor.hasSelection { editor.deleteBackward(1); return }
+        if editor.hasSelection { editor.deleteSelection(); return }
         let before = Array(editor.before.suffix(96))
         if before.isEmpty { return }
         var i = before.count
@@ -494,7 +519,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
                 i -= 1
             }
         }
-        editor.deleteBackward(before.count - i)
+        if i < before.count { editor.deleteBefore(String(before[i...])) }
     }
 
     /// Cursor control: a slide up or down from the space bar moves by lines, as arrow keys do.
@@ -580,7 +605,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
             out = String(c)
         }
         if altOn { out = "\u{1B}" + out }
-        editor.insert(out)
+        editor.insert(out, kind: .snippet)
         ctrlOn = false; altOn = false
         scheduleRow()
         return true
@@ -643,7 +668,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     // --- swipe typing -------------------------------------------------------------------------------------------------
 
     func onSwipe(_ path: [CGPoint], keys: [Character: CGPoint], keyWidth: CGFloat) {
-        wordTouches.removeAll(); takenTouch = nil
+        wordTouches.removeAll(); takenTouch = nil; toolsHeld = false
         let found = autocorrect.swipe(path: path, keys: keys, keyW: keyWidth)
         guard !found.isEmpty else { return }
         let shift = keyboard.shift
@@ -656,7 +681,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         }
         let lead: String
         if let last = editor.before.last, !last.isWhitespace, !"([{\"'`".contains(last) { lead = " " } else { lead = "" }
-        editor.insert(lead + words[0])
+        editor.insert(lead + words[0], kind: .swipe)
         // The word's letters light in turn, as if typed along the path (never in a private field).
         if !isPrivateField { keyboard.lightWord(words[0]) }
         lastCorrection = nil
@@ -669,8 +694,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     func replaceSwipe(_ word: String) {
         guard let swipe = lastSwipe else { return }
         let tail = swipe.lead + swipe.word
-        guard editor.before.hasSuffix(tail) else { lastSwipe = nil; scheduleRow(); return }
-        editor.batch { editor.deleteBackward(tail.count); editor.insert(swipe.lead + word) }
+        // Another choice for the same swipe amends its step: undo takes the word away, whichever it now is.
+        guard editor.replaceBefore(tail, with: swipe.lead + word, kind: .swipe) else { lastSwipe = nil; scheduleRow(); return }
         swipe.word = word
         if !isPrivateField { keyboard.lightWord(word) }
         scheduleRow()
@@ -681,7 +706,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     /// A suggestion tapped: it replaces the word being typed, and a space follows.
     func pickSuggestion(typed: String, word: String) {
         guard currentWord() == typed else { scheduleRow(); return }
-        editor.batch { editor.deleteBackward(typed.count); editor.insert(word + " ") }
+        editor.replaceBefore(typed, with: word + " ", kind: .suggestion)
         lastCorrection = nil
         lastSpaceAt = CACurrentMediaTime()
         updateShift()
@@ -691,7 +716,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     /// The typed word tapped in quotes: keep it as it is, learn it, and finish it with a space.
     func keepTyped(_ word: String) {
         if !incognito { prefs.learn(word); autocorrect.setLearned(prefs.learnedWords) }
-        editor.insert(" ")
+        editor.type(" ")
         lastCorrection = nil
         lastSpaceAt = CACurrentMediaTime()
         scheduleRow()
@@ -699,31 +724,19 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
 
     // --- markdown and snippets ----------------------------------------------------------------------------------------
 
-    /// Markdown around the selection, or an empty pair with the cursor inside it.
+    /// Markdown around the selection, or an empty pair with the cursor inside it: one step, undone in place.
     func wrap(_ open: String, _ close: String) {
-        let selected = editor.selected ?? ""
-        editor.batch {
-            editor.insert(open + selected + close)
-            if selected.isEmpty { editor.move(-close.count) }
-        }
+        editor.replaceSelection(kind: .wrap) { selected in (open + selected + close, selected.isEmpty ? close.count : 0) }
     }
 
     /// A link: the selection becomes its words, and the cursor waits where the address goes.
     func link() {
-        let selected = editor.selected ?? ""
-        editor.batch {
-            if selected.isEmpty { editor.insert("[]()"); editor.move(-3) }
-            else { editor.insert("[\(selected)]()"); editor.move(-1) }
-        }
+        editor.replaceSelection(kind: .wrap) { selected in selected.isEmpty ? ("[]()", 3) : ("[\(selected)]()", 1) }
     }
 
-    /// `prefix` at the start of the cursor's line (a heading, a list item, a quote).
+    /// `prefix` at the start of the cursor's line (a heading, a list item, a quote), the cursor keeping its place.
     func linePrefix(_ prefix: String) {
-        let before = editor.before
-        let back = before.count - ((before.lastIndex(of: "\n").map { before.distance(from: before.startIndex, to: $0) + 1 }) ?? 0)
-        if back > 0 { editor.move(-back) }
-        editor.insert(prefix)
-        if back > 0 { editor.move(back) }
+        editor.insertAtLineStart(prefix)
     }
 
     /// A short notice in the row, for a few seconds: something the keyboard could not do, and why.

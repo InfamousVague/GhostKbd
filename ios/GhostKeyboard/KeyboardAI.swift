@@ -118,18 +118,12 @@ extension KeyboardViewController {
         if wait { DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: body) } else { body() }
     }
 
+    /// Puts the answer in place of its tag, the selection, or (a rewrite of the text around the cursor) the text that
+    /// ends at the cursor: one step for undo, however it is typed.
     private func placeAnswer(_ job: Ghostwriter.Job, _ text: String) -> Bool {
         let typeOut = prefs.ghostwriterTyping
-        var placed = false
-        editor.batch {
-            if job.selection && aiWholeField {
-                // The text the rewrite was made from must still end at the cursor.
-                if editor.before.hasSuffix(job.tag) { editor.deleteBackward(job.tag.count); if !typeOut { editor.insert(text) }; placed = true }
-            } else {
-                placed = Ghostwriter.place(job, text: text, in: editor, insert: !typeOut)
-            }
-        }
-        guard placed else { return false }
+        let selection = job.selection && !aiWholeField
+        guard editor.beginFill(expect: job.tag, selection: selection, full: text, typeOut: typeOut) else { return false }
         // The tag's deletion lands before the first key of the answer is typed.
         if typeOut { settle(true) { [weak self] in self?.startTyping(text) } }
         aiAnswers.insert(text, at: 0)
@@ -152,11 +146,11 @@ extension KeyboardViewController {
     /// one is done in about five seconds.
     private func typeTick() {
         guard let t = typing else { return }
-        if t.at >= t.text.count { typing = nil; scheduleRow(); updateShift(); return }
+        if t.at >= t.text.count { typing = nil; editor.endFill(); scheduleRow(); updateShift(); return }
         let per = min(t.text.count / 150 + 1, 6)
         let chunk = t.text[t.at..<min(t.at + per, t.text.count)]
         t.at += chunk.count
-        editor.insert(String(chunk))
+        editor.appendFill(String(chunk))
         let last = chunk.last!
         keyboard.ghostPress(last, holdMs: 60)
         // The key's haptic and sound, where Settings has them on, as if a finger pressed it.
@@ -177,7 +171,16 @@ extension KeyboardViewController {
         guard let t = typing else { return }
         typing = nil
         typeTimer?.invalidate(); typeTimer = nil
-        if t.at < t.text.count { editor.insert(String(t.text[t.at...])) }
+        if t.at < t.text.count { editor.appendFill(String(t.text[t.at...])) }
+        editor.endFill()
+        scheduleRow()
+    }
+
+    /// Stops the typing where it is, leaving the rest unwritten: Undo takes the answer back whole, and Redo writes it all.
+    func stopTyping() {
+        guard typing != nil else { return }
+        typing = nil
+        typeTimer?.invalidate(); typeTimer = nil
         scheduleRow()
     }
 
@@ -223,7 +226,7 @@ extension KeyboardViewController {
         } else {
             let text = job.result ?? ""
             items.append(RowItem(id: "ai-put-\(job.id)", label: "Insert: \(preview(text))", icon: .check, bold: true, chip: true, fill: true, tint: .done) { [weak self] in
-                self?.editor.insert(text); self?.aiJob = nil; self?.scheduleRow()
+                self?.editor.insert(text, kind: .ai); self?.aiJob = nil; self?.scheduleRow()
             })
             items.append(dismiss)
         }
@@ -256,7 +259,7 @@ extension KeyboardViewController {
             let label = request.count < 2 ? "Ghostwriter: say what to write, then >>" : "Fill: \(preview(request))"
             items.append(RowItem(id: "fill-open-\(label)", label: label, icon: .sparkle, chip: true, fill: true, tint: .ai) { [weak self] in
                 guard let self, request.count >= 2 else { return }
-                self.editor.insert(">>"); self.fillAtCursor()
+                self.editor.insert(">>", kind: .snippet); self.fillAtCursor()
             })
             return true
         }

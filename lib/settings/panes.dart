@@ -717,7 +717,7 @@ List<Widget> _aiPage(BuildContext context, SettingsStore store) {
 
 List<SettingsSection> _aiParts(SettingsStore store) => [
       _aiProviderPart(),
-      if (!isIOS) _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
+      _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
     ];
 
 // --- Mockingbird --------------------------------------------------------------------------------------------------
@@ -739,6 +739,8 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
 List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
       _aiProviderPart(),
       _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => _profileOutdated(s) ? _retrainHint : (s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples'), _stylePart),
+      // On iOS the typing profile is also on Mockingbird's own page, beside the style it carries.
+      if (isIOS) _part('profile', 'Typing profile', Lucide.fileText, 'slate', (s) => 'Import and export', _profilePart),
     ];
 
 SettingsSection _aiProviderPart() =>

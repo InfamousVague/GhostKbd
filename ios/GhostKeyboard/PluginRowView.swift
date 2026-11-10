@@ -9,6 +9,7 @@ import UIKit
 /// - `tint`: the chip's colour (RowTint): its icon in the hue, on a faint ground of it.
 /// - `busy`: the AI is working on it: drawn as a ThinkingView, a sparkle and the words with a light passing over them.
 /// - `description`: what a reader says for an icon with no words (VoiceOver).
+/// - `dim`: drawn faint and not tappable: a button with nothing to do just now (Undo with nothing to undo).
 struct RowItem {
     let id: String
     var label: String? = nil
@@ -20,6 +21,7 @@ struct RowItem {
     var tint: RowTint? = nil
     var busy = false
     var description: String? = nil
+    var dim = false
     var onTap: (() -> Void)? = nil
 }
 
@@ -108,7 +110,7 @@ final class PluginRowView: UIView {
     func setItems(_ next: [RowItem]) {
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all; only what a tap
         // does is brought up to date.
-        func sig(_ list: [RowItem]) -> [String] { list.map { "\($0.id)|\($0.label ?? "")|\($0.bold)|\($0.icon.map { "\($0)" } ?? "")|\($0.tint.map { "\($0)" } ?? "")|\($0.busy)" } }
+        func sig(_ list: [RowItem]) -> [String] { list.map { "\($0.id)|\($0.label ?? "")|\($0.bold)|\($0.icon.map { "\($0)" } ?? "")|\($0.tint.map { "\($0)" } ?? "")|\($0.busy)|\($0.dim)" } }
         if sig(next) == sig(items) { items = next; return }
         items = next
         views.forEach { $0.removeFromSuperview() }
@@ -152,6 +154,16 @@ final class PluginRowView: UIView {
     }
 
     private func makeView(_ item: RowItem, _ index: Int) -> UIView {
+        let v = drawView(item, index)
+        if item.dim {
+            v.alpha = 0.35
+            v.isUserInteractionEnabled = false
+            v.accessibilityTraits.insert(.notEnabled)
+        }
+        return v
+    }
+
+    private func drawView(_ item: RowItem, _ index: Int) -> UIView {
         if item.busy {
             let v = ThinkingView(words: item.label ?? "Thinking…", theme: theme)
             v.isUserInteractionEnabled = item.onTap != nil

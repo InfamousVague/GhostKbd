@@ -55,6 +55,7 @@ extension KeyboardViewController {
             return
         }
         if aiRow(&items) { row.setItems(items); return }
+        if toolsHeld { row.setItems(tools()); return }
         if let swipe = lastSwipe {
             for (i, w) in swipe.choices.enumerated() {
                 items.append(RowItem(id: "swipe-\(i)-\(w)", label: w, bold: w == swipe.word, wide: true) { [weak self] in self?.replaceSwipe(w) })
@@ -126,14 +127,14 @@ extension KeyboardViewController {
             items.append(RowItem(id: "fresh-\(UIPasteboard.general.changeCount)", label: "Paste", icon: .clipboard, bold: true, chip: true, tint: .clipboard) { [weak self] in self?.pasteFresh() })
         }
         if Plugins.isOn(prefs, Plugins.terminal) && prefs.terminalEverywhere {
-            items.append(RowItem(id: "esc", label: "Esc", chip: true) { [weak self] in self?.editor.insert("\u{1B}") })
-            items.append(RowItem(id: "tab", label: "Tab", chip: true) { [weak self] in self?.editor.insert("\t") })
+            items.append(RowItem(id: "esc", label: "Esc", chip: true) { [weak self] in self?.editor.insert("\u{1B}", kind: .snippet) })
+            items.append(RowItem(id: "tab", label: "Tab", chip: true) { [weak self] in self?.editor.insert("\t", kind: .snippet) })
             items.append(RowItem(id: "ctrl-\(ctrlOn)", label: "Ctrl", bold: ctrlOn, chip: true) { [weak self] in self?.ctrlOn.toggle(); self?.scheduleRow() })
             items.append(RowItem(id: "alt-\(altOn)", label: "Alt", bold: altOn, chip: true) { [weak self] in self?.altOn.toggle(); self?.scheduleRow() })
             for (id, icon, says) in [("left", RowIcon.caretLeft, "Left"), ("up", .caretUp, "Up"), ("down", .caretDown, "Down"), ("right", .caretRight, "Right")] {
                 items.append(RowItem(id: id, icon: icon, chip: true, description: says) { [weak self] in self?.arrow(id) })
             }
-            for c in ["|", "~", "/", "-", "&&", ">"] { items.append(RowItem(id: "t\(c)", label: c, chip: true) { [weak self] in self?.editor.insert(c) }) }
+            for c in ["|", "~", "/", "-", "&&", ">"] { items.append(RowItem(id: "t\(c)", label: c, chip: true) { [weak self] in self?.editor.insert(c, kind: .snippet) }) }
         }
         if Plugins.isOn(prefs, Plugins.markdown) && prefs.markdownEverywhere {
             items.append(RowItem(id: "md-b", icon: .bold, chip: true, description: "Bold") { [weak self] in self?.wrap("**", "**") })
@@ -148,22 +149,28 @@ extension KeyboardViewController {
             items.append(RowItem(id: "md-quote", icon: .quote, chip: true, description: "Quote") { [weak self] in self?.linePrefix("> ") })
         }
         if Plugins.isOn(prefs, Plugins.undo) {
-            // iOS gives a keyboard no undo key to press: these take back, and put back, what this keyboard typed.
-            items.append(RowItem(id: "undo", icon: .undo, chip: true, description: "Undo") { [weak self] in
-                guard let self else { return }
-                if !self.editor.undo() { self.flash("Nothing of the keyboard’s to undo") }
-                self.lastCorrection = nil; self.lastSwipe = nil; self.updateShift(); self.scheduleRow()
-            })
-            items.append(RowItem(id: "redo", icon: .redo, chip: true, description: "Redo") { [weak self] in
-                guard let self else { return }
-                if !self.editor.redo() { self.flash("Nothing to redo") }
-                self.updateShift(); self.scheduleRow()
-            })
+            // iOS gives a keyboard no undo key to press: these take back, and put back, what this keyboard typed. Each
+            // is dim, and does nothing, while there is nothing for it to do.
+            let canUndo = editor.canUndo, canRedo = editor.canRedo
+            items.append(RowItem(id: "undo", icon: .undo, chip: true, description: "Undo", dim: !canUndo, onTap: canUndo ? { [weak self] in self?.undoTap(redo: false) } : nil))
+            items.append(RowItem(id: "redo", icon: .redo, chip: true, description: "Redo", dim: !canRedo, onTap: canRedo ? { [weak self] in self?.undoTap(redo: true) } : nil))
         }
         if Plugins.isOn(prefs, Plugins.clipboard), !incognito {
             items.append(RowItem(id: "clips", icon: .clipboard, chip: true, tint: .clipboard, description: "Clipboard") { [weak self] in self?.openClips() })
         }
         return items
+    }
+
+    /// The Undo or Redo arrow. An answer still typing out stops first (undo then takes all of it back, and redo
+    /// writes all of it). Where the text no longer holds what the keyboard did, the history is gone and the row says so.
+    private func undoTap(redo: Bool) {
+        if !redo { stopTyping() } else { finishTyping() }
+        lastCorrection = nil; lastSwipe = nil; lastSpaceAt = 0
+        let done = redo ? editor.redo() : editor.undo()
+        if !done && !editor.canUndo && !editor.canRedo { flash("The text changed: nothing of the keyboard’s to \(redo ? "redo" : "undo")") }
+        toolsHeld = true
+        updateShift()
+        scheduleRow()
     }
 
     // --- the clipboard ------------------------------------------------------------------------------------------------
@@ -188,12 +195,14 @@ extension KeyboardViewController {
 
     private func pasteFresh() {
         guard let text = readPasteboard() else { scheduleRow(); return }
-        editor.insert(text)
+        editor.insert(text, kind: .paste)
+        toolsHeld = true
         scheduleRow()
     }
 
     private func pasteClip(_ text: String) {
-        editor.insert(text)
+        editor.insert(text, kind: .paste)
+        toolsHeld = true
         showingClips = false
         scheduleRow()
     }

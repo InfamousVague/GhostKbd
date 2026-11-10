@@ -159,7 +159,8 @@ final class KeyboardView: UIView {
     }
 
     /// The rows are as far apart as on iOS's own keyboard, so a thumb finds each key where it expects it: 54 points
-    /// on an iPhone, 56 on the widest ones (measured on iOS 27: iPhone 17, and iPhone 17 Pro Max). Short and tall are
+    /// on an iPhone, 56 from the iPhone Air's 420 points across up (measured on iOS 27: iPhone 17; iPhone Air and
+    /// iPhone 17 Pro Max). Short and tall are
     /// six points either side. Landscape has far less room.
     private func updateRowHeight() {
         let landscape = (window?.windowScene?.interfaceOrientation.isLandscape ?? false) && traitCollection.userInterfaceIdiom == .phone
@@ -226,7 +227,7 @@ final class KeyboardView: UIView {
     /// The screen's shorter side, in points: which iPhone this is, whichever way it is held.
     static var screenWidth: CGFloat { min(UIScreen.main.bounds.width, UIScreen.main.bounds.height) }
     /// From this width up, iOS's own keyboard has the taller rows.
-    static let widePhone: CGFloat = 430
+    static let widePhone: CGFloat = 420
     private var keysTop: CGFloat { toolbarHeight }
     var rowBottom: CGFloat { keysTop }
     /// iOS's own keys stop 6.7 points short of the screen's edges on an iPhone: this and a key's own inset make that.

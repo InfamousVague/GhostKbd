@@ -220,7 +220,7 @@ void main() {
 
     // The consent as it stands, on Settings › AI › Your AI; Test it asks for it; agreed, it can be withdrawn.
     await _press(tester, find.text('AI'));
-    expect(find.text('Typing profile'), findsNothing);
+    expect(find.text('Typing profile'), findsOneWidget); // import and export, through the Files picker and save sheet
     await _press(tester, find.text('Your AI'));
     expect(find.text('Not agreed yet'), findsOneWidget);
     await _press(tester, find.text('Test it'));

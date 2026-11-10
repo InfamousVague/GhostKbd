@@ -89,7 +89,7 @@ GitHub commit search; Mockingbird (samples, style profile, "In my voice"); Rewri
 - **Emoji and GIFs.** The emoji keyboard is one tap of the globe away, and a keyboard cannot attach an image to a
   message on iOS (only copy it to the pasteboard for the person to paste). Later, if asked for.
 - **Passwords.** iOS AutoFill puts logins above every keyboard already.
-- **Ghost.md notes, per-app profiles, typing stats, typing-profile import/export, sound packs, the updater.** Either
+- **Ghost.md notes, per-app profiles, typing stats, sound packs, the updater.** Either
   iOS has no equivalent (per-app, updater) or they are additions that do not block a first release.
 
 ## Memory
@@ -115,7 +115,7 @@ works before it finishes. `didReceiveMemoryWarning` drops every language but the
 
 ## Tests
 
-- `ios/GhostCore`: 96 unit tests (`swift test`): layouts, themes, backlight, settings and secrets, autocorrect against
+- `ios/GhostCore`: 158 unit tests (`swift test`): layouts, themes, backlight, settings and secrets, autocorrect against
   the real word lists, swipe decoding, the touch model, the `<<request>>` parser, every AI provider's request and
   response, Mockingbird, the clipboard history, Rewrite, GitHub search.
 - `test/ios_app_test.dart`: the settings app on iOS (walkthrough, consent, the iOS pages) and Android unchanged.
@@ -153,13 +153,15 @@ On the Simulator (iPhone 17, iOS 27), by the UI tests, typing in Safari:
 - A release archive signed for the App Store builds and exports (`docs/store/ios/SUBMIT.md`); the app and the
   extension carry the App Group and the shared Keychain group.
 
-## Known gaps against Android 0.9.5
+## Undo and redo
 
-Android's undo and redo were rebuilt on a model of the field (`FieldEditor.kt`, `EditHistory.kt`). iOS keeps its
-simpler journal (`TextEditor.swift`), which differs where it matters in these ways: undoing a delete is not checked
-against the text around it; the journal is not dropped when the field changes while the keyboard stays up; an edit
-that moves the cursor (a pair, a markdown wrap) cannot be undone and trying empties the history; every backspace and
-every chunk of an AI answer is its own step; the arrows are not dimmed when there is nothing to undo.
+As on Android since 0.9.5 (`EditHistory.kt`, `FieldEditor.kt`): the history is in `ios/GhostCore` (`EditHistory.swift`,
+`FieldEditor.swift`, 62 unit tests against a pretend field), and `TextEditor.swift` puts it on `textDocumentProxy`. A
+word with its space is one step, a 3 s pause splits, a few backspaces inside a word are a slip of that word, an AI
+answer is one step, pairs and markdown undo in place, nothing is kept from private fields, the arrows dim when there
+is nothing to undo. What iOS does not allow: a step is found again only by its text near the cursor (iOS gives a
+keyboard no positions), a replaced selection comes back unselected, and with nothing of the keyboard's own left there
+is no app undo to fall back on.
 
 ## Not verified
 
@@ -180,6 +182,13 @@ Nothing here has run on a real iPhone or iPad. Not exercised at all, beyond comp
 - The AI's working sparkle and line, a held space bar starting cursor control, adaptive keys' slow drift and
   Mockingbird's sample cleaning inside the extension (its one-off re-clean of stored samples was not timed there):
   compiled and unit-tested, not watched.
+
+## Matching iOS's keyboard
+
+The rows are where iOS's own keyboard puts them, measured from screenshots of the stock keyboard on iOS 27: 54 points
+apart on an iPhone (iPhone 17), 56 from 420 points across up (iPhone Air, iPhone 17 Pro Max); keys 6.7 points in from
+the screen's sides; the keyboard's top at the same height. `testStock_ApplesKeyboard` in
+`ios/RunnerUITests/StoreShots.swift` takes the stock picture on another phone.
 
 ## Changes outside `ios/`
 

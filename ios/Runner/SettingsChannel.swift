@@ -1,6 +1,7 @@
 import AVFoundation
 import Flutter
 import UIKit
+import UniformTypeIdentifiers
 
 /// The `dev_keyboard/settings` channel on iOS: the same contract Android's MainActivity answers, so
 /// lib/settings_store.dart works on both. Settings go to the App Group's UserDefaults (the keyboard extension reads
@@ -122,7 +123,69 @@ final class SettingsChannel: NSObject {
             model.reset()
             GhostShared.postSettingsChanged()
             result(adaptiveState(model))
+        case "profileImport": pickProfile(); result(nil)
+        case "profileExport": exportProfile(samples: args["samples"] as? Bool ?? false); result(nil)
         default: result(FlutterMethodNotImplemented)
+        }
+    }
+
+    // --- typing profiles (TypingProfile, docs/typing-profile.md) -------------------------------------------------------
+
+    private var pickerDelegate: ProfilePicker?
+
+    /// The screen the app shows now, to present a file picker over.
+    private var topController: UIViewController? {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        var top = scene?.windows.first { $0.isKeyWindow }?.rootViewController
+        while let shown = top?.presentedViewController { top = shown }
+        return top
+    }
+
+    private func done(_ values: [String: Any?]) {
+        DispatchQueue.main.async { self.channel?.invokeMethod("profileDone", arguments: values.compactMapValues { $0 }) }
+    }
+
+    /// Import a typing profile…: a .json file picked in Files.
+    private func pickProfile() {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: true)
+        let delegate = ProfilePicker { [weak self] url in self?.importProfile(url) }
+        pickerDelegate = delegate
+        picker.delegate = delegate
+        topController?.present(picker, animated: true)
+    }
+
+    /// A typing profile from a file (picked, or opened with this app): taken in, then Settings told.
+    func importProfile(_ url: URL) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                guard let data = try? Data(contentsOf: url), !data.isEmpty, data.count <= 8_000_000, let text = String(data: data, encoding: .utf8) else { throw TypingProfile.ProfileError("That file is empty or too big") }
+                let r = try TypingProfile.import(text, prefs: self.prefs, adaptive: AdaptiveKeys(store: self.group), mockingbird: self.mockingbird)
+                GhostShared.postSettingsChanged()
+                self.done(["lines": r.lines, "report": r.report, "source": r.source])
+            } catch {
+                self.done(["error": error.localizedDescription])
+            }
+        }
+    }
+
+    /// Export my typing profile…: written to a file, then iOS's save sheet puts it where the person chooses.
+    private func exportProfile(samples: Bool) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let text = TypingProfile.export(prefs: self.prefs, adaptive: AdaptiveKeys(store: self.group), mockingbird: self.mockingbird, samples: samples)
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("ghost-typing-profile.json")
+            do { try Data(text.utf8).write(to: file, options: .atomic) } catch { self.done(["exported": false, "error": "Couldn't write the file"]); return }
+            DispatchQueue.main.async {
+                let picker = UIDocumentPickerViewController(forExporting: [file], asCopy: true)
+                let delegate = ProfilePicker(cancelled: { try? FileManager.default.removeItem(at: file) }) { [weak self] _ in
+                    try? FileManager.default.removeItem(at: file)
+                    self?.done(["exported": true])
+                }
+                self.pickerDelegate = delegate
+                picker.delegate = delegate
+                self.topController?.present(picker, animated: true)
+            }
         }
     }
 
@@ -195,4 +258,13 @@ final class SettingsChannel: NSObject {
     }
 
     private func stopAudio() { player?.stop(); player = nil }
+}
+
+/// A file picker's answer: the file picked or saved, or nothing.
+private final class ProfilePicker: NSObject, UIDocumentPickerDelegate {
+    let picked: (URL) -> Void
+    let cancelled: () -> Void
+    init(cancelled: @escaping () -> Void = {}, picked: @escaping (URL) -> Void) { self.picked = picked; self.cancelled = cancelled }
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { if let url = urls.first { picked(url) } }
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { cancelled() }
 }
