@@ -1,7 +1,8 @@
 /// The first-run walkthrough, made as Ghost.md's is (its lib/guide): a page at a time, each with a band of vivid colour
 /// and its icons, a title, the words a friendly voice says aloud (ElevenLabs, made at build time:
 /// narration.dart), and the step itself where there is one — turning the keyboard on, switching to it, adding
-/// dictation, picking a look. Shown once, on first launch; Settings › Setup and About replay it.
+/// dictation, choosing which of the things that start switched on to keep (Matt, 2026-11-09: "ask if we want to enable
+/// these default options during onboarding"), picking a look. Shown once, on first launch; Settings › Setup and About replay it.
 library;
 
 import 'dart:async';
@@ -42,6 +43,7 @@ const List<(String, String, _Look)> _androidPages = [
   ('choose', 'Make it yours', _Look(['cyan', 'blue', 'indigo'], LucideMore.textCursorInput, [LucideMore.keyboard, Lucide.repeat, Lucide.circleCheck, Lucide.type])),
   ('code', 'Code, a tap away', _Look(['amber', 'orange', 'coral'], Lucide.braces, [Lucide.code, Lucide.terminal, Lucide.hash, Lucide.equal])),
   ('voice', 'Talk instead', _Look(['rose', 'red', 'orange'], Lucide.mic, [Lucide.audioLines, Lucide.waves, LucideMore.cpu, Lucide.shieldCheck])),
+  ('defaults', 'Your call', _Look(['mint', 'green', 'cyan'], LucideMore.slidersHorizontal, [Lucide.spellCheck, LucideMore.target, Lucide.gauge, Lucide.clipboardPaste])),
   ('plugins', 'Plugins', _Look(['indigo', 'purple', 'rose', 'orange'], Lucide.store, [Lucide.puzzle, Lucide.palette, Lucide.keyRound, Lucide.image])),
   ('look', 'Pick a look', _Look(['magenta', 'purple', 'blue'], Lucide.palette, [Lucide.sunMoon, Lucide.swatchBook, LucideMore.keyboard, Lucide.sparkles])),
   ('start', 'You’re ready', _Look(['rose', 'orange', 'amber'], LucideMore.rocket, [Lucide.graduationCap, Lucide.circleCheck, Lucide.flame, Lucide.sparkles])),
@@ -272,13 +274,44 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
           SizedBox(height: t.space(2)),
           Text('It downloads 60 MB once and asks for the microphone.', style: pageText(t, t.fontSize('sm'), color: t.color('app-ink-3'))),
         ];
+      case 'defaults':
+        // What starts switched on, asked rather than assumed: each a switch, as it is in Settings.
+        Widget ask(String label, String hint, bool on, ValueChanged<bool> set) => Padding(
+              padding: EdgeInsets.only(bottom: t.space(4)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: pageText(t, t.fontSize('md'), weight: 'medium', color: t.color('app-ink'))),
+                        Text(hint, style: pageText(t, t.fontSize('sm'), height: 1.35, color: t.color('app-ink-3'))),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: t.space(3)),
+                  GlacierSwitch(checked: on, onCheckedChange: set, ariaLabel: label),
+                ],
+              ),
+            );
+        Widget plugin(String id, String label, String hint) => ask(label, hint, store.pluginOn(id), (v) => store.setPlugin(id, v));
+        return [
+          plugin('autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it.'),
+          plugin('swipe', 'Swipe typing', 'Draw a word across the letters.'),
+          plugin('adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
+          ask('Typing stats', 'Your speed and accuracy. Counts only, never what you typed.', store.flag('typing_stats'), (v) => store.set('typing_stats', v)),
+          ask('Cursor slides', 'Slide the space bar to move the cursor; slide backspace to delete words.', store.flag('space_cursor') || store.flag('delete_swipe'), (v) {
+            store.set('space_cursor', v);
+            store.set('delete_swipe', v);
+          }),
+          plugin('clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.'),
+        ];
       case 'plugins':
         return [
           Wrap(
             spacing: t.space(2),
             runSpacing: t.space(2),
             children: [
-              MarketChip(label: store.pluginOn('autocorrect') ? 'Autocorrect ✓' : 'Add Autocorrect', chosen: store.pluginOn('autocorrect'), onPress: () => store.setPlugin('autocorrect', !store.pluginOn('autocorrect'))),
               MarketChip(label: store.pluginOn('themes') ? 'Themes ✓' : 'Add Themes', chosen: store.pluginOn('themes'), onPress: () => store.setPlugin('themes', !store.pluginOn('themes'))),
             ],
           ),

@@ -52,6 +52,12 @@
       "model": "eleven_v4",
       "voice": "cgSgspJ2msm6clMCkdW9",
       "bytes": 56885
+    },
+    "defaults": {
+      "words": "2f5f934517401bbb",
+      "model": "eleven_v4",
+      "voice": "cgSgspJ2msm6clMCkdW9",
+      "bytes": 125430
     }
   }
 }

@@ -50,12 +50,13 @@
       "type": "object",
       "properties": {
         "profile": { "type": "string", "maxLength": 6000 },
+        "profileVersion": { "type": "integer", "minimum": 1, "description": "Which of Ghost Keyboard's style rules trained the profile; read back only from Ghost Keyboard's own files." },
         "samples": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["text"],
-            "properties": { "text": { "type": "string" }, "kind": { "enum": ["chat", "writing"] } }
+            "properties": { "text": { "type": "string" }, "typed": { "type": "string", "description": "The sample exactly as typed, where text has a slip repaired." }, "kind": { "enum": ["chat", "writing"] } }
           }
         }
       }

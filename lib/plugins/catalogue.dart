@@ -274,12 +274,18 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'undo',
     name: 'Undo and redo',
-    line: 'Take back the last edit, or put it back.',
-    description: 'Undo and Redo buttons in the row, sent as Ctrl+Z and Ctrl+Shift+Z, which Android\'s text fields and most editors understand.',
+    line: 'Take back the last thing the keyboard did, or put it back.',
+    description:
+        'Undo and Redo arrows in the row. The keyboard keeps its own list of what it did in the field you are in (words '
+        'typed, deletions, autocorrect’s fixes, swiped words, pastes, emoji, markdown, snippets, Ghostwriter and Rewrite '
+        'answers, dictation) and takes each back the same way in every app, a word or an action at a time, with the '
+        'cursor put back where it was. The list is kept in memory for that one field, never saved, and never kept in a '
+        'password field. If the text changed some other way, or the keyboard cannot read the field, it forgets its list '
+        'rather than guess and asks the app to undo instead. An arrow dims when there is nothing for it to do.',
     category: PluginCategory.tools,
     hue: 'blue',
     icon: Lucide.undo2,
-    adds: ['Undo and Redo in the row'],
+    adds: ['Undo and Redo in the row', 'The same in every app', 'A word, a paste, a fix or an AI answer per step'],
     hasPage: true,
     iosLine: 'Take back what this keyboard typed, or put it back.',
   ),
@@ -333,7 +339,9 @@ const List<PluginManifest> catalogue = [
     description:
         'Mockingbird keeps samples of what you type on this phone: your texts in chat apps, your writing everywhere else. '
         'The AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter or your own server) reads them '
-        'and writes your style profile: punctuation, length, tone, the words you use. Ghostwriter writes in that voice, '
+        'and writes your style profile: punctuation, length, tone, the words you use. Obvious slips of the thumb are cleaned out '
+        'of the samples, and only a habit you repeat (lower case, u for you, no apostrophes) is learned as yours, so it '
+        'writes like you without your typos. Ghostwriter writes in that voice, '
         'and selecting text offers In my voice to rewrite it as you. Nothing is kept from passwords, email or web '
         'addresses, or while incognito; the samples never leave the phone except, once, to train.',
     category: PluginCategory.typing,
@@ -407,17 +415,19 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'adaptive',
     name: 'Adaptive keys',
-    line: 'Learns where you aim and the keys you hit by mistake, and moves the keys to fit.',
+    line: 'Nudges a key toward your slips, slowly, and hands it back as your aim comes right.',
     description:
         'Every keyboard has its slips: an i that keeps landing on o, an a your thumb reaches short of. Adaptive keys watches '
-        'what you take back (backspace, then the letter beside it) and what autocorrect fixes, learns where you really aim '
-        'at each letter, and moves the invisible edges between keys to suit, never more than a third of a key. Turn on the '
-        'heatmap to see your mistakes glow on the keyboard and where each key now listens. It all stays on this phone, '
-        'and nothing is learned in password fields or while incognito.',
+        'what you take back (backspace, then the letter beside it) and what autocorrect fixes, and nudges the invisible '
+        'edge of the letter you meant toward where you slipped: a little for each slip, so it takes about ten before you '
+        'feel it, and never more than a third of a key. It is training wheels, not a new layout: every clean touch lets '
+        'the key back toward its place, and every nudge halves in two weeks, so the keys return to the defaults as your '
+        'aim does. Turn on the heatmap to see your mistakes glow on the keyboard and where each key now listens. It all '
+        'stays on this phone, and nothing is learned in password fields or while incognito.',
     category: PluginCategory.typing,
     hue: 'coral',
     icon: LucideMore.target,
-    adds: ['Touch areas that follow your aim', 'Learns from backspace and autocorrect', 'A heatmap of your mistakes on the keys'],
+    adds: ['Touch areas nudged toward your slips', 'Slow to move, and back to the defaults over time', 'A heatmap of your mistakes on the keys'],
     hasPage: true,
   ),
 ];

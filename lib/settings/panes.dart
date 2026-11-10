@@ -528,8 +528,18 @@ String _aiSummary(SettingsStore s) {
   return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter', if (s.pluginOn('rewrite')) 'Rewrite'].join(', ');
 }
 
-String _mockingbirdSummary(SettingsStore s) =>
-    s.ai['ready'] != true ? 'Add an AI key' : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples');
+String _mockingbirdSummary(SettingsStore s) => s.ai['ready'] != true
+    ? 'Add an AI key'
+    : (_profileOutdated(s) ? _retrainHint : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples'));
+
+/// What a style profile trained under the old instructions says on its rows (Mockingbird.outdated): those asked the AI
+/// for the "typos they leave in", so a slip could be learned as a habit. With an AI key and "Retrain by itself" on it
+/// retrains the next time a text field is left (once, whatever the daily and 50-sample rule says, and a day later if
+/// that fails: Retrain.kt); this is for when it can't.
+const _retrainHint = 'Retrain to pick up the improved style rules';
+
+/// The style profile was trained before slips were told from habits (`profile.outdated` from MainActivity.aiState).
+bool _profileOutdated(SettingsStore s) => s.ai['profile'] is Map && (s.ai['profile'] as Map)['outdated'] == true;
 
 String _ghostwriterSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
@@ -548,9 +558,9 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
         children: [
           _plugin(store, 'autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'),
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
-          _plugin(store, 'adaptive', 'Adaptive keys', 'Learns where you aim and the keys you slip onto, and moves their edges to fit.'),
+          _plugin(store, 'adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
-          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines.'),
+          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines. Hold it first and it never types a space. Off: holding it opens the keyboard picker.'),
           _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
         ],
       ),
@@ -560,7 +570,7 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
       if (store.pluginOn('autocorrect'))
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
-        _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys tuned, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+        _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys nudged, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
       if (!isIOS) _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
       _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
     ];
@@ -599,10 +609,14 @@ List<Widget> _adaptivePart(BuildContext context, SettingsStore store) {
   final common = [for (final c in (a['common'] as List? ?? const [])) '$c'];
   return [
     PaneSection(
-      footer: Text(slips == 0 ? 'Type as usual: each letter needs about 15 touches before its edges move, never more than a third of a key.' : 'Most often: ${common.join(', ')}. Try it in the field below.'),
+      footer: Text(
+        '${slips == 0 ? 'Type as usual.' : 'Most often: ${common.join(', ')}.'} '
+        'A key moves a little for each slip, about ten before you feel it, and never more than a third of a key. '
+        'Clean touches let it back, and every nudge halves in two weeks, so the keys return to their places as your aim does.',
+      ),
       children: [
         _toggle(store, 'adaptive_map', 'Show the heatmap on the keyboard', 'Red glows are your slips; a dot on a line is where a key now listens.'),
-        SettingRow(label: 'Learned so far', value: Text('$keys keys, $slips slips')),
+        SettingRow(label: 'Helping now', value: Text('$keys ${keys == 1 ? 'key' : 'keys'} nudged, $slips slips remembered')),
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Forget what it learned', onPress: keys == 0 && slips == 0 ? null : store.resetAdaptive)]),
@@ -646,6 +660,10 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'key_borders', 'Key borders'),
         _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
       ]),
+      PaneSection(
+        footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),
+        children: [_choice(store, 'bottom_space', 'Space under the keys', const {'none': 'None', 'auto': 'Auto', 'more': 'More'})],
+      ),
     ];
 
 List<Widget> _keyPressPart(BuildContext context, SettingsStore store) => [
@@ -710,7 +728,7 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
     PaneHero(
       glyph: AppIcon(LucideMore.bird, size: 24),
       title: ready ? (store.ai['profile'] != null ? 'Trained' : 'Learning') : 'Add an AI key',
-      meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Ghostwriter and In my voice write with it.'),
+      meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Obvious slips are cleaned out; only habits you repeat are learned. Ghostwriter and In my voice write with it.'),
       status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
     ),
     if (isIOS) ..._iosAiNotes(context, store),
@@ -720,7 +738,7 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
 
 List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
       _aiProviderPart(),
-      _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
+      _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => _profileOutdated(s) ? _retrainHint : (s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples'), _stylePart),
     ];
 
 SettingsSection _aiProviderPart() =>
@@ -777,10 +795,10 @@ List<Widget> _stylePart(BuildContext context, SettingsStore store) {
     PaneSection(
       footer: Text(profile != null ? 'Trained ${_when(profile['at'])} from ${profile['samples']} samples by ${profile['provider']}. $samples kept now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.' : '$samples kept so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains itself at about 50.'),
       children: [
-        SettingRow(label: training ? 'Training…' : 'Train now', onPress: training || samples < 10 ? null : aiAsking(context, store, store.trainMockingbird)),
+        SettingRow(label: training ? 'Training…' : 'Train now', hint: _profileOutdated(store) && !training ? const Text(_retrainHint) : null, onPress: training || samples < 10 ? null : aiAsking(context, store, store.trainMockingbird)),
         if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
-        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito.'),
-        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples.'),
+        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito. Obvious slips are cleaned out; only habits you repeat are learned.'),
+        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples; once more after an update to the style rules.'),
       ],
     ),
     if (profile != null)
@@ -884,7 +902,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
       children: [
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
-        _plugin(store, 'undo', 'Undo and redo', 'Back and forward arrows.', Lucide.undo2),
+        _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
         _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),

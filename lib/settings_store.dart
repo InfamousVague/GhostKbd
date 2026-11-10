@@ -101,6 +101,7 @@ class SettingsStore extends ChangeNotifier {
     'wide_layout': 'split',
     'one_handed': 'off',
     'delete_swipe': true,
+    'bottom_space': 'auto',
     'typing_stats': true,
     'rewrite_language': 'Spanish',
     'preview_open': false,
@@ -274,8 +275,8 @@ class SettingsStore extends ChangeNotifier {
   String text(String key) => _values[key] as String? ?? '';
 
   /// Settings › AI and Mockingbird (AiClient.kt, Mockingbird.kt): `providers` (id, name, defaultModel, keyFrom),
-  /// `ready`, `samples`, `chatSamples`, `writingSamples`, `profile` (text, at, samples, provider, model) or null,
-  /// `training` and `error`.
+  /// `ready`, `samples`, `chatSamples`, `writingSamples`, `profile` (text, at, samples, provider, model, and
+  /// `outdated`: trained before slips were told from habits, so due a retrain) or null, `training` and `error`.
   Map<String, Object?> ai = const {'providers': [], 'ready': false, 'samples': 0};
 
   /// The models the chosen provider offers, once fetched; and the last thing an AI action said.

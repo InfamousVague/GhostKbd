@@ -18,6 +18,10 @@ import kotlin.math.abs
  *
  * Learned words (a fix the person undid, or words added in Settings) are never changed, and count as words for
  * correcting near-misses of them.
+ *
+ * Mockingbird reads the same dictionaries to take slips out of its writing samples ([slip], [lexicon]): a far
+ * stricter judgement than [correct]'s, since nobody is there to undo it. A word the lists miss is not a slip for
+ * that alone.
  */
 class Autocorrect(context: Context) {
     private val app = context.applicationContext
@@ -47,50 +51,65 @@ class Autocorrect(context: Context) {
     fun setLanguages(languages: List<String>) {
         if (languages == loaded) return
         loaded = languages
-        thread(name = "autocorrect-dictionary", isDaemon = true) {
-            val w = HashMap<String, Float>(48_000 * languages.size)
-            val c = HashMap<String, String>(600)
-            for (lang in languages) {
-                runCatching {
-                    app.assets.open("dict/$lang.tsv").bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            val tab = line.indexOf('\t')
-                            if (tab > 0) {
-                                val word = line.substring(0, tab)
-                                val zipf = line.substring(tab + 1).toFloatOrNull() ?: return@forEach
-                                if (zipf > (w[word] ?: Float.NEGATIVE_INFINITY)) w[word] = zipf
-                            }
+        thread(name = "autocorrect-dictionary", isDaemon = true) { load(languages) }
+    }
+
+    /**
+     * Loads [languages]' dictionaries on the calling thread and returns once they are in: for a worker that needs the
+     * answers now and has no keyboard to borrow them from (Mockingbird cleaning its samples from Settings).
+     */
+    fun loadNow(languages: List<String>) {
+        synchronized(this) { loaded = languages }
+        load(languages)
+    }
+
+    /** True once the dictionaries are in; until then nothing is corrected. */
+    val isReady: Boolean get() = ready
+
+    /** Reads [languages]' word lists and builds the indexes; whichever thread runs it. */
+    private fun load(languages: List<String>) {
+        val w = HashMap<String, Float>(48_000 * languages.size)
+        val c = HashMap<String, String>(600)
+        for (lang in languages) {
+            runCatching {
+                app.assets.open("dict/$lang.tsv").bufferedReader().useLines { lines ->
+                    lines.forEach { line ->
+                        val tab = line.indexOf('\t')
+                        if (tab > 0) {
+                            val word = line.substring(0, tab)
+                            val zipf = line.substring(tab + 1).toFloatOrNull() ?: return@forEach
+                            if (zipf > (w[word] ?: Float.NEGATIVE_INFINITY)) w[word] = zipf
                         }
                     }
                 }
-                if (lang == "en") runCatching {
-                    app.assets.open("dict/en_contractions.tsv").bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            val tab = line.indexOf('\t')
-                            if (tab > 0) c[line.substring(0, tab)] = line.substring(tab + 1)
-                        }
+            }
+            if (lang == "en") runCatching {
+                app.assets.open("dict/en_contractions.tsv").bufferedReader().useLines { lines ->
+                    lines.forEach { line ->
+                        val tab = line.indexOf('\t')
+                        if (tab > 0) c[line.substring(0, tab)] = line.substring(tab + 1)
                     }
                 }
             }
-            // The words of a programmer's day, which a general list misses or ranks as typos (npm, async...).
-            for (word in DEV_WORDS) w[word] = maxOf(w[word] ?: 0f, 4.5f)
-            // Each accented word under its plain spelling, the commonest winning: cafe → café, senor → señor.
-            val f = HashMap<String, String>()
-            for ((word, zipf) in w) {
-                val plain = fold(word)
-                if (plain != word && (w[plain] ?: 0f) < zipf && (f[plain]?.let { w[it]!! < zipf } != false)) f[plain] = word
-            }
-            val ends = HashMap<String, ArrayList<String>>()
-            for (word in w.keys) {
-                val plain = fold(word)
-                if (plain.length < 2 || plain.length > 20 || !plain.all { it in 'a'..'z' }) continue
-                ends.getOrPut("${plain.first()}${plain.last()}") { ArrayList() }.add(word)
-            }
-            words = w; folded = f; contractions = c
-            sorted = w.keys.toTypedArray().also { it.sort() }
-            byEnds = ends
-            ready = true
         }
+        // The words of a programmer's day, which a general list misses or ranks as typos (npm, async...).
+        for (word in DEV_WORDS) w[word] = maxOf(w[word] ?: 0f, 4.5f)
+        // Each accented word under its plain spelling, the commonest winning: cafe → café, senor → señor.
+        val f = HashMap<String, String>()
+        for ((word, zipf) in w) {
+            val plain = fold(word)
+            if (plain != word && (w[plain] ?: 0f) < zipf && (f[plain]?.let { w[it]!! < zipf } != false)) f[plain] = word
+        }
+        val ends = HashMap<String, ArrayList<String>>()
+        for (word in w.keys) {
+            val plain = fold(word)
+            if (plain.length < 2 || plain.length > 20 || !plain.all { it in 'a'..'z' }) continue
+            ends.getOrPut("${plain.first()}${plain.last()}") { ArrayList() }.add(word)
+        }
+        words = w; folded = f; contractions = c
+        sorted = w.keys.toTypedArray().also { it.sort() }
+        byEnds = ends
+        ready = true
     }
 
     /** Words the person has kept: never corrected, and targets for correcting slips of them. */
@@ -239,23 +258,174 @@ class Autocorrect(context: Context) {
     private fun best(lower: String): String? {
         if (lower == "i") return "I"
         contractions[lower]?.let { return capitalI(it) }
-        val words = words
         val known = words[lower]
         // Typed without its accents: the accented word, unless the plain spelling is itself as common.
         folded[lower]?.let { accented -> if (known == null || known < COMMON) return accented }
         // A common word is never changed; a rare one only for a far commoner word one cheap slip away.
         if (known != null && known >= COMMON) return capitalI(lower).takeIf { it != lower }
+        val pick = pick(lower, known) ?: return null
+        if (pick.score < MIN_SCORE) return null
+        return capitalI(pick.word)
+    }
+
+    /** The likeliest word a slip or two from a typed one: its [score], what its slips [cost], and the [next] best word's score. */
+    private class Pick(val word: String, val score: Float, val cost: Float, val next: Float)
+
+    /**
+     * The best-scoring word among those a slip or two from [lower], and the score of the runner-up. [known] is
+     * [lower]'s own frequency when the lists have it as a rare word: then only a cheap slip to a far commoner word
+     * can win, though any word still counts as a runner-up.
+     */
+    private fun pick(lower: String, known: Float?): Pick? {
+        val words = words
         var bestWord: String? = null
         var bestScore = Float.NEGATIVE_INFINITY
+        var bestCost = 0f
+        var next = Float.NEGATIVE_INFINITY
         for ((candidate, cost) in candidates(lower)) {
             val zipf = words[candidate] ?: contractions[candidate]?.let { words[it] }
                 ?: (if (candidate in learned) LEARNED_ZIPF else null) ?: folded[candidate]?.let { words[it] } ?: continue
-            if (known != null && (cost > 1.5f || zipf < known + 2f)) continue
             val score = zipf - cost * COST_WEIGHT
-            if (score > bestScore) { bestScore = score; bestWord = contractions[candidate] ?: folded[candidate]?.takeIf { candidate !in words } ?: candidate }
+            val word = contractions[candidate] ?: folded[candidate]?.takeIf { candidate !in words } ?: candidate
+            val mayWin = known == null || (cost <= 1.5f && zipf >= known + 2f)
+            if (mayWin && score > bestScore) {
+                if (word != bestWord) next = maxOf(next, bestScore)
+                bestScore = score; bestCost = cost; bestWord = word
+            } else if (word != bestWord && score > next) {
+                next = score
+            }
         }
-        if (bestWord == null || bestScore < MIN_SCORE) return null
-        return capitalI(bestWord)
+        return bestWord?.let { Pick(it, bestScore, bestCost, next) }
+    }
+
+    /**
+     * For text already written (Mockingbird's samples), where [correct] is for a word as it is typed: the one word
+     * [typed] was plainly a slip of, in [typed]'s capitals, or null when it should stand. Nobody is there to undo it,
+     * and a real word, a name or a term can be missing from the lists, so "not in the lists" is never enough: the
+     * slip itself has to show.
+     * - [correct]'s own guards hold (ACRONYMS, camelCase, learned words), and slang counts whether or not its
+     *   switch is on;
+     * - nothing that is a way of writing rather than a slip: no "i" → "I", no apostrophe put into "dont", no
+     *   accent put onto "cafe";
+     * - a spelling the lists hold, however rare, is somebody's word (untied, prefect, strat, nite) and stands,
+     *   whatever commoner word it resembles. The exceptions are named: [LISTED_SLIPS];
+     * - a spelling they do not hold is fixed only for one of three slips ([shape]): two letters next to each other
+     *   swapped ("taht", "tomorrwo"), one neighbouring key struck inside the word ("keybkard"), or a consonant
+     *   doubled. The last two only in a word of six letters or more: a short word has too many real neighbours
+     *   (vim beside him), and a different first or last letter is as often another word (linted, linter);
+     * - a word of six letters or more must also not look like a word ([odd]): drooping, vishal and minuet do, and
+     *   are somebody's, however near dropping, visual and minute they sit;
+     * - the fix must be likely ([SLIP_SCORE]; [SLIP_SCORE_SHORT] for a word of five letters or fewer, so only the
+     *   very commonest words are put back: "pani" is not "pain") and well ahead of the next word it could have
+     *   been ([SLIP_MARGIN]): "hwo" is who or how, so it stands.
+     */
+    fun slip(typed: String): String? {
+        if (!ready || typed.length < 3 || typed.length > 24) return null
+        if (typed.all { it.isUpperCase() } || typed.drop(1).any { it.isUpperCase() }) return null
+        val lower = typed.lowercase()
+        if (isWord(lower)) return null
+        val fixed = if (words.containsKey(lower)) {
+            LISTED_SLIPS[lower]?.takeIf { (words[it] ?: 0f) >= COMMON } ?: return null
+        } else {
+            // Asked first, being cheap: most long words the lists miss look like words, and stand.
+            if (lower.length > SHORT && !odd(lower)) return null
+            val pick = pick(lower, null) ?: return null
+            if (shape(lower, pick.word) == null) return null
+            val bar = if (lower.length <= SHORT) SLIP_SCORE_SHORT else SLIP_SCORE
+            if (pick.score < bar || pick.score - pick.next < SLIP_MARGIN) return null
+            pick.word
+        }
+        val cased = recase(typed, fixed)
+        return if (cased == typed) null else cased
+    }
+
+    /** The slips [slip] takes for accidents: letters swapped, a neighbouring key, a letter doubled. */
+    private enum class Slip { SWAP, KEY, DOUBLED }
+
+    /**
+     * Which slip turns [fix] into [typed] (both lower case), or null when it is none [slip] trusts:
+     * - two letters next to each other swapped, in a word of any length;
+     * - one neighbouring key in place of the right one, in a word longer than [SHORT] and not at its first or
+     *   last letter;
+     * - a consonant typed twice, in a word longer than [SHORT]. A doubled vowel is a word stretched (whaat, loove).
+     * A dropped letter, a far key and a letter too many are left: abbreviations and other words look the same.
+     */
+    private fun shape(typed: String, fix: String): Slip? {
+        if (typed.length == fix.length) {
+            val i = typed.indices.firstOrNull { typed[it] != fix[it] } ?: return null
+            val j = typed.indices.last { typed[it] != fix[it] }
+            if (j == i + 1 && typed[i] == fix[j] && typed[j] == fix[i]) return Slip.SWAP
+            if (j == i && typed.length > SHORT && i > 0 && i < typed.length - 1 && near(typed[i], fix[i])) return Slip.KEY
+            return null
+        }
+        if (typed.length == fix.length + 1 && typed.length > SHORT) {
+            val i = typed.indices.first { it >= fix.length || typed[it] != fix[it] }
+            if (i > 0 && typed[i] == typed[i - 1] && typed[i] !in VOWELS && typed.removeRange(i, i + 1) == fix) return Slip.DOUBLED
+        }
+        return null
+    }
+
+    /**
+     * The runs of three letters, a word's two edges included, that the common words of the loaded languages hold:
+     * what a word looks like. Made at [odd]'s first use and again when the dictionaries change, so the keyboard's
+     * own loading never pays for it.
+     */
+    @Volatile private var runs: Pair<Map<String, Float>, java.util.BitSet>? = null
+
+    /** [runs] for the dictionaries loaded now. */
+    private fun runs(): java.util.BitSet {
+        val loaded = words
+        runs?.let { if (it.first === loaded) return it.second }
+        val set = java.util.BitSet(RUN_LETTERS * RUN_LETTERS * RUN_LETTERS)
+        // A programmer's abbreviations (npm, kubectl) are words, but not what a word looks like.
+        for ((word, zipf) in loaded) if (zipf >= COMMON && word !in DEV_WORDS) eachRun(word) { set.set(it) }
+        runs = loaded to set
+        return set
+    }
+
+    /** Each run of three letters in [word], its edges included ("the": ^th, the, he$), as a number for [runs]. */
+    private inline fun eachRun(word: String, visit: (Int) -> Unit) {
+        if (word.isEmpty()) return
+        var first = 0
+        var second = runLetter(word[0])
+        for (i in 1..word.length) {
+            val third = if (i < word.length) runLetter(word[i]) else 0
+            visit((first * RUN_LETTERS + second) * RUN_LETTERS + third)
+            first = second; second = third
+        }
+    }
+
+    /** A letter's place in a run: 1 to 26 for a to z, 27 for anything else (an accent, an apostrophe); 0 is a word's edge. */
+    private fun runLetter(c: Char) = if (c in 'a'..'z') c - 'a' + 1 else RUN_LETTERS - 1
+
+    /**
+     * [lower] does not look like a word: it holds a run of three letters that no common word of the loaded
+     * languages has ("ybk" in keybkard, "hp" opening hpuse). A real word the lists miss (vishal, drooping,
+     * curation) nearly always looks like one, which is how a neighbouring-key slip is told from it.
+     */
+    private fun odd(lower: String): Boolean {
+        val seen = runs()
+        var odd = false
+        eachRun(lower) { if (!seen.get(it)) odd = true }
+        return odd
+    }
+
+    /**
+     * [lower] is a word nobody would fix: common in a loaded language, a contraction typed without its apostrophe,
+     * a word spelled without its accents, a learned word, or texting slang (the whole list, its switch on or off).
+     */
+    fun isWord(lower: String): Boolean =
+        lower in learned || lower in slangList || (words[lower] ?: 0f) >= COMMON || contractions.containsKey(lower) || folded.containsKey(lower)
+
+    /**
+     * These dictionaries as [SampleCleaner] reads them. Each fix is worked out once and remembered for as long as
+     * the returned object is kept, so make one per pass over the samples, not one to keep.
+     */
+    fun lexicon(): SampleCleaner.Lexicon = object : SampleCleaner.Lexicon {
+        private val fixes = HashMap<String, String?>()
+        override val ready get() = isReady
+        override fun isWord(lower: String) = this@Autocorrect.isWord(lower)
+        override fun fix(token: String): String? = if (fixes.containsKey(token)) fixes[token] else slip(token).also { fixes[token] = it }
     }
 
     /** I, I'm, I've, I'll, I'd: English capitalises them wherever they fall. */
@@ -302,6 +472,21 @@ class Autocorrect(context: Context) {
         private const val COMMON = 3.2f
         private const val COST_WEIGHT = 1.6f
         private const val MIN_SCORE = 0.8f
+        /** [slip]'s bar: a fix this likely, and this far ahead of the next word it could have been. */
+        private const val SLIP_SCORE = 2.4f
+        private const val SLIP_SCORE_SHORT = 4.0f
+        private const val SLIP_MARGIN = 1.0f
+        /** [slip]'s short word: up to this many letters. Only swapped letters are fixed in one. */
+        private const val SHORT = 5
+        /** Doubled, these are a word stretched for effect, not a slip. */
+        private const val VOWELS = "aeiouy"
+        /** [runLetter]'s range: a word's edge, a to z, and one for every other character. */
+        private const val RUN_LETTERS = 28
+        /**
+         * The spellings the lists do hold that nobody means: the commonest swaps, typed often enough to have got
+         * into the word counts. Every other listed spelling stands.
+         */
+        private val LISTED_SLIPS = mapOf("teh" to "the", "thier" to "their", "recieve" to "receive")
         private const val ALPHABET = "abcdefghijklmnopqrstuvwxyz"
         /** A learned word counts as moderately common (about one in 30,000 words) when a slip lands near it. */
         private const val LEARNED_ZIPF = 4.0f
