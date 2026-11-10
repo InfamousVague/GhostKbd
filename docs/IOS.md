@@ -40,7 +40,7 @@ iOS gives a keyboard no network, no shared container and no haptics until the pe
 | | Without Full Access | With Full Access |
 | --- | --- | --- |
 | Typing, pages, long-press, previews, swipe, cursor gestures | yes | yes |
-| Themes, backlight, layout settings | yes, as last synced: read-only copies of the settings are readable; where iOS refuses even that, the defaults | yes, live |
+| Themes, backlight, layout settings | the settings as they were when it last had Full Access; if it never had it, the defaults (iOS keeps the shared settings from it) | yes, live |
 | Autocorrect, suggestions | yes | yes |
 | Learned words, adaptive keys | kept inside the keyboard only | shared with the app |
 | Haptics | no (iOS rule) | yes |
@@ -92,25 +92,83 @@ GitHub commit search; Mockingbird (samples, style profile, "In my voice"); Rewri
 
 ## Memory
 
-A keyboard extension is killed somewhere past 60 MB (the limit is not documented and is lower on older phones). The
-budget, measured on the Simulator (see the test `AutocorrectMemoryTests`):
+A keyboard extension is ended by iOS somewhere past 60 MB (the limit is not documented and is lower on older phones).
+Measured in the Simulator (iPhone 17, iOS 27, a debug build; `footprint` on the extension's process, and the
+`debug_memory` note a debug build writes at each stage of starting):
 
 | | |
 | --- | --- |
-| UIKit, the view, the drawn icons | about 12 MB |
-| One language's dictionary (40,000 words: a `[String: Float]`, a sorted array, the swipe index) | see GhostCore's report below |
-| Each further language | about the same again |
-| Mockingbird, Ghostwriter, clipboard | text only, under 1 MB |
+| The process before any of the keyboard's code has run | 21 MB |
+| With the keyboard drawn and English loaded | 31 to 34 MB |
+| After typing, corrections, a Ghostwriter fill and a rewrite | 33 MB |
+
+A release build on a phone should be lower (the dictionary alone measures about 3 MB in a release build of GhostCore on
+a Mac, against about 13 MB in the debug extension), but that has not been measured on a device. Each further language
+costs about what English does. The Simulator reports a peak near 60 MB for every extension as its process starts,
+before the keyboard's code runs; that is the Simulator, not the keyboard.
 
 The dictionaries are the `.tsv` files Android ships (`android/app/src/main/assets/dict`), copied into the extension at
-build time rather than duplicated in the repo. Loading is off the main thread; typing works before it finishes.
-`didReceiveMemoryWarning` drops every language but the first.
+build time rather than duplicated in the repo: 2.6 MB for the six languages. Loading is off the main thread; typing
+works before it finishes. `didReceiveMemoryWarning` drops every language but the first.
+
+## Tests
+
+- `ios/GhostCore`: 81 unit tests (`swift test`): layouts, themes, backlight, settings and secrets, autocorrect against
+  the real word lists, swipe decoding, the touch model, the `<<request>>` parser, every AI provider's request and
+  response, Mockingbird, the clipboard history, Rewrite, GitHub search.
+- `test/ios_app_test.dart`: the settings app on iOS (walkthrough, consent, the iOS pages) and Android unchanged.
+- `ios/RunnerUITests`: the keyboard driven in Safari on the Simulator (`ios/tool/ui_test.sh`, with
+  `ios/tool/stub_server.py` as the page typed in and a stand-in AI provider). iOS shows a UI test nothing inside a
+  keyboard extension, so the tests tap where `Layouts.swift` puts each key.
+
+## Verified, and how
+
+On the Simulator (iPhone 17, iOS 27), by the UI tests, typing in Safari:
+
+- The keyboard is added in Settings and comes up; auto-capitals; `teh keybkard works` + two spaces becomes
+  `The keyboard works. `; `dont` becomes `Don't` and backspace puts `Dont` back and learns it.
+- `?123`, `=\<`, the `{ }` page; a pair key leaves the cursor inside; the page's comma returns to the letters; shift
+  for one capital; a long press types the first alternate.
+- Without Full Access: it types and corrects, a `<<request>>` is not sent (the stand-in provider logs no request) and
+  the row says "AI is off: it needs Allow Full Access".
+- With Full Access but without the agreement in the app: nothing is sent, and the row says
+  "AI is off: agree in the Ghost Keyboard app".
+- With both: `<<standup>>` + return is sent to the stand-in provider with the key from the shared Keychain, and the
+  answer replaces the tag. Rewrite from the row replaces the field's text. Undo takes back the keyboard's last edit.
+- Settings written by the app reach the keyboard through the App Group; the keyboard's "seen" and Full Access flags
+  reach the app.
+- The app launches into the iOS walkthrough. A release archive builds unsigned.
+
+## Not verified
+
+Nothing here has run on a real iPhone or iPad. Not exercised at all, beyond compiling and unit tests of their logic:
+
+- Haptics and key sounds (the Simulator has neither).
+- The globe key on the keyboard itself (it appears only on phones with a home button; every current Simulator phone
+  shows iOS's own globe below the keyboard).
+- Swipe typing by a finger (its decoder is unit-tested; a UI test cannot draw a path), the space-bar cursor, word
+  delete by sliding, the Adaptive keys heatmap.
+- Landscape, iPad, the split and docked layouts, one-handed mode.
+- Themes other than the dark default, the Retro keycaps, light mode.
+- Clipboard history and Paste (iOS's paste permission prompt), "In my voice", Mockingbird's sample collection and
+  training, the typing-out effect, web search and GitHub search against real services, every real AI provider (only
+  the OpenAI-compatible path ran, against the stand-in).
+- The settings cog opening the app from the keyboard.
+- The settings app's pages beyond the first walkthrough screen, on a device or the Simulator (its widget tests pass).
+- Signing: the identifiers are not registered (`docs/store/ios/SUBMIT.md`).
+
+## Changes outside `ios/`
+
+Nothing under `android/`, `site/`, `tool/` or `.github/` was changed. `lib/` gained the iOS walkthrough, the consent
+screen and the iOS settings pages behind `isIOS` (`lib/platform.dart`); Android's screens are as they were. After adding
+or removing a Swift file, `ios/tool/sync_xcodeproj.rb` brings the Xcode project in line.
 
 ## Building
 
 ```bash
 flutter build ios --simulator --debug        # the app and the extension, for the Simulator
 cd ios/GhostCore && swift test                # the shared logic's unit tests
+ios/tool/ui_test.sh <simulator udid>          # the keyboard driven in Safari (start ios/tool/stub_server.py first)
 ```
 
 An App Store archive: `docs/store/ios/SUBMIT.md`.

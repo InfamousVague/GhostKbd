@@ -513,8 +513,12 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         if !openInHost(url) { flash("Open the Ghost Keyboard app to change settings") }
     }
 
+    /// Whether the cog may ask the app hosting the keyboard to open the Ghost Keyboard app. One switch, should App
+    /// Review object to it (docs/store/ios/review-notes.md): off, the row says where to go instead.
+    static let canOpenApp = true
+
     private func openInHost(_ url: URL) -> Bool {
-        guard hasFullAccess else { return false }
+        guard Self.canOpenApp, hasFullAccess else { return false }
         let selector = NSSelectorFromString("openURL:options:completionHandler:")
         var responder: UIResponder? = self
         while let r = responder {

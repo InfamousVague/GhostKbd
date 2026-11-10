@@ -161,7 +161,7 @@ final class KeyboardUITests: XCTestCase {
         sleep(2)
     }
 
-    private let stub = "plugins=autocorrect,swipe,clipboard,undo,mockingbird,ghostwriter,rewrite&ai_provider=custom&ai_base_url=http://127.0.0.1:8765/v1&ai_key_custom=test&ai_model_custom=stub-1&ghostwriter_typing=false"
+    private let stub = "plugins=autocorrect,swipe,clipboard,undo,mockingbird,ghostwriter,rewrite&ai_provider=custom&ai_base_url=http://127.0.0.1:8765/v1&ai_key_custom=test&ai_model_custom=stub-1&ghostwriter_typing=false&learned_words="
 
     /// Ghostwriter added and pointed at the stand-in provider, the agreement not given.
     func test0d_UseTheStubProviderWithoutConsent() { set(stub + "&ai_consent=false") }
