@@ -26,8 +26,8 @@
  * the collector logs nothing of who asked. The box counts logins: this spends one.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -44,7 +44,9 @@ const withCaddy = args.includes('--caddy');
 const printOnly = args.includes('--print');
 const fail = (message) => { console.error(`x ${message}`); process.exit(1); };
 
-for (const name of ['collector.py', `${UNIT}.service`]) if (!existsSync(join(SOURCE, name))) fail(`No server/reports/${name} to ship.`);
+// What goes to the box: the collector, its unit, and the script that adds the reports up. Nothing else of the folder.
+const SHIPPED = ['collector.py', `${UNIT}.service`, 'summarize.py'];
+for (const name of SHIPPED) if (!existsSync(join(SOURCE, name))) fail(`No server/reports/${name} to ship.`);
 
 const at = args.indexOf('--glyph');
 const glyph = [at >= 0 ? args[at + 1] : null, process.env.GLYPH_ROOT, join(ROOT, '..', 'glyph'), join(homedir(), 'Development/Apps/glyph')]
@@ -74,23 +76,28 @@ const INSTALL = `set -e
 SUDO=; [ "$(id -u)" -eq 0 ] || SUDO=sudo
 STAGE="$HOME/.ghostkbd-reports-stage"
 rm -rf "$STAGE"; mkdir -p "$STAGE"; tar xzf - -C "$STAGE"
-[ -f "$STAGE/collector.py" ] && [ -f "$STAGE/${UNIT}.service" ] || { echo "x the collector arrived without its files"; exit 1; }
-python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' || { echo "x the box's python3 is older than 3.8"; exit 1; }
-python3 -m py_compile "$STAGE/collector.py" || { echo "x collector.py does not compile on the box's python"; exit 1; }
+[ -f "$STAGE/collector.py" ] && [ -f "$STAGE/${UNIT}.service" ] && [ -f "$STAGE/summarize.py" ] || { echo "x the collector arrived without its files"; exit 1; }
+[ -x /usr/bin/python3 ] || { echo "x no /usr/bin/python3 on the box (the unit starts the collector with it)"; exit 1; }
+/usr/bin/python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' || { echo "x the box's python3 is older than 3.8"; exit 1; }
+/usr/bin/python3 -m py_compile "$STAGE/collector.py" "$STAGE/summarize.py" || { echo "x the collector does not compile on the box's python"; exit 1; }
+rm -rf "$STAGE/__pycache__"
 # The port is ours already, or nobody's.
 if ss -ltnH 'sport = :${PORT}' 2>/dev/null | grep -q .; then
   systemctl is-active --quiet ${UNIT} || { echo "x port ${PORT} is taken by something that is not ${UNIT}"; ss -ltnpH 'sport = :${PORT}'; exit 1; }
 fi
 $SUDO install -D -m 0644 "$STAGE/collector.py" ${HOME}/collector.py
+$SUDO install -m 0644 "$STAGE/summarize.py" ${HOME}/summarize.py
 $SUDO install -m 0644 "$STAGE/${UNIT}.service" /etc/systemd/system/${UNIT}.service
 rm -rf "$STAGE"
 $SUDO systemctl daemon-reload
 $SUDO systemctl enable ${UNIT} >/dev/null 2>&1
 $SUDO systemctl restart ${UNIT}
 sleep 2
-systemctl is-active --quiet ${UNIT} || { echo "x ${UNIT} did not stay up:"; $SUDO journalctl -u ${UNIT} -n 25 --no-pager; exit 1; }
+# A collector that will not run is not left trying every five seconds: it is stopped, and says why.
+down() { echo "x $1:"; $SUDO journalctl -u ${UNIT} -n 25 --no-pager || true; $SUDO systemctl disable --now ${UNIT} >/dev/null 2>&1 || true; exit 1; }
+systemctl is-active --quiet ${UNIT} || down "${UNIT} did not stay up (it is switched off again)"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:${PORT}${ROUTE} || true)
-[ "$code" = 400 ] || { echo "x the collector answered $code to an empty report, not 400:"; $SUDO journalctl -u ${UNIT} -n 25 --no-pager; exit 1; }
+[ "$code" = 400 ] || down "the collector answered $code to an empty report, not 400 (it is switched off again)"
 echo "ok ${UNIT} is up on 127.0.0.1:${PORT} (an empty report is refused with 400); reports are kept in /var/lib/${UNIT}"
 [ "${withCaddy ? 1 : 0}" = 1 ] || exit 0
 CF=/etc/caddy/Caddyfile
@@ -164,9 +171,16 @@ const env = loadEnv(BOX_ENV_KEYS);
 const box = openBox(env, boxSshOptions({ connectTimeout: 20, knownHosts: join(homedir(), '.ssh', 'known_hosts') }));
 box.logIn();
 console.log(`  logged in at ${new Date().toISOString().slice(11, 19)} UTC`);
+const ship = () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ghostkbd-reports-'));
+  try {
+    for (const name of SHIPPED) copyFileSync(join(SOURCE, name), join(dir, name));
+    return tarball(dir, 1024 * 1024);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+};
 const result = look
   ? box.exec(REMOTE, { stdio: ['ignore', 'inherit', 'inherit'] })
-  : box.exec(REMOTE, { input: tarball(SOURCE, 1024 * 1024), stdio: ['pipe', 'inherit', 'inherit'] });
+  : box.exec(REMOTE, { input: ship(), stdio: ['pipe', 'inherit', 'inherit'] });
 if (!args.includes('--keep-connection')) box.close();
 if (result.status !== 0) fail(result.status === 5 ? 'ssh refused the password: if .env is right, wait before trying again.' : 'The remote step failed (output above).');
 if (look || !withCaddy) process.exit(0);
