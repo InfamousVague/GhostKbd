@@ -41,8 +41,28 @@ class Autocorrect(context: Context) {
     }
     /** Every word, sorted, for completions: a prefix's words are one run of it. */
     @Volatile private var sorted: Array<String> = emptyArray()
-    /** Swipe typing's index: words by their (accent-free) first and last letters, "hello" under "ho". */
+    /** Swipe typing's index: words by the first and last of their letters (accents and apostrophes off), "what's" under "ws". */
     @Volatile private var byEnds: Map<String, List<String>> = emptyMap()
+    /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written there, parsed when asked. */
+    @Volatile private var pairRows: Map<String, String> = emptyMap()
+    /** Swipe typing's decoder, over these word lists ([SwipeDecoder]). */
+    private val decoder = SwipeDecoder(object : SwipeDecoder.Lexicon {
+        override fun ends(first: Char, last: Char): List<String> {
+            val listed = byEnds["$first$last"].orEmpty()
+            val mine = learned.filter { it.isNotEmpty() && !words.containsKey(it) && swipeLetters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
+            return if (mine.isEmpty()) listed else listed + mine
+        }
+        override fun zipf(word: String): Float? = words[word] ?: if (word in learned) LEARNED_ZIPF else null
+        override fun letters(word: String) = swipeLetters(word)
+        override fun follows(prev: String): Map<String, Float>? = pairRows[prev]?.let { row ->
+            val out = HashMap<String, Float>()
+            for (e in row.split(' ')) {
+                val c = e.lastIndexOf(':')
+                if (c > 0) e.substring(c + 1).toFloatOrNull()?.let { out[e.substring(0, c).lowercase()] = it / 10_000f }
+            }
+            out
+        }
+    })
     @Volatile private var ready = false
     private var loaded: List<String> = emptyList()
 
@@ -102,18 +122,37 @@ class Autocorrect(context: Context) {
         }
         val ends = HashMap<String, ArrayList<String>>()
         for (word in w.keys) {
-            val plain = fold(word)
-            if (plain.length < 2 || plain.length > 20 || !plain.all { it in 'a'..'z' }) continue
+            // Letters and apostrophes only ("what's" glides w-h-a-t-s), and a one-letter word only if it's common.
+            if (word.any { !it.isLetter() && it != '\'' }) continue
+            val plain = swipeLetters(word)
+            if (plain.isEmpty() || plain.length > 20 || !plain.all { it in 'a'..'z' }) continue
+            if (plain.length == 1 && (w[word] ?: 0f) < SwipeDecoder.ONE_LETTER) continue
             ends.getOrPut("${plain.first()}${plain.last()}") { ArrayList() }.add(word)
+        }
+        // Which word follows which (assets/ngram), kept as each row's text until swipe typing asks for it.
+        val rows = HashMap<String, String>()
+        for (lang in languages) runCatching {
+            app.assets.open("ngram/$lang.tsv").bufferedReader().useLines { lines ->
+                lines.drop(1).forEach { line ->
+                    val tab = line.indexOf('\t')
+                    if (tab > 0) { val key = line.substring(0, tab).lowercase(); if (key !in rows) rows[key] = line.substring(tab + 1) }
+                }
+            }
         }
         words = w; folded = f; contractions = c
         sorted = w.keys.toTypedArray().also { it.sort() }
         byEnds = ends
+        pairRows = rows
+        synchronized(decoder) { decoder.clear() }
         ready = true
     }
 
     /** Words the person has kept: never corrected, and targets for correcting slips of them. */
-    fun setLearned(words: Set<String>) { learned = words }
+    fun setLearned(words: Set<String>) {
+        if (words == learned) return
+        learned = words
+        synchronized(decoder) { decoder.clear() }
+    }
 
     /** Texting slang on or off (Matt, 2026-11-09: "add slang options to autocorrect like sybau and lmfao and ts"). */
     fun setSlang(on: Boolean) {
@@ -176,84 +215,39 @@ class Autocorrect(context: Context) {
     }
 
     /**
-     * Swipe typing: the likeliest words for a finger's [path] over the letters, best first. Each candidate starts
-     * near where the finger came down and ends near where it lifted; its ideal path (straight lines through its
-     * letters' keys) is compared with the finger's, both resampled to the same number of points, and the mean
-     * distance in key widths weighed against how common the word is.
+     * Swipe typing: the likeliest readings of a finger's [path] over the letters, best first: a word, or several
+     * words in one stroke ("hey what's up"). [before] is the word before the cursor in lower case, "^" at a
+     * sentence's start, or null. The decoding is [SwipeDecoder]'s.
      */
-    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float): List<String> {
+    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null): List<String> {
         if (!ready || path.size < 2 || keyW <= 0f) return emptyList()
-        val n = 40
-        val user = resample(path.map { it.x to it.y }, n)
-        val start = user.first(); val end = user.last()
-        fun near(p: Pair<Float, Float>, limit: Float) = keys.entries
-            .map { (c, k) -> c to dist(p, k.x to k.y) / keyW }
-            .filter { it.second <= limit }.sortedBy { it.second }.take(4).map { it.first }
-        val starts = near(start, 1.1f); val ends = near(end, 1.1f)
-        val words = words
-        val scored = ArrayList<Pair<String, Float>>()
-        for (a in starts) for (b in ends) {
-            val list = byEnds["$a$b"] ?: continue
-            for (word in list) {
-                val plain = fold(word)
-                // The word's keys, a doubled letter once ("hello" glides h-e-l-o).
-                val pts = ArrayList<Pair<Float, Float>>(plain.length)
-                var prev = ' '
-                for (c in plain) { if (c != prev) { val k = keys[c] ?: break; pts += k.x to k.y }; prev = c }
-                if (pts.isEmpty()) continue
-                // Quick test: every letter passes near the path, in order.
-                var at = 0; var ok = true
-                for (p in pts) {
-                    while (at < n && dist(user[at], p) > keyW * 1.25f) at++
-                    if (at >= n) { ok = false; break }
-                }
-                if (!ok) continue
-                val ideal = if (pts.size == 1) List(n) { pts[0] } else resample(pts, n)
-                var d = 0f
-                for (i in 0 until n) d += dist(user[i], ideal[i])
-                d /= n * keyW
-                val zipf = words[word] ?: LEARNED_ZIPF
-                scored += word to (zipf * 0.55f - d * 6f)
+        return synchronized(decoder) {
+            // The same keys keep the same map, so the decoder keeps the words' shapes it has worked out for them.
+            if (keys != swipeKeysFrom) {
+                swipeKeysFrom = HashMap(keys.mapValues { (_, p) -> android.graphics.PointF(p.x, p.y) })
+                swipeKeys = keys.mapValues { (_, p) -> p.x to p.y }
+                warm(swipeKeys)
+            }
+            decoder.decode(path.map { it.x to it.y }, swipeKeys, keyW, before)
+        }
+    }
+
+    /**
+     * Works out every word's shape on these [keys] in the background, a pair of letters at a time, so the strokes
+     * after the first don't wait for it. A stroke meanwhile waits for one pair at most.
+     */
+    private fun warm(keys: Map<Char, Pair<Float, Float>>) {
+        val pairs = byEnds.keys.toList()
+        thread(name = "swipe-warm", isDaemon = true, priority = Thread.MIN_PRIORITY) {
+            for (pair in pairs) {
+                if (swipeKeys !== keys) return@thread
+                synchronized(decoder) { decoder.warm(pair[0], pair[1], keys) }
             }
         }
-        for (l in learned) {
-            // Learned words glide too: scored the same way when their ends match.
-            if (l.length < 2 || l.first() !in starts || l.last() !in ends || words.containsKey(l)) continue
-            val pts = l.mapNotNull { keys[it]?.let { k -> k.x to k.y } }
-            if (pts.size != l.length) continue
-            val ideal = resample(pts, n)
-            var d = 0f
-            for (i in 0 until n) d += dist(user[i], ideal[i])
-            scored += l to (LEARNED_ZIPF * 0.55f - d / (n * keyW) * 6f)
-        }
-        return scored.sortedByDescending { it.second }.map { capitalI(it.first) }.distinct().take(5)
     }
 
-    private fun dist(a: Pair<Float, Float>, b: Pair<Float, Float>) = kotlin.math.hypot(a.first - b.first, a.second - b.second)
-
-    /** [pts] as [n] points evenly spaced along its length. */
-    private fun resample(pts: List<Pair<Float, Float>>, n: Int): List<Pair<Float, Float>> {
-        var total = 0f
-        for (i in 1 until pts.size) total += dist(pts[i - 1], pts[i])
-        if (total <= 0f) return List(n) { pts.first() }
-        val step = total / (n - 1)
-        val out = ArrayList<Pair<Float, Float>>(n)
-        out += pts.first()
-        var acc = 0f
-        var i = 1
-        var prev = pts.first()
-        while (i < pts.size && out.size < n) {
-            val cur = pts[i]
-            val d = dist(prev, cur)
-            if (acc + d >= step && d > 0f) {
-                val t = (step - acc) / d
-                val q = (prev.first + t * (cur.first - prev.first)) to (prev.second + t * (cur.second - prev.second))
-                out += q; prev = q; acc = 0f
-            } else { acc += d; prev = cur; i++ }
-        }
-        while (out.size < n) out += pts.last()
-        return out
-    }
+    private var swipeKeysFrom: Map<Char, android.graphics.PointF>? = null
+    @Volatile private var swipeKeys: Map<Char, Pair<Float, Float>> = emptyMap()
 
     private fun best(lower: String): String? {
         if (lower == "i") return "I"
@@ -492,6 +486,9 @@ class Autocorrect(context: Context) {
         private const val LEARNED_ZIPF = 4.0f
         /** Slang ranks as about one in 50,000 words among completions; it is never a target for correcting a slip. */
         private const val SLANG_ZIPF = 3.7f
+
+        /** [word]'s letters for swipe typing: lower case, accents off, apostrophes dropped ("What's" is "whats"). */
+        fun swipeLetters(word: String): String = fold(word.lowercase()).filter { it != '\'' && it != '’' }
 
         /** [word] without its accents: é → e, ñ → n, ß → ss. */
         fun fold(word: String): String =

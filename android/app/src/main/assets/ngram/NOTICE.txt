@@ -1,0 +1,69 @@
+Ghost Keyboard's next-word starter tables
+=========================================
+
+The .tsv files in this folder say which word tends to follow which, for the three words the keyboard offers after a
+space. They were made by tool/next_words.py in Ghost Keyboard's repository.
+
+Counts derived from Tatoeba (CC BY 2.0 FR); vocabulary limited to the wordfreq lists (CC BY-SA 4.0).
+
+Tatoeba
+-------
+The counts are derived from the sentences of Tatoeba (https://tatoeba.org), written by its contributors and released
+under the Creative Commons Attribution 2.0 France licence (https://creativecommons.org/licenses/by/2.0/fr/). The
+contributors whose sentences were counted are named in CREDITS.txt, beside this file.
+
+What was changed: none of the sentences is here. Each file holds, for a word (or "^", the start of a sentence), the
+words that most often came next and each one's share of what followed, in ten-thousandths. Words that are not in the
+language's word list were left out, the counts of words Tatoeba uses far more than people usually do (its stock
+names) were scaled down, and words on the LDNOOBW list were removed.
+
+The exports read (language, export date, sentences, pairs kept):
+  ar   2026-11-07     68,750 sentences   12,302 pairs
+  bg   2026-11-07     25,721 sentences    8,638 pairs
+  ca   2026-11-07     10,965 sentences    5,642 pairs
+  cs   2026-11-07     90,156 sentences   23,764 pairs
+  da   2026-11-07     66,554 sentences   21,252 pairs
+  de   2026-11-07    786,418 sentences   50,000 pairs
+  el   2026-11-07     43,058 sentences   13,628 pairs
+  en   2026-11-07  2,040,567 sentences  100,000 pairs
+  es   2026-11-07    443,166 sentences   50,000 pairs
+  fa   2026-11-07     31,856 sentences   14,736 pairs
+  fi   2026-11-07    155,018 sentences   35,000 pairs
+  fil  2026-11-07     79,138 sentences   26,509 pairs
+  fr   2026-11-07    730,079 sentences   50,000 pairs
+  he   2026-11-07    212,926 sentences   35,000 pairs
+  id   2026-11-07     28,418 sentences    9,909 pairs
+  is   2026-11-07     13,394 sentences    5,770 pairs
+  it   2026-11-07    991,553 sentences   50,000 pairs
+  lt   2026-11-07    159,332 sentences   32,282 pairs
+  lv   2026-11-07     20,234 sentences    6,169 pairs
+  mk   2026-11-07     78,260 sentences   15,011 pairs
+  ms   2026-11-07     10,062 sentences    5,245 pairs
+  nb   2026-11-07     18,898 sentences    7,847 pairs
+  nl   2026-11-07    201,505 sentences   35,000 pairs
+  pl   2026-11-07    137,212 sentences   33,879 pairs
+  pt   2026-11-07    445,685 sentences   50,000 pairs
+  ro   2026-11-07     41,914 sentences   14,895 pairs
+  ru   2026-11-07  1,235,743 sentences   50,000 pairs
+  sh   2026-11-07     60,446 sentences   18,529 pairs
+  sk   2026-11-07     33,329 sentences    9,430 pairs
+  sr   2026-11-07     60,446 sentences   18,500 pairs
+  sv   2026-11-07     56,869 sentences   16,302 pairs
+  tr   2026-11-07    750,219 sentences   50,000 pairs
+  uk   2026-11-07    188,941 sentences   33,618 pairs
+  vi   2026-11-07     33,274 sentences   18,217 pairs
+
+Languages with a word list and no file here have no starter table: hu, sl, ur. There the keyboard
+suggests from what the person types and from how common words are.
+
+wordfreq
+--------
+A word is in a table only if it is in the keyboard's word list for the language (assets/dict, derived from wordfreq
+3.1.1 by Robyn Speer, CC BY-SA 4.0; see assets/dict/NOTICE.txt), and wordfreq's frequencies were used to scale the
+counts. sr.tsv is sh.tsv transliterated to Cyrillic.
+
+LDNOOBW
+-------
+The "List of Dirty, Naughty, Obscene, and Otherwise Bad Words"
+(https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words, CC BY 4.0) was used as a filter.
+None of it is in these files.
