@@ -1,8 +1,8 @@
 # Ghost Keyboard for iOS: what is here
 
 Everything needed to put the iOS app on the App Store. The App IDs, the App Group and the two App Store profiles are registered
-(2026-11-10); the app record exists as "Ghost KBD" with its text and screenshots; no build has
-been uploaded and nothing submitted.
+(2026-11-10); the app record exists as "Ghost KBD" with its text and screenshots; build 0.9.5 (64) is
+uploaded and chosen on the version; nothing has been submitted for review.
 
 | File | What it is |
 | --- | --- |

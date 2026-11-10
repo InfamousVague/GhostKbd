@@ -1,7 +1,9 @@
 # Submitting Ghost Keyboard for iOS
 
-Steps 1 and 2 are done (2026-11-10), and the listing's text and screenshots are in place. No build has been uploaded
-and nothing has been submitted: uploading (step 3's last command) and pressing Submit are Matt's to do or to ask for.
+Steps 1 to 3 are done (2026-11-10): the listing's text and screenshots are in place, and build 0.9.5 (64) is uploaded,
+processed (valid) and chosen on the 0.9.5 version. Nothing has been submitted for review: step 4's fields are still
+empty, and pressing Submit is Matt's to do or to ask for. A later upload needs a higher build number in
+`pubspec.yaml`.
 
 ## 1. The identifiers and profiles (done)
 
@@ -51,8 +53,8 @@ That leaves `build/ipa/Ghost Keyboard.ipa`, signed for the App Store, and upload
 `destination: export`). Both commands have been run and succeed; the archive's app and extension carry the App Group
 and the shared Keychain group.
 
-The first of these has been run against the record: "VERIFY SUCCEEDED with no errors" for 0.9.5 (64). The second
-sends the build, and has not been run (the key comes from 
+Both have been run for 0.9.5 (64): "VERIFY SUCCEEDED with no errors", then "UPLOAD SUCCEEDED with no errors" (the
+key comes from 
 `~/.config/mattssoftware/signing/asc-api.env`):
 
 ```bash
@@ -75,7 +77,6 @@ and both read it from there.
 | App Information › Age Rating | `metadata.md` |
 | Pricing and Availability | `metadata.md` |
 | App Review Information: contact, notes | `review-notes.md` (needs a review API key with a small limit) |
-| The build | chosen on the version page once step 3's upload has been processed |
 
 ## 5. Before pressing Submit
 
