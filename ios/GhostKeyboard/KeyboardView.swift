@@ -22,6 +22,8 @@ protocol KeyboardListener: AnyObject {
     func onDock(_ side: String, wide: Bool)
     /// The globe key's touch, every phase of it: iOS reads a tap as the next keyboard and a hold as its list.
     func onGlobe(from view: UIView, with event: UIEvent)
+    /// The globe key pressed by VoiceOver or Switch Control, which has no touch to hand over: the next keyboard.
+    func onNextKeyboard()
 }
 
 enum ShiftState { case off, on, locked }
@@ -255,7 +257,7 @@ final class KeyboardView: UIView {
         if bounds.width != lastWidth { lastWidth = bounds.width; layoutKeys() }
     }
 
-    private func redraw() { setNeedsDisplay(); overlay.setNeedsDisplay() }
+    private func redraw() { keyElements = nil; setNeedsDisplay(); overlay.setNeedsDisplay() }
 
     private func layoutKeys() {
         keyRects.removeAll()
@@ -300,7 +302,69 @@ final class KeyboardView: UIView {
             }
             y += rowH
         }
+        keyElements = nil
         redraw()
+    }
+
+    // --- accessibility ------------------------------------------------------------------------------------------------
+
+    /// The keys are drawn, not views: each is described to VoiceOver, Switch Control and Voice Control here, and
+    /// activating one types it.
+    private final class KeyElement: UIAccessibilityElement {
+        var activate: (() -> Void)?
+        override func accessibilityActivate() -> Bool { activate?(); return activate != nil }
+    }
+    private var keyElements: [Any]?
+
+    override var isAccessibilityElement: Bool { get { false } set {} }
+
+    override var accessibilityElements: [Any]? {
+        get {
+            if let made = keyElements { return made }
+            var out: [Any] = subviews.filter { !($0 is OverlayView) && !$0.isHidden }
+            for (key, rect) in keyRects {
+                let e = KeyElement(accessibilityContainer: self)
+                e.accessibilityFrameInContainerSpace = rect
+                e.accessibilityTraits = .keyboardKey
+                switch key.type {
+                case .char: e.accessibilityLabel = key.text == "\t" ? "tab" : pretty(shown(key))
+                case .shift: e.accessibilityLabel = "shift"; e.accessibilityValue = shift == .locked ? "caps lock" : shift == .on ? "on" : "off"
+                case .delete: e.accessibilityLabel = "delete"
+                case .space: e.accessibilityLabel = "space"
+                case .enter: e.accessibilityLabel = "return"
+                case .mode: e.accessibilityLabel = key.label == "{ }" ? "code symbols" : key.label == "ABC" ? "letters" : key.label == "?123" ? "numbers" : "more symbols"
+                case .globe: e.accessibilityLabel = "Next keyboard"
+                case .mic: e.accessibilityLabel = "dictate"
+                }
+                e.accessibilityIdentifier = "key-\(key.type.rawValue)-\(key.type == .mode ? key.label : key.text)"
+                e.activate = { [weak self] in self?.activate(key) }
+                out.append(e)
+            }
+            keyElements = out
+            return out
+        }
+        set {}
+    }
+
+    /// A key pressed without a touch (an assistive technology's activation): what a tap on it does.
+    private func activate(_ key: Key) {
+        listener?.onKeyFeedback(key.type, haptic: true)
+        switch key.type {
+        case .char:
+            lastTyped = nil
+            commit(display(key.text))
+            if let next = key.page { showPage(next) }
+        case .space: listener?.onSpace()
+        case .enter: listener?.onEnter()
+        case .delete: listener?.onDelete()
+        case .shift: tapShift()
+        case .mode: showPage(key.page ?? .letters)
+        case .globe: listener?.onNextKeyboard()
+        case .mic: break
+        }
+        keyElements = nil
+        redraw()
+        UIAccessibility.post(notification: .layoutChanged, argument: nil)
     }
 
     /// The visible key face inside a key's touch area.

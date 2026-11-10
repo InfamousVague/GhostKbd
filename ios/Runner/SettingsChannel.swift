@@ -43,6 +43,18 @@ final class SettingsChannel: NSObject {
     /// ghostkbd://settings, ghostkbd://settings/<page>: the keyboard's cog, or a link.
     func open(_ url: URL) {
         guard url.scheme == GhostShared.urlScheme else { return }
+        #if DEBUG
+        // Debug builds only, for the UI tests: ghostkbd://debug-set?key=value&... writes settings (true/false as Bools).
+        if url.host == "debug-set" {
+            for item in URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [] {
+                let v = item.value ?? ""
+                let value: Any = (v == "true" || v == "false") ? (v == "true") as Any : v as Any
+                if !prefs.set(key: item.name, value: value) { _ = prefs.set(key: item.name, value: v) }
+            }
+            GhostShared.postSettingsChanged()
+            return
+        }
+        #endif
         let page = url.pathComponents.dropFirst().first ?? "settings"
         if channel != nil { channel?.invokeMethod("open", arguments: page) }
         openAt = page

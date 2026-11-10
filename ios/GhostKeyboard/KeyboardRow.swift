@@ -97,7 +97,12 @@ extension KeyboardViewController {
         var items: [RowItem] = []
         let aiPlugins = [Plugins.mockingbird, Plugins.ghostwriter, Plugins.rewrite].contains { Plugins.isOn(prefs, $0) }
         // Never silent: where the AI features are added but cannot run, the row says why, once, at its start.
-        if aiPlugins, let why = aiBlocked() {
+        if !hasFullAccess && !store.groupReadable {
+            // iOS keeps the app's settings from a keyboard without Full Access: say what that costs, once asked.
+            items.append(RowItem(id: "no-access", label: "Full Access is off", chip: true) { [weak self] in
+                self?.flash("Typing works as it is. AI, clipboard history, haptics and your settings need Allow Full Access.")
+            })
+        } else if aiPlugins, let why = aiBlocked() {
             items.append(RowItem(id: "ai-off-\(why)", label: "✦ \(why)", chip: true) { [weak self] in self?.onOpenSettings() })
         }
         // Mockingbird: the selection rewritten as you.

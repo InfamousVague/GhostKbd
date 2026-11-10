@@ -51,16 +51,22 @@ public final class Ghostwriter {
     /// An unfilled request the cursor is inside or just after, within the text around the cursor.
     private static let any = try! NSRegularExpression(pattern: "<<(?=[^<>\\n]*\\p{L})([^<>\\n]{2,400})>>")
 
-    /// Whether a request has just been closed before the cursor (auto-fill's test, on each `>` typed).
-    public static func hasClosedRequest(before: String) -> Bool {
-        closed.firstMatch(in: before, range: NSRange(location: 0, length: before.utf16.count)) != nil
+    /// The closed request's match, only where it ends exactly at the cursor (`$` alone would also take a tag with a
+    /// line break after it, which Android's fill then turns down because the cursor is past the tag).
+    private static func closedMatch(_ before: NSString) -> NSTextCheckingResult? {
+        guard let m = closed.firstMatch(in: before as String, range: NSRange(location: 0, length: before.length)),
+              m.range.location + m.range.length == before.length else { return nil }
+        return m
     }
+
+    /// Whether a request has just been closed before the cursor (auto-fill's test, on each `>` typed).
+    public static func hasClosedRequest(before: String) -> Bool { closedMatch(before as NSString) != nil }
 
     /// The request just closed before the cursor: what it asks, the whole `<<tag>>`, and how many characters
     /// (`TextTarget.deleteBackward`'s count) take the tag away.
     public static func closedRequest(before: String) -> (request: String, tag: String, deleteCount: Int)? {
         let ns = before as NSString
-        guard let m = closed.firstMatch(in: before, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        guard let m = closedMatch(ns) else { return nil }
         let tag = ns.substring(with: m.range)
         return (ns.substring(with: m.range(at: 1)).trimmed, tag, tag.count)
     }
@@ -115,7 +121,7 @@ public final class Ghostwriter {
         public let mode: String?
         private let state = Locked((result: String?.none, error: String?.none, cancelled: false))
 
-        init(id: Int, request: String, tag: String, selection: Bool = false, mode: String? = nil) {
+        public init(id: Int, request: String, tag: String, selection: Bool = false, mode: String? = nil) {
             self.id = id; self.request = request; self.tag = tag; self.selection = selection; self.mode = mode
         }
 

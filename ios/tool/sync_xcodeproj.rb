@@ -110,6 +110,7 @@ runner.build_configurations.each do |config|
   s['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'
   s['DEVELOPMENT_TEAM'] = TEAM
   s['TARGETED_DEVICE_FAMILY'] = '1,2'
+  s['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) DEBUG' if config.name == 'Debug'
 end
 project.targets.select { |t| t.name == 'RunnerTests' }.each do |t|
   t.build_configurations.each { |c| c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = "#{APP_ID}.RunnerTests" }
@@ -129,5 +130,43 @@ unless embed.files.any? { |f| f.file_ref == ext.product_reference }
   file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
 end
 
+# UI tests that drive the keyboard on the Simulator (ios/tool/ui_test.sh).
+ui_group = group_for(project, 'RunnerUITests', 'RunnerUITests')
+ui_sources = refs(ui_group, File.join(ROOT, 'RunnerUITests'), '*.swift')
+ui = project.targets.find { |t| t.name == 'RunnerUITests' }
+unless ui
+  ui = project.new_target(:ui_test_bundle, 'RunnerUITests', :ios, '15.0', nil, :swift)
+  ui.add_dependency(runner)
+end
+ui.build_configurations.each do |config|
+  s = config.build_settings
+  s['PRODUCT_BUNDLE_IDENTIFIER'] = "#{APP_ID}.RunnerUITests"
+  s['TEST_TARGET_NAME'] = 'Runner'
+  s['GENERATE_INFOPLIST_FILE'] = 'YES'
+  s['DEVELOPMENT_TEAM'] = TEAM
+  s['SWIFT_VERSION'] = '5.0'
+  s['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+  s['PRODUCT_NAME'] = '$(TARGET_NAME)'
+end
+unless ui.build_configurations.any? { |c| c.name == 'Profile' }
+  profile = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
+  profile.name = 'Profile'
+  profile.build_settings = ui.build_configurations.find { |c| c.name == 'Release' }.build_settings.dup
+  ui.build_configuration_list.build_configurations << profile
+end
+ui.source_build_phase.clear
+ui_sources.each { |r| ui.source_build_phase.add_file_reference(r) }
+# The tests place their taps with the keyboard's own layout.
+core_sources.select { |r| %w[Layouts.swift].include?(r.display_name) }.each { |r| ui.source_build_phase.add_file_reference(r) }
+
 project.save
+
+# A scheme for the UI tests alone, so `xcodebuild test -scheme RunnerUITests` runs just them.
+scheme_path = File.join(ROOT, 'Runner.xcodeproj', 'xcshareddata', 'xcschemes', 'RunnerUITests.xcscheme')
+unless File.exist?(scheme_path)
+  scheme = Xcodeproj::XCScheme.new
+  scheme.add_build_target(runner)
+  scheme.add_test_target(ui)
+  scheme.save_as(File.join(ROOT, 'Runner.xcodeproj'), 'RunnerUITests', true)
+end
 puts "Runner: #{runner.source_build_phase.files.size} sources; GhostKeyboard: #{ext.source_build_phase.files.size} sources"

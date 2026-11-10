@@ -487,6 +487,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
 
     func onGlobe(from view: UIView, with event: UIEvent) { handleInputModeList(from: view, with: event) }
 
+    func onNextKeyboard() { advanceToNextInputMode() }
+
     /// The cog, or a long press on { }: the Ghost Keyboard app, at its Settings. A keyboard may not open another app
     /// by iOS's front door, so this asks the app hosting it to; where that is refused, the row says where to go.
     func onOpenSettings() {

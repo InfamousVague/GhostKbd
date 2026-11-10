@@ -38,8 +38,8 @@ extension KeyboardViewController {
 
     /// Why the AI features cannot run here, in the row's words, or nil where they can.
     func aiBlocked() -> String? {
-        if !hasFullAccess { return "AI is off: turn on Allow Full Access in Settings › Keyboards" }
-        if !prefs.aiConsent { return "AI is off: agree to it in the Ghost Keyboard app first" }
+        if !hasFullAccess { return "AI is off: it needs Allow Full Access" }
+        if !prefs.aiConsent { return "AI is off: agree in the Ghost Keyboard app" }
         if incognito || isPrivateField { return "AI is off in private fields" }
         return nil
     }
@@ -201,14 +201,17 @@ extension KeyboardViewController {
     /// What the text just before the cursor asks for, before suggestions: a <<request>> being typed or ready to
     /// fill. True when it filled `items`.
     func contextual(_ items: inout [RowItem]) -> Bool {
-        guard Plugins.isOn(prefs, Plugins.ghostwriter) else { return false }
+        // Without Full Access iOS may keep the app's settings from the keyboard altogether, so it cannot know whether
+        // Ghostwriter was added: a request typed anyway is answered with why nothing will happen.
+        let settingsUnknown = !hasFullAccess && !store.groupReadable
+        guard Plugins.isOn(prefs, Plugins.ghostwriter) || settingsUnknown else { return false }
         let before = String(editor.before.suffix(600))
         let tag = Ghostwriter.tagAt(before: before, after: editor.after)
         let ns = before as NSString
         let open = Self.fillOpen.firstMatch(in: before, range: NSRange(location: 0, length: ns.length))
         // Never silent: where Ghostwriter cannot run, say why.
         if let why = aiBlocked() {
-            guard tag != nil || open != nil else { return false }
+            guard tag != nil || (open != nil && !settingsUnknown) else { return false }
             items.append(RowItem(id: "fill-off-\(why)", label: "✦ \(why)", chip: true, fill: true) { [weak self] in self?.onOpenSettings() })
             return true
         }

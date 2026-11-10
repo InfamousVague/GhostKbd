@@ -97,7 +97,8 @@ final class ThemeTests: XCTestCase {
 
     func testFromBaseDarkFlagAndDerived() {
         let dark = KeyboardTheme.fromBase(background: 0xFF000000, key: 0xFF1A1A1A, functionKey: 0xFF0D0D0D, accent: 0xFF8AB4F8, text: 0xFFFFFFFF)
-        XCTAssertTrue(dark.dark); XCTAssertEqual(dark.popupShadow, 0x66000000); XCTAssertEqual(dark.onAccent, 0xFF111111)
+        XCTAssertTrue(dark.dark); XCTAssertEqual(dark.popupShadow, 0x66000000); XCTAssertEqual(dark.onAccent, 0xFFFFFFFF)
+        XCTAssertEqual(KeyboardTheme.fromBase(background: 0xFF0A0B0C, key: 0xFF232528, functionKey: 0xFF16181A, accent: 0xFF51FCFB, text: 0xFFE8EDED).onAccent, 0xFF111111)
         XCTAssertEqual(dark.popupSelected, dark.accent)
         let light = KeyboardTheme.fromBase(background: 0xFFF4EFE6, key: 0xFFFFFCF6, functionKey: 0xFFE4DCCD, accent: 0xFFB5522B, text: 0xFF2B2622)
         XCTAssertFalse(light.dark); XCTAssertEqual(light.popupShadow, 0x33000000); XCTAssertEqual(light.onAccent, 0xFFFFFFFF)

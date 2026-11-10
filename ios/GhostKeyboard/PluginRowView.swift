@@ -49,6 +49,13 @@ final class PluginRowView: UIView {
         scroll.alwaysBounceHorizontal = false
         scroll.delaysContentTouches = false
         scroll.canCancelContentTouches = true
+        // iOS 26 blurs a scroll view's content near its edges, for content sliding under bars: this row is all edge.
+        if #available(iOS 26.0, *) {
+            scroll.topEdgeEffect.isHidden = true
+            scroll.bottomEdgeEffect.isHidden = true
+            scroll.leftEdgeEffect.isHidden = true
+            scroll.rightEdgeEffect.isHidden = true
+        }
         addSubview(settings); addSubview(scroll); addSubview(arrows); addSubview(hide)
         hide.isHidden = true
         hide.accessibilityLabel = "Hide keyboard"

@@ -36,3 +36,4 @@ Runner/GeneratedPluginRegistrant.*
 # The shared logic's own SwiftPM build.
 GhostCore/.build/
 GhostCore/.swiftpm/
+requests.log
