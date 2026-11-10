@@ -8,6 +8,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     lazy var prefs = KeyboardPrefs(store: store, secrets: GhostShared.secrets())
     let keyboard = KeyboardView()
     let row = PluginRowView()
+    /// The line along the top of the keys that runs while the AI works (RowStyle.swift).
+    let working = WorkingLine()
     lazy var editor = TextEditor(proxy: { [unowned self] in self.textDocumentProxy })
     lazy var autocorrect: Autocorrect = {
         let dir = Bundle.main.resourceURL!.appendingPathComponent("dict", isDirectory: true)
@@ -52,7 +54,12 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     var aiAnswers: [String] = []
     /// Mockingbird: the field's text as last read, kept as a sample once it is sent or left.
     var draft = ""
-    lazy var mockingbird = Mockingbird(directory: GhostShared.filesDirectory())
+    /// Mockingbird cleans slips out of its samples with the keyboard's own speller: no second copy of the dictionaries.
+    lazy var mockingbird: Mockingbird = {
+        let m = Mockingbird(directory: GhostShared.filesDirectory())
+        m.speller = autocorrect
+        return m
+    }()
     lazy var clips = ClipHistory(store: store)
     var ghostwriterBox: Ghostwriter?
     /// The rewrite in flight was made from the text around the cursor, not from a selection.
@@ -82,6 +89,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         keyboard.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(keyboard)
         keyboard.addSubview(row)
+        keyboard.addSubview(working)
         NSLayoutConstraint.activate([
             keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -136,6 +144,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         row.frame = CGRect(x: 0, y: 0, width: keyboard.bounds.width, height: keyboard.rowBottom)
+        // Along the row's lower edge, where the keys begin.
+        working.frame = CGRect(x: 0, y: keyboard.rowBottom - WorkingLine.height, width: keyboard.bounds.width, height: WorkingLine.height)
         updateHeight()
     }
 
@@ -251,6 +261,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         keyboard.pluginRow = rowShown
         row.isHidden = !rowShown
         row.theme = theme
+        working.theme = theme
         row.showArrows = prefs.arrowKeys
         row.showHide = prefs.toolbar
         keyboard.keyBorders = prefs.keyBorders

@@ -6,6 +6,9 @@ import UIKit
 /// - `icon`: a drawn icon instead of, or before, the label.
 /// - `wide`: a suggestion: shares the row's width with the others, a third each, as Gboard's do.
 /// - `fill`: takes all the width the others leave (a status line, a search bar).
+/// - `tint`: the chip's colour (RowTint): its icon in the hue, on a faint ground of it.
+/// - `busy`: the AI is working on it: drawn as a ThinkingView, a sparkle and the words with a light passing over them.
+/// - `description`: what a reader says for an icon with no words (VoiceOver).
 struct RowItem {
     let id: String
     var label: String? = nil
@@ -14,6 +17,9 @@ struct RowItem {
     var wide = false
     var chip = false
     var fill = false
+    var tint: RowTint? = nil
+    var busy = false
+    var description: String? = nil
     var onTap: (() -> Void)? = nil
 }
 
@@ -102,7 +108,7 @@ final class PluginRowView: UIView {
     func setItems(_ next: [RowItem]) {
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all; only what a tap
         // does is brought up to date.
-        func sig(_ list: [RowItem]) -> [String] { list.map { "\($0.id)|\($0.label ?? "")|\($0.bold)" } }
+        func sig(_ list: [RowItem]) -> [String] { list.map { "\($0.id)|\($0.label ?? "")|\($0.bold)|\($0.icon.map { "\($0)" } ?? "")|\($0.tint.map { "\($0)" } ?? "")|\($0.busy)" } }
         if sig(next) == sig(items) { items = next; return }
         items = next
         views.forEach { $0.removeFromSuperview() }
@@ -122,7 +128,7 @@ final class PluginRowView: UIView {
         var widths: [CGFloat] = []
         var fixed: CGFloat = 0
         for (i, item) in items.enumerated() {
-            let margin: CGFloat = item.chip ? 8 : 0
+            let margin: CGFloat = item.chip || item.busy ? 8 : 0
             let w: CGFloat
             if item.fill { w = 0 }
             else if item.wide { w = wideWidth }
@@ -131,11 +137,14 @@ final class PluginRowView: UIView {
             fixed += w + margin
         }
         let fills = CGFloat(items.filter { $0.fill }.count)
-        let fillW = fills > 0 ? max((room - fixed) / fills, 120) : 0
+        // A filling item (the AI's words, an error) shares the row with the buttons beside it and is cut short to leave
+        // them room: a long error does not push Retry and the close button off the end.
+        let fillW = fills > 0 ? max((room - fixed) / fills, room / 3) : 0
         var x: CGFloat = 0
         for (i, item) in items.enumerated() {
             let w = item.fill ? fillW : widths[i]
-            let mx: CGFloat = item.chip ? 4 : 0, my: CGFloat = item.chip ? 6 : 0
+            let padded = item.chip || item.busy
+            let mx: CGFloat = padded ? 4 : 0, my: CGFloat = padded ? 6 : 0
             views[i].frame = CGRect(x: x + mx, y: my, width: w, height: h - my * 2)
             x += w + mx * 2
         }
@@ -143,26 +152,35 @@ final class PluginRowView: UIView {
     }
 
     private func makeView(_ item: RowItem, _ index: Int) -> UIView {
-        if let icon = item.icon, item.label == nil {
+        if item.busy {
+            let v = ThinkingView(words: item.label ?? "Thinking…", theme: theme)
+            v.isUserInteractionEnabled = item.onTap != nil
+            v.accessibilityIdentifier = item.id
+            v.addAction(UIAction { [weak self] _ in self?.tap(index) }, for: .touchUpInside)
+            return v
+        }
+        if let icon = item.icon, item.label == nil, !item.chip {
             let b = IconButton(icon)
-            b.colour = UIColor(argb: theme.toolbarIcon)
+            b.colour = item.tint?.ink(theme) ?? UIColor(argb: theme.toolbarIcon)
             b.isUserInteractionEnabled = item.onTap != nil
-            b.accessibilityLabel = item.id
+            b.accessibilityLabel = item.description ?? item.id
+            b.accessibilityIdentifier = item.id
             b.addAction(UIAction { [weak self] _ in self?.tap(index) }, for: .touchUpInside)
             return b
         }
+        // A chip: its words, its icon, or both, on a pill, in its colour where it has one.
         let b = ChipButton()
-        b.normal = item.chip ? UIColor(argb: theme.functionKey) : .clear
+        b.normal = item.chip ? item.tint?.wash(theme) ?? UIColor(argb: theme.functionKey) : .clear
         b.pressed = UIColor(argb: theme.keyPressed)
         b.icon = item.icon
-        b.iconColour = UIColor(argb: theme.toolbarIcon)
+        b.iconColour = item.tint?.ink(theme) ?? UIColor(argb: theme.toolbarIcon)
         b.label.text = item.label
         b.label.font = .systemFont(ofSize: item.wide ? 16 : 14, weight: item.bold ? .medium : .regular)
         b.label.textColor = UIColor(argb: theme.text)
         b.label.textAlignment = item.fill ? .natural : .center
         b.padX = item.wide ? 6 : 12
         b.isUserInteractionEnabled = item.onTap != nil
-        b.accessibilityLabel = item.label
+        b.accessibilityLabel = item.description ?? item.label
         b.accessibilityIdentifier = item.id
         b.addAction(UIAction { [weak self] _ in self?.tap(index) }, for: .touchUpInside)
         return b
@@ -223,7 +241,8 @@ final class PluginRowView: UIView {
         }
     }
 
-    /// A suggestion or a chip: a label (an icon before it where it has one) on a rounded ground that darkens when pressed.
+    /// A suggestion or a chip: a label (an icon before it where it has one), or an icon alone, on a rounded ground
+    /// that darkens when pressed.
     final class ChipButton: UIControl {
         let label = UILabel()
         var normal = UIColor.clear { didSet { backgroundColor = normal } }
@@ -240,6 +259,8 @@ final class PluginRowView: UIView {
             addSubview(label)
             layer.cornerRadius = 16
             layer.cornerCurve = .continuous
+            isOpaque = false
+            contentMode = .redraw
             isAccessibilityElement = true
             accessibilityTraits = .button
         }
@@ -247,9 +268,12 @@ final class PluginRowView: UIView {
         required init?(coder: NSCoder) { fatalError() }
 
         private var iconRoom: CGFloat { icon == nil ? 0 : 24 }
+        /// An icon with no words: the tool's chip, as wide as a thumb needs.
+        private var iconOnly: Bool { icon != nil && (label.text ?? "").isEmpty }
 
         override func sizeThatFits(_ size: CGSize) -> CGSize {
-            CGSize(width: ceil(label.sizeThatFits(size).width) + padX * 2 + iconRoom, height: size.height)
+            if iconOnly { return CGSize(width: 44, height: size.height) }
+            return CGSize(width: ceil(label.sizeThatFits(size).width) + padX * 2 + iconRoom, height: size.height)
         }
 
         override func layoutSubviews() {
@@ -260,7 +284,8 @@ final class PluginRowView: UIView {
 
         override func draw(_ rect: CGRect) {
             guard let icon, let ctx = UIGraphicsGetCurrentContext() else { return }
-            RowIcons.draw(icon, in: ctx, cx: padX + 9, cy: bounds.midY, size: 18, ink: iconColour)
+            if iconOnly { RowIcons.draw(icon, in: ctx, cx: bounds.midX, cy: bounds.midY, size: 20, ink: iconColour) }
+            else { RowIcons.draw(icon, in: ctx, cx: padX + 9, cy: bounds.midY, size: 18, ink: iconColour) }
         }
     }
 }

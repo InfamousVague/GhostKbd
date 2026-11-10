@@ -11,7 +11,13 @@ final class SettingsChannel: NSObject {
     private var channel: FlutterMethodChannel?
     private let group: UserDefaults = GhostShared.groupDefaults ?? .standard
     private lazy var prefs = KeyboardPrefs(store: group, secrets: GhostShared.secrets())
-    private lazy var mockingbird = Mockingbird(directory: GhostShared.filesDirectory())
+    private lazy var mockingbird: Mockingbird = {
+        let bird = Mockingbird(directory: GhostShared.filesDirectory())
+        // The dictionaries ship inside the keyboard extension: Train now reads them there to clean the samples first.
+        let plugIns = (try? FileManager.default.contentsOfDirectory(at: Bundle.main.builtInPlugInsURL ?? Bundle.main.bundleURL, includingPropertiesForKeys: nil)) ?? []
+        bird.dictDirectory = plugIns.map { $0.appendingPathComponent("dict", isDirectory: true) }.first { FileManager.default.fileExists(atPath: $0.appendingPathComponent("en.tsv").path) }
+        return bird
+    }()
     private lazy var clips = ClipHistory(store: group)
     private lazy var github = GitHubCommits(store: group)
     private var player: AVAudioPlayer?
@@ -149,7 +155,8 @@ final class SettingsChannel: NSObject {
         return ["enabled": enabled, "selected": enabled && seen, "fullAccess": enabled && group.bool(forKey: GhostShared.keyboardFullAccess)]
     }
 
-    /// Settings › AI and Mockingbird: the providers, whether one is ready, the samples and the style profile.
+    /// Settings › AI and Mockingbird: the providers, whether one is ready, the samples and the style profile
+    /// (`outdated`: trained before slips were told from habits, so due a retrain).
     private func aiState() -> [String: Any?] {
         let samples = mockingbird.samples()
         let profile = mockingbird.profile()
@@ -159,7 +166,7 @@ final class SettingsChannel: NSObject {
             "samples": samples.count,
             "chatSamples": samples.filter { $0.chat }.count,
             "writingSamples": samples.filter { !$0.chat }.count,
-            "profile": profile.map { ["text": $0.text, "at": $0.at, "samples": $0.samples, "provider": $0.provider, "model": $0.model] as [String: Any] },
+            "profile": profile.map { ["text": $0.text, "at": $0.at, "samples": $0.samples, "provider": $0.provider, "model": $0.model, "outdated": mockingbird.outdated($0)] as [String: Any] },
             "training": mockingbird.training,
             "error": mockingbird.lastError,
             "ghostInstalled": false,
@@ -167,7 +174,7 @@ final class SettingsChannel: NSObject {
         ]
     }
 
-    /// Settings › Adaptive keys: how many letters have learned aims, and how many mistakes it remembers.
+    /// Settings › Adaptive keys: how many letters are being nudged now, and how many mistakes it remembers.
     private func adaptiveState(_ model: AdaptiveKeys) -> [String: Any] {
         var counts: [String: Int] = [:]
         for m in model.mistakes { counts["\(m.pressed)→\(m.meant)", default: 0] += 1 }

@@ -43,4 +43,59 @@ extension KeyboardUITests {
         sleep(1)
         shot("02-developer")
     }
+
+    /// A long press on the developer page's = key, its family showing.
+    func testShots2_LongPress() {
+        openField()
+        key("shift")
+        type("if count ")
+        key("{ }")
+        shotLater("03-longpress", after: 1.2)
+        key("=", hold: 2.4)
+        sleep(1)
+    }
+
+    /// A glide across the letters, caught part-way.
+    func testShots3_Swipe() {
+        openField()
+        type("glide to ")
+        let from = point(row: -1) { $0.text == "t" }!, mid = point(row: -1) { $0.text == "y" }!, to = point(row: -1) { $0.text == "p" }!
+        shotLater("04-swipe", after: 1.0)
+        let a = origin.withOffset(CGVector(dx: from.x, dy: from.y)), b = origin.withOffset(CGVector(dx: mid.x, dy: mid.y + 6)), c = origin.withOffset(CGVector(dx: to.x, dy: to.y))
+        _ = b
+        a.press(forDuration: 0.05, thenDragTo: c, withVelocity: 90, thenHoldForDuration: 0.6)
+        sleep(1)
+    }
+
+    /// The Retro keycaps with the number row, a few keys just pressed so the backlight shows.
+    func testShots4_Retro() {
+        set(base + "&plugins=autocorrect,swipe,clipboard,undo,themes,ghostwriter,rewrite&theme_preset=retro&number_row=true&backlight=true")
+        openField()
+        shot("05-retro")
+        set(base)
+    }
+
+    /// A request written where the person types, and the answer in its place.
+    func testShots5_Assistant() {
+        openField()
+        key("{ }"); key("<¦>"); key("<¦>"); key("ABC")
+        type("reply that i am running ten minutes late")
+        sleep(1)
+        shot("06-request")
+        key("enter")
+        sleep(8)
+        shot("07-answer")
+    }
+
+    /// The app's own pages: Look & feel.
+    func testShots6_Settings() {
+        let app = ghost
+        app.launch()
+        let row = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Look & feel")).firstMatch
+        let other = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Look & feel")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 8) || other.exists, app.debugDescription)
+        (row.exists ? row : other).tap()
+        sleep(2)
+        shot("08-look-and-feel")
+    }
 }

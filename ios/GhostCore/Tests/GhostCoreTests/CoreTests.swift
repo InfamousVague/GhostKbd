@@ -218,7 +218,7 @@ final class PrefsTests: XCTestCase {
         XCTAssertEqual(prefs.aiKey("openai"), ""); XCTAssertEqual(prefs.githubToken, ""); XCTAssertEqual(prefs.learnedWords, [])
         XCTAssertEqual(KeyboardPrefs.defaultKeys.first, "theme")
         XCTAssertEqual(KeyboardPrefs.defaultKeys.count, KeyboardPrefs.defaults.count)
-        XCTAssertEqual(KeyboardPrefs.defaultKeys.count, 65 + 16)
+        XCTAssertEqual(KeyboardPrefs.defaultKeys.count, 66 + 16)
         XCTAssertEqual(Array(KeyboardPrefs.defaultKeys.suffix(2)), ["ai_key_custom", "ai_model_custom"])
         let all = prefs.all()
         XCTAssertEqual(Set(all.keys), Set(KeyboardPrefs.defaultKeys))
@@ -323,63 +323,104 @@ final class PrefsTests: XCTestCase {
 }
 
 final class AdaptiveKeysTests: XCTestCase {
-    func testMinSamplesGate() {
-        let keys = AdaptiveKeys(store: MemoryPrefsStore())
-        for _ in 0..<(AdaptiveKeys.minSamples - 1) { keys.hit("a", dx: 0.2, dy: -0.1) }
-        XCTAssertEqual(keys.offset("a").dx, 0); XCTAssertEqual(keys.learnedKeys(), 0)
-        keys.hit("A", dx: 0.2, dy: -0.1)
-        XCTAssertEqual(keys.offset("a").dx, 0.2, accuracy: 0.0001); XCTAssertEqual(keys.offset("A").dy, -0.1, accuracy: 0.0001)
-        XCTAssertEqual(keys.learnedKeys(), 1)
-        XCTAssertEqual(keys.offset("b").dx, 0)
-    }
+    /// A clock the test moves.
+    final class Clock { var now = Date(timeIntervalSince1970: 1_800_000_000) }
 
-    func testMaxShiftClampAndRejects() {
+    func testCleanTouchesMoveNothing() {
         let keys = AdaptiveKeys(store: MemoryPrefsStore())
-        for _ in 0..<40 { keys.hit("k", dx: 1.2, dy: -1.2) }
-        XCTAssertEqual(keys.offset("k").dx, AdaptiveKeys.maxShift); XCTAssertEqual(keys.offset("k").dy, -AdaptiveKeys.maxShift)
+        for _ in 0..<100 { keys.hit("a", dx: 0.4, dy: -0.4) }
+        // However far off centre, a touch that stood is no slip: the key is counted, not moved.
+        XCTAssertEqual(keys.aims()["a"], AdaptiveKeys.Aim(dx: 0, dy: 0, n: 100))
+        XCTAssertEqual(keys.offset("a").dx, 0); XCTAssertEqual(keys.learnedKeys(), 0)
         keys.hit("z", dx: 1.6, dy: 0); keys.hit("z", dx: .nan, dy: 0); keys.hit("1", dx: 0.1, dy: 0.1)
         XCTAssertTrue(keys.aims()["z"] == nil); XCTAssertTrue(keys.aims()["1"] == nil)
     }
 
-    func testMistakeWeight() {
+    func testSlipsMoveAKeySlowly() {
         let keys = AdaptiveKeys(store: MemoryPrefsStore())
-        keys.mistake(pressed: "W", meant: "e", dx: -0.4, dy: 0.1, x: 0.25, y: 0.1)
-        XCTAssertEqual(keys.aims()["e"]?.n, AdaptiveKeys.mistakeWeight)
-        XCTAssertEqual(keys.aims()["e"]!.dx, -0.4, accuracy: 0.0001)
+        keys.mistake(pressed: "W", meant: "e", dx: -0.6, dy: 0.1, x: 0.25, y: 0.1)
+        XCTAssertEqual(keys.aims()["e"]?.n, 1)
+        XCTAssertEqual(keys.aims()["e"]!.dx, -0.6 * AdaptiveKeys.learn, accuracy: 0.0001)
         XCTAssertEqual(keys.mistakes, [AdaptiveKeys.Mistake(x: 0.25, y: 0.1, pressed: "w", meant: "e")])
-        // Five mistakes are fifteen touches: enough for the aim to count.
-        for _ in 0..<4 { keys.mistake(pressed: "w", meant: "e", dx: -0.4, dy: 0.1, x: 0.25, y: 0.1) }
-        XCTAssertEqual(keys.offset("e").dx, -AdaptiveKeys.maxShift)
-        for _ in 0..<500 { keys.mistake(pressed: "w", meant: "e", dx: 0, dy: 0, x: 0, y: 0) }
+        // One slip is no nudge, and neither are fourteen touches: the key needs minSamples before it has one.
+        XCTAssertEqual(keys.offset("e").dx, 0)
+        for _ in 0..<(AdaptiveKeys.minSamples - 1) { keys.hit("E", dx: 0, dy: 0) }
+        XCTAssertEqual(keys.offset("e").dx, 0); XCTAssertEqual(keys.learnedKeys(), 0)   // 0.018 of a key: under minShift
+        // About ten slips before it can be felt.
+        for _ in 0..<9 { keys.mistake(pressed: "w", meant: "e", dx: -0.6, dy: 0.1, x: 0.25, y: 0.1) }
+        XCTAssertEqual(keys.offset("e").dx, -0.6 * (1 - pow(1 - AdaptiveKeys.learn, 10)), accuracy: 0.002)
+        XCTAssertLessThan(keys.offset("e").dx, -0.1); XCTAssertEqual(keys.learnedKeys(), 1)
+        // However many slips, at most maxShift.
+        for _ in 0..<500 { keys.mistake(pressed: "w", meant: "e", dx: -1.2, dy: 1.2, x: 0, y: 0) }
+        XCTAssertEqual(keys.offset("e").dx, -AdaptiveKeys.maxShift); XCTAssertEqual(keys.offset("E").dy, AdaptiveKeys.maxShift)
         XCTAssertEqual(keys.mistakes.count, AdaptiveKeys.maxMistakes)
     }
 
-    func testRunningMean() {
+    func testCleanTouchesLetAKeyBack() {
         let keys = AdaptiveKeys(store: MemoryPrefsStore())
-        keys.hit("a", dx: 0.3, dy: 0); keys.hit("a", dx: 0.1, dy: 0)
-        XCTAssertEqual(keys.aims()["a"]!.dx, 0.2, accuracy: 0.0001)
+        for _ in 0..<30 { keys.mistake(pressed: "s", meant: "a", dx: 0.6, dy: 0, x: 0.1, y: 0.5) }
+        let nudged = keys.aims()["a"]!.dx
+        XCTAssertGreaterThan(nudged, 0.3)
+        // A touch outside the key's own outline only counted because of the nudge: it says nothing either way.
+        keys.hit("a", dx: 0.7, dy: 0)
+        XCTAssertEqual(keys.aims()["a"]!.dx, nudged)
+        keys.hit("a", dx: 0.2, dy: 0.1)
+        XCTAssertEqual(keys.aims()["a"]!.dx, nudged * (1 - AdaptiveKeys.relax), accuracy: 0.000001)
+        // Typing cleanly hands the letter back.
+        for _ in 0..<2000 { keys.hit("a", dx: 0, dy: 0) }
+        XCTAssertEqual(keys.offset("a").dx, 0); XCTAssertEqual(keys.learnedKeys(), 0)
+    }
+
+    func testNudgesHalveWithTime() {
+        let store = MemoryPrefsStore()
+        let clock = Clock()
+        let keys = AdaptiveKeys(store: store, clock: { clock.now })
+        for _ in 0..<20 { keys.mistake(pressed: "s", meant: "a", dx: 0.5, dy: -0.5, x: 0.1, y: 0.5) }
+        let nudged = keys.aims()["a"]!
+        keys.save()
+        // Checked at most hourly.
+        clock.now += 1800
+        keys.save()
+        XCTAssertEqual(keys.aims()["a"], nudged)
+        clock.now += Double(AdaptiveKeys.halfLifeDays) * 86_400 - 1800
+        keys.save()
+        XCTAssertEqual(keys.aims()["a"]!.dx, nudged.dx / 2, accuracy: 0.0001); XCTAssertEqual(keys.aims()["a"]!.dy, nudged.dy / 2, accuracy: 0.0001)
+        XCTAssertEqual(keys.aims()["a"]?.n, 20)
+        // The keyboard not running is time all the same: the next one to load the model ages it.
+        clock.now += Double(AdaptiveKeys.halfLifeDays) * 86_400
+        let later = AdaptiveKeys(store: store, clock: { clock.now })
+        XCTAssertEqual(later.aims()["a"]!.dx, nudged.dx / 4, accuracy: 0.0001)
+        // A clock set back ages nothing.
+        clock.now -= 400 * 86_400
+        later.save()
+        XCTAssertEqual(later.aims()["a"]!.dx, nudged.dx / 4, accuracy: 0.0001)
     }
 
     func testSaveLoadRoundTrip() {
         let store = MemoryPrefsStore()
-        let keys = AdaptiveKeys(store: store)
-        keys.save()
-        XCTAssertNil(store.object(forKey: AdaptiveKeys.storeKey))   // nothing changed, nothing written
+        let clock = Clock()
+        let keys = AdaptiveKeys(store: store, clock: { clock.now })
         for _ in 0..<20 { keys.hit("a", dx: 0.2, dy: -0.1) }
-        keys.mistake(pressed: "s", meant: "a", dx: 0.5, dy: 0, x: 0.1, y: 0.5)
+        for _ in 0..<12 { keys.mistake(pressed: "s", meant: "a", dx: 0.5, dy: 0, x: 0.1, y: 0.5) }
         keys.save()
-        let json = store.object(forKey: AdaptiveKeys.storeKey) as? String
-        XCTAssertNotNil(json)
-        let again = AdaptiveKeys(store: store)
-        XCTAssertEqual(again.aims()["a"]?.n, 23)
+        let json = Json.object(store.object(forKey: AdaptiveKeys.storeKey) as? String ?? "")
+        XCTAssertEqual(json?["at"] as? Int, 1_800_000_000_000)
+        let again = AdaptiveKeys(store: store, clock: { clock.now })
+        XCTAssertEqual(again.aims()["a"]?.n, 32)
         XCTAssertEqual(again.aims()["a"]!.dx, keys.aims()["a"]!.dx, accuracy: 0.000001)
-        XCTAssertEqual(again.offset("a").dy, keys.offset("a").dy, accuracy: 0.000001)
+        XCTAssertEqual(again.offset("a").dx, keys.offset("a").dx, accuracy: 0.000001)
         XCTAssertEqual(again.mistakes, keys.mistakes)
-        // Android's JSON reads as it is.
+        // Nothing changed, nothing written.
+        store.removeObject(forKey: AdaptiveKeys.storeKey)
+        again.save()
+        XCTAssertNil(store.object(forKey: AdaptiveKeys.storeKey))
+        // Android's JSON reads as it is; a model from before nudges aged starts its clock now.
         let android = MemoryPrefsStore([AdaptiveKeys.storeKey: "{\"aims\":{\"q\":[0.25,-0.5,30]},\"mistakes\":[[0.1,0.2,\"w\",\"q\"]]}"])
-        let ported = AdaptiveKeys(store: android)
+        let ported = AdaptiveKeys(store: android, clock: { clock.now })
         XCTAssertEqual(ported.offset("q").dx, 0.25); XCTAssertEqual(ported.offset("q").dy, -AdaptiveKeys.maxShift)
         XCTAssertEqual(ported.mistakes.first?.meant, "q")
+        ported.save()
+        XCTAssertEqual(Json.object(android.object(forKey: AdaptiveKeys.storeKey) as? String ?? "")?["at"] as? Int, 1_800_000_000_000)
         again.reset()
         XCTAssertNil(store.object(forKey: AdaptiveKeys.storeKey)); XCTAssertTrue(again.aims().isEmpty)
     }
@@ -390,10 +431,13 @@ final class AdaptiveKeysTests: XCTestCase {
         keys.importAim("a", dx: 0.1, dy: 0.1, samples: 50)
         XCTAssertEqual(keys.aims()["a"]!.dx, 0.2, accuracy: 0.0001); XCTAssertEqual(keys.aims()["a"]?.n, 100)
         keys.importSlip(pressed: "w", meant: "e", count: 2, x: 0.3, y: 2)
-        XCTAssertEqual(keys.aims()["e"]?.n, 6); XCTAssertEqual(keys.aims()["e"]!.dx, -0.6, accuracy: 0.0001)
+        XCTAssertEqual(keys.aims()["e"]?.n, 2); XCTAssertEqual(keys.aims()["e"]!.dx, -0.6 * (1 - pow(1 - AdaptiveKeys.learn, 2)), accuracy: 0.0001)
         XCTAssertEqual(keys.mistakes.count, 2); XCTAssertEqual(keys.mistakes[0].y, 1)
         keys.importSlip(pressed: "1", meant: "e", count: 2, x: nil, y: nil)
-        XCTAssertEqual(keys.aims()["e"]?.n, 6)
+        XCTAssertEqual(keys.aims()["e"]?.n, 2)
+        // A file's count teaches at most sixty slips' worth.
+        keys.importSlip(pressed: "o", meant: "p", count: 500, x: nil, y: nil)
+        XCTAssertEqual(keys.aims()["p"]?.n, 60)
     }
 }
 

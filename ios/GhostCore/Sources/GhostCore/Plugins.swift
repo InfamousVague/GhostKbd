@@ -10,8 +10,11 @@ import Foundation
 /// - `swipe` (Autocorrect.swipe): glide across the letters to spell a word.
 /// - `passwords`: the autofill service's logins in the plugin row (Android).
 /// - `gifs`: search GIPHY from the plugin row and send a GIF.
-/// - `markdown`, `terminal`, `clipboard`, `undo`, `incognito`: buttons in the plugin row; markdown and terminal show
-///   in the apps they suit (AppContext) unless set to everywhere.
+/// - `markdown`, `terminal`, `clipboard`, `incognito`: buttons in the plugin row; markdown and terminal show in the
+///   apps they suit (AppContext) unless set to everywhere.
+/// - `undo`: Undo and Redo arrows in the row. Every edit the keyboard makes is kept in a history for the field in
+///   hand and played back (Android: EditHistory, FieldEditor; iOS: the extension's TextEditor journal). Android asks
+///   the app to undo where it has nothing of its own; iOS has no way to ask.
 /// - `emoji`: an emoji panel and search; :shortcodes and emoji for the word typed in the row.
 /// - `ghostmd`: [[note]] and #tag completion and Ghost.md's blocks in Ghost.md.
 /// - `mockingbird` (Mockingbird, AiClient): learns how you write and text, as a style profile the AI follows;

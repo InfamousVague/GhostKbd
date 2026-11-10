@@ -1,25 +1,27 @@
 # Submitting Ghost Keyboard for iOS
 
-Nothing below has been done yet: no identifiers registered, nothing uploaded. Steps 1 to 3 create things in the Apple
-Developer account (Team `F6ZAL7ANAD`) and App Store Connect, so they are Matt's to do or to approve.
+Step 1 is done (2026-11-10). Nothing has been uploaded, and the app record (step 2) does not exist yet: steps 2 to 4
+create things in App Store Connect, so they are Matt's to do or to approve.
 
-## 1. Register the identifiers (developer.apple.com › Certificates, IDs & Profiles)
+## 1. The identifiers and profiles (done)
 
-| Kind | Identifier | Capabilities |
+Registered under Team `F6ZAL7ANAD` at developer.apple.com › Certificates, IDs & Profiles:
+
+| Kind | Identifier | Notes |
 | --- | --- | --- |
 | App Group | `group.com.infamousvague.ghostkbd` | |
-| App ID | `com.infamousvague.ghostkbd` | App Groups (the group above), Keychain Sharing |
-| App ID | `com.infamousvague.ghostkbd.keyboard` | App Groups (the group above), Keychain Sharing |
+| App ID | `com.infamousvague.ghostkbd` | App Groups, with the group above assigned |
+| App ID | `com.infamousvague.ghostkbd.keyboard` | App Groups, with the group above assigned |
+| Profile (App Store) | `Ghost Keyboard App Store` | for the app, with the Apple Distribution certificate |
+| Profile (App Store) | `Ghost Keyboard Extension App Store` | for the keyboard extension |
 
-Or let Xcode do all three: open `ios/Runner.xcworkspace`, select each of the Runner and GhostKeyboard targets ›
-Signing & Capabilities, with "Automatically manage signing" on and the team chosen. (From the command line the same
-happens with `-allowProvisioningUpdates`, below.)
+Keychain sharing needs nothing registered. The two profiles are installed on this Mac
+(`~/Library/Developer/Xcode/UserData/Provisioning Profiles`); on another Mac, download them from the portal and open
+them. They expire with the distribution certificate (2027-04-14).
 
-This is the only thing between the branch and a signed archive. Today a signed archive fails with:
-
-    Provisioning profile "iOS Team Provisioning Profile: *" doesn't support the group.com.infamousvague.ghostkbd App Group.
-
-An unsigned release archive builds (`CODE_SIGNING_ALLOWED=NO`), so the code and project are ready.
+Signing is by those named profiles (`ios/AppStore.xcconfig`), not Xcode's automatic signing: `xcodebuild
+-allowProvisioningUpdates` with the API key is refused ("Authentication failed: … bearer token") although the same key
+works against the App Store Connect API, and Xcode has no account signed in on this Mac.
 
 ## 2. Create the app record (App Store Connect › Apps › +)
 
@@ -33,19 +35,30 @@ flutter build ios --release --no-codesign      # compiles the Dart, writes ios/F
 ```
 
 ```bash
-cd ios && xcodebuild archive -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=iOS' -archivePath ../build/GhostKeyboard.xcarchive -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+cd ios && xcodebuild archive -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=iOS' -archivePath ../build/GhostKeyboard.xcarchive -xcconfig AppStore.xcconfig
 ```
 
 ```bash
-cd ios && xcodebuild -exportArchive -archivePath ../build/GhostKeyboard.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath ../build/ipa -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+cd ios && xcodebuild -exportArchive -archivePath ../build/GhostKeyboard.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath ../build/ipa
 ```
 
-The key variables come from `~/.config/mattssoftware/signing/asc-api.env` (use whatever names that file defines).
-`ios/ExportOptions.plist` is set to `app-store-connect` with `destination: upload`, so the export step uploads the
-build to App Store Connect; change `destination` to `export` to get an `.ipa` without uploading.
+That leaves `build/ipa/Ghost Keyboard.ipa`, signed for the App Store, and uploads nothing (`ExportOptions.plist` has
+`destination: export`). Both commands have been run and succeed; the archive's app and extension carry the App Group
+and the shared Keychain group.
 
-The version and build number come from `pubspec.yaml` (`version: 0.9.0+59`): the app and the keyboard extension must
-carry the same pair, and both read it from there.
+To check it against App Store Connect, and then to send it (each needs the app record of step 2; the key comes from
+`~/.config/mattssoftware/signing/asc-api.env`):
+
+```bash
+~/Development/Apps/ghost-md-app-store-pack/tools/altool.sh validate "build/ipa/Ghost Keyboard.ipa" ios
+```
+
+```bash
+~/Development/Apps/ghost-md-app-store-pack/tools/altool.sh upload "build/ipa/Ghost Keyboard.ipa" ios
+```
+
+The version and build number come from `pubspec.yaml`: the app and the keyboard extension must carry the same pair,
+and both read it from there.
 
 ## 4. Fill in App Store Connect
 

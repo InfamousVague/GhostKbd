@@ -29,6 +29,7 @@ extension KeyboardViewController {
     /// for the word being typed (or the word a fix replaced, to keep it); and with nothing being typed, the plugins'
     /// own buttons.
     func refreshRow() {
+        updateWorking()
         guard !row.isHidden else { return }
         var items: [RowItem] = []
         if let notice {
@@ -37,16 +38,16 @@ extension KeyboardViewController {
             return
         }
         if showingClips {
-            items.append(RowItem(id: "clips-back", icon: .back) { [weak self] in self?.showingClips = false; self?.scheduleRow() })
+            items.append(RowItem(id: "clips-back", icon: .back, description: "Back") { [weak self] in self?.showingClips = false; self?.scheduleRow() })
             let all = clips.all()
             if all.isEmpty { items.append(RowItem(id: "clips-none", label: "Nothing copied yet")) }
             for clip in all { items.append(RowItem(id: "clip-\(clip.at)", label: preview(clip.text), chip: true) { [weak self] in self?.pasteClip(clip.text) }) }
-            if !all.isEmpty { items.append(RowItem(id: "clips-clear", label: "Clear") { [weak self] in self?.clips.clear(); self?.scheduleRow() }) }
+            if !all.isEmpty { items.append(RowItem(id: "clips-clear", icon: .trash, chip: true, description: "Clear clipboard history") { [weak self] in self?.clips.clear(); self?.scheduleRow() }) }
             row.setItems(items)
             return
         }
         if showingRewrite {
-            items.append(RowItem(id: "rw-back", icon: .back) { [weak self] in self?.showingRewrite = false; self?.scheduleRow() })
+            items.append(RowItem(id: "rw-back", icon: .back, description: "Back") { [weak self] in self?.showingRewrite = false; self?.scheduleRow() })
             for mode in Rewrite.modes(prefs) {
                 items.append(RowItem(id: "rw-\(mode.id)-\(mode.label)", label: mode.label, chip: true) { [weak self] in self?.rewriteWith(mode) })
             }
@@ -103,18 +104,18 @@ extension KeyboardViewController {
                 self?.flash("Typing works as it is. AI, clipboard history, haptics and your settings need Allow Full Access.")
             })
         } else if aiPlugins, let why = aiBlocked() {
-            items.append(RowItem(id: "ai-off-\(why)", label: "✦ \(why)", chip: true) { [weak self] in self?.onOpenSettings() })
+            items.append(RowItem(id: "ai-off-\(why)", label: why, icon: .sparkle, chip: true) { [weak self] in self?.onOpenSettings() })
         }
         // Mockingbird: the selection rewritten as you.
         if Plugins.isOn(prefs, Plugins.mockingbird), aiAllowed(), let selected = editor.selected, !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            items.append(RowItem(id: "voice", label: "✦ In my voice", bold: true, chip: true) { [weak self] in self?.rewriteSelection(selected) })
+            items.append(RowItem(id: "voice", label: "In my voice", icon: .feather, bold: true, chip: true, tint: .ai) { [weak self] in self?.rewriteSelection(selected) })
         }
         // Rewrite: the selection fixed, shortened, restyled or translated.
         if Plugins.isOn(prefs, Plugins.rewrite), aiAllowed(), fieldHasText() {
-            items.append(RowItem(id: "rewrite", label: "✦ Rewrite", bold: editor.hasSelection, chip: true) { [weak self] in self?.showingRewrite = true; self?.scheduleRow() })
+            items.append(RowItem(id: "rewrite", label: "Rewrite", icon: .wand, bold: editor.hasSelection, chip: true, tint: .ai) { [weak self] in self?.showingRewrite = true; self?.scheduleRow() })
         }
         if Plugins.isOn(prefs, Plugins.incognito) {
-            items.append(RowItem(id: "incognito-\(incognito)", label: incognito ? "Incognito on" : "Incognito", bold: incognito, chip: true) { [weak self] in
+            items.append(RowItem(id: "incognito-\(incognito)", label: incognito ? "Incognito on" : nil, icon: .incognito, bold: incognito, chip: true, description: "Incognito") { [weak self] in
                 guard let self else { return }
                 self.incognitoOn.toggle(); self.scheduleRow()
             })
@@ -122,45 +123,45 @@ extension KeyboardViewController {
         if Plugins.isOn(prefs, Plugins.clipboard), !incognito, hasFullAccess, UIPasteboard.general.changeCount != seenPasteboard, UIPasteboard.general.hasStrings {
             // Something new was copied. What it is stays unread until it is asked for: iOS tells the person each time
             // a keyboard reads the pasteboard.
-            items.append(RowItem(id: "fresh-\(UIPasteboard.general.changeCount)", label: "Paste", bold: true, chip: true) { [weak self] in self?.pasteFresh() })
+            items.append(RowItem(id: "fresh-\(UIPasteboard.general.changeCount)", label: "Paste", icon: .clipboard, bold: true, chip: true, tint: .clipboard) { [weak self] in self?.pasteFresh() })
         }
         if Plugins.isOn(prefs, Plugins.terminal) && prefs.terminalEverywhere {
             items.append(RowItem(id: "esc", label: "Esc", chip: true) { [weak self] in self?.editor.insert("\u{1B}") })
             items.append(RowItem(id: "tab", label: "Tab", chip: true) { [weak self] in self?.editor.insert("\t") })
             items.append(RowItem(id: "ctrl-\(ctrlOn)", label: "Ctrl", bold: ctrlOn, chip: true) { [weak self] in self?.ctrlOn.toggle(); self?.scheduleRow() })
             items.append(RowItem(id: "alt-\(altOn)", label: "Alt", bold: altOn, chip: true) { [weak self] in self?.altOn.toggle(); self?.scheduleRow() })
-            for (id, label) in [("left", "←"), ("up", "↑"), ("down", "↓"), ("right", "→")] {
-                items.append(RowItem(id: id, label: label, chip: true) { [weak self] in self?.arrow(id) })
+            for (id, icon, says) in [("left", RowIcon.caretLeft, "Left"), ("up", .caretUp, "Up"), ("down", .caretDown, "Down"), ("right", .caretRight, "Right")] {
+                items.append(RowItem(id: id, icon: icon, chip: true, description: says) { [weak self] in self?.arrow(id) })
             }
             for c in ["|", "~", "/", "-", "&&", ">"] { items.append(RowItem(id: "t\(c)", label: c, chip: true) { [weak self] in self?.editor.insert(c) }) }
         }
         if Plugins.isOn(prefs, Plugins.markdown) && prefs.markdownEverywhere {
-            items.append(RowItem(id: "md-b", label: "B", bold: true, chip: true) { [weak self] in self?.wrap("**", "**") })
-            items.append(RowItem(id: "md-i", label: "I", chip: true) { [weak self] in self?.wrap("_", "_") })
-            items.append(RowItem(id: "md-s", label: "S̶", chip: true) { [weak self] in self?.wrap("~~", "~~") })
-            items.append(RowItem(id: "md-code", label: "</>", chip: true) { [weak self] in self?.wrap("`", "`") })
-            items.append(RowItem(id: "md-block", label: "```", chip: true) { [weak self] in self?.wrap("```\n", "\n```") })
-            items.append(RowItem(id: "md-link", label: "Link", chip: true) { [weak self] in self?.link() })
-            items.append(RowItem(id: "md-h", label: "#", chip: true) { [weak self] in self?.linePrefix("# ") })
-            items.append(RowItem(id: "md-list", label: "•", chip: true) { [weak self] in self?.linePrefix("- ") })
-            items.append(RowItem(id: "md-task", label: "☐", chip: true) { [weak self] in self?.linePrefix("- [ ] ") })
-            items.append(RowItem(id: "md-quote", label: "❝", chip: true) { [weak self] in self?.linePrefix("> ") })
+            items.append(RowItem(id: "md-b", icon: .bold, chip: true, description: "Bold") { [weak self] in self?.wrap("**", "**") })
+            items.append(RowItem(id: "md-i", icon: .italic, chip: true, description: "Italic") { [weak self] in self?.wrap("_", "_") })
+            items.append(RowItem(id: "md-s", icon: .strike, chip: true, description: "Strikethrough") { [weak self] in self?.wrap("~~", "~~") })
+            items.append(RowItem(id: "md-code", icon: .code, chip: true, description: "Code") { [weak self] in self?.wrap("`", "`") })
+            items.append(RowItem(id: "md-block", icon: .codeBlock, chip: true, description: "Code block") { [weak self] in self?.wrap("```\n", "\n```") })
+            items.append(RowItem(id: "md-link", icon: .link, chip: true, description: "Link") { [weak self] in self?.link() })
+            items.append(RowItem(id: "md-h", icon: .heading, chip: true, description: "Heading") { [weak self] in self?.linePrefix("# ") })
+            items.append(RowItem(id: "md-list", icon: .list, chip: true, description: "List") { [weak self] in self?.linePrefix("- ") })
+            items.append(RowItem(id: "md-task", icon: .task, chip: true, description: "Task") { [weak self] in self?.linePrefix("- [ ] ") })
+            items.append(RowItem(id: "md-quote", icon: .quote, chip: true, description: "Quote") { [weak self] in self?.linePrefix("> ") })
         }
         if Plugins.isOn(prefs, Plugins.undo) {
             // iOS gives a keyboard no undo key to press: these take back, and put back, what this keyboard typed.
-            items.append(RowItem(id: "undo", icon: .back, chip: true) { [weak self] in
+            items.append(RowItem(id: "undo", icon: .undo, chip: true, description: "Undo") { [weak self] in
                 guard let self else { return }
                 if !self.editor.undo() { self.flash("Nothing of the keyboard’s to undo") }
                 self.lastCorrection = nil; self.lastSwipe = nil; self.updateShift(); self.scheduleRow()
             })
-            items.append(RowItem(id: "redo", icon: .forward, chip: true) { [weak self] in
+            items.append(RowItem(id: "redo", icon: .redo, chip: true, description: "Redo") { [weak self] in
                 guard let self else { return }
                 if !self.editor.redo() { self.flash("Nothing to redo") }
                 self.updateShift(); self.scheduleRow()
             })
         }
         if Plugins.isOn(prefs, Plugins.clipboard), !incognito {
-            items.append(RowItem(id: "clips", label: "Clipboard", chip: true) { [weak self] in self?.openClips() })
+            items.append(RowItem(id: "clips", icon: .clipboard, chip: true, tint: .clipboard, description: "Clipboard") { [weak self] in self?.openClips() })
         }
         return items
     }

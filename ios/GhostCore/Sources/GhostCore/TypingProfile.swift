@@ -26,14 +26,15 @@ public enum TypingProfile {
     private static func round3(_ f: CGFloat) -> Double { (Double(f) * 1000).rounded() / 1000 }
 
     /// This keyboard's learning as a profile (pretty-printed JSON). Message samples only with `samples`, since they
-    /// are the person's words.
+    /// are the person's words; they go out as Mockingbird's AI reads them, with the obvious slips cleaned out, and as
+    /// typed beside that where the two differ. Waits for that cleaning, so not for the main thread.
     public static func export(prefs: KeyboardPrefs, adaptive: AdaptiveKeys, mockingbird: Mockingbird, samples: Bool, now: Date = Date()) -> String {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var o: [String: Any] = [
             "format": format, "version": version,
             "created": iso.string(from: now),
-            "source": ["app": "Ghost Keyboard"],
+            "source": ["app": Retrain.ownApp],
             "layout": "qwerty",
         ]
         var keys: [String: Any] = [:]
@@ -45,9 +46,18 @@ public enum TypingProfile {
         let learned = prefs.learnedWords
         if !learned.isEmpty { o["words"] = ["learned": learned.sorted()] }
         var style: [String: Any] = [:]
-        if let p = mockingbird.profile() { style["profile"] = p.text }
+        // The profile goes with the version of the style rules it was trained under, so an old one stays due its retrain.
+        if let p = mockingbird.profile() {
+            style["profile"] = p.text
+            style["profileVersion"] = Retrain.exportVersion(version: p.version, provider: p.provider, model: p.model)
+        }
         if samples {
-            let a: [[String: Any]] = mockingbird.samples().map { ["text": $0.text, "kind": $0.chat ? "chat" : "writing"] }
+            let a: [[String: Any]] = mockingbird.cleanedSamples(prefs: prefs).map {
+                var s: [String: Any] = ["text": $0.text, "kind": $0.chat ? "chat" : "writing"]
+                // Where a slip was repaired, the sample as typed goes too: the keyboard that takes it in judges for itself.
+                if let raw = $0.raw { s["typed"] = raw }
+                return s
+            }
             if !a.isEmpty { style["samples"] = a }
         }
         if !style.isEmpty { o["style"] = style }
@@ -123,14 +133,19 @@ public enum TypingProfile {
             else {
                 let profile = Json.str(style["profile"])
                 if !profile.isBlank {
-                    mockingbird.importProfile(profile, source: "Imported" + (source.map { " from \($0)" } ?? ""))
+                    // Ghost Keyboard's own export says which style rules trained the profile; one that says nothing is from before there were two.
+                    let app = (o["source"] as? [String: Any]).map { Json.str($0["app"]) }
+                    let version = Retrain.importVersion(sourceApp: app, fileVersion: style["profileVersion"] == nil ? nil : (Json.int(style["profileVersion"]) ?? 1))
+                    mockingbird.importProfile(profile, source: Retrain.importedBy(source), version: version)
                     lines.append("Style profile replaced")
                 }
                 if let a = style["samples"] as? [Any] {
                     var n = 0
                     for item in a {
                         guard let s = item as? [String: Any] else { continue }
-                        let t = Json.str(s["text"])
+                        // As typed where the file has it: this keyboard cleans a sample itself, against this person's other samples.
+                        let typed = Json.str(s["typed"])
+                        let t = typed.isBlank ? Json.str(s["text"]) : typed
                         if t.isBlank { continue }
                         mockingbird.recordImported(t, chat: Json.str(s["kind"]) == "chat")
                         n += 1

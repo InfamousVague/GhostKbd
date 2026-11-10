@@ -181,6 +181,10 @@ public final class KeyboardPrefs {
     /// Cursor control: sliding left from backspace deletes a word at a time.
     public var deleteSwipe: Bool { bool(KeyboardPrefs.deleteSwipe) }
 
+    /// Android only (space under the keys for Android's own buttons: "auto", "more" or "none"); kept here so the
+    /// settings the two platforms share have the same keys. iOS draws its own strip under the keyboard.
+    public var bottomSpace: String { string(KeyboardPrefs.bottomSpace) }
+
     /// Typing stats: speed and accuracy counted on this phone.
     public var typingStats: Bool { bool(KeyboardPrefs.typingStats) }
 
@@ -393,6 +397,7 @@ public final class KeyboardPrefs {
     public static let wideLayout = "wide_layout"
     public static let oneHanded = "one_handed"
     public static let deleteSwipe = "delete_swipe"
+    public static let bottomSpace = "bottom_space"
     public static let typingStats = "typing_stats"
     public static let rewriteLanguage = "rewrite_language"
     /// The live preview at the foot of Settings is open.
@@ -467,6 +472,7 @@ public final class KeyboardPrefs {
             (wideLayout, "split"),
             (oneHanded, "off"),
             (deleteSwipe, true),
+            (bottomSpace, "auto"),
             (typingStats, true),
             (rewriteLanguage, "Spanish"),
             (previewOpen, false),

@@ -987,7 +987,19 @@ final class KeyboardView: UIView {
 
     private func onLongPress(_ t: Touch) {
         switch t.key.type {
-        case .space, .globe: break
+        case .space:
+            // Holding the space bar starts cursor control where it is on (KeyboardView.kt, Matt, 2026-11-09): a tick,
+            // and every slide from here moves the cursor at once, with no first stretch to cross. Let go without
+            // sliding and nothing is typed. iOS has no keyboard picker for the hold to open with cursor control off:
+            // the globe key is that, so there the hold stays a plain press.
+            guard spaceCursor else { return }
+            listener?.onKeyFeedback(.mode, haptic: true)
+            t.cursorMoved = true
+            let p = t.uiTouch.location(in: self)
+            t.cursorAnchor = p.x
+            t.lineAnchor = p.y
+            redraw()
+        case .globe: break
         case .mode:
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
             t.longPressed = true; listener?.onOpenSettings()

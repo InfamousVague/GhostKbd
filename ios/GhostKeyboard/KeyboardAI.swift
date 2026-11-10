@@ -183,22 +183,35 @@ extension KeyboardViewController {
 
     // --- the row ------------------------------------------------------------------------------------------------------
 
+    /// The line along the top of the keys runs while something works for the person: the AI writing, rewriting or
+    /// typing out an answer. Every change to those comes through the row's refresh, which calls this.
+    func updateWorking() {
+        working.on = typing != nil || aiJob?.running == true
+    }
+
+    /// What the row says the AI is doing for `job`: writing the request, rewriting as asked, or in the person's voice.
+    private func doing(_ job: Ghostwriter.Job) -> String {
+        if let mode = Rewrite.mode(prefs, id: job.mode) { return "\(mode.label)…" }
+        if job.selection { return "Rewriting in your voice…" }
+        return "Writing \u{201C}\(preview(job.request))\u{201D}…"
+    }
+
     /// The row while an answer is on its way, failed, or couldn't be placed. True when it filled `items`.
     func aiRow(_ items: inout [RowItem]) -> Bool {
         if typing != nil {
-            items.append(RowItem(id: "ai-typing", label: "✦ Typing…", chip: true, fill: true))
-            items.append(RowItem(id: "ai-skip", label: "Skip", bold: true, chip: true) { [weak self] in self?.finishTyping() })
+            items.append(RowItem(id: "ai-typing", label: "Typing it out…", fill: true, busy: true))
+            items.append(RowItem(id: "ai-skip", label: "Skip", icon: .forward, bold: true, chip: true) { [weak self] in self?.finishTyping() })
             return true
         }
         guard let job = aiJob else { return false }
         if job.cancelled { aiJob = nil; return false }
-        let dismiss = RowItem(id: "ai-x-\(job.id)", label: "✕", chip: true) { [weak self] in job.cancelled = true; self?.aiJob = nil; self?.scheduleRow() }
+        let dismiss = RowItem(id: "ai-x-\(job.id)", icon: .close, chip: true, description: job.running ? "Stop" : "Dismiss") { [weak self] in job.cancelled = true; self?.aiJob = nil; self?.scheduleRow() }
         if job.running {
-            items.append(RowItem(id: "ai-run-\(job.id)", label: "✦ Writing “\(preview(job.request))”…", chip: true, fill: true))
+            items.append(RowItem(id: "ai-run-\(job.id)", label: doing(job), fill: true, busy: true))
             items.append(dismiss)
         } else if let error = job.error {
-            items.append(RowItem(id: "ai-err-\(job.id)", label: "✦ \(error)", chip: true, fill: true) { [weak self] in self?.onOpenSettings() })
-            items.append(RowItem(id: "ai-retry-\(job.id)", label: "Retry", bold: true, chip: true) { [weak self] in
+            items.append(RowItem(id: "ai-err-\(job.id)", label: error, icon: .warning, chip: true, fill: true, tint: .error) { [weak self] in self?.onOpenSettings() })
+            items.append(RowItem(id: "ai-retry-\(job.id)", label: "Retry", icon: .retry, bold: true, chip: true) { [weak self] in
                 guard let self else { return }
                 self.aiJob = nil
                 if let mode = Rewrite.mode(self.prefs, id: job.mode) { self.startRewrite(job.tag, mode, wholeField: self.aiWholeField) }
@@ -209,7 +222,7 @@ extension KeyboardViewController {
             items.append(dismiss)
         } else {
             let text = job.result ?? ""
-            items.append(RowItem(id: "ai-put-\(job.id)", label: "Insert: \(preview(text))", bold: true, chip: true, fill: true) { [weak self] in
+            items.append(RowItem(id: "ai-put-\(job.id)", label: "Insert: \(preview(text))", icon: .check, bold: true, chip: true, fill: true, tint: .done) { [weak self] in
                 self?.editor.insert(text); self?.aiJob = nil; self?.scheduleRow()
             })
             items.append(dismiss)
@@ -231,17 +244,17 @@ extension KeyboardViewController {
         // Never silent: where Ghostwriter cannot run, say why.
         if let why = aiBlocked() {
             guard tag != nil || (open != nil && !settingsUnknown) else { return false }
-            items.append(RowItem(id: "fill-off-\(why)", label: "✦ \(why)", chip: true, fill: true) { [weak self] in self?.onOpenSettings() })
+            items.append(RowItem(id: "fill-off-\(why)", label: why, icon: .sparkle, chip: true, fill: true) { [weak self] in self?.onOpenSettings() })
             return true
         }
         if let (request, _) = tag {
-            items.append(RowItem(id: "fill-\(request)", label: "✦ Fill: \(preview(request))", bold: true, chip: true, fill: true) { [weak self] in self?.fillAtCursor() })
+            items.append(RowItem(id: "fill-\(request)", label: "Fill: \(preview(request))", icon: .sparkle, bold: true, chip: true, fill: true, tint: .ai) { [weak self] in self?.fillAtCursor() })
             return true
         }
         if let m = open {
             let request = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
-            let label = request.count < 2 ? "✦ Ghostwriter: say what to write, then >>" : "✦ Fill: \(preview(request))"
-            items.append(RowItem(id: "fill-open-\(label)", label: label, chip: true, fill: true) { [weak self] in
+            let label = request.count < 2 ? "Ghostwriter: say what to write, then >>" : "Fill: \(preview(request))"
+            items.append(RowItem(id: "fill-open-\(label)", label: label, icon: .sparkle, chip: true, fill: true, tint: .ai) { [weak self] in
                 guard let self, request.count >= 2 else { return }
                 self.editor.insert(">>"); self.fillAtCursor()
             })
@@ -277,8 +290,9 @@ extension KeyboardViewController {
         var text = draft
         draft = ""
         for answer in aiAnswers { text = text.replacingOccurrences(of: answer, with: " ") }
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !incognito, Plugins.isOn(prefs, Plugins.mockingbird), hasFullAccess, prefs.aiConsent else { return }
-        mockingbird.record(text, hints: hints)
-        _ = mockingbird.maybeAutoTrain(prefs: prefs)
+        guard !incognito, Plugins.isOn(prefs, Plugins.mockingbird), hasFullAccess, prefs.aiConsent else { return }
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { mockingbird.record(text, hints: hints) }
+        // Asked for even with nothing to keep: a profile from older style rules retrains once with "Keep samples" off.
+        mockingbird.maybeAutoTrain(prefs: prefs)
     }
 }

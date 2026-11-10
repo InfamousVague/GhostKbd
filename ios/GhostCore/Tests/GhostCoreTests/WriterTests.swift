@@ -152,7 +152,8 @@ final class GhostwriterPromptTests: XCTestCase {
         let (system, user) = gw.prompt(request: "decline politely", before: "", after: "", app: nil, kind: .other, now: now)
         XCTAssertTrue(system.hasPrefix("You are Ghostwriter, built into this person's phone keyboard. In a text field they typed a request\nbetween << and >>;"))
         XCTAssertTrue(system.contains("\n- Facts about them (their work, plans, people, what they did) come from their notes, GitHub\n  commits, past messages"))
-        XCTAssertTrue(system.hasSuffix("asked for, and no explanation of what you did or searched.\n\nTHEIR STYLE PROFILE\n(Not trained yet: copy the voice of the past messages below.)"))
+        XCTAssertTrue(system.hasSuffix("asked for, and no explanation of what you did or searched.\n\nTHEIR STYLE PROFILE\n(Not trained yet: copy the voice of the past messages below.)\n\n" + VoiceRules.spellingRule))
+        XCTAssertTrue(system.contains("\n- " + VoiceRules.writing + "\n- Reply with the replacement text only"))
         // The clipboard is off by default: nothing copied is sent.
         XCTAssertFalse(system.contains("a copied secret")); XCTAssertFalse(system.contains("GITHUB")); XCTAssertFalse(system.contains("NOTES"))
         XCTAssertEqual(user, "APP: unknown (other)\nTODAY: 2026-11-09\nTEXT BEFORE THE REQUEST:\n(nothing)\nTEXT AFTER THE REQUEST:\n(nothing)\nREQUEST: decline politely")
@@ -321,7 +322,7 @@ final class MockingbirdTests: XCTestCase {
         let dir = tempDirectory()
         let bird = Mockingbird(directory: dir)
         XCTAssertNil(bird.profile())
-        XCTAssertEqual(bird.voiceSection(), "THEIR STYLE PROFILE\n(Not trained yet: copy the voice of the past messages below.)")
+        XCTAssertEqual(bird.voiceSection(), "THEIR STYLE PROFILE\n(Not trained yet: copy the voice of the past messages below.)\n\n" + VoiceRules.spellingRule)
         bird.importProfile(String(repeating: "p", count: 7000), source: "Imported from Report")
         let p = Mockingbird(directory: dir).profile()
         XCTAssertEqual(p?.text.count, 6000); XCTAssertEqual(p?.provider, "Imported from Report"); XCTAssertEqual(p?.model, ""); XCTAssertEqual(p?.samples, 0)
@@ -394,13 +395,13 @@ final class MockingbirdTests: XCTestCase {
         XCTAssertTrue(bird.autoTrainDue())
         // Without the person's consent nothing is sent by itself.
         StubProtocol.reset([])
-        XCTAssertFalse(bird.maybeAutoTrain(prefs: prefs))
-        XCTAssertTrue(StubProtocol.requests.isEmpty)
+        func started(_ prefs: KeyboardPrefs) -> Bool { bird.maybeAutoTrain(prefs: prefs); bird.flush(); bird.flush(); return !StubProtocol.requests.isEmpty }
+        XCTAssertFalse(started(prefs))
         prefs.set(key: KeyboardPrefs.aiConsent, value: true)
         prefs.set(key: KeyboardPrefs.mockingbirdAutoTrain, value: false)
-        XCTAssertFalse(bird.maybeAutoTrain(prefs: prefs))
+        XCTAssertFalse(started(prefs))
         prefs.set(key: KeyboardPrefs.mockingbirdAutoTrain, value: true)
-        XCTAssertFalse(bird.maybeAutoTrain(prefs: aiPrefs("openai", key: "")))   // the AI is not set up
+        XCTAssertFalse(started(aiPrefs("openai", key: "")))   // the AI is not set up
 
         // Trained on 50: due again only after 50 more, and most of a day.
         bird.importProfile("profile", source: "test")
@@ -414,10 +415,155 @@ final class MockingbirdTests: XCTestCase {
         for i in 0..<50 { fresh.record("fresh sample \(i) with enough words", app: "a\(i)", chat: true) }
         fresh.flush()
         StubProtocol.reset([(200, #"{"choices":[{"message":{"content":"Profile."}}]}"#)])
-        XCTAssertTrue(fresh.maybeAutoTrain(prefs: prefs))
-        let deadline = Date().addingTimeInterval(10)
-        while fresh.training && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }
-        XCTAssertEqual(fresh.profile()?.text, "Profile.")
+        fresh.maybeAutoTrain(prefs: prefs)
+        fresh.flush(); fresh.flush()   // the check, then the training it started
+        XCTAssertFalse(fresh.training)
+        XCTAssertEqual(fresh.profile()?.text, "Profile."); XCTAssertEqual(fresh.profile()?.version, VoiceRules.profileVersion)
+    }
+}
+
+/// Mockingbird with the dictionaries to hand: slips are repaired as a sample is kept (SampleCleanerTests has the rules).
+final class MockingbirdSlipsTests: XCTestCase {
+    private let mine = ["the cat sat on the mat and that was that", "this keyboard is nice because it is quiet", "see you tomorrow at their house"]
+
+    func testSamplesAreCleanedAsTheyAreKept() {
+        let dir = tempDirectory()
+        let bird = Mockingbird(directory: dir)
+        // No dictionaries yet: kept as typed, and marked as not cleaned.
+        bird.record("see you at teh house later", app: "ios.chat", chat: true)
+        bird.flush()
+        XCTAssertEqual(bird.samples().map { $0.text }, ["see you at teh house later"]); XCTAssertEqual(bird.samples()[0].cleaned, 0); XCTAssertNil(bird.samples()[0].raw)
+        // With the keyboard's speller the new sample is cleaned, and so is the one that was waiting.
+        bird.speller = SampleCleanerTests.english
+        for (i, text) in mine.enumerated() { bird.record(text, app: "a\(i)", chat: true) }
+        bird.record("this keybkard is really nice", app: "ios.other", chat: false)
+        bird.flush()
+        let kept = bird.samples()
+        XCTAssertEqual(kept.first?.text, "see you at the house later"); XCTAssertEqual(kept.first?.raw, "see you at teh house later"); XCTAssertEqual(kept.first?.typed, "see you at teh house later")
+        XCTAssertEqual(kept.last?.text, "this keyboard is really nice"); XCTAssertEqual(kept.last?.raw, "this keybkard is really nice")
+        XCTAssertTrue(kept.allSatisfy { $0.cleaned == SampleCleaner.version }); XCTAssertNil(kept[1].raw)
+        // On disk as Android keeps them: "r" as typed where it differs, "v" the cleaner's version.
+        let json = Json.array((try? Data(contentsOf: dir.appendingPathComponent(Mockingbird.samplesFile))) ?? Data()) as? [[String: Any]]
+        XCTAssertEqual(json?.last?["t"] as? String, "this keyboard is really nice"); XCTAssertEqual(json?.last?["r"] as? String, "this keybkard is really nice")
+        XCTAssertEqual(json?.last?["v"] as? Int, SampleCleaner.version); XCTAssertNil(json?[1]["r"])
+        XCTAssertEqual(Mockingbird(directory: dir).samples(), kept)
+        // The same draft read again is still the same draft, though it was cleaned.
+        bird.record("this keybkard is really nice today", app: "ios.other", chat: false)
+        bird.flush()
+        XCTAssertEqual(bird.samples().count, kept.count); XCTAssertEqual(bird.samples().last?.text, "this keyboard is really nice today")
+        // The AIs read the cleaned text.
+        XCTAssertTrue(Mockingbird.trainingMessage(bird.samples()).contains("this keyboard is really nice today"))
+        XCTAssertFalse(bird.rewriteSystem(text: "keyboard nice", app: nil, chat: false).contains("keybkard"))
+        XCTAssertTrue(bird.rewriteSystem(text: "x", app: nil, chat: true).contains(VoiceRules.rewriting + " Reply with the rewritten text alone"))
+
+        // Typed a third time, in other samples, the word is theirs: it goes back where it was taken out, and is remembered.
+        bird.record("my keybkard broke again today", app: "b1", chat: true)
+        bird.flush()
+        XCTAssertEqual(bird.samples().last?.text, "my keyboard broke again today")
+        bird.record("the keybkard came in the post", app: "b2", chat: true)
+        bird.flush()
+        XCTAssertEqual(Array(bird.samples().suffix(3)).map { $0.text }, ["this keybkard is really nice today", "my keybkard broke again today", "the keybkard came in the post"])
+        XCTAssertTrue(bird.samples().suffix(3).allSatisfy { $0.raw == nil })
+        let words = dir.appendingPathComponent(Mockingbird.wordsFile)
+        XCTAssertEqual(Json.array((try? Data(contentsOf: words)) ?? Data()) as? [String], ["keybkard"])
+        XCTAssertEqual(bird.samples().first?.text, "see you at the house later")
+        bird.clear()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: words.path))
+    }
+
+    func testTheAppLoadsDictionariesToTrain() {
+        let session = StubProtocol.session()
+        let bird = Mockingbird(directory: tempDirectory(), session: session)
+        let prefs = aiPrefs("openai")
+        for i in 0..<9 { bird.record("the cat sat on the mat number \(i)", app: "a\(i)", chat: true) }
+        bird.record("see you at teh house later", app: "ios.chat", chat: true)
+        bird.flush()
+        XCTAssertEqual(bird.samples().last?.text, "see you at teh house later")
+        bird.dictDirectory = dictDirectory
+        StubProtocol.reset([(200, #"{"choices":[{"message":{"content":"They write."}}]}"#)])
+        let trained = expectation(description: "trained")
+        bird.train(prefs: prefs) { error in XCTAssertNil(error); trained.fulfill() }
+        wait(for: [trained], timeout: 30)
+        XCTAssertEqual(bird.samples().last?.text, "see you at the house later")
+        let sent = (Json.object(StubProtocol.bodies[0])?["messages"] as? [[String: Any]])
+        XCTAssertEqual(sent?.first?["content"] as? String, VoiceRules.trainSystem)
+        XCTAssertTrue((sent?.last?["content"] as? String ?? "").contains("see you at the house later"))
+        XCTAssertEqual(bird.cleanedSamples(prefs: prefs), bird.samples())
+    }
+
+    func testAnOutdatedProfileRetrainsOnce() throws {
+        let session = StubProtocol.session()
+        let dir = tempDirectory()
+        let bird = Mockingbird(directory: dir, session: session)
+        let prefs = aiPrefs("openai")
+        prefs.set(key: KeyboardPrefs.aiConsent, value: true)
+        for i in 0..<10 { bird.record("old sample \(i) with enough words", app: "a\(i)", chat: true) }
+        bird.flush()
+        // A profile from before versions were written: trained under the first instructions.
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        try Json.data(["text": "They leave typos in.", "at": now - 600_000, "samples": 10, "provider": "OpenAI", "model": "gpt-5-mini"] as [String: Any])
+            .write(to: dir.appendingPathComponent(Mockingbird.profileFile))
+        let old = try XCTUnwrap(bird.profile())
+        XCTAssertEqual(old.version, 1); XCTAssertTrue(bird.outdated(old)); XCTAssertTrue(bird.autoTrainDue())
+        XCTAssertTrue(bird.voiceSection().hasSuffix("They leave typos in.\n\n" + VoiceRules.spellingRule))
+        // The retrain fails: not tried again until a day later, and the try is remembered in the files.
+        StubProtocol.reset([(500, #"{"error":{"message":"down"}}"#)])
+        bird.maybeAutoTrain(prefs: prefs)
+        bird.flush(); bird.flush()
+        XCTAssertEqual(StubProtocol.requests.count, 1); XCTAssertNotNil(bird.lastError)
+        XCTAssertFalse(bird.autoTrainDue()); XCTAssertFalse(Mockingbird(directory: dir).autoTrainDue(now: Date().addingTimeInterval(19 * 3600)))
+        XCTAssertTrue(bird.autoTrainDue(now: Date().addingTimeInterval(21 * 3600)))
+        bird.maybeAutoTrain(prefs: prefs)
+        bird.flush(); bird.flush()
+        XCTAssertEqual(StubProtocol.requests.count, 1)
+        // Trained again, it is current.
+        StubProtocol.reset([(200, #"{"choices":[{"message":{"content":"They write correctly spelled words."}}]}"#)])
+        let trained = expectation(description: "trained")
+        bird.train(prefs: prefs) { _ in trained.fulfill() }
+        wait(for: [trained], timeout: 10)
+        let fresh = try XCTUnwrap(bird.profile())
+        XCTAssertEqual(fresh.version, VoiceRules.profileVersion); XCTAssertFalse(bird.outdated(fresh)); XCTAssertFalse(bird.autoTrainDue(now: Date().addingTimeInterval(21 * 3600)))
+        // One written elsewhere is the person's choice, whatever version it is kept at.
+        bird.importProfile("Theirs.", source: Retrain.importedBy("Some Report Tool"), version: 1)
+        XCTAssertFalse(bird.outdated(try XCTUnwrap(bird.profile())))
+    }
+
+    func testTypingProfileCarriesTheVersionAndWhatWasTyped() throws {
+        let (prefs, store, _) = makePrefs(["plugins": "autocorrect,adaptive,mockingbird"])
+        let adaptive = AdaptiveKeys(store: store)
+        let dir = tempDirectory()
+        let bird = Mockingbird(directory: dir)
+        bird.speller = SampleCleanerTests.english
+        for (i, text) in mine.enumerated() { bird.record(text, app: "a\(i)", chat: true) }
+        bird.record("see you at teh house later", app: "ios.chat", chat: true)
+        bird.flush()
+        try Json.data(["text": "Old.", "at": 1, "samples": 4, "provider": "OpenAI", "model": "m"] as [String: Any]).write(to: dir.appendingPathComponent(Mockingbird.profileFile))
+        let exported = TypingProfile.export(prefs: prefs, adaptive: adaptive, mockingbird: bird, samples: true)
+        let style = try XCTUnwrap(Json.object(exported)?["style"] as? [String: Any])
+        XCTAssertEqual(style["profileVersion"] as? Int, 1)
+        let last = try XCTUnwrap((style["samples"] as? [[String: Any]])?.last)
+        XCTAssertEqual(last["text"] as? String, "see you at the house later"); XCTAssertEqual(last["typed"] as? String, "see you at teh house later")
+        XCTAssertNil((style["samples"] as? [[String: Any]])?.first?["typed"])
+
+        // Into another keyboard: the profile is still due its retrain, and the sample comes in as typed.
+        let bird2 = Mockingbird(directory: tempDirectory())
+        _ = try TypingProfile.import(exported, prefs: prefs, adaptive: adaptive, mockingbird: bird2)
+        bird2.flush()
+        let p = try XCTUnwrap(bird2.profile())
+        XCTAssertEqual(p.provider, "Imported from Ghost Keyboard"); XCTAssertEqual(p.version, 1); XCTAssertTrue(bird2.outdated(p))
+        XCTAssertEqual(bird2.samples().last?.text, "see you at teh house later")
+        // Our own file from before versions is old; another app's is never outdated; a current one stays current.
+        func imported(_ json: String) throws -> Mockingbird.Profile {
+            let b = Mockingbird(directory: tempDirectory())
+            _ = try TypingProfile.import(json, prefs: prefs, adaptive: adaptive, mockingbird: b)
+            return try XCTUnwrap(b.profile())
+        }
+        let before = try imported(#"{"format":"ghost-typing-profile","version":1,"source":{"app":"Ghost Keyboard"},"style":{"profile":"x"}}"#)
+        XCTAssertEqual(before.version, 1)
+        let other = try imported(#"{"format":"ghost-typing-profile","version":1,"source":{"app":"Reporter"},"style":{"profile":"x","profileVersion":1}}"#)
+        XCTAssertEqual(other.version, VoiceRules.profileVersion); XCTAssertEqual(other.provider, "Imported from Reporter")
+        let current = try imported(#"{"format":"ghost-typing-profile","version":1,"source":{"app":"Ghost Keyboard"},"style":{"profile":"x","profileVersion":2}}"#)
+        XCTAssertEqual(current.version, 2)
     }
 }
 
@@ -437,7 +583,7 @@ final class TypingProfileTests: XCTestCase {
         let o = Json.object(exported)
         XCTAssertEqual(o?["format"] as? String, "ghost-typing-profile"); XCTAssertEqual(o?["version"] as? Int, 1); XCTAssertEqual(o?["layout"] as? String, "qwerty")
         XCTAssertEqual((o?["source"] as? [String: Any])?["app"] as? String, "Ghost Keyboard")
-        XCTAssertEqual(((o?["keys"] as? [String: Any])?["a"] as? [String: Any])?["samples"] as? Int, 23)
+        XCTAssertEqual(((o?["keys"] as? [String: Any])?["a"] as? [String: Any])?["samples"] as? Int, 21)
         XCTAssertEqual((o?["slips"] as? [[String: Any]])?.first?["meant"] as? String, "a")
         XCTAssertEqual((o?["words"] as? [String: Any])?["learned"] as? [String], ["ghostkbd"])
         XCTAssertEqual((o?["style"] as? [String: Any])?["profile"] as? String, "They write tersely.")
@@ -452,7 +598,7 @@ final class TypingProfileTests: XCTestCase {
         bird2.flush()
         XCTAssertEqual(result.lines, ["1 key aim blended in", "1 slip learned", "1 word added to autocorrect", "Style profile replaced", "1 writing sample added"])
         XCTAssertEqual(result.source, "Ghost Keyboard"); XCTAssertNil(result.report)
-        XCTAssertEqual(adaptive2.aims()["a"]?.n, 26); XCTAssertEqual(adaptive2.mistakes.count, 1)
+        XCTAssertEqual(adaptive2.aims()["a"]?.n, 22); XCTAssertEqual(adaptive2.mistakes.count, 1)
         XCTAssertEqual(prefs2.learnedWords, ["ghostkbd"])
         XCTAssertEqual(bird2.profile()?.provider, "Imported from Ghost Keyboard"); XCTAssertEqual(bird2.samples().first?.app, "imported.chat")
         XCTAssertNotNil(store2.object(forKey: AdaptiveKeys.storeKey))
@@ -477,7 +623,7 @@ final class TypingProfileTests: XCTestCase {
         Plugins.set(prefs, Plugins.adaptive, on: true)
         let again = try TypingProfile.import(profile, prefs: prefs, adaptive: adaptive, mockingbird: bird)
         XCTAssertEqual(Array(again.lines.prefix(2)), ["1 key aim blended in", "3 slips learned"])
-        XCTAssertEqual(adaptive.aims()["a"]?.n, 49)
+        XCTAssertEqual(adaptive.aims()["a"]?.n, 43)
         let dvorak = try TypingProfile.import(#"{"format":"ghost-typing-profile","version":1,"layout":"dvorak","keys":{"a":{}}}"#, prefs: prefs, adaptive: adaptive, mockingbird: bird)
         XCTAssertEqual(dvorak.lines, ["Key aims skipped: they are for dvorak, and this keyboard reads qwerty"])
         XCTAssertEqual(try TypingProfile.import(#"{"format":"ghost-typing-profile","version":1}"#, prefs: prefs, adaptive: adaptive, mockingbird: bird).lines, ["Nothing in it this keyboard reads"])

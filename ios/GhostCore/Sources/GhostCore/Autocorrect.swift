@@ -15,6 +15,10 @@ import Foundation
 /// Learned words (a fix the person undid, or words added in Settings) are never changed, and count as words for
 /// correcting near-misses of them.
 ///
+/// Mockingbird reads the same dictionaries to take slips out of its writing samples (`slip`, `lexicon()`): a far
+/// stricter judgement than `correct`'s, since nobody is there to undo it. A word the lists miss is not a slip for
+/// that alone.
+///
 /// Thread-safe: dictionaries load on a background queue and are swapped in whole; `correct`, `suggest` and `swipe`
 /// may be called from any thread and answer nothing (nil / empty) until `isReady`.
 public final class Autocorrect {
@@ -39,6 +43,9 @@ public final class Autocorrect {
         var slangList: Set<String>?
         var loaded: [String] = []
         var generation = 0
+        /// What a word looks like (`runs`), and the dictionaries it was read off.
+        var runs: [UInt64] = []
+        var runsModel: Model?
     }
 
     private let dictDirectory: URL
@@ -184,7 +191,15 @@ public final class Autocorrect {
             return true
         }
         guard needsList else { return }
-        // A kilobyte: read where it is asked for.
+        let list = readSlang()
+        state.with { s in
+            s.slangList = list
+            if s.slangOn { s.slang = list }
+        }
+    }
+
+    /// The slang list from its file. A kilobyte: read where it is asked for.
+    private func readSlang() -> Set<String> {
         var list = Set<String>()
         if let text = try? String(contentsOf: dictDirectory.appendingPathComponent("en_slang.txt"), encoding: .utf8) {
             for line in text.split(whereSeparator: { $0.isNewline }) {
@@ -192,9 +207,16 @@ public final class Autocorrect {
                 if !word.isEmpty && !word.hasPrefix("#") { list.insert(word) }
             }
         }
-        state.with { s in
-            s.slangList = list
-            if s.slangOn { s.slang = list }
+        return list
+    }
+
+    /// The whole slang list, its switch on or off: read once, when first asked for.
+    private func slangList() -> Set<String> {
+        if let list = state.with({ $0.slangList }) { return list }
+        let list = readSlang()
+        return state.with { s in
+            if s.slangList == nil { s.slangList = list }
+            return s.slangList ?? list
         }
     }
 
@@ -404,20 +426,177 @@ public final class Autocorrect {
             let cap = capitalI(lower)
             return cap != lower ? cap : nil
         }
+        guard let pick = pick(lower, known: known, s), pick.score >= minScore else { return nil }
+        return capitalI(pick.word)
+    }
+
+    /// The likeliest word a slip or two from a typed one: its `score`, and the `next` best word's score.
+    private struct Pick {
+        let word: String
+        let score: Float
+        let next: Float
+    }
+
+    /// The best-scoring word among those a slip or two from `lower`, and the score of the runner-up. `known` is
+    /// `lower`'s own frequency when the lists have it as a rare word: then only a cheap slip to a far commoner word
+    /// can win, though any word still counts as a runner-up.
+    private static func pick(_ lower: String, known: Float?, _ s: Snapshot) -> Pick? {
+        let words = s.model.words, contractions = s.model.contractions, folded = s.model.folded
+        var found: [(word: String, score: Float, mayWin: Bool)] = []
         var bestWord: String?
         var bestScore = -Float.infinity
         for (candidate, cost) in candidates(lower) {
             let inWords = words[candidate]
             guard let zipf = inWords ?? contractions[candidate].flatMap({ words[$0] })
                 ?? (s.learned.contains(candidate) ? learnedZipf : nil) ?? folded[candidate].flatMap({ words[$0] }) else { continue }
-            if let known = known, cost > 1.5 || zipf < known + 2 { continue }
             let score = zipf - cost * costWeight
             let word = contractions[candidate] ?? (inWords == nil ? folded[candidate] : nil) ?? candidate
+            let mayWin = known.map { cost <= 1.5 && zipf >= $0 + 2 } ?? true
+            found.append((word, score, mayWin))
             // Equal scores go to the earlier spelling, so the same slip always gets the same fix.
-            if score > bestScore || (score == bestScore && bestWord != nil && word < bestWord!) { bestScore = score; bestWord = word }
+            if mayWin && (score > bestScore || (score == bestScore && bestWord != nil && word < bestWord!)) { bestScore = score; bestWord = word }
         }
-        guard let found = bestWord, bestScore >= minScore else { return nil }
-        return capitalI(found)
+        guard let best = bestWord else { return nil }
+        var next = -Float.infinity
+        for f in found where f.word != best && f.score > next { next = f.score }
+        return Pick(word: best, score: bestScore, next: next)
+    }
+
+    // MARK: slips in text already written (Mockingbird's samples)
+
+    /// For text already written (Mockingbird's samples), where `correct` is for a word as it is typed: the one word
+    /// `typed` was plainly a slip of, in `typed`'s capitals, or nil when it should stand. Nobody is there to undo it,
+    /// and a real word, a name or a term can be missing from the lists, so "not in the lists" is never enough: the
+    /// slip itself has to show.
+    /// - `correct`'s own guards hold (ACRONYMS, camelCase, learned words), and slang counts whether or not its
+    ///   switch is on;
+    /// - nothing that is a way of writing rather than a slip: no "i" → "I", no apostrophe put into "dont", no
+    ///   accent put onto "cafe";
+    /// - a spelling the lists hold, however rare, is somebody's word (untied, prefect, strat, nite) and stands,
+    ///   whatever commoner word it resembles. The exceptions are named: `listedSlips`;
+    /// - a spelling they do not hold is fixed only for one of three slips (`shape`): two letters next to each other
+    ///   swapped ("taht", "tomorrwo"), one neighbouring key struck inside the word ("keybkard"), or a consonant
+    ///   doubled. The last two only in a word of six letters or more: a short word has too many real neighbours
+    ///   (vim beside him), and a different first or last letter is as often another word (linted, linter);
+    /// - a word of six letters or more must also not look like a word (`odd`): drooping, vishal and minuet do, and
+    ///   are somebody's, however near dropping, visual and minute they sit;
+    /// - the fix must be likely (`slipScore`; `slipScoreShort` for a word of five letters or fewer, so only the
+    ///   very commonest words are put back: "pani" is not "pain") and well ahead of the next word it could have
+    ///   been (`slipMargin`): "hwo" is who or how, so it stands.
+    public func slip(_ typed: String) -> String? {
+        let length = typed.utf16.count
+        guard length >= 3, length <= 24, let s = snapshot() else { return nil }
+        if typed.allSatisfy({ $0.isUppercase }) || typed.dropFirst().contains(where: { $0.isUppercase }) { return nil }
+        let lower = typed.lowercased()
+        if Autocorrect.isWord(lower, s.model, learned: s.learned, slang: slangList()) { return nil }
+        let fixed: String
+        if s.model.words[lower] != nil {
+            guard let listed = Autocorrect.listedSlips[lower], (s.model.words[listed] ?? 0) >= Autocorrect.common else { return nil }
+            fixed = listed
+        } else {
+            let letters = Array(lower.unicodeScalars)
+            // Asked first, being cheap: most long words the lists miss look like words, and stand.
+            if letters.count > Autocorrect.short && !odd(letters, s.model) { return nil }
+            guard let pick = Autocorrect.pick(lower, known: nil, s) else { return nil }
+            if !Autocorrect.shape(letters, Array(pick.word.unicodeScalars)) { return nil }
+            let bar = letters.count <= Autocorrect.short ? Autocorrect.slipScoreShort : Autocorrect.slipScore
+            if pick.score < bar || pick.score - pick.next < Autocorrect.slipMargin { return nil }
+            fixed = pick.word
+        }
+        let cased = Autocorrect.recase(typed, fixed)
+        return cased == typed ? nil : cased
+    }
+
+    /// Whether one of the slips `slip` takes for accidents turns `fix` into `typed` (both lower case):
+    /// - two letters next to each other swapped, in a word of any length;
+    /// - one neighbouring key in place of the right one, in a word longer than `short` and not at its first or
+    ///   last letter;
+    /// - a consonant typed twice, in a word longer than `short`. A doubled vowel is a word stretched (whaat, loove).
+    /// A dropped letter, a far key and a letter too many are left: abbreviations and other words look the same.
+    private static func shape(_ typed: [Unicode.Scalar], _ fix: [Unicode.Scalar]) -> Bool {
+        let n = typed.count
+        if n == fix.count {
+            guard let i = typed.indices.first(where: { typed[$0] != fix[$0] }), let j = typed.indices.last(where: { typed[$0] != fix[$0] }) else { return false }
+            if j == i + 1 && typed[i] == fix[j] && typed[j] == fix[i] { return true }
+            return j == i && n > short && i > 0 && i < n - 1 && near(typed[i], fix[i])
+        }
+        if n == fix.count + 1 && n > short {
+            guard let i = typed.indices.first(where: { $0 >= fix.count || typed[$0] != fix[$0] }), i > 0 else { return false }
+            if typed[i] != typed[i - 1] || vowels.contains(typed[i]) { return false }
+            var without = typed
+            without.remove(at: i)
+            return without == fix
+        }
+        return false
+    }
+
+    /// The runs of three letters, a word's two edges included, that the common words of the loaded languages hold:
+    /// what a word looks like, a bit for each run. Made at `odd`'s first use and again when the dictionaries change,
+    /// so the keyboard's own loading never pays for it. Under three kilobytes.
+    private func runs(_ model: Model) -> [UInt64] {
+        if let made: [UInt64] = state.with({ $0.runsModel === model ? $0.runs : nil }) { return made }
+        let letters = Autocorrect.runLetters
+        var bits = [UInt64](repeating: 0, count: (letters * letters * letters + 63) / 64)
+        // A programmer's abbreviations (npm, kubectl) are words, but not what a word looks like.
+        for (word, zipf) in model.words where zipf >= Autocorrect.common && !Autocorrect.devWords.contains(word) {
+            Autocorrect.eachRun(word.unicodeScalars) { bits[$0 >> 6] |= 1 << UInt64($0 & 63) }
+        }
+        state.with { $0.runs = bits; $0.runsModel = model }
+        return bits
+    }
+
+    /// Each run of three letters in `word`, its edges included ("the": ^th, the, he$), as a number for `runs`.
+    private static func eachRun<S: Sequence>(_ word: S, _ visit: (Int) -> Void) where S.Element == Unicode.Scalar {
+        var first = 0
+        var second = -1
+        for c in word {
+            let third = runLetter(c)
+            if second >= 0 { visit((first * runLetters + second) * runLetters + third) }
+            first = max(0, second); second = third
+        }
+        if second >= 0 { visit((first * runLetters + second) * runLetters) }
+    }
+
+    /// A letter's place in a run: 1 to 26 for a to z, 27 for anything else (an accent, an apostrophe); 0 is a word's edge.
+    private static func runLetter(_ c: Unicode.Scalar) -> Int { c.value >= 97 && c.value <= 122 ? Int(c.value) - 96 : runLetters - 1 }
+
+    /// `lower` does not look like a word: it holds a run of three letters that no common word of the loaded
+    /// languages has ("ybk" in keybkard, "hp" opening hpuse). A real word the lists miss (vishal, drooping,
+    /// curation) nearly always looks like one, which is how a neighbouring-key slip is told from it.
+    private func odd(_ lower: [Unicode.Scalar], _ model: Model) -> Bool {
+        let seen = runs(model)
+        var odd = false
+        Autocorrect.eachRun(lower) { if seen[$0 >> 6] & (1 << UInt64($0 & 63)) == 0 { odd = true } }
+        return odd
+    }
+
+    private static func isWord(_ lower: String, _ model: Model, learned: Set<String>, slang: Set<String>) -> Bool {
+        learned.contains(lower) || slang.contains(lower) || (model.words[lower] ?? 0) >= common || model.contractions[lower] != nil || model.folded[lower] != nil
+    }
+
+    /// `lower` is a word nobody would fix: common in a loaded language, a contraction typed without its apostrophe,
+    /// a word spelled without its accents, a learned word, or texting slang (the whole list, its switch on or off).
+    public func isWord(_ lower: String) -> Bool {
+        let (model, learned) = state.with { ($0.model, $0.learned) }
+        return Autocorrect.isWord(lower, model, learned: learned, slang: slangList())
+    }
+
+    /// These dictionaries as `SampleCleaner` reads them. Each fix is worked out once and remembered for as long as
+    /// the returned object is kept, so make one per pass over the samples, not one to keep; use it from one thread.
+    public func lexicon() -> SampleLexicon { SpellerLexicon(self) }
+
+    private final class SpellerLexicon: SampleLexicon {
+        private let speller: Autocorrect
+        private var fixes: [String: String?] = [:]
+        init(_ speller: Autocorrect) { self.speller = speller }
+        var ready: Bool { speller.isReady }
+        func isWord(_ lower: String) -> Bool { speller.isWord(lower) }
+        func fix(_ token: String) -> String? {
+            if let had = fixes[token] { return had }
+            let fix = speller.slip(token)
+            fixes[token] = fix
+            return fix
+        }
     }
 
     /// I, I'm, I've, I'll, I'd: English capitalises them wherever they fall.
@@ -494,6 +673,19 @@ public final class Autocorrect {
     static let common: Float = 3.2
     static let costWeight: Float = 1.6
     static let minScore: Float = 0.8
+    /// `slip`'s bar: a fix this likely, and this far ahead of the next word it could have been.
+    static let slipScore: Float = 2.4
+    static let slipScoreShort: Float = 4.0
+    static let slipMargin: Float = 1.0
+    /// `slip`'s short word: up to this many letters. Only swapped letters are fixed in one.
+    static let short = 5
+    /// Doubled, these are a word stretched for effect, not a slip.
+    private static let vowels = Set("aeiouy".unicodeScalars)
+    /// `runLetter`'s range: a word's edge, a to z, and one for every other character.
+    private static let runLetters = 28
+    /// The spellings the lists do hold that nobody means: the commonest swaps, typed often enough to have got into
+    /// the word counts. Every other listed spelling stands.
+    static let listedSlips = ["teh": "the", "thier": "their", "recieve": "receive"]
     private static let alphabet: [Unicode.Scalar] = Array("abcdefghijklmnopqrstuvwxyz".unicodeScalars)
     /// A learned word counts as moderately common (about one in 30,000 words) when a slip lands near it.
     static let learnedZipf: Float = 4.0

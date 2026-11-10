@@ -131,6 +131,23 @@ void main() {
     expect(find.text('Switch to it'), findsOneWidget);
     expect(find.text('You’ve switched to Ghost Keyboard.'), findsOneWidget);
     expect(find.text('iOS shows its own keyboard for passwords, and in some apps.'), findsOneWidget);
+
+    // Your call: what starts switched on, each a switch, and nothing an iPhone's keyboard has not.
+    await _press(tester, find.text('Next'));
+    expect(find.text('Code, a tap away'), findsOneWidget);
+    await _press(tester, find.text('Next'));
+    expect(find.text('Your call'), findsOneWidget);
+    for (final label in ['Autocorrect', 'Swipe typing', 'Adaptive keys', 'Cursor slides', 'Clipboard history']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('Typing stats'), findsNothing);
+    expect(find.textContaining('typing stats'), findsNothing);
+    expect(find.byType(GlacierSwitch), findsNWidgets(5));
+    await _press(tester, find.byType(GlacierSwitch).at(1));
+    expect(native.sent('setPlugin').single.arguments, {'id': 'swipe', 'on': false});
+    expect(store.pluginOn('swipe'), isFalse);
+    await _press(tester, find.text('Next'));
+    expect(find.text('Plugins'), findsOneWidget);
     await _stop(tester);
   });
 

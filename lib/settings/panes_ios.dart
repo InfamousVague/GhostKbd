@@ -92,6 +92,7 @@ List<Widget> _iosSetup(BuildContext context, SettingsStore store) {
         SettingRow(label: 'Passwords', hint: Text('iOS shows its own keyboard for passwords, and in some apps.')),
         SettingRow(label: 'Dictation', hint: Text('iOS doesn’t let a keyboard use the microphone. The dictation key under the keyboard still works.')),
         SettingRow(label: 'Emoji', hint: Text('The iPhone’s own emoji keyboard is one tap of the globe away.')),
+        SettingRow(label: 'The globe and microphone under the keyboard', hint: Text('iOS draws them, not Ghost Keyboard. The globe goes when Ghost Keyboard is the only keyboard in Settings › General › Keyboard › Keyboards. The microphone goes when Enable Dictation is off in Settings › General › Keyboard.')),
       ],
     ),
     PaneSection(
