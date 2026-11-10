@@ -520,8 +520,18 @@ String _aiSummary(SettingsStore s) {
   return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter', if (s.pluginOn('rewrite')) 'Rewrite'].join(', ');
 }
 
-String _mockingbirdSummary(SettingsStore s) =>
-    s.ai['ready'] != true ? 'Add an AI key' : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples');
+String _mockingbirdSummary(SettingsStore s) => s.ai['ready'] != true
+    ? 'Add an AI key'
+    : (_profileOutdated(s) ? _retrainHint : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples'));
+
+/// What a style profile trained under the old instructions says on its rows (Mockingbird.outdated): those asked the AI
+/// for the "typos they leave in", so a slip could be learned as a habit. With an AI key and "Retrain by itself" on it
+/// retrains the next time a text field is left (once, whatever the daily and 50-sample rule says, and a day later if
+/// that fails: Retrain.kt); this is for when it can't.
+const _retrainHint = 'Retrain to pick up the improved style rules';
+
+/// The style profile was trained before slips were told from habits (`profile.outdated` from MainActivity.aiState).
+bool _profileOutdated(SettingsStore s) => s.ai['profile'] is Map && (s.ai['profile'] as Map)['outdated'] == true;
 
 String _ghostwriterSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
@@ -708,7 +718,7 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
     PaneHero(
       glyph: AppIcon(LucideMore.bird, size: 24),
       title: ready ? (store.ai['profile'] != null ? 'Trained' : 'Learning') : 'Add an AI key',
-      meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Ghostwriter and In my voice write with it.'),
+      meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Obvious slips are cleaned out; only habits you repeat are learned. Ghostwriter and In my voice write with it.'),
       status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
     ),
     PaneSection(children: [_plugin(store, 'mockingbird', 'Learn my style', 'Off removes Mockingbird; add it again from Plugins.')]),
@@ -717,7 +727,7 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
 
 List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
       _aiProviderPart(),
-      _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples', _stylePart),
+      _part('ai-style', 'Your style', LucideMore.bird, 'magenta', (s) => _profileOutdated(s) ? _retrainHint : (s.ai['profile'] != null ? 'Trained ${_when((s.ai['profile'] as Map)['at'])}' : '${s.ai['samples'] ?? 0} samples'), _stylePart),
     ];
 
 SettingsSection _aiProviderPart() =>
@@ -773,10 +783,10 @@ List<Widget> _stylePart(BuildContext context, SettingsStore store) {
     PaneSection(
       footer: Text(profile != null ? 'Trained ${_when(profile['at'])} from ${profile['samples']} samples by ${profile['provider']}. $samples kept now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.' : '$samples kept so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains itself at about 50.'),
       children: [
-        SettingRow(label: training ? 'Training…' : 'Train now', onPress: training || samples < 10 ? null : store.trainMockingbird),
+        SettingRow(label: training ? 'Training…' : 'Train now', hint: _profileOutdated(store) && !training ? const Text(_retrainHint) : null, onPress: training || samples < 10 ? null : store.trainMockingbird),
         if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
-        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito.'),
-        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples.'),
+        _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito. Obvious slips are cleaned out; only habits you repeat are learned.'),
+        _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples; once more after an update to the style rules.'),
       ],
     ),
     if (profile != null)

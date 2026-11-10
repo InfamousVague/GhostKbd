@@ -133,6 +133,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autocorrect.setLanguages(prefs.languages)
         autocorrect.setLearned(prefs.learnedWords)
         autocorrect.setSlang(prefs.slang)
+        // Mockingbird cleans slips out of its samples with these dictionaries, on its own thread.
+        Mockingbird.speller = autocorrect
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
@@ -153,6 +155,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         Updater.removeListener(onUpdate)
         dictation.release()
         prefs.prefs.unregisterOnSharedPreferenceChangeListener(this)
+        if (Mockingbird.speller === autocorrect) Mockingbird.speller = null
         super.onDestroy()
     }
 
@@ -1291,13 +1294,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         draftApp = info?.packageName
     }
 
-    /** Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. */
+    /**
+     * Keeps the draft as a sample (Mockingbird decides if it is worth keeping), then lets training catch up. Training
+     * is asked whether or not there was a draft: with "Keep samples of what I type" off there never is one, and a
+     * profile from before the style rules improved is still due its retrain.
+     */
     private fun flushDraft() {
         var text = draft
         draft = ""
+        if (incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
         for (answer in aiAnswers) text = text.replace(answer, " ")
-        if (text.isBlank() || incognito || !Plugins.isOn(prefs, Plugins.MOCKINGBIRD)) return
-        Mockingbird.record(this, text, draftApp.orEmpty())
+        if (text.isNotBlank()) Mockingbird.record(this, text, draftApp.orEmpty())
         Mockingbird.maybeAutoTrain(this, prefs)
     }
 

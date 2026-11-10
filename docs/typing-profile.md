@@ -49,7 +49,8 @@ carry more than Ghost Keyboard reads.
 | `slips` | Keys hit instead of the one meant: `pressed`, `meant`, `count`. `x` and `y` (fractions of the letters' area, 0–1 from the top left) place one on the heatmap; without them the slip still teaches the aim, toward `pressed`. |
 | `words.learned` | Words autocorrect should leave alone. |
 | `style.profile` | A description of how the person writes and texts, for Mockingbird and Ghostwriter (plain text or Markdown, under 6,000 characters). |
-| `style.samples` | Things the person wrote: `text`, and `kind` `"chat"` (texting) or `"writing"`. |
+| `style.profileVersion` | Optional. Which of Ghost Keyboard's style rules trained the profile (`1`: before slips were told from habits; `2`: now). Ghost Keyboard writes it on export and reads it back only from its own files (`source.app` `"Ghost Keyboard"`; `1` when missing), so an old profile stays due its retrain after a trip through a file. Other apps leave it out. |
+| `style.samples` | Things the person wrote: `text`, and `kind` `"chat"` (texting) or `"writing"`. Ghost Keyboard exports them as its AI reads them: obvious slips ("teh") repaired, everything else, and any spelling the person repeats, as typed. Where it repaired one, the sample exactly as typed is beside it as `typed`. |
 
 ## How Ghost Keyboard takes one in
 
@@ -61,7 +62,8 @@ carry more than Ghost Keyboard reads.
   without one, part way toward the key pressed; those with `x`/`y` show on the heatmap.
 - **words.learned**: added to autocorrect's learned words.
 - **style.profile**: becomes Mockingbird's style profile (its source shown as the file's); **style.samples** join
-  Mockingbird's samples.
+  Mockingbird's samples (from `typed` where a sample has it, else `text`), and like anything typed have their obvious
+  slips repaired on the way in.
 
 It needs the plugins it feeds: keys and slips go to Adaptive keys, style to Mockingbird; a section whose plugin isn't
 added is reported as skipped, and nothing of it is kept.
