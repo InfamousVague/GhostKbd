@@ -4,7 +4,7 @@
   python3 ios/tool/stub_server.py [port]        # 8765 unless told otherwise
 
 /pad                   a page with one text area, to type in from Safari on the Simulator
-/v1/chat/completions   an OpenAI-compatible answer: "Stubbed answer."; every request is appended to requests.log
+/v1/chat/completions   an OpenAI-compatible answer: "Stubbed answer." (or $STUB_ANSWER); every request is appended to requests.log
 /v1/models             one model
 """
 import json, sys, os
@@ -29,7 +29,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8", "replace")
         with open(LOG, "a") as f: f.write(json.dumps({"path": self.path, "auth": self.headers.get("Authorization", ""), "body": body}) + "\n")
-        self.send(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": "Stubbed answer."}, "finish_reason": "stop"}]}))
+        self.send(200, json.dumps({"choices": [{"message": {"role": "assistant", "content": os.environ.get("STUB_ANSWER", "Stubbed answer.")}, "finish_reason": "stop"}]}))
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765

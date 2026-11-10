@@ -7,66 +7,67 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		04B6BF875C4E33A1CE35D101 /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606E1F4DA434E3FD11713848 /* Layouts.swift */; };
-		05A7A242ADE31128BFB94C11 /* KeyboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5830D8B2FEDF10139E22F6E0 /* KeyboardTheme.swift */; };
-		107448FDA9767FABC26303EC /* KeyboardPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DBD29155F91EDA1579AD4D /* KeyboardPrefs.swift */; };
-		12F594BE49307C0A6CABB276 /* GhostShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355F8731D66EBE83CEC68C06 /* GhostShared.swift */; };
+		03C8438D1A00A1C4289A4401 /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD919EB07D72923038C299B /* AiClient.swift */; };
+		0701EF04F45EC95D00B856A3 /* GitHubCommits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72906DC07973039993DBE253 /* GitHubCommits.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
-		15119C69D2DDA7B335AB9A22 /* Plugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED096FF087E5F0F97C622320 /* Plugins.swift */; };
-		1C5714F4EF1ED3601A497493 /* GitHubCommits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1998C389A93BF557CDBE1E60 /* GitHubCommits.swift */; };
-		1F8876C203A80AC73E27D8C6 /* Ghostwriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C43F581E03714375159B2EC /* Ghostwriter.swift */; };
-		23B11DC21028D8CF46E92981 /* KeyboardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC6AA8AD222FEC659E190D4 /* KeyboardUITests.swift */; };
+		1B7B546787D3E322DD0869B2 /* Plugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C19FFD031483715FFF7F0B /* Plugins.swift */; };
+		213D6CEBFC27D74A11350495 /* StoreShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F7511A36EC1AD3E12DEDCF9 /* StoreShots.swift */; };
+		2220715DF0DD98D1904DDA1A /* Ghostwriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97BBB4F2344FEBF203CFD52 /* Ghostwriter.swift */; };
+		262415B22A848196A42505A2 /* PluginRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0A47BDE04B1BADACFA3FA0 /* PluginRowView.swift */; };
 		26245960A474AA44938568C3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43F1246B4D7C9CF3E10034AA /* Foundation.framework */; };
-		2A6643BBDE8570049D7CB6AE /* Icons.swift in Sources */ = {isa = PBXBuildFile; fileRef = E84FB5F6A13F7F08E0EF7532 /* Icons.swift */; };
-		30D945478120D73ADC949E37 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2747288EBB0F40A9E18AD5D /* Support.swift */; };
+		2E8BCAAD9B4646A1107C90B9 /* Plugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C19FFD031483715FFF7F0B /* Plugins.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
-		3476FEA35F2028F5DCA7A271 /* KeyboardRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F60349D8F32A20518796E2 /* KeyboardRow.swift */; };
-		36BFE7F1DAD7D39B6D7F4B89 /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98402405B1049E2DCBA4043A /* KeyboardView.swift */; };
-		39F650C96C1594B525018B50 /* Backlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0ADD20E7862C9D18D7467AA /* Backlight.swift */; };
+		3362CD122153830233D4DB2B /* GhostShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C9F2C6909BA5A614C72192 /* GhostShared.swift */; };
+		347DBC65D78EB621771E0EC3 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C13257938D961D6351FD7B /* Support.swift */; };
+		3515B2544ED95F33F04F083B /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EEC8D3E9A75A9365E3039EA /* Layouts.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
-		3E6152609D34FB4272DDC7E6 /* Rewrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AE33CFF3AB9F9BB9552416 /* Rewrite.swift */; };
-		508D53FAD1540D4D6B5481AC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 306F3CD5520E890EC8B065F7 /* PrivacyInfo.xcprivacy */; };
-		541173CD499378BDF20EB4E7 /* Backlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0ADD20E7862C9D18D7467AA /* Backlight.swift */; };
+		42278362EB460872A69805F1 /* Backlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84BA25D522795FE3262DA70B /* Backlight.swift */; };
+		4DFAB631FAE3AA607E964022 /* TypingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CA0D79CD34CEC1A5C984C6 /* TypingProfile.swift */; };
+		513F159CC5629BE410C8FDBD /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EEC8D3E9A75A9365E3039EA /* Layouts.swift */; };
 		5430345225762A1186417AAD /* SettingsChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5B4C251258FA9A3FDF5436 /* SettingsChannel.swift */; };
-		59D0EFA1BCBA5F5A2E186DFE /* KeyboardAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526048D5B531401761BD707A /* KeyboardAI.swift */; };
-		5B0E6DDF5068B691EECAED45 /* PluginRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8A68EF73857CD12ACAF0E8 /* PluginRowView.swift */; };
-		6D3C1341458DB8E52EDF2692 /* Autocorrect.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0255F70762E84F86C398A17 /* Autocorrect.swift */; };
+		5FD5737003920D9FB632D6EC /* Rewrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D46AEC87E12113F017CBE38 /* Rewrite.swift */; };
+		6D46B09463AD1E7DEF253578 /* GhostShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C9F2C6909BA5A614C72192 /* GhostShared.swift */; };
+		70631DE83D637C4688C9CC94 /* GitHubCommits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72906DC07973039993DBE253 /* GitHubCommits.swift */; };
+		7203283002C0817A703F31D9 /* AdaptiveKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E684A148F3A57F10DBE5AC /* AdaptiveKeys.swift */; };
+		737FCF0523F46C9D958FAF4C /* TextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A001612410C43E22FC47904C /* TextEditor.swift */; };
+		73CF9C7E5B7F33F80E907C9A /* AppContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9416D8C5A4B04690ED7B085E /* AppContext.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
-		76F92E051B7A6AA3AC0B086D /* GitHubCommits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1998C389A93BF557CDBE1E60 /* GitHubCommits.swift */; };
+		76804EDDEBBFD656ECD84341 /* Rewrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D46AEC87E12113F017CBE38 /* Rewrite.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
-		7CF34046F8F5308DA2B933A1 /* Rewrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AE33CFF3AB9F9BB9552416 /* Rewrite.swift */; };
-		8BD5CDF8081AC5E770A2DCF9 /* AppContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA765C437468FCE053053EB4 /* AppContext.swift */; };
-		8C0FF9482D6BC47741C63964 /* AdaptiveKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E965C1C0A3059075933F54 /* AdaptiveKeys.swift */; };
-		8DB7376B8E6571B2FD254675 /* Mockingbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC27E03E77744950952481D /* Mockingbird.swift */; };
+		7E32F0F8812954B8CCF8E071 /* Mockingbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE02140513E104C626BE1E53 /* Mockingbird.swift */; };
+		86A0562540EC3B8B92E60855 /* dict in Resources */ = {isa = PBXBuildFile; fileRef = EC6A0D85F97500BB624E0923 /* dict */; };
+		8B14D675458B0A8689843130 /* Autocorrect.swift in Sources */ = {isa = PBXBuildFile; fileRef = E586E7F568FF2635EBBA0C24 /* Autocorrect.swift */; };
+		8D12EA0F8B327BA773B6E87B /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C13257938D961D6351FD7B /* Support.swift */; };
+		915694B6EE05645074C0154D /* ClipHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7011C3C8FC087B4BBD247E25 /* ClipHistory.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
-		9F756D858AFA1C3F9E1E145E /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606E1F4DA434E3FD11713848 /* Layouts.swift */; };
+		9B83A609CB53BB4DEF0DCEE0 /* AdaptiveKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E684A148F3A57F10DBE5AC /* AdaptiveKeys.swift */; };
 		A325A93FEDDD1C343BC04D1B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0F94EF571E65479BAC978641 /* PrivacyInfo.xcprivacy */; };
-		A5E75C70E6B2690C534DE1D9 /* dict in Resources */ = {isa = PBXBuildFile; fileRef = 201C43434E864B6E34C827DB /* dict */; };
-		A60A4208ACA11B2EA4931358 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639C786F1DAE48064C045A70 /* KeyboardViewController.swift */; };
-		AB48AFBC83A06C6E0AFCC812 /* ClipHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022A499A268C4E0F87EF0152 /* ClipHistory.swift */; };
-		B4903261F021A5E9FE29D527 /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606E1F4DA434E3FD11713848 /* Layouts.swift */; };
-		B7DAE1F1E81BE3217AA77006 /* TypingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7B3CB88E06FB4540057A1B /* TypingProfile.swift */; };
+		A3D6EA8EE4C854EC2FAA6AAE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C8B51448DDD8807D5BA81B81 /* PrivacyInfo.xcprivacy */; };
+		A9D6655D1B85CD6C271512A3 /* Feedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A89327F7798D7CA20D39D12 /* Feedback.swift */; };
+		AD55C144E66AD3BCBD5EF47C /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EB82FDC1FAE53568C13B8A6 /* KeyboardView.swift */; };
+		B91390F402BB1A15DE14F7C6 /* KeyboardAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 436B32A3B464BDBA4ED6F9B0 /* KeyboardAI.swift */; };
 		B9BF75F696902AD679A394FA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43F1246B4D7C9CF3E10034AA /* Foundation.framework */; };
-		BD7ED444CC850A8B0F174A66 /* GhostShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355F8731D66EBE83CEC68C06 /* GhostShared.swift */; };
-		BD9621E9B47F352C638E558E /* AdaptiveKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E965C1C0A3059075933F54 /* AdaptiveKeys.swift */; };
-		BE83B0B6E27D9EA0FCD1E7FB /* ClipHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022A499A268C4E0F87EF0152 /* ClipHistory.swift */; };
-		C38F8780A4B8EA506591C419 /* Ghostwriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C43F581E03714375159B2EC /* Ghostwriter.swift */; };
-		CBA5674E6C3CA3FD2362A9F4 /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79354B19FB298D01204AC020 /* AiClient.swift */; };
-		CC7CB6ADF567151000A4B734 /* AppContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA765C437468FCE053053EB4 /* AppContext.swift */; };
-		D4A60B5F828F478E1DE033BF /* TypingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7B3CB88E06FB4540057A1B /* TypingProfile.swift */; };
-		D92D8B4AA77DD65B6893C39A /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79354B19FB298D01204AC020 /* AiClient.swift */; };
-		DB550F8B4B4264CE91A8F92E /* TextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A41E5FE06BA3145019B3C3 /* TextEditor.swift */; };
-		E12BBD708EBAF7A765264F3B /* KeyboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5830D8B2FEDF10139E22F6E0 /* KeyboardTheme.swift */; };
-		E622C19534E9D5CF52422FF9 /* KeyboardPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DBD29155F91EDA1579AD4D /* KeyboardPrefs.swift */; };
-		E8707E6FE6ADFD152A0B9782 /* Autocorrect.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0255F70762E84F86C398A17 /* Autocorrect.swift */; };
+		C0240EE9EDB1266658763A66 /* KeyboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C4CFA6E2831A25BDE4EA3D /* KeyboardTheme.swift */; };
+		C161E521ED1C6BD6B07DDC6C /* KeyboardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DFD3EDFB44B5F9A800F52B1 /* KeyboardUITests.swift */; };
+		C2D1D8A91CD7F10AC8A0E294 /* KeyboardPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7CA91B8F6CBECF665418150 /* KeyboardPrefs.swift */; };
+		C6103077FDFFA31CAD2F284E /* Autocorrect.swift in Sources */ = {isa = PBXBuildFile; fileRef = E586E7F568FF2635EBBA0C24 /* Autocorrect.swift */; };
+		C64AAA35F426BF6BA834132A /* KeyboardPrefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7CA91B8F6CBECF665418150 /* KeyboardPrefs.swift */; };
+		C8D0F9F1AD13B86F4261DB03 /* KeyboardRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F407DFA7F99648BC71A57399 /* KeyboardRow.swift */; };
+		CFF574B773D2F13558E876BD /* Backlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84BA25D522795FE3262DA70B /* Backlight.swift */; };
+		D0B3402C9C7ECD586CA3AAA0 /* Layouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EEC8D3E9A75A9365E3039EA /* Layouts.swift */; };
+		D46F9E9E985BB1466E150C0A /* ClipHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7011C3C8FC087B4BBD247E25 /* ClipHistory.swift */; };
+		DE7B17D9FA3AE07379876AB7 /* Icons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D501781E5D15656D7D09A3 /* Icons.swift */; };
+		E8AD38C0E3B63A6D7D5D37FD /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CDEC8EF6A5CFE186162129 /* KeyboardViewController.swift */; };
+		E9D41086C0D831D4664A30AF /* KeyboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C4CFA6E2831A25BDE4EA3D /* KeyboardTheme.swift */; };
 		F22C560CEE80990AA84FCDB6 /* GhostKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F2386995260B61F6CCEE80D5 /* GhostKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		F8A44F962A6C074E685AA226 /* Feedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038934721AC828FA5C27E2BB /* Feedback.swift */; };
-		F8E05B0D8AE8963CFC9458BF /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2747288EBB0F40A9E18AD5D /* Support.swift */; };
-		FCD5F05DF73C1E93862EB623 /* Mockingbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC27E03E77744950952481D /* Mockingbird.swift */; };
-		FD5C0E26F7457DD2E85A4C32 /* Plugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED096FF087E5F0F97C622320 /* Plugins.swift */; };
+		F3E0CF7A5773AB53BC9930FC /* AppContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9416D8C5A4B04690ED7B085E /* AppContext.swift */; };
+		F4E3C0F663E6C576D5D31E0F /* Ghostwriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97BBB4F2344FEBF203CFD52 /* Ghostwriter.swift */; };
+		F73607E874DBA4E358C281CF /* Mockingbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE02140513E104C626BE1E53 /* Mockingbird.swift */; };
+		FC39F72D1E82473BDB49E7AC /* TypingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CA0D79CD34CEC1A5C984C6 /* TypingProfile.swift */; };
+		FF0EFDAD19F27321BC893C0F /* AiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD919EB07D72923038C299B /* AiClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,39 +119,35 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		022A499A268C4E0F87EF0152 /* ClipHistory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipHistory.swift; sourceTree = "<group>"; };
-		038934721AC828FA5C27E2BB /* Feedback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Feedback.swift; sourceTree = "<group>"; };
+		03D501781E5D15656D7D09A3 /* Icons.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Icons.swift; sourceTree = "<group>"; };
+		08C19FFD031483715FFF7F0B /* Plugins.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Plugins.swift; sourceTree = "<group>"; };
 		0F94EF571E65479BAC978641 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
-		1998C389A93BF557CDBE1E60 /* GitHubCommits.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GitHubCommits.swift; sourceTree = "<group>"; };
-		201C43434E864B6E34C827DB /* dict */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = dict; path = ../../android/app/src/main/assets/dict; sourceTree = "<group>"; };
-		28F60349D8F32A20518796E2 /* KeyboardRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardRow.swift; sourceTree = "<group>"; };
-		306F3CD5520E890EC8B065F7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		16C4CFA6E2831A25BDE4EA3D /* KeyboardTheme.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardTheme.swift; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		355F8731D66EBE83CEC68C06 /* GhostShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GhostShared.swift; sourceTree = "<group>"; };
+		3A89327F7798D7CA20D39D12 /* Feedback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Feedback.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		3FC4BBBE6144D153DCFDA82E /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		436B32A3B464BDBA4ED6F9B0 /* KeyboardAI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardAI.swift; sourceTree = "<group>"; };
 		43F1246B4D7C9CF3E10034AA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		44DBD29155F91EDA1579AD4D /* KeyboardPrefs.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardPrefs.swift; sourceTree = "<group>"; };
-		4C7B3CB88E06FB4540057A1B /* TypingProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypingProfile.swift; sourceTree = "<group>"; };
-		4F8D781472CE13A77938BE4C /* GhostKeyboard.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = GhostKeyboard.entitlements; sourceTree = "<group>"; };
-		526048D5B531401761BD707A /* KeyboardAI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardAI.swift; sourceTree = "<group>"; };
-		5830D8B2FEDF10139E22F6E0 /* KeyboardTheme.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardTheme.swift; sourceTree = "<group>"; };
-		5AC27E03E77744950952481D /* Mockingbird.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Mockingbird.swift; sourceTree = "<group>"; };
-		606E1F4DA434E3FD11713848 /* Layouts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Layouts.swift; sourceTree = "<group>"; };
-		639C786F1DAE48064C045A70 /* KeyboardViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
-		65A41E5FE06BA3145019B3C3 /* TextEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextEditor.swift; sourceTree = "<group>"; };
-		6C43F581E03714375159B2EC /* Ghostwriter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Ghostwriter.swift; sourceTree = "<group>"; };
+		5DFD3EDFB44B5F9A800F52B1 /* KeyboardUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardUITests.swift; sourceTree = "<group>"; };
 		6C5B4C251258FA9A3FDF5436 /* SettingsChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsChannel.swift; sourceTree = "<group>"; };
 		6D3AE251D28379E99258913E /* Runner.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		6D46AEC87E12113F017CBE38 /* Rewrite.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Rewrite.swift; sourceTree = "<group>"; };
+		6EEC8D3E9A75A9365E3039EA /* Layouts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Layouts.swift; sourceTree = "<group>"; };
+		7011C3C8FC087B4BBD247E25 /* ClipHistory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipHistory.swift; sourceTree = "<group>"; };
+		72906DC07973039993DBE253 /* GitHubCommits.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GitHubCommits.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		76C7493449EFDF88CB8F1021 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
-		79354B19FB298D01204AC020 /* AiClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiClient.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
+		84BA25D522795FE3262DA70B /* Backlight.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Backlight.swift; sourceTree = "<group>"; };
+		84E684A148F3A57F10DBE5AC /* AdaptiveKeys.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdaptiveKeys.swift; sourceTree = "<group>"; };
+		8F7511A36EC1AD3E12DEDCF9 /* StoreShots.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StoreShots.swift; sourceTree = "<group>"; };
+		9416D8C5A4B04690ED7B085E /* AppContext.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppContext.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -158,19 +155,24 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		98402405B1049E2DCBA4043A /* KeyboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardView.swift; sourceTree = "<group>"; };
-		9A8A68EF73857CD12ACAF0E8 /* PluginRowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PluginRowView.swift; sourceTree = "<group>"; };
-		A7E965C1C0A3059075933F54 /* AdaptiveKeys.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdaptiveKeys.swift; sourceTree = "<group>"; };
-		AA765C437468FCE053053EB4 /* AppContext.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppContext.swift; sourceTree = "<group>"; };
-		B2747288EBB0F40A9E18AD5D /* Support.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
-		D2AE33CFF3AB9F9BB9552416 /* Rewrite.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Rewrite.swift; sourceTree = "<group>"; };
+		9EB82FDC1FAE53568C13B8A6 /* KeyboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardView.swift; sourceTree = "<group>"; };
+		9FD919EB07D72923038C299B /* AiClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiClient.swift; sourceTree = "<group>"; };
+		A001612410C43E22FC47904C /* TextEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextEditor.swift; sourceTree = "<group>"; };
+		A1CA0D79CD34CEC1A5C984C6 /* TypingProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypingProfile.swift; sourceTree = "<group>"; };
+		C8B51448DDD8807D5BA81B81 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DBE925B23272F01F27EB117F /* RunnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		DDC6AA8AD222FEC659E190D4 /* KeyboardUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardUITests.swift; sourceTree = "<group>"; };
-		E0255F70762E84F86C398A17 /* Autocorrect.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Autocorrect.swift; sourceTree = "<group>"; };
-		E84FB5F6A13F7F08E0EF7532 /* Icons.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Icons.swift; sourceTree = "<group>"; };
-		ED096FF087E5F0F97C622320 /* Plugins.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Plugins.swift; sourceTree = "<group>"; };
-		F0ADD20E7862C9D18D7467AA /* Backlight.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Backlight.swift; sourceTree = "<group>"; };
+		DC41A86863E3AC3F058C7E67 /* GhostKeyboard.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = GhostKeyboard.entitlements; sourceTree = "<group>"; };
+		E0C13257938D961D6351FD7B /* Support.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
+		E586E7F568FF2635EBBA0C24 /* Autocorrect.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Autocorrect.swift; sourceTree = "<group>"; };
+		E9C9F2C6909BA5A614C72192 /* GhostShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GhostShared.swift; sourceTree = "<group>"; };
+		E9CDEC8EF6A5CFE186162129 /* KeyboardViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
+		EC6A0D85F97500BB624E0923 /* dict */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = dict; path = ../../android/app/src/main/assets/dict; sourceTree = "<group>"; };
+		EE02140513E104C626BE1E53 /* Mockingbird.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Mockingbird.swift; sourceTree = "<group>"; };
 		F2386995260B61F6CCEE80D5 /* GhostKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GhostKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F407DFA7F99648BC71A57399 /* KeyboardRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardRow.swift; sourceTree = "<group>"; };
+		F7CA91B8F6CBECF665418150 /* KeyboardPrefs.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyboardPrefs.swift; sourceTree = "<group>"; };
+		F97BBB4F2344FEBF203CFD52 /* Ghostwriter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Ghostwriter.swift; sourceTree = "<group>"; };
+		FB0A47BDE04B1BADACFA3FA0 /* PluginRowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PluginRowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -204,22 +206,22 @@
 		07768EDA7E1A865630BCABD9 /* GhostCore */ = {
 			isa = PBXGroup;
 			children = (
-				A7E965C1C0A3059075933F54 /* AdaptiveKeys.swift */,
-				79354B19FB298D01204AC020 /* AiClient.swift */,
-				AA765C437468FCE053053EB4 /* AppContext.swift */,
-				E0255F70762E84F86C398A17 /* Autocorrect.swift */,
-				F0ADD20E7862C9D18D7467AA /* Backlight.swift */,
-				022A499A268C4E0F87EF0152 /* ClipHistory.swift */,
-				6C43F581E03714375159B2EC /* Ghostwriter.swift */,
-				1998C389A93BF557CDBE1E60 /* GitHubCommits.swift */,
-				44DBD29155F91EDA1579AD4D /* KeyboardPrefs.swift */,
-				5830D8B2FEDF10139E22F6E0 /* KeyboardTheme.swift */,
-				606E1F4DA434E3FD11713848 /* Layouts.swift */,
-				5AC27E03E77744950952481D /* Mockingbird.swift */,
-				ED096FF087E5F0F97C622320 /* Plugins.swift */,
-				D2AE33CFF3AB9F9BB9552416 /* Rewrite.swift */,
-				B2747288EBB0F40A9E18AD5D /* Support.swift */,
-				4C7B3CB88E06FB4540057A1B /* TypingProfile.swift */,
+				84E684A148F3A57F10DBE5AC /* AdaptiveKeys.swift */,
+				9FD919EB07D72923038C299B /* AiClient.swift */,
+				9416D8C5A4B04690ED7B085E /* AppContext.swift */,
+				E586E7F568FF2635EBBA0C24 /* Autocorrect.swift */,
+				84BA25D522795FE3262DA70B /* Backlight.swift */,
+				7011C3C8FC087B4BBD247E25 /* ClipHistory.swift */,
+				F97BBB4F2344FEBF203CFD52 /* Ghostwriter.swift */,
+				72906DC07973039993DBE253 /* GitHubCommits.swift */,
+				F7CA91B8F6CBECF665418150 /* KeyboardPrefs.swift */,
+				16C4CFA6E2831A25BDE4EA3D /* KeyboardTheme.swift */,
+				6EEC8D3E9A75A9365E3039EA /* Layouts.swift */,
+				EE02140513E104C626BE1E53 /* Mockingbird.swift */,
+				08C19FFD031483715FFF7F0B /* Plugins.swift */,
+				6D46AEC87E12113F017CBE38 /* Rewrite.swift */,
+				E0C13257938D961D6351FD7B /* Support.swift */,
+				A1CA0D79CD34CEC1A5C984C6 /* TypingProfile.swift */,
 			);
 			name = GhostCore;
 			path = GhostCore/Sources/GhostCore;
@@ -236,7 +238,8 @@
 		4B336884D7A73F11529A9FA5 /* RunnerUITests */ = {
 			isa = PBXGroup;
 			children = (
-				DDC6AA8AD222FEC659E190D4 /* KeyboardUITests.swift */,
+				5DFD3EDFB44B5F9A800F52B1 /* KeyboardUITests.swift */,
+				8F7511A36EC1AD3E12DEDCF9 /* StoreShots.swift */,
 			);
 			name = RunnerUITests;
 			path = RunnerUITests;
@@ -245,7 +248,7 @@
 		6840BF87994E4B62E9811EAC /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				355F8731D66EBE83CEC68C06 /* GhostShared.swift */,
+				E9C9F2C6909BA5A614C72192 /* GhostShared.swift */,
 			);
 			name = Shared;
 			path = Shared;
@@ -327,18 +330,18 @@
 		EB7F06F7960835348AB1F225 /* GhostKeyboard */ = {
 			isa = PBXGroup;
 			children = (
-				038934721AC828FA5C27E2BB /* Feedback.swift */,
-				E84FB5F6A13F7F08E0EF7532 /* Icons.swift */,
-				526048D5B531401761BD707A /* KeyboardAI.swift */,
-				28F60349D8F32A20518796E2 /* KeyboardRow.swift */,
-				98402405B1049E2DCBA4043A /* KeyboardView.swift */,
-				639C786F1DAE48064C045A70 /* KeyboardViewController.swift */,
-				9A8A68EF73857CD12ACAF0E8 /* PluginRowView.swift */,
-				65A41E5FE06BA3145019B3C3 /* TextEditor.swift */,
-				76C7493449EFDF88CB8F1021 /* Info.plist */,
-				4F8D781472CE13A77938BE4C /* GhostKeyboard.entitlements */,
-				306F3CD5520E890EC8B065F7 /* PrivacyInfo.xcprivacy */,
-				201C43434E864B6E34C827DB /* dict */,
+				3A89327F7798D7CA20D39D12 /* Feedback.swift */,
+				03D501781E5D15656D7D09A3 /* Icons.swift */,
+				436B32A3B464BDBA4ED6F9B0 /* KeyboardAI.swift */,
+				F407DFA7F99648BC71A57399 /* KeyboardRow.swift */,
+				9EB82FDC1FAE53568C13B8A6 /* KeyboardView.swift */,
+				E9CDEC8EF6A5CFE186162129 /* KeyboardViewController.swift */,
+				FB0A47BDE04B1BADACFA3FA0 /* PluginRowView.swift */,
+				A001612410C43E22FC47904C /* TextEditor.swift */,
+				3FC4BBBE6144D153DCFDA82E /* Info.plist */,
+				DC41A86863E3AC3F058C7E67 /* GhostKeyboard.entitlements */,
+				C8B51448DDD8807D5BA81B81 /* PrivacyInfo.xcprivacy */,
+				EC6A0D85F97500BB624E0923 /* dict */,
 			);
 			name = GhostKeyboard;
 			path = GhostKeyboard;
@@ -480,8 +483,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A5E75C70E6B2690C534DE1D9 /* dict in Resources */,
-				508D53FAD1540D4D6B5481AC /* PrivacyInfo.xcprivacy in Resources */,
+				86A0562540EC3B8B92E60855 /* dict in Resources */,
+				A3D6EA8EE4C854EC2FAA6AAE /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -553,8 +556,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				23B11DC21028D8CF46E92981 /* KeyboardUITests.swift in Sources */,
-				04B6BF875C4E33A1CE35D101 /* Layouts.swift in Sources */,
+				C161E521ED1C6BD6B07DDC6C /* KeyboardUITests.swift in Sources */,
+				213D6CEBFC27D74A11350495 /* StoreShots.swift in Sources */,
+				D0B3402C9C7ECD586CA3AAA0 /* Layouts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -566,23 +570,23 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				5430345225762A1186417AAD /* SettingsChannel.swift in Sources */,
-				BD9621E9B47F352C638E558E /* AdaptiveKeys.swift in Sources */,
-				CBA5674E6C3CA3FD2362A9F4 /* AiClient.swift in Sources */,
-				8BD5CDF8081AC5E770A2DCF9 /* AppContext.swift in Sources */,
-				E8707E6FE6ADFD152A0B9782 /* Autocorrect.swift in Sources */,
-				39F650C96C1594B525018B50 /* Backlight.swift in Sources */,
-				AB48AFBC83A06C6E0AFCC812 /* ClipHistory.swift in Sources */,
-				1F8876C203A80AC73E27D8C6 /* Ghostwriter.swift in Sources */,
-				1C5714F4EF1ED3601A497493 /* GitHubCommits.swift in Sources */,
-				107448FDA9767FABC26303EC /* KeyboardPrefs.swift in Sources */,
-				E12BBD708EBAF7A765264F3B /* KeyboardTheme.swift in Sources */,
-				B4903261F021A5E9FE29D527 /* Layouts.swift in Sources */,
-				FCD5F05DF73C1E93862EB623 /* Mockingbird.swift in Sources */,
-				15119C69D2DDA7B335AB9A22 /* Plugins.swift in Sources */,
-				3E6152609D34FB4272DDC7E6 /* Rewrite.swift in Sources */,
-				30D945478120D73ADC949E37 /* Support.swift in Sources */,
-				B7DAE1F1E81BE3217AA77006 /* TypingProfile.swift in Sources */,
-				BD7ED444CC850A8B0F174A66 /* GhostShared.swift in Sources */,
+				7203283002C0817A703F31D9 /* AdaptiveKeys.swift in Sources */,
+				03C8438D1A00A1C4289A4401 /* AiClient.swift in Sources */,
+				73CF9C7E5B7F33F80E907C9A /* AppContext.swift in Sources */,
+				C6103077FDFFA31CAD2F284E /* Autocorrect.swift in Sources */,
+				CFF574B773D2F13558E876BD /* Backlight.swift in Sources */,
+				D46F9E9E985BB1466E150C0A /* ClipHistory.swift in Sources */,
+				2220715DF0DD98D1904DDA1A /* Ghostwriter.swift in Sources */,
+				0701EF04F45EC95D00B856A3 /* GitHubCommits.swift in Sources */,
+				C2D1D8A91CD7F10AC8A0E294 /* KeyboardPrefs.swift in Sources */,
+				E9D41086C0D831D4664A30AF /* KeyboardTheme.swift in Sources */,
+				3515B2544ED95F33F04F083B /* Layouts.swift in Sources */,
+				F73607E874DBA4E358C281CF /* Mockingbird.swift in Sources */,
+				2E8BCAAD9B4646A1107C90B9 /* Plugins.swift in Sources */,
+				76804EDDEBBFD656ECD84341 /* Rewrite.swift in Sources */,
+				8D12EA0F8B327BA773B6E87B /* Support.swift in Sources */,
+				4DFAB631FAE3AA607E964022 /* TypingProfile.swift in Sources */,
+				3362CD122153830233D4DB2B /* GhostShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -590,31 +594,31 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F8A44F962A6C074E685AA226 /* Feedback.swift in Sources */,
-				2A6643BBDE8570049D7CB6AE /* Icons.swift in Sources */,
-				59D0EFA1BCBA5F5A2E186DFE /* KeyboardAI.swift in Sources */,
-				3476FEA35F2028F5DCA7A271 /* KeyboardRow.swift in Sources */,
-				36BFE7F1DAD7D39B6D7F4B89 /* KeyboardView.swift in Sources */,
-				A60A4208ACA11B2EA4931358 /* KeyboardViewController.swift in Sources */,
-				5B0E6DDF5068B691EECAED45 /* PluginRowView.swift in Sources */,
-				DB550F8B4B4264CE91A8F92E /* TextEditor.swift in Sources */,
-				8C0FF9482D6BC47741C63964 /* AdaptiveKeys.swift in Sources */,
-				D92D8B4AA77DD65B6893C39A /* AiClient.swift in Sources */,
-				CC7CB6ADF567151000A4B734 /* AppContext.swift in Sources */,
-				6D3C1341458DB8E52EDF2692 /* Autocorrect.swift in Sources */,
-				541173CD499378BDF20EB4E7 /* Backlight.swift in Sources */,
-				BE83B0B6E27D9EA0FCD1E7FB /* ClipHistory.swift in Sources */,
-				C38F8780A4B8EA506591C419 /* Ghostwriter.swift in Sources */,
-				76F92E051B7A6AA3AC0B086D /* GitHubCommits.swift in Sources */,
-				E622C19534E9D5CF52422FF9 /* KeyboardPrefs.swift in Sources */,
-				05A7A242ADE31128BFB94C11 /* KeyboardTheme.swift in Sources */,
-				9F756D858AFA1C3F9E1E145E /* Layouts.swift in Sources */,
-				8DB7376B8E6571B2FD254675 /* Mockingbird.swift in Sources */,
-				FD5C0E26F7457DD2E85A4C32 /* Plugins.swift in Sources */,
-				7CF34046F8F5308DA2B933A1 /* Rewrite.swift in Sources */,
-				F8E05B0D8AE8963CFC9458BF /* Support.swift in Sources */,
-				D4A60B5F828F478E1DE033BF /* TypingProfile.swift in Sources */,
-				12F594BE49307C0A6CABB276 /* GhostShared.swift in Sources */,
+				A9D6655D1B85CD6C271512A3 /* Feedback.swift in Sources */,
+				DE7B17D9FA3AE07379876AB7 /* Icons.swift in Sources */,
+				B91390F402BB1A15DE14F7C6 /* KeyboardAI.swift in Sources */,
+				C8D0F9F1AD13B86F4261DB03 /* KeyboardRow.swift in Sources */,
+				AD55C144E66AD3BCBD5EF47C /* KeyboardView.swift in Sources */,
+				E8AD38C0E3B63A6D7D5D37FD /* KeyboardViewController.swift in Sources */,
+				262415B22A848196A42505A2 /* PluginRowView.swift in Sources */,
+				737FCF0523F46C9D958FAF4C /* TextEditor.swift in Sources */,
+				9B83A609CB53BB4DEF0DCEE0 /* AdaptiveKeys.swift in Sources */,
+				FF0EFDAD19F27321BC893C0F /* AiClient.swift in Sources */,
+				F3E0CF7A5773AB53BC9930FC /* AppContext.swift in Sources */,
+				8B14D675458B0A8689843130 /* Autocorrect.swift in Sources */,
+				42278362EB460872A69805F1 /* Backlight.swift in Sources */,
+				915694B6EE05645074C0154D /* ClipHistory.swift in Sources */,
+				F4E3C0F663E6C576D5D31E0F /* Ghostwriter.swift in Sources */,
+				70631DE83D637C4688C9CC94 /* GitHubCommits.swift in Sources */,
+				C64AAA35F426BF6BA834132A /* KeyboardPrefs.swift in Sources */,
+				C0240EE9EDB1266658763A66 /* KeyboardTheme.swift in Sources */,
+				513F159CC5629BE410C8FDBD /* Layouts.swift in Sources */,
+				7E32F0F8812954B8CCF8E071 /* Mockingbird.swift in Sources */,
+				1B7B546787D3E322DD0869B2 /* Plugins.swift in Sources */,
+				5FD5737003920D9FB632D6EC /* Rewrite.swift in Sources */,
+				347DBC65D78EB621771E0EC3 /* Support.swift in Sources */,
+				FC39F72D1E82473BDB49E7AC /* TypingProfile.swift in Sources */,
+				6D46B09463AD1E7DEF253578 /* GhostShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

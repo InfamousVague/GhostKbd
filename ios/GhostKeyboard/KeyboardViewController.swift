@@ -225,6 +225,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         lastDark = systemDark
         let theme = KeyboardTheme.resolve(prefs: prefs, systemDark: lastDark)
         keyboard.theme = theme
+        // The default themes take iOS's own keyboard backdrop, so the keyboard and the strip iOS draws under it (the
+        // globe and dictation keys, which a keyboard cannot remove) read as one surface. A chosen theme keeps its colour.
+        let backdrop = theme == .dark || theme == .light
+        keyboard.systemBackdrop = backdrop
+        row.systemBackdrop = backdrop
         keyboard.globeKey = needsInputModeSwitchKey
         keyboard.configure(numberRow: prefs.numberRow, keyHeight: prefs.keyHeight)
         keyboard.swipeTyping = Plugins.isOn(prefs, Plugins.swipe)

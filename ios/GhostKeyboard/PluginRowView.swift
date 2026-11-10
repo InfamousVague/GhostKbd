@@ -21,6 +21,8 @@ struct RowItem {
 /// button stays at its start, arrow keys (where they are on) at its end.
 final class PluginRowView: UIView {
     var theme: KeyboardTheme = .dark { didSet { restyle() } }
+    /// As KeyboardView.systemBackdrop: the row drawn on iOS's own keyboard backdrop.
+    var systemBackdrop = false { didSet { restyle() } }
     var onSettings: () -> Void = {}
     /// An arrow key: "left", "up", "down" or "right".
     var onArrow: (String) -> Void = { _ in }
@@ -173,7 +175,8 @@ final class PluginRowView: UIView {
     }
 
     private func restyle() {
-        backgroundColor = UIColor(argb: theme.background)
+        backgroundColor = systemBackdrop ? .clear : UIColor(argb: theme.background)
+        isOpaque = !systemBackdrop
         scroll.backgroundColor = backgroundColor
         let ink = UIColor(argb: theme.toolbarIcon)
         settings.colour = ink

@@ -11,7 +11,7 @@ final class KeyboardUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    private func openPad() {
+    func openPad() {
         safari.launch()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         _ = springboard
@@ -22,24 +22,24 @@ final class KeyboardUITests: XCTestCase {
         XCTAssertTrue(pad.waitForExistence(timeout: 10), "the pad page did not load")
     }
 
-    private var pad: XCUIElement { safari.webViews.textViews["pad"].exists ? safari.webViews.textViews["pad"] : safari.webViews.textViews.firstMatch }
-    private var text: String { (pad.value as? String) ?? "" }
+    var pad: XCUIElement { safari.webViews.textViews["pad"].exists ? safari.webViews.textViews["pad"] : safari.webViews.textViews.firstMatch }
+    var text: String { (pad.value as? String) ?? "" }
 
     // The keyboard runs in its own process and iOS shows a UI test nothing inside it, so keys are tapped where the
     // layout (the same Layouts.swift the keyboard draws from) puts them.
 
-    private var page: Page = .letters
+    var page: Page = .letters
     /// The strip iOS keeps under a keyboard on an iPhone with no home button (its globe and dictation keys).
-    private let systemBar: CGFloat = 75
-    private let rowHeight: CGFloat = 54
-    private let rowStrip: CGFloat = 44
+    var systemBar: CGFloat = 75
+    let rowHeight: CGFloat = 54
+    let rowStrip: CGFloat = 44
 
-    private lazy var screenSize: CGSize = XCUIApplication(bundleIdentifier: "com.apple.springboard").frame.size
-    private lazy var origin = XCUIApplication(bundleIdentifier: "com.apple.springboard").coordinate(withNormalizedOffset: .zero)
+    lazy var screenSize: CGSize = XCUIApplication(bundleIdentifier: "com.apple.springboard").frame.size
+    lazy var origin = XCUIApplication(bundleIdentifier: "com.apple.springboard").coordinate(withNormalizedOffset: .zero)
 
-    private func rows() -> [KeyRow] { Layouts.rows(for: page, numberRow: false) }
+    func rows() -> [KeyRow] { Layouts.rows(for: page, numberRow: false) }
 
-    private func point(row r: Int, where match: (Key) -> Bool) -> CGPoint? {
+    func point(row r: Int, where match: (Key) -> Bool) -> CGPoint? {
         let screen = screenSize
         let all = rows()
         let rowH = rowHeight * 4 / CGFloat(all.count)
@@ -55,13 +55,13 @@ final class KeyboardUITests: XCTestCase {
         return nil
     }
 
-    private func tap(_ p: CGPoint, hold: TimeInterval = 0) {
+    func tap(_ p: CGPoint, hold: TimeInterval = 0) {
         let c = origin.withOffset(CGVector(dx: p.x, dy: p.y))
         hold > 0 ? c.press(forDuration: hold) : c.tap()
     }
 
     /// Taps a key by what it types ("q", "(¦)"), or by name: space, delete, shift, enter, ?123, ABC, { }, =\<.
-    private func key(_ name: String, hold: TimeInterval = 0) {
+    func key(_ name: String, hold: TimeInterval = 0) {
         let p: CGPoint?
         switch name {
         case "space": p = point(row: -1) { $0.type == .space }
@@ -83,20 +83,20 @@ final class KeyboardUITests: XCTestCase {
         }
     }
 
-    private func type(_ s: String) {
+    func type(_ s: String) {
         for c in s { key(c == " " ? "space" : String(c).lowercased()) }
     }
 
     /// Something in the row above the keys, by how far across it is (0 to 1).
-    private func tapRowStrip(at fraction: CGFloat) {
+    func tapRowStrip(at fraction: CGFloat) {
         let screen = screenSize
         tap(CGPoint(x: screen.width * fraction, y: screen.height - systemBar - 2 - rowHeight * 4 - rowStrip / 2))
     }
 
     /// Whether Ghost Keyboard is the keyboard showing: Apple's own is in the app's tree, ours is not.
-    private var ghostShowing: Bool { !safari.keyboards.firstMatch.exists && !safari.buttons["Next keyboard"].exists }
+    var ghostShowing: Bool { !safari.keyboards.firstMatch.exists && !safari.buttons["Next keyboard"].exists }
 
-    private func shot(_ name: String) {
+    func shot(_ name: String) {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         a.name = name; a.lifetime = .keepAlways
         add(a)
@@ -106,10 +106,10 @@ final class KeyboardUITests: XCTestCase {
 
     // --- setup, through the Settings app as a person does it -------------------------------------------------------
 
-    private let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+    let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
 
     /// Taps the row called `label`: the lowest thing on screen with that name (a page's title has it too).
-    private func tapRow(_ label: String, in app: XCUIApplication, timeout: TimeInterval = 6) -> Bool {
+    func tapRow(_ label: String, in app: XCUIApplication, timeout: TimeInterval = 6) -> Bool {
         let all = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@ AND (elementType == %d OR elementType == %d OR elementType == %d)", label, XCUIElement.ElementType.cell.rawValue, XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.staticText.rawValue))
         guard all.firstMatch.waitForExistence(timeout: timeout) else { return false }
         let row = all.allElementsBoundByIndex.filter { $0.isHittable }.max { $0.frame.minY < $1.frame.minY } ?? all.firstMatch
@@ -117,7 +117,7 @@ final class KeyboardUITests: XCTestCase {
         return true
     }
 
-    private func openKeyboards() {
+    func openKeyboards() {
         settings.terminate()
         settings.launch()
         XCTAssertTrue(tapRow("General", in: settings), "Settings › General\n\(settings.debugDescription)")
@@ -137,7 +137,7 @@ final class KeyboardUITests: XCTestCase {
         shot("added")
     }
 
-    private func setFullAccess(_ on: Bool) {
+    func setFullAccess(_ on: Bool) {
         openKeyboards()
         XCTAssertTrue(tapRow("Ghost Keyboard", in: settings), "Ghost Keyboard's row")
         let toggle = settings.switches.matching(NSPredicate(format: "label CONTAINS %@", "Full Access")).firstMatch
@@ -153,7 +153,7 @@ final class KeyboardUITests: XCTestCase {
     }
 
     /// Debug builds take settings from a link (SettingsChannel.open): opened here, with iOS's "Open in…?" answered.
-    private func set(_ query: String) {
+    func set(_ query: String) {
         let app = XCUIApplication(bundleIdentifier: "com.infamousvague.ghostkbd")
         app.launch()
         sleep(2)
@@ -163,7 +163,7 @@ final class KeyboardUITests: XCTestCase {
         sleep(2)
     }
 
-    private let stub = "plugins=autocorrect,swipe,clipboard,undo,mockingbird,ghostwriter,rewrite&ai_provider=custom&ai_base_url=http://127.0.0.1:8765/v1&ai_key_custom=test&ai_model_custom=stub-1&ghostwriter_typing=false&learned_words="
+    let stub = "plugins=autocorrect,swipe,clipboard,undo,mockingbird,ghostwriter,rewrite&ai_provider=custom&ai_base_url=http://127.0.0.1:8765/v1&ai_key_custom=test&ai_model_custom=stub-1&ghostwriter_typing=false&learned_words="
 
     /// Ghostwriter added and pointed at the stand-in provider, the agreement not given.
     func test0d_UseTheStubProviderWithoutConsent() { set(stub + "&ai_consent=false") }
@@ -214,7 +214,7 @@ final class KeyboardUITests: XCTestCase {
         shot("end")
     }
 
-    private func typeRequest() {
+    func typeRequest() {
         // <<standup>> through the developer page's < > pair key, which leaves the cursor inside.
         key("{ }"); key("<¦>"); key("<¦>"); key("ABC")
         type("standup")
@@ -276,7 +276,7 @@ final class KeyboardUITests: XCTestCase {
         shot("rewritten")
     }
 
-    private func drag(from a: CGPoint, to b: CGPoint) {
+    func drag(from a: CGPoint, to b: CGPoint) {
         origin.withOffset(CGVector(dx: a.x, dy: a.y)).press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: b.x, dy: b.y)), withVelocity: 120, thenHoldForDuration: 0.1)
     }
 

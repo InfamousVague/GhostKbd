@@ -39,6 +39,9 @@ final class KeyboardView: UIView {
     // --- settings ---------------------------------------------------------------------------------------------------
 
     var theme: KeyboardTheme = .dark { didSet { setNeedsDisplay() } }
+    /// No background of its own: iOS's keyboard backdrop shows through, so the keys sit on the same surface as the
+    /// strip iOS draws under every keyboard (its globe and dictation keys). For the default light and dark themes.
+    var systemBackdrop = false { didSet { isOpaque = !systemBackdrop; backgroundColor = .clear; setNeedsDisplay() } }
     var showPreview = true
     var showHints = true { didSet { setNeedsDisplay() } }
     var spaceCursor = true
@@ -402,8 +405,10 @@ final class KeyboardView: UIView {
 
     override func draw(_ rect: CGRect) {
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
-        ctx.setFillColor(UIColor(argb: theme.background).cgColor)
-        ctx.fill(bounds)
+        if systemBackdrop { ctx.clear(bounds) } else {
+            ctx.setFillColor(UIColor(argb: theme.background).cgColor)
+            ctx.fill(bounds)
+        }
         let now = nowMs()
         let light = lightNow
         let lightActive = !(light === wordLight && !wordLight.animating(now: now))
