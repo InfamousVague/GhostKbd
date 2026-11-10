@@ -46,6 +46,8 @@ interface KeyboardListener {
     fun onCursorLine(lines: Int) {}
     /** The empty side of a docked or one-handed keyboard was tapped: the keys should move to [side] ("left" or "right"). */
     fun onDock(side: String, wide: Boolean) {}
+    /** The layout switch (the globe key, or the space bar's list) chose the layout with this [id] (Layouts.SPECS). */
+    fun onLayout(id: String) {}
 }
 
 /**
@@ -71,6 +73,7 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
     override fun onDock(side: String, wide: Boolean) = guard("onDock") { inner.onDock(side, wide) }
+    override fun onLayout(id: String) = guard("onLayout") { inner.onLayout(id) }
 }
 
 enum class ShiftState { OFF, ON, LOCKED }
@@ -168,7 +171,16 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     fun takeTyped(): Typed? = lastTyped.also { lastTyped = null }
 
     /** The middle of [c]'s key on the letters page now, and its size: to measure a mistake against the key meant. */
-    fun letterRect(c: Char): RectF? = if (page != Page.LETTERS) null else keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text.equals(c.toString(), ignoreCase = true) }?.second
+    fun letterRect(c: Char): RectF? = if (page != Page.LETTERS) null else keyTyping(c.toString())?.second
+
+    /**
+     * The key that types the letter [text]: the one it is, else the one its lower case is by the layout's own rule.
+     * Never a comparison that ignores case: that calls Turkish's ı and i the same letter, and they are two keys.
+     */
+    private fun keyTyping(text: String): Pair<Key, RectF>? {
+        fun find(t: String) = keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text == t }
+        return find(text) ?: find(text.lowercase(locale))
+    }
 
     /** A point as a fraction of the keys' area, for the heatmap, which must hold on a folded or an unfolded screen. */
     fun keysFraction(x: Float, y: Float): Pair<Float, Float> = (x / width.coerceAtLeast(1)) to ((y - keysTop) / keysHeight.coerceAtLeast(1f))
@@ -188,14 +200,22 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * backlight's own effect (or a reactive flare when the backlight is off).
      */
     fun lightWord(word: String) {
-        val letters = Autocorrect.fold(word.lowercase())
-        letters.forEachIndexed { i, c ->
-            val rect = keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text == c.toString() } ?: return@forEachIndexed
+        word.lowercase(locale).forEachIndexed { i, c ->
+            val rect = letterKey(c) ?: return@forEachIndexed
             postDelayed({
                 lightNow.press(lightId(rect.first), rect.second.centerX(), rect.second.centerY(), android.os.SystemClock.uptimeMillis())
                 invalidate()
             }, i * 55L)
         }
+    }
+
+    /**
+     * The key a letter lights: its own, else the key of its plain letter (é lights e, ё lights е: [Script.plain]),
+     * else none.
+     */
+    private fun letterKey(c: Char): Pair<Key, RectF>? {
+        fun find(text: String) = keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text == text }
+        return find(c.toString()) ?: spec.script.plain(c.toString()).firstOrNull()?.let { find(it.toString()) }
     }
 
     /** A key the AI is "pressing" as it types (Ghostwriter), drawn pressed with its preview, and when it lets go. */
@@ -211,10 +231,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val match = when {
             c == ' ' -> keyRects.firstOrNull { it.first.type == KeyType.SPACE }
             c == '\n' -> keyRects.firstOrNull { it.first.type == KeyType.ENTER }
-            else -> {
-                val folded = Autocorrect.fold(c.lowercase()).firstOrNull()?.toString() ?: c.toString()
-                keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && (k.text == c.toString() || k.text.equals(folded, ignoreCase = true)) }
-            }
+            else -> keyRects.firstOrNull { (k, _) -> k.type == KeyType.CHAR && k.text == c.toString() } ?: c.toString().lowercase(locale).firstOrNull()?.let(::letterKey)
         }
         removeCallbacks(releaseGhost)
         ghostKey = match
@@ -253,6 +270,48 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private var showToolbar = false
     private var rowHeightDp = 60f
 
+    /**
+     * The layout being typed on, its keys' further long-press letters, the space bar's name for it (and a shorter
+     * one; null where there is only one layout), whether the globe key stands beside space, and the layouts the
+     * switch goes between, as id and name. [locale] is whose capitals shift gives: the layout's own, or its
+     * languages' where they share one (Turkish alone on QWERTY: LanguageState.locale).
+     */
+    var spec: LayoutSpec = Layouts.QWERTY
+        private set
+    private var locale: java.util.Locale = java.util.Locale.ROOT
+    private var extras: Map<String, List<String>> = Layouts.extras(Layouts.QWERTY, emptyList())
+    private var spaceLabel: String? = null
+    private var spaceShort: String? = null
+    private var globe = false
+    private var choices: List<Pair<String, String>> = emptyList()
+
+    /** The layout and its languages (LanguageState, from the service or the preview): the keys are rebuilt only when something changed. */
+    fun setLanguage(
+        spec: LayoutSpec, extras: Map<String, List<String>>, spaceLabel: String?, spaceShort: String?, globe: Boolean, choices: List<Pair<String, String>>,
+        locale: java.util.Locale = spec.locale,
+    ) {
+        if (spec === this.spec && extras == this.extras && spaceLabel == this.spaceLabel && spaceShort == this.spaceShort && globe == this.globe && choices == this.choices && locale == this.locale) return
+        val moved = spec !== this.spec
+        this.spec = spec
+        this.locale = locale
+        this.extras = extras
+        this.spaceLabel = spaceLabel
+        this.spaceShort = spaceShort
+        this.globe = globe
+        this.choices = choices
+        // Another layout: shift starts off (the service turns it on again where a sentence starts and the script has capitals).
+        if (moved) { shift = ShiftState.OFF; autoShifted = false; cancelTouch() }
+        rebuild()
+        invalidate()
+    }
+
+    /** The layout after this one, round again to the first: where a tap on the globe key goes. Null with one layout. */
+    private fun nextLayout(): String? {
+        if (choices.size < 2) return null
+        val at = choices.indexOfFirst { it.first == spec.id }
+        return choices[(at + 1) % choices.size].first
+    }
+
     fun configure(numberRow: Boolean, keyHeight: String, toolbar: Boolean) {
         // Gboard's rows, measured from its own screenshot: a 48dp key and a 12dp gap, 60dp from row to row.
         val height = when (keyHeight) { "short" -> 52f; "tall" -> 68f; else -> 60f }
@@ -288,9 +347,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         invalidate()
     }
 
-    /** Auto-capitalisation from the editor: turns shift on, or back off if it alone turned it on. */
+    /**
+     * Auto-capitalisation from the editor: turns shift on, or back off if it alone turned it on. Nothing on a script
+     * without capitals: there shift is the person's alone (on the Korean board it would double the first consonant).
+     */
     fun setAutoShift(on: Boolean) {
-        if (page != Page.LETTERS || shift == ShiftState.LOCKED) return
+        if (!spec.script.cased || page != Page.LETTERS || shift == ShiftState.LOCKED) return
         if (on && shift == ShiftState.OFF) {
             shift = ShiftState.ON; autoShifted = true; invalidate()
         } else if (!on && shift == ShiftState.ON && autoShifted) {
@@ -310,9 +372,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     private fun rebuild() {
         val base = when (page) {
-            Page.LETTERS -> Layouts.letters(numberRow)
-            Page.SYMBOLS -> Layouts.symbols()
-            Page.MORE -> Layouts.more()
+            Page.LETTERS -> Layouts.letters(spec, numberRow, extras, globe)
+            Page.SYMBOLS -> Layouts.symbols(spec)
+            Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
         }
         rows = if (micKey) Layouts.withMic(base) else base
@@ -392,8 +454,24 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) = layoutKeys()
 
+    /**
+     * Touch correction's offset for each of [keyRects], by the key's place (dp; null where it has none): a key on any
+     * layout takes the offset measured for the QWERTY key in the same row whose middle is nearest across the board,
+     * since a thumb's reach is about where a key is, not what is printed on it. On QWERTY that is each letter's own.
+     */
+    private val keyOffsets = ArrayList<Pair<Float, Float>?>()
+
+    /** The offset for a key in letter [row] (0 to 2) whose middle is [across] the board (0 to 1); null outside the letter rows. */
+    private fun placeOffset(row: Int, across: Float): Pair<Float, Float>? {
+        val letters = QWERTY_ROWS.getOrNull(row) ?: return null
+        val inset = QWERTY_INSETS[row]
+        val nearest = letters.indices.minByOrNull { abs((it + 0.5f + inset) / 10f - across) } ?: return null
+        return LETTER_OFFSETS_DP[letters[nearest].toString()]
+    }
+
     private fun layoutKeys() {
         keyRects.clear()
+        keyOffsets.clear()
         if (width == 0) return
         val units = rows.maxOf { it.units }
         // Split on a wide screen (an unfolded foldable, a tablet), as Gboard does: each half keeps a phone's key size
@@ -421,21 +499,28 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val mid = left + sidePad + units * unit / 2
         val rowH = keysHeight / rows.size
         var y = keysTop
-        for (row in rows) {
-            var x = left + sidePad + row.inset * unit + (units - row.units) * unit / 2
+        // The three letter rows of the letters page, counted from its first (after the number row where there is one).
+        val firstLetterRow = if (page == Page.LETTERS) rows.size - 4 else -1
+        rows.forEachIndexed { r, row ->
+            val start = row.inset + (units - row.units) / 2
+            var across = start
+            var x = left + sidePad + start * unit
             for (key in row.keys) {
                 val w = key.width * unit
                 val left = x; val right = x + w
+                val offset = if (firstLetterRow >= 0 && key.type == KeyType.CHAR) placeOffset(r - firstLetterRow, (across + key.width / 2) / units) else null
+                fun put(rect: RectF) { keyRects += key to rect; keyOffsets += offset }
                 when {
-                    gap == 0f -> keyRects += key to RectF(left, y, right, y + rowH)
+                    gap == 0f -> put(RectF(left, y, right, y + rowH))
                     key.width >= 2f && left < mid && right > mid -> {
-                        keyRects += key to RectF(left, y, mid, y + rowH)
-                        keyRects += key to RectF(mid + gap, y, right + gap, y + rowH)
+                        put(RectF(left, y, mid, y + rowH))
+                        put(RectF(mid + gap, y, right + gap, y + rowH))
                     }
-                    (left + right) / 2 <= mid + 0.01f -> keyRects += key to RectF(left, y, right, y + rowH)
-                    else -> keyRects += key to RectF(left + gap, y, right + gap, y + rowH)
+                    (left + right) / 2 <= mid + 0.01f -> put(RectF(left, y, right, y + rowH))
+                    else -> put(RectF(left + gap, y, right + gap, y + rowH))
                 }
                 x += w
+                across += key.width
             }
             y += rowH
         }
@@ -635,7 +720,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         }
         val cx = f.centerX(); val cy = f.centerY()
         when (key.type) {
-            KeyType.CHAR -> {
+            KeyType.CHAR -> if (key.text == HALF_SPACE) drawHalfSpace(canvas, cx, cy) else {
                 val text = shown(key)
                 val letter = page == Page.LETTERS && text.length == 1 && text[0].isLetter()
                 label.typeface = regular
@@ -656,12 +741,53 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 label.color = if (page == Page.DEV && key.label == "{ }") theme.accent else theme.text
                 drawCentered(canvas, key.label, cx, cy)
             }
-            KeyType.SPACE -> Unit
+            KeyType.SPACE -> drawSpaceLabel(canvas, f)
+            KeyType.GLOBE -> drawGlobe(canvas, cx, cy)
             KeyType.MIC -> drawMic(canvas, cx, cy, theme.text)
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
         }
+    }
+
+    /**
+     * The space bar's name for the layout being typed on ("Français", "English · Polski"), small and quiet, where
+     * there is more than one layout to tell apart. The shorter name ("FR") where the full one will not fit.
+     */
+    private fun drawSpaceLabel(canvas: Canvas, f: RectF) {
+        val full = spaceLabel ?: return
+        if (page != Page.LETTERS) return
+        label.typeface = regular
+        label.textSize = sp(13f)
+        label.color = theme.hint
+        val room = f.width() - dp(16f)
+        val text = if (label.measureText(full) <= room) full else spaceShort ?: full
+        fitText(text, room)
+        if (label.measureText(text) <= room) drawCentered(canvas, text, f.centerX(), f.centerY())
+    }
+
+    /** The globe key: a globe, drawn (a circle, its equator and a meridian). Tap for the next layout, hold for the list. */
+    private fun drawGlobe(canvas: Canvas, cx: Float, cy: Float) {
+        val r = dp(9f)
+        stroke.color = theme.text
+        stroke.strokeWidth = dp(1.6f)
+        canvas.drawCircle(cx, cy, r, stroke)
+        canvas.drawLine(cx - r, cy, cx + r, cy, stroke)
+        canvas.drawOval(RectF(cx - r * 0.45f, cy - r, cx + r * 0.45f, cy + r), stroke)
+    }
+
+    /** Persian and Urdu's half-space key: a short open box, a space bar's mark at half its width. */
+    private fun drawHalfSpace(canvas: Canvas, cx: Float, cy: Float) {
+        val u = dp(1f)
+        stroke.color = theme.text
+        stroke.strokeWidth = dp(1.8f)
+        path.reset()
+        path.moveTo(cx - 5 * u, cy - 1 * u)
+        path.lineTo(cx - 5 * u, cy + 5 * u)
+        path.lineTo(cx + 5 * u, cy + 5 * u)
+        path.lineTo(cx + 5 * u, cy - 1 * u)
+        canvas.drawPath(path, stroke)
+        canvas.drawLine(cx, cy - 7 * u, cx, cy + 1 * u, stroke)
     }
 
     /**
@@ -705,7 +831,18 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         while (label.textSize > sp(9f) && label.measureText(text) > width) label.textSize -= sp(1f)
     }
 
-    private fun display(text: String) = if (page == Page.LETTERS && shift != ShiftState.OFF) text.uppercase() else text
+    /**
+     * [text] as shift has it on the letters page: the layout's own shifted letter where it has one (Korean's double
+     * consonants), else its capital in the layout's locale (Turkish i gives İ), kept only when it is still one
+     * letter for one (ß has no single capital, and stays ß). Scripts without capitals are as they are.
+     */
+    private fun display(text: String): String {
+        if (page != Page.LETTERS || shift == ShiftState.OFF) return text
+        spec.shifted[text]?.let { return it }
+        if (!spec.script.cased) return text
+        val upper = text.uppercase(locale)
+        return if (upper.length == text.length) upper else text
+    }
 
     private fun drawCentered(canvas: Canvas, text: String, cx: Float, cy: Float) {
         val m = label.fontMetrics
@@ -810,6 +947,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     /** Gboard's key preview: a bubble the width of the key standing on top of it, the character drawn large. */
     private fun drawPreview(canvas: Canvas, key: Key, rect: RectF) {
+        if (key.text == HALF_SPACE) return
         val f = face(rect)
         val h = min(f.height() * 1.15f, f.top - dp(2f))
         if (h < dp(24f)) return
@@ -828,26 +966,67 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     // --- the long-press panel ---------------------------------------------------------------------------------------
 
-    private class Panel(val choices: List<String>, val cells: List<RectF>, val bounds: RectF) {
+    /**
+     * A long-press panel: its [choices] in [cells], [columns] across (eight for a key's characters, one for the list
+     * of layouts). [layouts] makes it the layout switch's list: each choice's layout id, null for "Other keyboards",
+     * and [current] the one being typed on.
+     */
+    private class Panel(val choices: List<String>, val cells: List<RectF>, val bounds: RectF, val columns: Int, val layouts: List<String?>? = null, val current: Int = -1) {
         var selected = 0
     }
 
+    /**
+     * The layout switch's list, over the space bar or the globe key: every layout that is on, then "Other keyboards"
+     * (Android's own picker). The next layout is already chosen, so holding and letting go flips between two.
+     */
+    private fun makeLayoutPanel(rect: RectF): Panel? {
+        if (choices.size < 2) return null
+        val names = choices.map { it.second } + "Other keyboards"
+        val ids: List<String?> = choices.map { it.first } + null
+        val f = face(rect)
+        val pad = dp(6f)
+        label.typeface = regular
+        label.textSize = sp(16f)
+        val w = (names.maxOf { label.measureText(it) } + dp(40f)).coerceIn(dp(180f), width - dp(16f))
+        val bottom = f.top - dp(2f)
+        val cellH = minOf(dp(44f), (bottom - pad * 2) / names.size)
+        val h = names.size * cellH + pad * 2
+        val left = (f.centerX() - w / 2).coerceIn(dp(8f), (width - dp(8f) - w).coerceAtLeast(dp(8f)))
+        val top = (bottom - h).coerceAtLeast(0f)
+        val cells = names.indices.map { i -> RectF(left + pad, top + pad + i * cellH, left + w - pad, top + pad + (i + 1) * cellH) }
+        val current = choices.indexOfFirst { it.first == spec.id }
+        return Panel(names, cells, RectF(left, top, left + w, top + h), columns = 1, layouts = ids, current = current).also { it.selected = (current + 1) % choices.size }
+    }
+
+    /**
+     * A key's long-press panel, standing on the key. Eight choices a line where that fits above the key; where it
+     * would not (Vietnamese's o has twenty-two), the lines are made as long as the board is wide, and if they still
+     * do not fit their cells are made shorter, so the panel never comes down over the key the finger is on.
+     */
     private fun makePanel(key: Key, rect: RectF): Panel? {
         if (key.alts.isEmpty()) return null
         val choices = key.alts.map { display(it) }
         val f = face(rect)
         val cellW = f.width() + keyPadX * 2
-        val cellH = f.height()
-        val cols = min(choices.size, 8)
-        val lines = ceil(choices.size / cols.toFloat()).toInt()
         val pad = dp(6f)
+        val bottom = f.top - dp(2f)
+        val room = (bottom - pad * 2).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
+        var cellH = f.height()
+        var cols = min(choices.size, 8)
+        var lines = ceil(choices.size / cols.toFloat()).toInt()
+        if (lines * cellH > room) {
+            val across = floor((width - dp(4f) - pad * 2) / cellW).toInt().coerceAtLeast(cols)
+            val fit = floor(room / cellH).toInt().coerceAtLeast(1)
+            cols = min(choices.size, ceil(choices.size / fit.toFloat()).toInt().coerceIn(cols, across))
+            lines = ceil(choices.size / cols.toFloat()).toInt()
+            if (lines * cellH > room) cellH = (room / lines).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
+        }
         val w = cols * cellW + pad * 2
         val h = lines * cellH + pad * 2
         // Centred on the key where it fits, the first choice nearest the finger.
         var left = f.centerX() - cellW / 2 - pad
         if (left + w > width - dp(2f)) left = width - dp(2f) - w
         if (left < dp(2f)) left = dp(2f)
-        val bottom = f.top - dp(2f)
         val top = (bottom - h).coerceAtLeast(0f)
         val bounds = RectF(left, top, left + w, top + h)
         val cells = choices.indices.map { i ->
@@ -856,7 +1035,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             val col = i % cols
             RectF(left + pad + col * cellW, top + pad + line * cellH, left + pad + (col + 1) * cellW, top + pad + (line + 1) * cellH)
         }
-        return Panel(choices, cells, bounds)
+        return Panel(choices, cells, bounds, cols)
     }
 
     private fun drawPanel(canvas: Canvas, panel: Panel) {
@@ -873,17 +1052,25 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 canvas.drawRoundRect(RectF(cell.left + dp(2f), cell.top + dp(2f), cell.right - dp(2f), cell.bottom - dp(2f)), keyRadius, keyRadius, fill)
                 label.color = theme.onPopupSelected
             } else {
-                label.color = theme.text
+                // In the list of layouts the one being typed on is in the accent.
+                label.color = if (panel.layouts != null && i == panel.current) theme.accent else theme.text
             }
             val text = pretty(choice)
-            label.textSize = sp(22f)
+            label.textSize = sp(if (panel.layouts != null) 16f else 22f)
             fitText(text, cell.width() - dp(4f))
             drawCentered(canvas, text, cell.centerX(), cell.centerY())
         }
     }
 
     private fun selectInPanel(panel: Panel, x: Float, y: Float) {
-        val cols = min(panel.choices.size, 8)
+        if (panel.layouts != null) {
+            // The list of layouts: the finger starts below it, on the bar, and what was chosen stays until it comes up into the list.
+            if (y > panel.bounds.bottom) return
+            val index = panel.cells.indexOfFirst { y < it.bottom }.let { if (it < 0) panel.cells.size - 1 else it }
+            if (index != panel.selected) { panel.selected = index; invalidate() }
+            return
+        }
+        val cols = panel.columns
         val cellW = panel.cells[0].width()
         val cellH = panel.cells[0].height()
         val lines = ceil(panel.choices.size / cols.toFloat()).toInt()
@@ -966,7 +1153,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     /**
      * On the letters page, how far from where it is aimed a thumb lands at (x, y): a smooth blend of each key's own
-     * measured offset ([LETTER_OFFSETS_DP]), weighted by how near its centre the touch is. The bottom row's keys
+     * measured offset ([LETTER_OFFSETS_DP], given to each key by its place: [keyOffsets]), weighted by how near its centre the touch is. The bottom row's keys
      * (?123, space, enter...) count as landing on target, which keeps the blend from leaking into them.
      */
     private fun letterCorrection(x: Float, y: Float): Pair<Float, Float> {
@@ -974,8 +1161,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val sigma2 = 2f * (unitW * 0.6f) * (unitW * 0.6f)
         var sw = 0f; var sx = 0f; var sy = 0f
         val bottomTop = keyRects.last().second.top
-        for ((key, r) in keyRects) {
-            val off = LETTER_OFFSETS_DP[key.text]
+        for (i in keyRects.indices) {
+            val r = keyRects[i].second
+            val off = keyOffsets[i]
             if (off == null && r.top < bottomTop) continue
             val dx = x - r.centerX(); val dy = y - r.centerY()
             val w = kotlin.math.exp(-(dx * dx + dy * dy) / sigma2)
@@ -1062,7 +1250,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 listener.onDelete()
                 timer.postDelayed(repeatDelete, 400)
             }
-            KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT -> timer.postDelayed(longPress, longPressMs)
+            KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT, KeyType.GLOBE -> timer.postDelayed(longPress, longPressMs)
             KeyType.MODE -> if (t.key.label == "{ }") timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
@@ -1143,7 +1331,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     private fun onLongPress(t: Touch) {
         when (t.key.type) {
-            KeyType.SPACE -> { t.longPressed = true; listener.onShowPicker() }
+            // With more than one layout on, the space bar and the globe key open the list of them; with one, the space
+            // bar opens Android's keyboard picker as it always has.
+            KeyType.SPACE, KeyType.GLOBE -> {
+                t.longPressed = true
+                val panel = makeLayoutPanel(t.rect)
+                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() }
+                else if (t.key.type == KeyType.SPACE) listener.onShowPicker()
+            }
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
             KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
             KeyType.SHIFT -> {
@@ -1181,6 +1376,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 fadingSince = android.os.SystemClock.uptimeMillis()
                 if (shift == ShiftState.ON) { shift = ShiftState.OFF; autoShifted = false; listener.onShiftChanged() }
             }
+            panel != null && panel.layouts != null -> panel.layouts[panel.selected].let { id -> if (id == null) listener.onShowPicker() else if (id != spec.id) listener.onLayout(id) }
             panel != null -> commit(panel.choices[panel.selected])
             t.longPressed -> Unit
             else -> when (t.key.type) {
@@ -1195,6 +1391,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)
                 KeyType.MIC -> listener.onMic()
+                KeyType.GLOBE -> nextLayout()?.let { listener.onLayout(it) }
                 KeyType.DELETE -> Unit
             }
         }
@@ -1247,11 +1444,18 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         private const val DOCK_SLACK_DP = 14f
         /** The strip above the keys of the preview in Settings (dp), where a key's popup shows. */
         const val EMBEDDED_TOP_DP = 40f
+
+        /** The least height a long-press panel's cell is squeezed to, so a choice can still be read and hit. */
+        private const val PANEL_CELL_MIN_DP = 30f
         /**
          * Where Matt's thumb lands relative to each letter's centre, in dp (+x right, +y down): the mean of ~325
          * logged taps over 0.1.3 and 0.1.5, each key pulled toward its row-half's mean where it had few taps
          * (6 taps' weight), capped at 14dp across and 20dp down.
          */
+        /** QWERTY's letter rows and how far in each starts (key widths): the places [LETTER_OFFSETS_DP] was measured at. */
+        private val QWERTY_ROWS = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
+        private val QWERTY_INSETS = floatArrayOf(0f, 0.5f, 1.5f)
+
         private val LETTER_OFFSETS_DP: Map<String, Pair<Float, Float>> = mapOf(
             "q" to (-3.6f to 7.0f), "w" to (-4.1f to 3.0f), "e" to (-5.9f to 2.7f), "r" to (-5.9f to 8.5f),
             "t" to (-9.0f to 6.2f), "y" to (0.7f to 13.9f), "u" to (-2.2f to 17.0f), "i" to (-0.7f to 14.1f),
@@ -1266,6 +1470,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         private const val LIFT_TOP_DP = 11f
         private const val LIFT_MIDDLE_DP = 6f
         private const val SHIFT_LEFT_HALF_DP = 5f
+        /** What Persian and Urdu's half-space key types (U+200C): drawn as a mark, never as the invisible character. */
+        private const val HALF_SPACE = "\u200C"
         private const val KEYBOARD_TAP = android.view.HapticFeedbackConstants.KEYBOARD_TAP
         private const val LONG_PRESS = android.view.HapticFeedbackConstants.LONG_PRESS
     }

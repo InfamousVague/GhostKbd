@@ -33,6 +33,9 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
         override fun onHideKeyboard() = Unit
         override fun onMic() = Unit
 
+        /** The globe key and the space bar's list work here as on the keyboard: the layout chosen is kept, and both follow. */
+        override fun onLayout(id: String) { prefs.set(KeyboardPrefs.LAYOUT, id) }
+
         /** The key's buzz and sound as Settings has them, so Key press & sound can be tried here too. */
         override fun onKeyFeedback(key: Key, haptic: Boolean) {
             if (haptic && prefs.vibrate) keys.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -60,10 +63,12 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
         keys.theme = KeyboardTheme.resolve(keys.context, prefs)
         keys.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(app)
         keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
-        keys.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
+        val language = prefs.languageState()
+        keys.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, language.locale)
+        keys.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE) && language.spec.swipe
         keys.wideLayout = prefs.wideLayout
         keys.oneHanded = prefs.oneHanded
-        keys.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(app) else null
+        keys.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(app, language.spec.id) else null
         keys.adaptiveMap = Plugins.isOn(prefs, Plugins.ADAPTIVE) && prefs.adaptiveMap
         keys.backlight = if (!prefs.backlight) null else keys.backlight?.takeIf {
             it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) &&

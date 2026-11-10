@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chunk: look</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="../site/css/chunks/look.css">
+<style>
+  /* This page only. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
+  .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .bench__phone { inline-size: 320px; max-inline-size: 100%; }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <section aria-labelledby="wide">
+    <h2 id="wide">2u on the board</h2>
+    <div class="keycaps">
+      <div class="keycaps__row">
+        <article class="keycap keycap--2u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">look &amp; feel</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="look"></div>
+            <p class="keycap__caption" data-look-status>Five themes, six backlight effects.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="narrow">
+    <h2 id="narrow">On a phone (a 320px board)</h2>
+    <div class="bench__phone">
+      <div class="keycaps">
+        <div class="keycaps__row">
+          <article class="keycap keycap--2u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">look &amp; feel</h3>
+              <span class="keycap__hint keycap__hint--live">live</span>
+              <div class="keycap__body" data-chunk="look"></div>
+              <p class="keycap__caption" data-look-status>Five themes, six backlight effects.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { mount } from '../site/js/chunks/look.js';
+window.chunks = [...document.querySelectorAll('[data-chunk="look"]')].map((root) => mount(root));
+</script>
+</body>
+</html>

@@ -121,6 +121,21 @@ object TypingStats {
         changed(context)
     }
 
+    /**
+     * A word was tapped in the row above the keys: a predicted next word, or the completion of one whose first
+     * [typed] letters were counted as they were typed. The rest of it counts, with the space the tap puts after it,
+     * and it is one word; no swipe.
+     */
+    fun picked(context: Context, word: String, typed: Int = 0) {
+        val day = today(context)
+        tick(day)
+        day.chars += (word.length - typed).coerceAtLeast(0) + 1
+        day.words++
+        inWord = false
+        lastTyped = false
+        changed(context)
+    }
+
     /** The field was left: the word in hand is over, and what was counted is written down. */
     fun flush(context: Context) {
         val map = days ?: return

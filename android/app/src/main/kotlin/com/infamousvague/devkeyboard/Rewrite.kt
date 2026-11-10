@@ -49,6 +49,6 @@ object Rewrite {
     /** [text] rewritten as [mode] asks. Blocking: run it off the main thread. */
     fun run(prefs: KeyboardPrefs, mode: Mode, text: String): String {
         if (text.length > MAX_CHARS) throw AiClient.AiError("That's too long to rewrite at once: select a part of it")
-        return AiClient.complete(prefs, SYSTEM + " " + mode.ask, text, maxTokens = 4000, effort = "low")
+        return AiClient.complete(prefs, NetPath.REWRITE, SYSTEM + " " + mode.ask, text, maxTokens = 4000, effort = "low")
     }
 }

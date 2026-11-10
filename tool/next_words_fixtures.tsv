@@ -1,0 +1,50 @@
+# The next-word tokenizer's cases, shared by the keyboard (NextWordText in NextWordModel.kt, run by
+# tool/next_word_check.sh) and the starter tables' generator (tool/next_words.py --selftest), so the two cannot drift.
+#
+# Tab-separated: the language (its joiners, locale and sentence ends), 1 where the text is a full window (its start is
+# no sentence start and its first word may be cut), the text before the cursor, then what is expected of it:
+#   place     prev2|prev|typing   the context there and the word being typed; - where nothing may be predicted
+#   finished  prev2|prev|word|shown   the last word something follows, as it would be learned; - where none is
+# ~ is "no word", ^ a sentence start. \n is a new line and \u200c a half-space. An empty shown: the casing says nothing.
+en	0		~|^|	-
+en	0	Hello 	^|hello|	~|^|hello|
+en	0	hello world 	hello|world|	^|hello|world|world
+en	0	hello	~|^|hello	-
+en	0	hello  	^|hello|	~|^|hello|hello
+en	0	I am. 	~|^|	^|i|am|am
+en	0	well, then 	well|then|	^|well|then|then
+en	0	what; then 	what|then|	^|what|then|then
+fr	0	j'ai 	^|j'ai|	~|^|j'ai|j'ai
+en	0	don't stop	^|don't|stop	~|^|don't|don't
+en	0	foo_bar 	-	-
+en	0	@name 	-	-
+en	0	end.Next 	-	-
+en	0	great 😀 	-	~|^|great|great
+en	0	use camelCase here 	~|here|	-
+en	0	over-the-top thing 	~|thing|	-
+en	0	at 5 pm 	~|pm|	-
+en	0	it's 3pm ok 	~|ok|	-
+en	0	my mp3 	-	-
+en	0	the covid19 was 	~|was|	-
+en	0	my mp	^|my|mp	~|^|my|my
+en	1	cut off here 	off|here|	~|off|here|here
+en	1	 leading space	~|leading|space	-
+en	0	he said "hello" to 	hello|to|	said|hello|to|to
+en	0	'quoted' word 	quoted|word|	^|quoted|word|word
+en	0	see NASA 	see|nasa|	^|see|nasa|NASA
+en	0	SHOUTING now 	shouting|now|	^|shouting|now|now
+en	0	on SHOUTING 	on|shouting|	^|on|shouting|
+en	0	line one\ntwo 	^|two|	~|^|two|two
+en	0	Monday morning	^|monday|morning	~|^|monday|
+en	0	on Monday 	on|monday|	^|on|monday|Monday
+de	0	das Haus ist 	haus|ist|	das|haus|ist|ist
+tr	0	Istanbul güzel 	ıstanbul|güzel|	^|ıstanbul|güzel|güzel
+el	0	τι κάνεις; καλά 	^|καλά|	~|^|καλά|καλά
+fa	0	می\u200cخواهم بروم 	می\u200cخواهم|بروم|	^|می\u200cخواهم|بروم|بروم
+ur	0	آپ کیسے ہیں۔ میں 	^|میں|	~|^|میں|میں
+ar	0	مرحبا، كيف 	مرحبا|كيف|	^|مرحبا|كيف|كيف
+ru	0	Привет как дела	привет|как|дела	^|привет|как|как
+es	0	¿Cómo estás? Bien 	^|bien|	~|^|bien|
+es	0	¿Cómo estás	^|cómo|estás	~|^|cómo|
+ru	0	— Привет, — сказал 	привет|сказал|	^|привет|сказал|сказал
+ru	0	он сказал 'ok' и 	ok|и|	сказал|ok|и|и

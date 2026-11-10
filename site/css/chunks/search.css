@@ -1,0 +1,246 @@
+/*
+ * Settings search on a keycap (site/js/chunks/search.js): the app's "Search settings" field let into the key's face,
+ * and under it what it finds, each with where it lives.
+ *
+ *   <div class="keycap__body" data-chunk="search"></div>     mount() adds .sr and fills it
+ *
+ * On a key of fixed height a result is one line, its name on the left and its place on the right, and the key shows
+ * as many as it has the height for (the module counts them: --sr-min is the shortest a result may be, --sr-max the
+ * tallest). On a key that takes its height from what it holds (a phone's one column, .keycap--fluid) there are two,
+ * each with its place under its name, as the app's own rows have it, and the field is a finger tall.
+ */
+
+.keycap__body.sr {
+  --sr-min: 17px;
+  --sr-max: 26px;
+  --sr-field: 30px;
+  --sr-type: .8125rem;
+  --sr-list: 1 1 0;
+  --sr-list-h: auto;
+  --sr-flow: row;
+  --sr-cross: center;
+  --sr-name: 0 1 auto;
+  --sr-where: 1 1 0;
+  --sr-where-min: 30%;
+  --sr-end: end;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 4px var(--cap-pad);
+}
+
+@container keycaps (max-width: 620px) {
+  .keycap__body.sr {
+    --sr-min: 36px;
+    --sr-max: 38px;
+    --sr-field: 44px;
+    --sr-type: 1rem;
+    --sr-list: none;
+    --sr-list-h: calc(2 * var(--sr-max));
+    --sr-flow: column;
+    --sr-cross: stretch;
+    --sr-name: none;
+    --sr-where: none;
+    --sr-where-min: 0;
+    --sr-end: start;
+    gap: 6px;
+    padding-block: var(--s-1) var(--s-2);
+  }
+}
+
+.keycap--fluid .keycap__body.sr {
+  --sr-min: 36px;
+  --sr-max: 38px;
+  --sr-field: 44px;
+  --sr-type: 1rem;
+  --sr-list: none;
+  --sr-list-h: calc(2 * var(--sr-max));
+  --sr-flow: column;
+  --sr-cross: stretch;
+  --sr-name: none;
+  --sr-where: none;
+  --sr-where-min: 0;
+  --sr-end: start;
+  gap: 6px;
+  padding-block: var(--s-1) var(--s-2);
+}
+
+/*
+ * The key's caption shares a grid column with the hint above it ("settings"), which would cost it the hint's width
+ * and a second line. This key has no sub-legend, so its caption takes the whole foot of the face.
+ */
+.keycap__face:has(> [data-chunk="search"]) > .keycap__caption,
+.keycap__face:has(> .sr) > .keycap__caption { grid-column: 1 / -1; }
+
+/* The field: the page's ground let into the face, a glass, the text, and how many were found when not all are shown. */
+.sr__field {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: var(--sr-field);
+  padding-inline: 8px;
+  border-radius: var(--r-chip);
+  background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--hairline-2);
+  color: var(--ink-2);
+  cursor: text;
+}
+
+/* The ring is drawn inside the field: the legend stands close above it. */
+.sr__field:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sr__ico {
+  width: 14px;
+  height: 14px;
+}
+
+.sr__box {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.sr .sr__input,
+.sr .sr__ghost {
+  font-family: var(--font);
+  font-size: var(--sr-type);
+  line-height: var(--sr-field);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.sr .sr__input {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: none;
+  caret-color: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sr__input::placeholder { color: var(--ink-3); opacity: 1; }
+.sr__input::-webkit-search-decoration,
+.sr__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+
+/*
+ * While the key types by itself the words are drawn by the line over the field, which has a caret to show (an input
+ * shows none until someone is in it); the field holds the same text, unseen. The moment a visitor is in the field the
+ * line goes and the field is theirs.
+ */
+.sr .sr__ghost {
+  position: absolute;
+  inset: 0;
+  display: none;
+  white-space: pre;
+  overflow: hidden;
+  cursor: text;
+  pointer-events: none;
+}
+
+.sr.is-playing .sr__ghost { display: block; }
+.sr.is-playing .sr__input { color: transparent; }
+
+.sr__count {
+  flex: none;
+  font-size: var(--t-legend);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.sr__count:empty { display: none; }
+
+/* What it finds: rows of one height, as many as the module says fit (--sr-n). */
+.sr__hits {
+  flex: var(--sr-list);
+  block-size: var(--sr-list-h);
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(var(--sr-n, 2), minmax(0, var(--sr-max)));
+  align-content: start;
+  overflow: hidden;
+}
+
+.sr__hit {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: var(--sr-flow);
+  align-items: var(--sr-cross);
+  justify-content: center;
+  gap: 0 var(--s-3);
+  padding-inline: 2px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.sr__hit + .sr__hit { box-shadow: inset 0 1px 0 var(--hairline); }
+
+.sr__name,
+.sr__where {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sr__name {
+  flex: var(--sr-name);
+  font-size: .8125rem;
+  color: var(--ink);
+}
+
+.sr__where {
+  flex: var(--sr-where);
+  min-width: var(--sr-where-min);
+  font-size: .75rem;
+  color: var(--ink-2);
+  text-align: var(--sr-end);
+}
+
+.sr__none {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8125rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The keyboard behind the face: it draws nothing, and is here so the typing knows when the key is on screen. */
+.sr__driver {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* A finger's field: text large enough that a phone does not zoom the page to it. */
+@media (pointer: coarse) {
+  .keycap__body.sr { --sr-type: 1rem; }
+}
+
+@media (forced-colors: active) {
+  .sr__field { outline: 1px solid CanvasText; }
+  .sr__field:focus-within { outline: 2px solid Highlight; }
+}

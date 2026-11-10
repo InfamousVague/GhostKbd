@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chunk: adaptive keys</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="../site/css/chunks/adaptive.css">
+<style>
+  /* This page only: the same key at the board's width, and in a phone's. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8); }
+  .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-legend); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .bench__phone { max-width: 320px; }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <section aria-labelledby="wide">
+    <h2 id="wide">2u on the board</h2>
+    <div class="keycaps">
+      <div class="keycaps__row keycaps__row--start">
+        <article class="keycap keycap--2u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">adaptive</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="adaptive"></div>
+            <p class="keycap__caption">Tap i off-centre. It follows. Sped up.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="narrow">
+    <h2 id="narrow">On a phone (320px of board)</h2>
+    <div class="bench__phone">
+      <div class="keycaps">
+        <div class="keycaps__row">
+          <article class="keycap keycap--2u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">adaptive</h3>
+              <span class="keycap__hint keycap__hint--live">live</span>
+              <div class="keycap__body" data-chunk="adaptive"></div>
+              <p class="keycap__caption">Tap i off-centre. It follows. Sped up.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { mount } from '../site/js/chunks/adaptive.js';
+
+window.chunks = [...document.querySelectorAll('[data-chunk="adaptive"]')].map((root) => mount(root));
+</script>
+</body>
+</html>

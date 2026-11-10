@@ -21,11 +21,30 @@ class KeyboardPrefs(context: Context) {
     val doubleSpacePeriod: Boolean get() = bool(DOUBLE_SPACE_PERIOD)
     val spaceCursor: Boolean get() = bool(SPACE_CURSOR)
     val autoUpdate: Boolean get() = bool(AUTO_UPDATE)
+    /**
+     * Settings › Offline: Ghost Keyboard opens no connection at all while this is on. [Net] refuses every one, and the
+     * keyboard's row says so where it would have offered something that needs the network.
+     */
+    val offline: Boolean get() = bool(OFFLINE)
     val keyBorders: Boolean get() = bool(KEY_BORDERS)
     val toolbar: Boolean get() = bool(TOOLBAR)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
+
+    /**
+     * Settings › Autocorrect › Suggest the next word: after a space the row offers the three likeliest next words,
+     * and the word before helps rank completions and choose between corrections (NextWords.kt). Off, the row,
+     * completions and corrections are exactly as they were before there was prediction.
+     */
+    val nextWord: Boolean get() = bool(NEXT_WORD)
+
+    /**
+     * Settings › Autocorrect › Learn from what I type: word pairs are counted on this phone as they are typed (never
+     * in password fields, while incognito, or where a field asks keyboards not to learn). Off, nothing more is
+     * counted; what was learned already is still used until it is forgotten in Settings.
+     */
+    val nextWordLearn: Boolean get() = bool(NEXT_WORD_LEARN)
 
     /** The GIF plugin: a GIPHY key of the person's own, used instead of the build's. */
     val giphyKey: String get() = prefs.getString(GIPHY_KEY, "")!!
@@ -79,14 +98,54 @@ class KeyboardPrefs(context: Context) {
     val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
     val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
 
-    /** Autocorrect's languages: codes with a dictionary in assets/dict, comma-separated ("en,es"). */
-    val languages: List<String> get() = prefs.getString(LANGUAGES, DEFAULTS[LANGUAGES] as String)!!.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf("en") }
+    /**
+     * The languages that are on: codes from Languages.ALL, comma-separated, in the order they were turned on
+     * ("en,pl,ru"). Codes this keyboard does not have are dropped, at most Languages.MAX count, and never none.
+     */
+    val languages: List<String> get() = Languages.clean(prefs.getString(LANGUAGES, DEFAULTS[LANGUAGES] as String)!!.split(','))
 
-    /** Words autocorrect leaves alone, one a line: added when a fix is undone, removable in Settings. */
-    val learnedWords: Set<String> get() = prefs.getString(LEARNED_WORDS, "")!!.lines().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    /** The layout chosen for a language in place of its own: "fr:qwerty,de:qwerty" as a map. */
+    val languageLayouts: Map<String, String> get() = Languages.overrides(prefs.getString(LANGUAGE_LAYOUTS, "")!!)
 
-    fun learn(word: String) {
-        val w = word.lowercase()
+    /** Settings › Languages › Globe key beside space: shown once two layouts are on. */
+    val globeKey: Boolean get() = bool(GLOBE_KEY)
+
+    /**
+     * The languages and the layout being typed on, worked out from `languages`, `language_layouts` and `layout` (the
+     * active layout's id; empty or no longer on, the first one). With [latinField] a board that is not Latin steps
+     * aside for the first Latin one (a password, an e-mail address, a web address).
+     */
+    fun languageState(latinField: Boolean = false): LanguageState =
+        LanguageState.of(languages, languageLayouts, prefs.getString(LAYOUT, "")!!, latinField)
+
+    /** The layout being typed on, by id: what `layout` says, or the first layout where that is empty or no longer on. */
+    val layout: String get() = languageState().spec.id
+
+    /**
+     * Layouts came after 0.9.0, where every language typed on QWERTY. Once, on the first run with them: Spanish, French
+     * or German that were already on are pinned to QWERTY (Languages.pinned), so a keyboard that was set up opens
+     * exactly as it did, with one layout and nothing to switch. A language turned on afterwards gets its own layout.
+     */
+    fun pinLegacyLayouts() {
+        if (prefs.getBoolean("defaults_languages", false)) return
+        val edit = prefs.edit().putBoolean("defaults_languages", true)
+        if (prefs.contains(LANGUAGES)) edit.putString(LANGUAGE_LAYOUTS, Languages.overrides(Languages.pinned(languages, languageLayouts)))
+        edit.apply()
+    }
+
+    /**
+     * Words autocorrect leaves alone, one a line: added when a fix is undone, removable in Settings. A word kept
+     * before lower case followed the layout may have a capital İ stored as i with a dot above it (two characters,
+     * which no typed word ever is): it is read as the i it is.
+     */
+    val learnedWords: Set<String> get() = prefs.getString(LEARNED_WORDS, "")!!.lines().map { it.trim().replace("i\u0307", "i") }.filter { it.isNotEmpty() }.toSet()
+
+    /**
+     * Keeps [word] as a learned word, in lower case by [locale]: the layout's it was typed on, which is how autocorrect
+     * looks it up (on the Turkish board Işıl is ışıl and İlkim is ilkim).
+     */
+    fun learn(word: String, locale: java.util.Locale = java.util.Locale.ROOT) {
+        val w = word.lowercase(locale)
         val now = learnedWords
         if (w !in now) prefs.edit().putString(LEARNED_WORDS, (now + w).sorted().joinToString("\n")).apply()
     }
@@ -184,6 +243,8 @@ class KeyboardPrefs(context: Context) {
             else -> return false
         }
         edit.apply()
+        // Offline switched on: what is already under way stops too.
+        if (key == OFFLINE && value == true) Net.cut()
         return true
     }
 
@@ -202,12 +263,22 @@ class KeyboardPrefs(context: Context) {
         const val KEY_HEIGHT = "key_height"
         const val LONG_PRESS = "long_press"
         const val AUTO_UPDATE = "auto_update"
+        /** The Offline switch: no connection is opened while it is on (Net.kt). */
+        const val OFFLINE = "offline"
         const val KEY_BORDERS = "key_borders"
         const val TOOLBAR = "toolbar"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
+        /** Each language's layout where one was chosen for it: "fr:qwerty,de:qwerty". */
+        const val LANGUAGE_LAYOUTS = "language_layouts"
+        /** The layout being typed on, by id (Layouts.SPECS): the globe key and the space bar's list write it. */
+        const val LAYOUT = "layout"
+        const val GLOBE_KEY = "globe_key"
         const val SUGGESTIONS = "suggestions"
+        /** Next-word prediction, and whether it learns from what is typed (NextWords.kt). */
+        const val NEXT_WORD = "next_word"
+        const val NEXT_WORD_LEARN = "next_word_learn"
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
         const val SPLIT = "split_keyboard"
@@ -270,12 +341,18 @@ class KeyboardPrefs(context: Context) {
             KEY_HEIGHT to "normal",
             LONG_PRESS to "normal",
             AUTO_UPDATE to true,
+            OFFLINE to false,
             KEY_BORDERS to false,
             TOOLBAR to false,
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",
+            LANGUAGE_LAYOUTS to "",
+            LAYOUT to "",
+            GLOBE_KEY to true,
             SUGGESTIONS to true,
+            NEXT_WORD to true,
+            NEXT_WORD_LEARN to true,
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
             SPLIT to true,

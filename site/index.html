@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Keyboard: the Android keyboard that writes as you</title>
+<meta name="description" content="Ghost Keyboard is an Android keyboard that writes as you. Type &lt;&lt;what you want&gt;&gt; in any app and it is written in place, in your voice, with the AI model you choose and your own key. Terminal keys, adaptive touch areas, an open typing profile. Free, no account, no ads.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0A0B0C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E8EAF0" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://attack.fm/devkeyboard/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ghost Keyboard">
+<meta property="og:url" content="https://attack.fm/devkeyboard/">
+<meta property="og:title" content="Ghost Keyboard: the Android keyboard that writes as you">
+<meta property="og:description" content="Type &lt;&lt;what you want&gt;&gt; in any app and it is written in place, in your voice, with your own AI model and key. Terminal keys, adaptive touch areas, an open typing profile. Free, no account, no ads.">
+<meta property="og:image" content="https://attack.fm/devkeyboard/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Android keyboard that writes as you. Three keycaps: two less-than signs, ghostwriter, two greater-than signs.">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230A0B0C'/%3E%3Cpath fill='%2351FCFB' fill-rule='evenodd' d='M16 6a9 9 0 0 0-9 9v12l3-2.25L13 27l3-2.25L19 27l3-2.25L25 27V15a9 9 0 0 0-9-9Zm-3.2 7.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm6.4 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/kbd.css">
+<link rel="stylesheet" href="css/chunks/ghostwriter.css">
+<link rel="stylesheet" href="css/chunks/voice.css">
+<link rel="stylesheet" href="css/chunks/privacy.css">
+<link rel="stylesheet" href="css/chunks/adaptive.css">
+<link rel="stylesheet" href="css/chunks/swipe.css">
+<link rel="stylesheet" href="css/chunks/dictation.css">
+<link rel="stylesheet" href="css/chunks/terminal.css">
+<link rel="stylesheet" href="css/chunks/row.css">
+<link rel="stylesheet" href="css/chunks/look.css">
+<link rel="stylesheet" href="css/chunks/search.css">
+<script>document.documentElement.classList.add('scripting');</script>
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav__in">
+    <a class="nav__brand" href="#top" aria-label="Ghost Keyboard, top of the page">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 3a7 7 0 0 0-7 7v10l2.33-1.75L9.67 20 12 18.25 14.33 20l2.34-1.75L19 20V10a7 7 0 0 0-7-7ZM9.5 9.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Z"/></svg>
+      Ghost Keyboard
+    </a>
+    <nav class="nav__links" aria-label="On this page">
+      <a href="#ai">What it does</a>
+      <a href="#private">Privacy</a>
+      <a href="#compare">Compare</a>
+      <a href="#faq">Questions</a>
+    </nav>
+    <button type="button" class="nav__pause" data-pause aria-pressed="false" hidden>
+      <svg class="nav__pause-on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>
+      <svg class="nav__pause-off" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.52.86l10.4-6.4a1 1 0 0 0 0-1.72L9.52 4.74A1 1 0 0 0 8 5.6Z"/></svg>
+      <span data-pause-label>Pause the keys</span>
+    </button>
+    <a class="btn btn--primary btn--sm nav__cta" href="#download">Download</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 1. Hero ------------------------------------------------------------------------------------------------- -->
+  <section class="hero hero--split" aria-labelledby="hero-h">
+    <div class="wrap hero__in">
+      <div class="hero__words">
+        <h1 class="display" id="hero-h">The Android keyboard that writes as you.</h1>
+        <p class="lead">Type <code>&lt;&lt;what you want&gt;&gt;</code> in any app. Ghost Keyboard writes it in place, in your voice, with the AI model you choose. It is also a proper keyboard for code: Esc, Ctrl and Tab, autocorrect that knows npm, and touch areas that learn your thumbs.</p>
+        <div class="cluster hero__cta">
+          <a class="btn btn--primary btn--lg" href="./devkeyboard.apk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+            Download for Android
+          </a>
+          <a class="btn btn--ghost btn--lg" href="#ai">See what it does</a>
+        </div>
+        <ul class="hero__meta">
+          <li>Android 8 or later</li>
+          <li>Free, no account, no ads</li>
+          <li>The AI needs your own provider key</li>
+          <li data-apk-show hidden>Version <span data-apk="version"></span></li>
+          <li data-apk-show hidden data-apk="size"></li>
+        </ul>
+      </div>
+
+      <!-- Three keys of one row: << , the key Ghostwriter writes on, >> . The two small keys go down as it types them. -->
+      <div class="keycaps hero__keys">
+        <div class="keycaps__row">
+          <button type="button" class="keycap keycap--1u hero__side" data-press="open" aria-label="Ghostwriter, a sample: show the next request and its answer">
+            <span class="keycap__face">
+              <span class="keycap__body"><span class="keycap__glyph keycap__glyph--mono" aria-hidden="true">&lt;&lt;</span></span>
+            </span>
+          </button>
+          <article data-holds="ghostwriter" class="keycap keycap--3u hero__key">
+            <div class="keycap__face">
+              <h2 class="keycap__legend">ghostwriter</h2>
+              <div class="keycap__body" data-chunk="ghostwriter" data-ghostwriter="row"><p class="keycap__still">&lt;&lt;engineering standup tldr&gt;&gt;</p></div>
+              <p class="keycap__caption">A sample answer. On the phone, your own AI writes it.</p>
+            </div>
+          </article>
+          <button type="button" class="keycap keycap--1u hero__side" data-press="close" aria-label="Ghostwriter, a sample: show the next request and its answer">
+            <span class="keycap__face">
+              <span class="keycap__body"><span class="keycap__glyph keycap__glyph--mono" aria-hidden="true">&gt;&gt;</span></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <noscript>
+        <p class="noscript">This page reads the same without scripting. With it, the keys on this page hold small working pieces of the keyboard: the row above the keys, a terminal row, a few letters, a microphone key. Nothing on the page calls an AI or uses your microphone; what the keys show are samples. The download is <a href="./devkeyboard.apk">devkeyboard.apk</a>.</p>
+      </noscript>
+    </div>
+  </section>
+
+  <!-- 2. Pillars ---------------------------------------------------------------------------------------------- -->
+  <section class="section section--tight section--rule" aria-labelledby="pillars-h">
+    <div class="wrap">
+      <h2 class="vh" id="pillars-h">What Ghost Keyboard is</h2>
+      <div class="features features--4">
+        <div>
+          <h3>AI in any text field</h3>
+          <p>Ask between <code>&lt;&lt;</code> and <code>&gt;&gt;</code>, in any app. The answer is typed where you asked, key by key.</p>
+        </div>
+        <div>
+          <h3>Bring your own model</h3>
+          <p>Bring a key from seven providers or your own server. You pay them; nothing passes through us.</p>
+        </div>
+        <div>
+          <h3>Terminal keys built in</h3>
+          <p>Esc, Tab, sticky Ctrl and Alt, and arrows, one switch away in Settings.</p>
+        </div>
+        <div>
+          <h3>No account, no ads</h3>
+          <p>Free. What it learns about your typing is an open file you can export.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Three stories ---------------------------------------------------------------------------------------- -->
+  <section class="section section--rule story" id="ai" aria-labelledby="ai-h">
+    <div class="wrap">
+      <header class="story__head reveal">
+        <div class="story__title">
+          <p class="eyebrow eyebrow--accent">Ghostwriter and Mockingbird</p>
+          <h2 class="h2" id="ai-h">AI that writes as you.</h2>
+        </div>
+        <div class="prose">
+          <p>Type <code>&lt;&lt;what you want&gt;&gt;</code> in any app and close it with <code>&gt;&gt;</code>. Ghostwriter writes the answer where the request was. It reads what you have typed in the field around the request and, with Mockingbird, your own past messages, so the answer carries on from your draft and sounds like you.</p>
+          <p>You bring a key from Claude, OpenAI, Gemini or four other providers, or your own server, and pay them for what you use. There is no Ghost subscription and no Ghost server in between: what you ask about goes to the provider you chose.</p>
+        </div>
+      </header>
+
+      <div class="keycaps story__keys">
+        <div class="keycaps__row">
+          <article data-holds="voice" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">in my voice</h3>
+              <span class="keycap__hint" data-voice-kind>texting</span>
+              <div class="keycap__body" data-chunk="voice"><p class="keycap__still">there in 10</p></div>
+              <p class="keycap__caption">A sample. On the phone your own AI rewrites it from your style profile.</p>
+            </div>
+          </article>
+          <article data-holds="privacy" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">your key</h3>
+              <span class="keycap__hint">no server of ours</span>
+              <div class="keycap__body" data-chunk="privacy"><p class="keycap__still">&lt;&lt;tldr&gt;&gt; &rarr; the AI you chose</p></div>
+              <p class="keycap__caption" data-privacy-says>Ghostwriter sends nothing until you close a request with &gt;&gt;.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="features features--3 story__points">
+        <div>
+          <h3>A <code>[blank]</code>, not a guess</h3>
+          <p>Where it does not know a fact, it leaves a blank for you to fill.</p>
+        </div>
+        <div>
+          <h3>More to draw on</h3>
+          <p>Each source has its own switch. Past messages, Ghost.md notes and web lookups are on to start, GitHub once you add a token, the clipboard only if you turn it on.</p>
+        </div>
+        <div>
+          <h3>In my voice, and Rewrite</h3>
+          <p>Select something stiff and tap <strong>In my voice</strong>. Or fix, shorten, restyle or translate what you wrote, in place.</p>
+        </div>
+      </div>
+      <p class="story__note">Ghostwriter, Mockingbird and Rewrite are plugins you add in the app, and never run in password fields or while incognito. <a href="#faq-leaves">Everything that leaves your phone.</a></p>
+    </div>
+  </section>
+
+  <section class="section section--rule story" id="typing" aria-labelledby="typing-h">
+    <div class="wrap">
+      <header class="story__head reveal">
+        <div class="story__title">
+          <p class="eyebrow eyebrow--accent">Adaptive keys, autocorrect, swipe, dictation</p>
+          <h2 class="h2" id="typing-h">A keyboard that learns your hands.</h2>
+        </div>
+        <div class="prose">
+          <p>Every thumb has its habits: an i that lands on o, an a you reach short of. Switch on Adaptive keys and the keyboard learns where you really aim at each letter and moves the touch areas to meet you, by up to about a third of a key. Autocorrect catches the slips that still get through. If it gets one wrong, one backspace puts back exactly what you typed, and that word is left alone from then on.</p>
+        </div>
+      </header>
+
+      <div class="keycaps story__keys">
+        <div class="keycaps__row">
+          <article data-holds="adaptive" class="keycap keycap--1_5u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">adaptive</h3>
+              <span class="keycap__hint">learns</span>
+              <div class="keycap__body" data-chunk="adaptive"><p class="keycap__still">u i o</p></div>
+              <p class="keycap__caption">Land right of i and its touch area moves to meet you. Sped up: the phone waits for 15 touches.</p>
+            </div>
+          </article>
+          <article data-holds="swipe" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">swipe typing</h3>
+              <span class="keycap__hint">gesture</span>
+              <div class="keycap__body" data-chunk="swipe"><p class="keycap__still">write your poetry</p></div>
+              <p class="keycap__caption">Draw a word, then lift. This page knows the top row&rsquo;s 461 words; the phone uses its whole dictionary.</p>
+            </div>
+          </article>
+          <article data-holds="dictation" class="keycap keycap--1_5u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">dictation</h3>
+              <span class="keycap__hint">offline</span>
+              <div class="keycap__body" data-chunk="dictation"><p class="keycap__still">Running late, start without me.</p></div>
+              <p class="keycap__caption">A sample. This page never uses your microphone.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="features features--3 story__points">
+        <div>
+          <h3>You can see it</h3>
+          <p>A heatmap shows your slips and where each key now listens. One tap forgets it all. Adaptive keys is a switch in Settings &rsaquo; Typing, off to start, and the keyboard sends what it learns nowhere.</p>
+        </div>
+        <div>
+          <h3>Six languages</h3>
+          <p>English, Spanish, French, German, Italian and Portuguese, with a programmer&rsquo;s vocabulary and texting slang if you want it.</p>
+        </div>
+        <div>
+          <h3>Swipe and dictation</h3>
+          <p>Draw a word across the letters and lift. Add Dictation and whisper turns speech into text on the phone, in takes of up to 60 seconds.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--rule story" id="code" aria-labelledby="code-h">
+    <div class="wrap">
+      <header class="story__head reveal">
+        <div class="story__title">
+          <p class="eyebrow eyebrow--accent">Terminal keys, the { } page, markdown</p>
+          <h2 class="h2" id="code-h">Esc, Ctrl and Tab, on a phone.</h2>
+        </div>
+        <div class="prose">
+          <p>A terminal needs Esc and Ctrl, and a phone keyboard has neither. Turn on Terminal keys in Settings &rsaquo; Row tools and Esc, Tab, sticky Ctrl and Alt, and the arrows show by themselves in Termux, Termius, JuiceSSH and ConnectBot, or in every app if you choose. The letters, the <code>{ }</code> page and the rest of the keyboard stay as they are; the terminal keys sit in the row whenever you are not mid-word.</p>
+        </div>
+      </header>
+
+      <div class="keycaps story__keys">
+        <div class="keycaps__row">
+          <article data-holds="terminal" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">terminal</h3>
+              <span class="keycap__hint">ssh</span>
+              <div class="keycap__body" data-chunk="terminal"><p class="keycap__still">Esc Tab Ctrl Alt &larr; &uarr; &darr; &rarr;</p></div>
+              <p class="keycap__caption">Tap Ctrl, then C.</p>
+            </div>
+          </article>
+          <article data-holds="row" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">arrow keys</h3>
+              <span class="keycap__hint">row</span>
+              <div class="keycap__body" data-chunk="row"><p class="keycap__still">Get it from &larr; &uarr; &darr; &rarr;</p></div>
+              <p class="keycap__caption">Arrows in the row above the keys: a switch in Settings.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="features features--3 story__points">
+        <div>
+          <h3>Sticky modifiers</h3>
+          <p>Tap Ctrl, then C. One thumb is enough. Hold an arrow to keep moving.</p>
+        </div>
+        <div>
+          <h3>A <code>{ }</code> page, a markdown row</h3>
+          <p>Bracket and quote pairs with the caret left inside, arrows like <code>=&gt;</code>, and function snippets. The markdown row is a switch in Settings &rsaquo; Row tools too, and then shows by itself in notes apps.</p>
+        </div>
+        <div>
+          <h3>A programmer&rsquo;s vocabulary</h3>
+          <p>Autocorrect knows npm, async and Kotlin, and leaves code-shaped words alone. Undo and redo sit in the row.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Privacy: a statement, then what is true ---------------------------------------------------------------- -->
+  <section class="section section--band" id="private" aria-labelledby="private-h">
+    <div class="wrap">
+      <header class="section-head section-head--split">
+        <div>
+          <p class="eyebrow eyebrow--accent">No account, no server of ours</p>
+          <h2 class="statement" id="private-h">Nothing between you and your AI.</h2>
+        </div>
+        <div class="prose">
+          <p>You paste a key from the provider you choose, and a request goes from your phone straight to that provider. The text you ask about, and the sources that are switched on, do go to them. Ghostwriter sends nothing until you close a request. Mockingbird sends samples of your writing to the same provider when it trains your style profile, which you can read and delete.</p>
+          <p><a class="more" href="#faq-leaves">Everything that leaves your phone</a></p>
+        </div>
+      </header>
+      <div class="features features--3">
+        <div>
+          <h3>Dictation on the phone</h3>
+          <p>whisper turns speech into text on the device. The network is used only to download the speech model.</p>
+        </div>
+        <div>
+          <h3>No analytics library</h3>
+          <p>There is no analytics or crash-reporting library in the app. That comes from reading the source, not from an outside audit.</p>
+        </div>
+        <div>
+          <h3>Private fields stay private</h3>
+          <p>Nothing is learned, and no AI is asked, in password fields or while incognito.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. And the rest ----------------------------------------------------------------------------------------- -->
+  <section class="section story" id="everything" aria-labelledby="everything-h">
+    <div class="wrap">
+      <header class="section-head section-head--split">
+        <h2 class="h2" id="everything-h">And the rest.</h2>
+        <p class="lead">Most of it is plugins you add or leave off; sounds, layout and updates are settings. Settings search finds a setting from a few letters.</p>
+      </header>
+
+      <div class="keycaps story__keys">
+        <div class="keycaps__row">
+          <article data-holds="look" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">look &amp; feel</h3>
+              <span class="keycap__hint">themes</span>
+              <div class="keycap__body" data-chunk="look"><p class="keycap__still">Ghost &middot; Glacier &middot; Midnight &middot; Paper &middot; Retro</p></div>
+              <p class="keycap__caption">Tap for the next theme and backlight.</p>
+              <span class="keycap__sub" data-look-status>Ghost &middot; Reactive</span>
+            </div>
+          </article>
+          <article data-holds="search" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">search</h3>
+              <span class="keycap__hint">settings</span>
+              <div class="keycap__body" data-chunk="search"><p class="keycap__still">Search settings</p></div>
+              <p class="keycap__caption">A few letters find a setting.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="features features--3 story__points">
+        <div>
+          <h3>Themes, sounds, layouts</h3>
+          <p>Ghost, Glacier, Midnight, Paper and Retro, or a theme from a colour you pick; six backlight effects; seven key sounds. On an unfolded foldable or a tablet the keys split, fill the width or dock to one side.</p>
+        </div>
+        <div>
+          <h3>Clipboard history, incognito</h3>
+          <p>Your last 25 copies, a tap away, with no timer. Never what a password manager copied, and nothing at all while the incognito switch is on.</p>
+        </div>
+        <div>
+          <h3>Emoji and GIFs</h3>
+          <p>Emoji 18.0 with search and :shortcodes. GIF search goes to GIPHY, which sees what you search for.</p>
+        </div>
+        <div>
+          <h3>Password-manager logins</h3>
+          <p>Your manager&rsquo;s logins in the row above the keys, drawn and filled by Android itself. Needs Android 11 or later.</p>
+        </div>
+        <div>
+          <h3>Ghost.md</h3>
+          <p><code>[[note]]</code> and <code>#tag</code> completion when you type in Ghost.md, and its notes as something Ghostwriter can read.</p>
+        </div>
+        <div>
+          <h3>An open typing profile</h3>
+          <p>What the keyboard learns is one JSON file with a published schema. Export it, read it, edit it, import it. <a href="https://github.com/InfamousVague/GhostKbd/blob/main/docs/typing-profile.md" rel="noopener">The format, on GitHub.</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Next to Gboard and SwiftKey -------------------------------------------------------------------------- -->
+  <section class="section section--rule" id="compare" aria-labelledby="compare-h">
+    <div class="wrap">
+      <header class="section-head section-head--split">
+        <h2 class="h2" id="compare-h">Next to Gboard and SwiftKey.</h2>
+        <p class="lead">Ghost Keyboard beside Gboard and SwiftKey, from their vendors&rsquo; pages and Play listings where we could, and from the press where the notes say so, as of 2026-11-09. Three of these rows go against us.</p>
+      </header>
+
+      <div class="compare-wrap" role="region" aria-labelledby="compare-h" tabindex="0">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col"><span class="vh">What is compared</span></th>
+              <th scope="col" class="is-us">Ghost Keyboard</th>
+              <th scope="col">Gboard</th>
+              <th scope="col">SwiftKey</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">AI that writes in the text field<sup><a href="#n1" aria-label="Note 1">1</a></sup></th>
+              <td class="is-us yes">Type <code>&lt;&lt;request&gt;&gt;</code> in any app</td>
+              <td>Seven preset tools, on listed phones only</td>
+              <td>Copilot and Compose removed, per Microsoft</td>
+            </tr>
+            <tr>
+              <th scope="row">Choose the AI model, use your own key<sup><a href="#n2" aria-label="Note 2">2</a></sup></th>
+              <td class="is-us yes">Your own key, seven providers or your own server</td>
+              <td>Not documented</td>
+              <td>Not documented</td>
+            </tr>
+            <tr>
+              <th scope="row">Rewrites in your own voice<sup><a href="#n3" aria-label="Note 3">3</a></sup></th>
+              <td class="is-us yes">A style profile learned from your writing</td>
+              <td>Preset tones</td>
+              <td>Four preset tones, per its help page</td>
+            </tr>
+            <tr>
+              <th scope="row">Dictation<sup><a href="#n4" aria-label="Note 4">4</a></sup></th>
+              <td class="is-us">On the phone; takes of up to 60 seconds</td>
+              <td>Voice typing; AI tidy-up (Rambler) on Pixel 11 only</td>
+              <td>English only, or Google voice typing</td>
+            </tr>
+            <tr>
+              <th scope="row">Terminal keys: Esc, Tab, Ctrl, Alt<sup><a href="#n5" aria-label="Note 5">5</a></sup></th>
+              <td class="is-us yes">A switch; then in terminal apps, or every app</td>
+              <td>Tab on its tablet layout, per 9to5Google; we found no Ctrl or Esc in its help pages</td>
+              <td>An optional arrow row; we found no Ctrl or Esc in its help pages</td>
+            </tr>
+            <tr>
+              <th scope="row">Clipboard history<sup><a href="#n6" aria-label="Note 6">6</a></sup></th>
+              <td class="is-us">Last 25 copies, no timer, no pins</td>
+              <td>Unpinned copies go after about an hour</td>
+              <td>Unpinned clips expire after an hour; clips can be pinned</td>
+            </tr>
+            <tr>
+              <th scope="row">What it learns about your typing<sup><a href="#n7" aria-label="Note 7">7</a></sup></th>
+              <td class="is-us">On the phone; export it as open JSON</td>
+              <td>On the phone; federated learning on by default</td>
+              <td>On the phone; backup needs a Microsoft account and OneDrive</td>
+            </tr>
+            <tr>
+              <th scope="row">Ads<sup><a href="#n8" aria-label="Note 8">8</a></sup></th>
+              <td class="is-us">None</td>
+              <td>None</td>
+              <td>Play listing: &ldquo;Contains ads&rdquo;</td>
+            </tr>
+            <tr>
+              <th scope="row">Data the app collects<sup><a href="#n9" aria-label="Note 9">9</a></sup></th>
+              <td class="is-us">No analytics or crash-reporting library in the app</td>
+              <td>Device IDs, crash logs; more optional</td>
+              <td>Optional location and device IDs for advertising or marketing; usage statistics and crash reports</td>
+            </tr>
+            <tr>
+              <th scope="row">Next-word prediction<sup><a href="#n10" aria-label="Note 10">10</a></sup></th>
+              <td class="is-us no">No, not yet</td>
+              <td class="yes">Yes</td>
+              <td class="yes">Yes, its best-known strength</td>
+            </tr>
+            <tr>
+              <th scope="row">Autocorrect languages<sup><a href="#n11" aria-label="Note 11">11</a></sup></th>
+              <td class="is-us">6</td>
+              <td>Many more</td>
+              <td>700+, five at once</td>
+            </tr>
+            <tr>
+              <th scope="row">Where you get it<sup><a href="#n12" aria-label="Note 12">12</a></sup></th>
+              <td class="is-us">An APK from this page; not on Google Play or iOS</td>
+              <td>Google Play (10B+ installs), preinstalled on many phones, App Store</td>
+              <td>Google Play (1B+ installs), App Store</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="candid">
+        <h3>Where Ghost Keyboard is behind</h3>
+        <ul class="candid__list">
+          <li>No next-word prediction yet</li>
+          <li>Six autocorrect languages</li>
+          <li>Dictation stops at 60 seconds, and shows text after you stop</li>
+          <li>No floating mode, stickers or handwriting</li>
+          <li>Accuracy not yet measured against Gboard or SwiftKey</li>
+          <li>The AI needs a key you get from a provider yourself</li>
+          <li>An APK, not a Play Store install</li>
+        </ul>
+      </div>
+
+      <details class="sources">
+        <summary>Notes and sources</summary>
+        <ol>
+          <li id="n1">SwiftKey&rsquo;s Play listing still advertises Copilot; Microsoft&rsquo;s support FAQ says the Copilot and Compose integration was removed. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/topic/faqs-for-copilot-changes-in-swiftkey-c02289e6-c5b3-401c-af8d-f6c88409a2d2" rel="noopener">Microsoft, FAQs for Copilot changes in SwiftKey</a>.</li>
+          <li id="n2">&ldquo;Not documented&rdquo; means we found no mention in the vendor&rsquo;s own pages; it is not a statement by the vendor. Ghost Keyboard is not the only keyboard that takes your own key: LeanType, a small open-source keyboard, does too. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-access-toolbar-in-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, the SwiftKey toolbar</a> (read 2026-11-09: no mention of a choice of model or of a key of your own).</li>
+          <li id="n3">Microsoft&rsquo;s toolbar help page names four tones (Professional, Casual, Polite, Social Post) and may predate the Copilot removal. Ghost Keyboard sends samples of your writing to the provider you chose to train the profile. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-access-toolbar-in-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, the SwiftKey toolbar</a>.</li>
+          <li id="n4">Google says Rambler needs an internet connection for full features and has usage limits. Ghost Keyboard shows the text after you stop, not while you speak, and has no AI tidy-up. Sources: <a href="https://support.google.com/gboard/answer/17468539" rel="noopener">Google, Gboard help: Rambler</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-use-voice-to-text-with-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, voice to text in SwiftKey</a>.</li>
+          <li id="n5">The absences are what we did not find in the documentation we read in November 2026, not statements by Google or Microsoft, and we have not checked either keyboard on a phone or a foldable for this row. The Gboard Tab key is from a 2022 press report of its tablet layout. In Ghost Keyboard Terminal keys is a switch in Settings &rsaquo; Row tools, off to start; on, the keys show in terminal apps, or in every app if you choose. Sources: <a href="https://9to5google.com/2022/10/10/gboard-android-tablet/" rel="noopener">9to5Google, Gboard&rsquo;s tablet layout</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-enable-disable-arrow-keys-on-my-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, arrow keys in SwiftKey</a>.</li>
+          <li id="n6">The Gboard figure is as reported by Android Authority in August 2026; Google does not publish it. A longer-duration setting was seen in a Gboard beta and is not confirmed shipped. Sources: <a href="https://androidauthority.com/gboard-clipboard-duration-slider-apk-teardown-3698099" rel="noopener">Android Authority, Gboard clipboard duration</a>; <a href="https://support.microsoft.com/en-us/topic/how-does-the-clipboard-work-with-microsoft-swiftkey-keyboard-322f9977-dab7-4edb-a7aa-e1c0611cf7eb" rel="noopener">Microsoft, how the SwiftKey clipboard works</a>.</li>
+          <li id="n7">Google says federated learning sends what it learns, not your text, and can be turned off. SwiftKey works with no account. In Ghost Keyboard the touch model and learned words are not sent anywhere by the app (Android&rsquo;s own backup, if it is on, may copy the app&rsquo;s data); Mockingbird&rsquo;s writing samples go to your AI provider when it trains (note 3). Sources: <a href="https://support.google.com/gboard/answer/12373137" rel="noopener">Google, Gboard help: federated learning</a>; <a href="https://support.microsoft.com/en-US/SwiftKey-Keyboard/account" rel="noopener">Microsoft, SwiftKey and your account</a>.</li>
+          <li id="n8">Play listings read 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
+          <li id="n9">Gboard: its Play data-safety declaration, which also says nothing is shared with other companies. SwiftKey: its Play data-safety declaration lists optional location and device IDs for advertising or marketing as collected, not shared; the usage statistics and crash reports are from a Microsoft support page. Ghost Keyboard: from a search of its source, not an audit; it does contact attack.fm for updates and whichever services you turn on. Sources: <a href="https://play.google.com/store/apps/datasafety?id=com.google.android.inputmethod.latin" rel="noopener">Gboard data safety</a>; <a href="https://play.google.com/store/apps/datasafety?id=com.touchtype.swiftkey" rel="noopener">SwiftKey data safety</a>; <a href="https://support.microsoft.com/en-us/topic/50260e0e-9ed8-4f2c-99b8-9b025fba4b7d" rel="noopener">Microsoft, SwiftKey and your data</a>.</li>
+          <li id="n10">Ghost Keyboard completes and corrects the word you are typing only; the row is quiet after a space. The Gboard and SwiftKey cells are well-known behaviour of those products, not separately sourced. Source: <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
+          <li id="n11">Ghost Keyboard: English, Spanish, French, German, Italian and Portuguese. We did not count Gboard&rsquo;s languages. Source: <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/what-languages-are-currently-supported-for-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, languages in SwiftKey</a>.</li>
+          <li id="n12">Ghost Keyboard is Android only and updates itself. Install counts as shown on Google Play, 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- 7. Coming next ------------------------------------------------------------------------------------------ -->
+  <section class="section section--tight section--rule" id="roadmap" aria-labelledby="roadmap-h">
+    <div class="wrap">
+      <header class="section-head section-head--split">
+        <h2 class="h2" id="roadmap-h">Coming next.</h2>
+        <p class="lead">Planned, not built. None of these is in the app today, and none has a date.</p>
+      </header>
+
+      <ul class="roadmap">
+        <li>
+          <strong>Secret guard</strong>
+          <p>Warns you before you send an API key, card number or password in a chat. Checked on the phone.</p>
+          <span class="chip chip--soon">Coming</span>
+        </li>
+        <li>
+          <strong>Tone dial</strong>
+          <p>Drag to rewrite a message warmer, blunter or shorter, still in your voice.</p>
+          <span class="chip chip--soon">Coming</span>
+        </li>
+        <li>
+          <strong>Shell from words</strong>
+          <p>Type <code>&lt;&lt;find files over 1GB&gt;&gt;</code> in a terminal app and get the command, for you to check before Enter.</p>
+          <span class="chip chip--soon">Coming</span>
+        </li>
+        <li>
+          <strong>Ramble to tidy</strong>
+          <p>Dictate a messy voice note and get a clean message in your style.</p>
+          <span class="chip chip--soon">Coming</span>
+        </li>
+        <li>
+          <strong>Cool-off</strong>
+          <p>Offers to delay or soften an unusually angry message before it goes.</p>
+          <span class="chip chip--soon">Coming</span>
+        </li>
+      </ul>
+      <p class="story__note">Also planned: Translate as you, Your phrases, Clipboard actions, a PR and commit writer, Typing Wrapped, and profile sync through Ghost.md.</p>
+    </div>
+  </section>
+
+  <!-- 8. Questions -------------------------------------------------------------------------------------------- -->
+  <section class="section section--band" id="faq" aria-labelledby="faq-h">
+    <div class="wrap wrap--narrow">
+      <header class="section-head">
+        <h2 class="h2" id="faq-h">Questions.</h2>
+      </header>
+
+      <div class="faq">
+        <details>
+          <summary>Is it free?</summary>
+          <p>Yes. There are no ads, no subscription and no paid tier. The AI features use a key from a provider you choose, and you pay that provider for what you use. Everything else costs nothing.</p>
+        </details>
+
+        <details>
+          <summary>Do I need an account?</summary>
+          <p>No. There is no Ghost account. Typing, autocorrect, swipe, dictation, the clipboard and the terminal keys work without signing in to anything. Ghostwriter, Mockingbird and Rewrite need an API key from an AI provider, which is an account with them and not with us.</p>
+        </details>
+
+        <details id="faq-leaves">
+          <summary>What leaves my phone?</summary>
+          <p>Ordinary typing is not sent anywhere by the keyboard. What you type is sent somewhere only when you use one of these.</p>
+          <ul class="ticks">
+            <li><strong>Ghostwriter.</strong> When you close a request, your AI provider gets the request, the text around it in the field (up to 1,500 characters before and 400 after), the app&rsquo;s name, today&rsquo;s date, your style profile, the past messages that share its words and your latest few from the same app, and the Ghost.md notes that match. Your clipboard goes only if you switch that on. With a GitHub token, the request&rsquo;s keywords go to GitHub, and the commits found (date, repository, message) go to your AI provider with the request. Web lookups are your provider&rsquo;s own search.</li>
+            <li><strong>Mockingbird.</strong> A selection of your writing samples goes to your AI provider when it trains your style profile, and again when it retrains by itself, about once a day at most. No request has to be typed for that.</li>
+            <li><strong>In my voice and Rewrite.</strong> The text you chose goes to your AI provider; In my voice sends your style profile and a few similar samples with it.</li>
+            <li><strong>GIFs.</strong> Your search goes to GIPHY.</li>
+            <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from attack.fm or huggingface.co.</li>
+            <li><strong>Updates.</strong> The app asks attack.fm for the current version when it opens and up to twice a day.</li>
+            <li><strong>Ghost.md online.</strong> If you have signed in to Ghost.md and no note on the phone matches a request, its keywords go to ghostmarkdown.com.</li>
+            <li><strong>Android&rsquo;s own backup.</strong> The app does not yet tell Android to leave its data out of backups. If backup or device transfer is on, Android may copy the app&rsquo;s data, including your AI key, clipboard history and what the keyboard has learned.</li>
+          </ul>
+          <p>There is no analytics or crash-reporting library in the app. That comes from reading the source, not from an outside audit.</p>
+        </details>
+
+        <details>
+          <summary>Which AI providers can I use?</summary>
+          <p>Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek and OpenRouter, or any OpenAI-compatible server of your own whose address starts with <code>https://</code>. You pick the provider and the model, and you can change either. Web lookups work with Claude, OpenAI, Gemini and OpenRouter, which have a search of their own.</p>
+        </details>
+
+        <details>
+          <summary>Why is it an APK, and is that safe?</summary>
+          <p>Ghost Keyboard is not on Google Play yet, so you install the APK from this page, and Android asks you to allow that first. A keyboard sees what you type, so hold it to a high standard: the source is public on GitHub, there is no account, and there is no analytics or crash-reporting library in the app.</p>
+          <p>The download&rsquo;s size and SHA-256 are published beside the button so you can check the file you got. An update is installed only if it matches the published size and SHA-256 and is signed with the same certificate as the copy already on your phone. Any app installed this way asks you to trust its publisher; we would rather you could check than take our word.</p>
+        </details>
+
+        <details>
+          <summary>Is it on iOS or Google Play?</summary>
+          <p>Not today. Ghost Keyboard is Android only, for Android 8 or later, and is not on Google Play, F-Droid or the App Store. You install it from this page and it keeps itself up to date.</p>
+        </details>
+
+        <details>
+          <summary>Which languages does it support?</summary>
+          <p>Autocorrect covers English, Spanish, French, German, Italian and Portuguese, and several can be on at once. Dictation starts with an English model; models that hear about a hundred languages can be downloaded in its settings. The letters are QWERTY.</p>
+        </details>
+
+        <details>
+          <summary>Is it open source?</summary>
+          <p>The source is public on GitHub, so you can read what the keyboard does. The repository has no licence yet, so it is not open source in the usual sense of the words.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Download --------------------------------------------------------------------------------------------- -->
+  <section class="section" id="download" aria-labelledby="download-h">
+    <div class="wrap cta">
+      <div class="cta__words">
+        <h2 class="h1" id="download-h">Get Ghost Keyboard.</h2>
+        <p class="lead">Your keys. Your model. Your words. Free, on Android 8 or later.</p>
+        <ol class="steps">
+          <li><strong>Download the APK and open it.</strong> Android asks you to allow installs from your browser first.</li>
+          <li><strong>Turn it on.</strong> Open Ghost Keyboard and tap the first step, which opens your phone&rsquo;s keyboard list.</li>
+          <li><strong>Switch to it.</strong> Tap the second step and choose Ghost Keyboard. That is all.</li>
+        </ol>
+        <p class="muted release"><strong style="color: var(--ink); font-weight: 600">It keeps itself up to date.</strong> The app checks attack.fm when it opens and up to twice a day, and installs an update only if the file matches the published size and SHA-256 and is signed with the same certificate as the copy you have.</p>
+        <dl class="facts release" data-apk-show hidden>
+          <dt>Version</dt><dd data-apk="version"></dd>
+          <dt>Size</dt><dd data-apk="size"></dd>
+          <dt>SHA-256</dt><dd data-apk="sha256"></dd>
+        </dl>
+      </div>
+
+      <div class="cta__key">
+        <a class="keycap keycap--enter" href="./devkeyboard.apk">
+          <div class="keycap__face">
+            <span class="keycap__legend">enter</span>
+            <div class="keycap__body keycap__body--end">
+              <div class="keycap__action"><strong>Download</strong><span data-apk-meta>Android &middot; free</span></div>
+            </div>
+            <span class="keycap__caption">The APK, from this page.</span>
+            <span class="keycap__sub"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"/></svg></span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 10. Footer ------------------------------------------------------------------------------------------------ -->
+<footer class="footer">
+  <div class="wrap footer__in">
+    <div class="footer__brand">
+      <strong>Ghost Keyboard</strong>
+      <p>A keyboard for people who write code, and talk to AI, on Android.</p>
+      <p>Made by InfamousVague.</p>
+    </div>
+    <div class="footer__cols">
+      <div class="footer__col">
+        <h2>The page</h2>
+        <a href="#ai">What it does</a>
+        <a href="#private">Privacy</a>
+        <a href="#compare">Comparison</a>
+        <a href="#roadmap">Coming next</a>
+        <a href="#faq">Questions</a>
+      </div>
+      <div class="footer__col">
+        <h2>The source</h2>
+        <a href="https://github.com/InfamousVague/GhostKbd" rel="noopener">GitHub</a>
+        <a href="https://github.com/InfamousVague/GhostKbd/blob/main/docs/typing-profile.md" rel="noopener">The typing-profile format</a>
+        <a href="https://github.com/InfamousVague/GhostKbd/blob/main/docs/typing-profile.schema.json" rel="noopener">Its JSON schema</a>
+      </div>
+      <div class="footer__col">
+        <h2>Get it</h2>
+        <a href="./devkeyboard.apk">Download for Android</a>
+        <a href="#download">How to install</a>
+      </div>
+    </div>
+    <div class="footer__legal">
+      <span>Source public on GitHub. Other products are named for comparison only and belong to their owners.</span>
+      <span>Last checked 2026-11-09.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,111 @@
+/*
+ * The terminal chunk (site/js/chunks/terminal.js) on a keycap's face: a two-line terminal and, by it, Terminal mode's
+ * row over four keys of the board.
+ *
+ * On a key of fixed height the two stand side by side, since a unit is too short for one over the other; on a key
+ * with the height for it (.tm--tall, which the module sets by measuring) and on a key that takes its height from
+ * what it holds (a phone's one column, .keycap--fluid) the terminal is above and the keys below, as on a phone.
+ */
+
+.keycap__body.tm {
+  --tm-flow: row;
+  --tm-screen: 1 1 0;
+  --tm-screen-self: center;
+  --tm-keys: 2.3 1 0;
+  --tm-keys-h: auto;
+  --tm-host: inline;
+  --tm-size: clamp(.6875rem, 2.4cqi, .8125rem);
+  flex-direction: var(--tm-flow);
+  align-items: stretch;
+  gap: var(--s-2) var(--s-3);
+  padding-inline: var(--cap-pad);
+}
+
+/* Beside the keys on a narrow key there is little room for a line: the prompt loses its host's name. */
+@container cap (max-width: 400px) {
+  .keycap__body.tm { --tm-host: none; }
+}
+
+.keycap__body.tm--tall {
+  --tm-host: inline;
+  --tm-size: .8125rem;
+  --tm-flow: column;
+  --tm-screen: none;
+  --tm-screen-self: stretch;
+  --tm-keys: 1 1 0;
+}
+
+@container keycaps (max-width: 620px) {
+  .keycap__body.tm {
+    --tm-host: inline;
+    --tm-size: .8125rem;
+    --tm-flow: column;
+    --tm-screen: none;
+    --tm-screen-self: stretch;
+    --tm-keys: none;
+    --tm-keys-h: 118px;
+  }
+}
+
+.keycap--fluid .keycap__body.tm {
+  --tm-host: inline;
+  --tm-size: .8125rem;
+  --tm-flow: column;
+  --tm-screen: none;
+  --tm-screen-self: stretch;
+  --tm-keys: none;
+  --tm-keys-h: 118px;
+}
+
+/* The terminal: the page's ground let into the key's face, two lines of it. */
+.tm-screen {
+  flex: var(--tm-screen);
+  align-self: var(--tm-screen-self);
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--tm-size);
+  line-height: 1.55;
+}
+
+.tm-line {
+  display: flex;
+  min-height: 1.55em;
+  white-space: pre;
+  overflow: hidden;
+}
+
+/* The line that has gone up: what was typed, or what the shell said. */
+.tm-above {
+  display: block;
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+}
+
+.tm-ps {
+  flex: none;
+  color: var(--accent-ink);
+}
+
+.tm-above .tm-ps { color: inherit; }
+.tm-host { display: var(--tm-host); }
+
+/* What is being typed: one line, which follows its caret when it is longer than the room. */
+.tm .tm-in {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.tm .tm-keys {
+  flex: var(--tm-keys);
+  height: var(--tm-keys-h);
+}
+
+/* The loop's finger on a chip of the row: as a chip looks under a real one (kbd.css: button.gk-ri:active). */
+.tm .gk-ri.is-down { background: var(--kb-key-down); }

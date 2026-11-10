@@ -20,7 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** The small drawn icons the plugin row's buttons use. */
-enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER, CARET_LEFT, CARET_RIGHT, CARET_UP, CARET_DOWN }
+enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELETE, SHIFT, ENTER, CARET_LEFT, CARET_RIGHT, CARET_UP, CARET_DOWN, OFFLINE }
 
 /**
  * One thing a plugin puts in the row above the keys.
@@ -30,6 +30,7 @@ enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELET
  * - [view]: a view of the plugin's own, shown as it is (a password manager's inline suggestion).
  * - [wide]: a suggestion: shares the row's width with the others, a third each, as Gboard's do.
  * - [fill]: takes all the width the others leave (a search bar).
+ * - [dim]: drawn faint: something that cannot be used as things stand (a network chip while Offline is on).
  */
 class RowItem(
     val id: String,
@@ -40,6 +41,7 @@ class RowItem(
     val chip: Boolean = false,
     val view: View? = null,
     val fill: Boolean = false,
+    val dim: Boolean = false,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -62,6 +64,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     /** A dot on the cog, in the theme's accent, while an update is waiting. */
     var updateBadge = false
         set(value) { field = value; settings.badge = value }
+
+    /** A small quiet mark on the cog while Offline is on (Settings › Offline), where the update dot would be. */
+    var offline = false
+        set(value) { field = value; settings.offlineMark = value }
     private val hide = IconButton(context, RowIcon.HIDE).apply { setOnClickListener { onHide() }; visibility = GONE }
 
     /**
@@ -124,7 +130,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
         val room = scroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(44f))
         // Too narrow to read (the arrow keys take part of the row): three across, and the rest scroll.
-        val wideWidth = if (room / wideCount < dp(80f)) room / 3 else room / wideCount
+        // Next-word prediction's three words are followed by the tools: they give up a little width, so the first
+        // tool peeks in at the row's end and says there is more to scroll to.
+        val peek = if (next.any { it.wide } && next.any { it.chip }) dp(36f) else 0
+        val wideWidth = if (room / wideCount < dp(80f)) (room - peek) / 3 else (room - peek) / wideCount
         for (item in next) {
             val v = item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item)
             val lp = if (item.fill) LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f) else LinearLayout.LayoutParams(
@@ -143,6 +152,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             return IconButton(context, item.icon).apply {
                 color = theme.toolbarIcon
                 minimumWidth = dp(44f)
+                if (item.dim) alpha = DIM
                 setOnClickListener { tap(item) }
             }
         }
@@ -157,6 +167,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             val padX = if (item.wide) dp(6f) else dp(12f)
             setPadding(padX, 0, padX, 0)
             background = pressable(item.chip)
+            if (item.dim) alpha = DIM
             isClickable = item.onTap != null
             setOnClickListener { tap(item) }
             if (item.icon != null) {
@@ -180,6 +191,11 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         }
     }
 
+    private companion object {
+        /** How faint a [RowItem.dim] item is drawn. */
+        const val DIM = 0.45f
+    }
+
     private fun restyle() {
         setBackgroundColor(theme.background)
         settings.color = theme.toolbarIcon
@@ -200,6 +216,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             set(value) { field = value; invalidate() }
         var badgeColor = 0xFF008B8A.toInt()
         var badgeRing = 0
+        /** Offline is on: a small struck-through ring at the glyph's corner, in the icon's own colour. */
+        var offlineMark = false
+            set(value) { field = value; invalidate() }
         private val drawer = IconDrawable(icon, color, 0)
         private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -229,6 +248,22 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 canvas.drawCircle(cx, cy, r + s * 0.08f, dot)
                 dot.color = badgeColor
                 canvas.drawCircle(cx, cy, r, dot)
+            } else if (offlineMark) {
+                // Where the update dot sits, but quiet: the row's ground, then a ring with a stroke through it.
+                val r = s * 0.2f
+                val cx = (width + s) / 2 - r * 0.6f
+                val cy = (height - s) / 2 + r * 0.6f
+                dot.style = Paint.Style.FILL
+                dot.color = badgeRing
+                canvas.drawCircle(cx, cy, r + s * 0.08f, dot)
+                dot.style = Paint.Style.STROKE
+                dot.strokeWidth = s * 0.075f
+                dot.strokeCap = Paint.Cap.ROUND
+                dot.color = color
+                canvas.drawCircle(cx, cy, r * 0.8f, dot)
+                val d = r * 0.8f * 0.7071f
+                canvas.drawLine(cx - d, cy - d, cx + d, cy + d, dot)
+                dot.style = Paint.Style.FILL
             }
         }
     }

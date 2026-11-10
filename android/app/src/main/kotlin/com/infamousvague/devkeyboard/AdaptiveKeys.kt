@@ -18,8 +18,11 @@ import org.json.JSONObject
  * (KeyboardView.keyAt). An aim moves at most [MAX_SHIFT] of a key from the middle, and a key needs [MIN_SAMPLES]
  * touches before its aim counts, so a key is never taken over from its middle, and a new keyboard behaves as before.
  * Nothing is learned in password fields or while incognito.
+ *
+ * There is one model for each layout ([layout], Layouts.SPECS' ids): where a thumb aims at QWERTY's e says nothing of
+ * where it aims at Russian's у, though they share a place. QWERTY's is the one every keyboard had before layouts.
  */
-class AdaptiveKeys private constructor(private val context: Context) {
+class AdaptiveKeys private constructor(private val context: Context, val layout: String) {
     companion object {
         const val MIN_SAMPLES = 15
         const val MAX_SHIFT = 0.35f
@@ -27,8 +30,27 @@ class AdaptiveKeys private constructor(private val context: Context) {
         const val MAX_MISTAKES = 400
         private const val FILE = "adaptive_keys"
 
-        @Volatile private var shared: AdaptiveKeys? = null
-        fun get(context: Context): AdaptiveKeys = shared ?: synchronized(this) { shared ?: AdaptiveKeys(context.applicationContext).also { shared = it } }
+        private val shared = HashMap<String, AdaptiveKeys>()
+
+        /** The model for [layout], read from storage the first time it is asked for. */
+        fun get(context: Context, layout: String = "qwerty"): AdaptiveKeys =
+            synchronized(shared) { shared.getOrPut(layout) { AdaptiveKeys(context.applicationContext, layout) } }
+
+        /** Where a layout's model is kept: QWERTY's where it always was, the others beside it. */
+        private fun slot(layout: String) = if (layout == "qwerty") "model" else "model_$layout"
+
+        /** Every layout's model that holds something, for Settings' counts and a typing profile's export. */
+        fun all(context: Context): List<AdaptiveKeys> {
+            val stored = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            return Layouts.SPECS.filter { stored.contains(slot(it.id)) || synchronized(shared) { shared.containsKey(it.id) } }
+                .map { get(context, it.id) }.filter { it.aims.isNotEmpty() || it.mistakes.isNotEmpty() }
+        }
+
+        /** Settings › Adaptive keys › Forget what it learned: every layout's model, in memory and in storage. */
+        fun resetAll(context: Context) {
+            synchronized(shared) { shared.values.forEach { it.aims.clear(); it.mistakes.clear(); it.dirty = false } }
+            context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().clear().apply()
+        }
     }
 
     /** A key's learned aim: its mean offset from the middle, in fractions of the key, and how many touches made it. */
@@ -46,7 +68,7 @@ class AdaptiveKeys private constructor(private val context: Context) {
     private fun prefs() = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     private fun load() = runCatching {
-        val o = JSONObject(prefs().getString("model", "{}")!!)
+        val o = JSONObject(prefs().getString(slot(layout), "{}")!!)
         o.optJSONObject("aims")?.let { a -> a.keys().forEach { k -> a.optJSONArray(k)?.let { v -> aims[k[0]] = Aim(v.getDouble(0).toFloat(), v.getDouble(1).toFloat(), v.getInt(2)) } } }
         o.optJSONArray("mistakes")?.let { m ->
             for (i in 0 until m.length()) m.optJSONArray(i)?.let { v -> mistakes.addLast(Mistake(v.getDouble(0).toFloat(), v.getDouble(1).toFloat(), v.getString(2)[0], v.getString(3)[0])) }
@@ -61,12 +83,7 @@ class AdaptiveKeys private constructor(private val context: Context) {
         aims.forEach { (k, v) -> a.put(k.toString(), JSONArray().put(v.dx.toDouble()).put(v.dy.toDouble()).put(v.n)) }
         val m = JSONArray()
         mistakes.forEach { m.put(JSONArray().put(it.x.toDouble()).put(it.y.toDouble()).put(it.pressed.toString()).put(it.meant.toString())) }
-        prefs().edit().putString("model", JSONObject().put("aims", a).put("mistakes", m).toString()).apply()
-    }
-
-    fun reset() {
-        aims.clear(); mistakes.clear(); dirty = false
-        prefs().edit().clear().apply()
+        prefs().edit().putString(slot(layout), JSONObject().put("aims", a).put("mistakes", m).toString()).apply()
     }
 
     /** Where to aim for [c]: its learned offset, or none until it has [MIN_SAMPLES] touches; at most [MAX_SHIFT]. */
@@ -111,21 +128,20 @@ class AdaptiveKeys private constructor(private val context: Context) {
         dirty = true
     }
 
-    /** Where the QWERTY letters sit, in key widths across and rows down, for slips that come without a point. */
-    private val QWERTY: Map<Char, Pair<Float, Float>> = buildMap {
-        "qwertyuiop".forEachIndexed { i, c -> put(c, i.toFloat() to 0f) }
-        "asdfghjkl".forEachIndexed { i, c -> put(c, i + 0.5f to 1f) }
-        "zxcvbnm".forEachIndexed { i, c -> put(c, i + 1.5f to 2f) }
-    }
+    /** Where this layout's letters sit, in key widths across and rows down, for slips that come without a point. */
+    private val places: Map<Char, Pair<Float, Int>> get() = Layouts.spec(layout)?.positions.orEmpty()
+
+    /** Whether [c] is a letter key of this layout: the only names a typing profile's aims and slips may carry. */
+    fun hasKey(c: Char): Boolean = places.containsKey(c.lowercaseChar())
 
     /**
      * A slip from a typing profile, [count] times: it teaches [meant]'s aim, at the point given ([x], [y], fractions of
-     * the letters' area, placed on the heatmap too) or, without one, part way toward [pressed] on a QWERTY board.
+     * the letters' area, placed on the heatmap too) or, without one, part way toward [pressed] on this layout's board.
      */
     fun importSlip(pressed: Char, meant: Char, count: Int, x: Float?, y: Float?) {
         val p = pressed.lowercaseChar(); val m = meant.lowercaseChar()
-        val pp = QWERTY[p] ?: return
-        val mp = QWERTY[m] ?: return
+        val pp = places[p] ?: return
+        val mp = places[m] ?: return
         val n = count.coerceIn(1, 500)
         // Most of the way to the shared edge: where a slip between the two lands.
         hit(m, (pp.first - mp.first) * 0.6f, (pp.second - mp.second) * 0.6f, n * MISTAKE_WEIGHT)

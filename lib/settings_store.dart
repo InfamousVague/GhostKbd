@@ -26,6 +26,7 @@ class SettingsStore extends ChangeNotifier {
         }
         notifyListeners();
         await refreshAdaptive();
+        await refreshNextWords();
         await refreshAi();
       }
       if (call.method == 'aiChanged') {
@@ -54,14 +55,20 @@ class SettingsStore extends ChangeNotifier {
     'key_height': 'normal',
     'long_press': 'normal',
     'auto_update': true,
+    'offline': false,
     'key_borders': false,
     'toolbar': false,
     'haptics': 'medium',
     'developer': false,
     'autocorrect': true,
     'languages': 'en',
+    'language_layouts': '',
+    'layout': '',
+    'globe_key': true,
     'learned_words': '',
     'suggestions': true,
+    'next_word': true,
+    'next_word_learn': true,
     'giphy_key': '',
     'theme_tint': '#51FCFB',
     'theme_accent': '',
@@ -168,13 +175,101 @@ class SettingsStore extends ChangeNotifier {
   bool flag(String key) => _values[key] as bool? ?? defaults[key] as bool;
   String choice(String key) => _values[key] as String? ?? defaults[key] as String;
 
-  /// Autocorrect's languages, as codes ("en", "es").
-  List<String> get languages => choice('languages').split(',').where((l) => l.isNotEmpty).toList();
-  Future<void> setLanguage(String code, bool on) {
-    final now = languages.toSet();
-    on ? now.add(code) : now.remove(code);
-    if (now.isEmpty) now.add('en');
-    return set('languages', autocorrectLanguages.keys.where(now.contains).join(','));
+  /// Settings › Languages: every language the keyboard has (Languages.kt, through `languagesState`), the ones it
+  /// says it does not have yet, and how many may be on at once. Off-device the first six stand in.
+  List<LanguageInfo> languageCatalogue = _firstSix;
+  List<({String name, String english, String why})> unavailableLanguages = const [];
+  int maxLanguages = 6;
+
+  LanguageInfo? languageOf(String code) => languageCatalogue.where((l) => l.code == code).firstOrNull;
+
+  /// The languages that are on, as codes in the order they were turned on ("en", "pl", "ru"): those the keyboard
+  /// has, at most [maxLanguages], never none (as KeyboardPrefs.languages reads the same setting).
+  List<String> get languages {
+    final known = {for (final l in languageCatalogue) l.code};
+    final on = <String>[];
+    for (final code in choice('languages').split(',').map((c) => c.trim())) {
+      if (known.contains(code) && !on.contains(code) && on.length < maxLanguages) on.add(code);
+    }
+    return on.isEmpty ? ['en'] : on;
+  }
+
+  /// The layout chosen for a language in place of its own ("fr:qwerty,de:qwerty").
+  Map<String, String> get languageLayouts => {
+        for (final part in choice('language_layouts').split(','))
+          if (part.split(':').length == 2 && part.split(':').every((p) => p.trim().isNotEmpty)) part.split(':')[0].trim(): part.split(':')[1].trim(),
+      };
+
+  /// The layout [language] types on: the one chosen for it where it may use that one, else its own (its first).
+  String layoutOf(LanguageInfo language) {
+    final chosen = languageLayouts[language.code];
+    return language.layouts.any((l) => l.$1 == chosen) ? chosen! : language.layouts.first.$1;
+  }
+
+  /// Turns a language on (after the others; a seventh is refused) or off (never the last). Turning one on also goes
+  /// to its layout, so the live preview shows the keys it brings.
+  Future<void> setLanguage(String code, bool on) async {
+    final now = languages;
+    if (on) {
+      if (now.contains(code) || now.length >= maxLanguages || languageOf(code) == null) return;
+      now.add(code);
+    } else {
+      now.remove(code);
+      if (now.isEmpty) now.add('en');
+    }
+    await set('languages', now.join(','));
+    final added = on ? languageOf(code) : null;
+    if (added != null) await set('layout', layoutOf(added));
+  }
+
+  /// Chooses the layout [code] types on (one of its own `layouts`), and goes to it. Its own first layout is no choice
+  /// at all, so it is kept as nothing.
+  Future<void> setLanguageLayout(String code, String layout) async {
+    final language = languageOf(code);
+    if (language == null || !language.layouts.any((l) => l.$1 == layout)) return;
+    final next = {...languageLayouts};
+    layout == language.layouts.first.$1 ? next.remove(code) : next[code] = layout;
+    await set('language_layouts', next.entries.map((e) => '${e.key}:${e.value}').join(','));
+    await set('layout', layout);
+  }
+
+  /// What is typed in Settings › Languages › Add a language to narrow its list.
+  String languageFilter = '';
+
+  void setLanguageFilter(String text) {
+    languageFilter = text;
+    notifyListeners();
+  }
+
+  Future<void> refreshLanguages() async {
+    try {
+      final raw = await _channel.invokeMethod<Object>('languagesState');
+      if (raw is! Map) return;
+      final list = [
+        for (final l in (raw['languages'] as List? ?? const []))
+          if (l is Map)
+            LanguageInfo(
+              '${l['code']}',
+              '${l['name']}',
+              '${l['english']}',
+              script: '${l['script'] ?? 'latin'}',
+              layouts: [for (final y in (l['layouts'] as List? ?? const [])) if (y is Map) ('${y['id']}', '${y['label']}')],
+              dictionary: l['dictionary'] != false,
+              nextWords: l['nextWords'] == true,
+              note: l['note'] as String?,
+            ),
+      ].where((l) => l.layouts.isNotEmpty).toList();
+      if (list.isEmpty) return;
+      languageCatalogue = list;
+      unavailableLanguages = [
+        for (final u in (raw['unavailable'] as List? ?? const []))
+          if (u is Map) (name: '${u['name']}', english: '${u['english']}', why: '${u['why']}'),
+      ];
+      maxLanguages = (raw['max'] as num?)?.toInt() ?? 6;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
   }
 
   /// Words autocorrect keeps as typed: learned when a fix is undone, or added here.
@@ -187,10 +282,47 @@ class SettingsStore extends ChangeNotifier {
     return set('learned_words', (now.toList()..sort()).join('\n'));
   }
 
+  /// Settings › Offline: Ghost Keyboard opens no connection while this is on (Net.kt refuses every one).
+  bool get offline => flag('offline');
+
+  /// What a row that would connect says while Offline is on, and why it is disabled; null while it is off.
+  String? get offlineReason => offline ? 'Offline is on' : null;
+
+  /// The ledger of every connection the app can make, as Net.kt's `toMap` gives it: `features` (what the Offline
+  /// switch stops), `sections` (the pages that say so), `paths` (each reason to connect: its servers, what starts it,
+  /// what is sent, and whether it can happen as things stand), `works` (what needs no connection) and `hosts` (each
+  /// plugin's servers). Empty off-device.
+  Map<String, Object?> net = const {};
+
+  /// One of the ledger's lists (`features`, `paths`, `works`), as maps.
+  List<Map<Object?, Object?>> netList(String key) => [for (final e in (net[key] as List? ?? const [])) if (e is Map) e];
+
+  /// The settings pages (by section id) whose connections the Offline switch stops.
+  Set<String> get offlineSections => {for (final id in (net['sections'] as List? ?? const [])) '$id'};
+
+  /// The servers plugin [id] may reach, from the ledger; null where the ledger has not arrived (off-device).
+  List<String>? netHosts(String id) {
+    final hosts = (net['hosts'] as Map?)?[id];
+    return hosts is List ? [for (final h in hosts) '$h'] : null;
+  }
+
+  Future<void> refreshNet() async {
+    try {
+      final raw = await _channel.invokeMethod<Object>('netState');
+      if (raw is! Map) return;
+      net = raw.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   Future<void> load() async {
     try {
       final values = await _channel.invokeMapMethod<String, Object>('getSettings');
       if (values != null) _values.addAll(values);
+      await refreshNet();
+      await refreshLanguages();
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
@@ -198,6 +330,7 @@ class SettingsStore extends ChangeNotifier {
       clipCount = clips?['count'] as int? ?? 0;
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
+      await refreshNextWords();
       await refreshStats();
       await refreshProfiles();
     } on MissingPluginException {
@@ -215,12 +348,28 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
+  /// Where an update stands (Updater.kt), read again: the keyboard may have found or downloaded one in the background.
+  Future<void> refreshUpdate() async {
+    try {
+      _setUpdate(await _channel.invokeMethod<Object>('updateState'));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   /// Sets one setting here at once, so the control answers the finger, then on the keyboard's side.
   Future<void> set(String key, Object value) async {
     _values[key] = value;
     notifyListeners();
     try {
       await _channel.invokeMethod<void>('setSetting', {'key': key, 'value': value});
+      // The Offline switch changes what every page that connects can say: read them all again.
+      if (key == 'offline') {
+        await refreshNet();
+        await refreshAi();
+        _setUpdate(await _channel.invokeMethod<Object>('updateState'));
+        _setDictation(await _channel.invokeMethod<Object>('dictationState'));
+      }
     } on MissingPluginException {
       return;
     }
@@ -323,8 +472,16 @@ class SettingsStore extends ChangeNotifier {
   String? profileError;
   bool profileSamples = false;
 
+  /// An export carries the word pairs next-word prediction has counted, unless this is turned off for it.
+  bool profilePairs = true;
+
   void setProfileSamples(bool on) {
     profileSamples = on;
+    notifyListeners();
+  }
+
+  void setProfilePairs(bool on) {
+    profilePairs = on;
     notifyListeners();
   }
 
@@ -332,7 +489,7 @@ class SettingsStore extends ChangeNotifier {
 
   Future<void> exportProfile() async {
     try {
-      await _channel.invokeMethod<void>('profileExport', {'samples': profileSamples});
+      await _channel.invokeMethod<void>('profileExport', {'samples': profileSamples, 'pairs': profilePairs});
     } on MissingPluginException {
       return;
     }
@@ -357,6 +514,30 @@ class SettingsStore extends ChangeNotifier {
       if (r is Map) adaptive = r.map((k, v) => MapEntry('$k', v as Object?));
       notifyListeners();
     } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// Next-word prediction (NextWords.kt): `pairs` of words counted from the person's typing, the `words` in them, and
+  /// `bundled`, the languages (word-list codes) that have a starter table inside the app.
+  Map<String, Object?> nextWords = const {'pairs': 0, 'words': 0, 'bundled': []};
+
+  /// The languages with a starter table, as codes; empty until the keyboard has said (and off-device).
+  Set<String> get nextWordTables => {for (final c in (nextWords['bundled'] as List? ?? const [])) '$c'};
+
+  Future<void> refreshNextWords() => _nextWordsCall('nextWordsState');
+
+  /// Settings › Autocorrect › Forget what it learned: every counted word pair, in memory and in its file.
+  Future<void> resetNextWords() => _nextWordsCall('nextWordsReset');
+
+  Future<void> _nextWordsCall(String method) async {
+    try {
+      final r = await _channel.invokeMethod<Object>(method);
+      if (r is Map) nextWords = r.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
       return;
     }
   }
@@ -528,12 +709,30 @@ class AppProfile {
   final Map<String, bool> values;
 }
 
-/// The languages autocorrect has a dictionary for (android/app/src/main/assets/dict).
-const autocorrectLanguages = {
-  'en': 'English',
-  'es': 'Español',
-  'fr': 'Français',
-  'de': 'Deutsch',
-  'it': 'Italiano',
-  'pt': 'Português',
-};
+/// A language the keyboard has (Languages.kt): its [code], its [name] as its speakers write it and in [english], its
+/// [script], the [layouts] it may type on as (id, label) with its own first, whether it has a word list
+/// ([dictionary]: without one nothing is corrected, suggested or swiped), whether next-word prediction has a starter
+/// table for it inside the app ([nextWords]: without one it suggests from the person's own typing only), and a [note]
+/// shown under it.
+@immutable
+class LanguageInfo {
+  const LanguageInfo(this.code, this.name, this.english, {this.script = 'latin', this.layouts = const [('qwerty', 'QWERTY')], this.dictionary = true, this.nextWords = false, this.note});
+  final String code;
+  final String name;
+  final String english;
+  final String script;
+  final List<(String, String)> layouts;
+  final bool dictionary;
+  final bool nextWords;
+  final String? note;
+}
+
+/// The languages the keyboard began with: what the store knows before the keyboard's own list arrives, and off-device.
+const _firstSix = [
+  LanguageInfo('en', 'English', 'English', nextWords: true),
+  LanguageInfo('es', 'Español', 'Spanish', nextWords: true),
+  LanguageInfo('fr', 'Français', 'French', nextWords: true),
+  LanguageInfo('de', 'Deutsch', 'German', nextWords: true),
+  LanguageInfo('it', 'Italiano', 'Italian', nextWords: true),
+  LanguageInfo('pt', 'Português', 'Portuguese', nextWords: true),
+];

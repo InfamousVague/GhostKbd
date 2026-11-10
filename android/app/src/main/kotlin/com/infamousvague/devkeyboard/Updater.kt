@@ -14,7 +14,6 @@ import android.os.Looper
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 
@@ -29,6 +28,12 @@ import java.util.concurrent.Executors
  *   that is never installed.
  *
  * Debug builds never look (a debug build's key is not the release key, so no release could install over it).
+ *
+ * With Offline on (Settings › Offline) nothing is asked of the box at all: not the check, not the keyboard's
+ * twice-daily look, not the download. Both go through [Net] (the ledger's UPDATE_CHECK and UPDATE_DOWNLOAD), to
+ * attack.fm only. A release already downloaded and verified can still be installed, since that opens no connection:
+ * the release found last is written down ([FOUND]), so it is still on offer after the app has been restarted
+ * ([restore]), and "Update now" goes by whether the file is there whole ([State.toMap]'s `downloaded`).
  */
 object Updater {
     const val BASE = "https://attack.fm/devkeyboard"
@@ -37,6 +42,8 @@ object Updater {
     private const val CHECKED_AT = "checked_at"
     /** The newest release a check has seen, so the keyboard can badge its cog until it is installed. */
     private const val LATEST_CODE = "latest_code"
+    /** The release a check found last, as JSON (version, code, sha256, bytes, url), until it is installed. */
+    private const val FOUND = "found"
     private const val BACKGROUND_EVERY_MS = 12 * 60 * 60 * 1000L
 
     data class Release(val version: String, val code: Long, val sha256: String, val bytes: Long, val url: String)
@@ -57,6 +64,8 @@ object Updater {
             "progress" to progress,
             "error" to error,
             "source" to BASE,
+            // The release's file is here at its full size: installing it needs no connection.
+            "downloaded" to (available != null && whole(context, available)),
         )
     }
 
@@ -94,6 +103,8 @@ object Updater {
      */
     fun check(context: Context, install: Boolean, silentOnly: Boolean = false) {
         val app = context.applicationContext
+        // Offline: nothing is asked, and the time of the last look is left as it was.
+        if (Net.offline(KeyboardPrefs(app))) return
         if (isDebuggable(app)) { set(State(phase = "disabled", error = "Updates are off in debug builds.")); return }
         if (busy) return
         busy = true
@@ -101,16 +112,18 @@ object Updater {
         io.execute {
             try {
                 app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(CHECKED_AT, System.currentTimeMillis()).apply()
-                val release = fetchRelease()
+                val release = fetchRelease(app)
                 app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(LATEST_CODE, release.code.toLong()).apply()
                 if (release.code <= currentCode(app)) {
+                    forget(app)
                     set(State(phase = "upToDate"))
                     return@execute
                 }
+                remember(app, release)
                 set(State(phase = "available", available = release))
                 if (install) downloadAndInstall(app, release, silentOnly)
             } catch (e: Exception) {
-                set(state.copy(phase = "failed", progress = null, error = e.message ?: e.javaClass.simpleName))
+                failed(app, e)
             } finally {
                 busy = false
             }
@@ -123,6 +136,7 @@ object Updater {
      */
     fun backgroundCheck(context: Context) {
         val app = context.applicationContext
+        if (Net.offline(KeyboardPrefs(app))) return
         if (isDebuggable(app)) return
         val last = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(CHECKED_AT, 0L)
         if (System.currentTimeMillis() - last < BACKGROUND_EVERY_MS) return
@@ -133,36 +147,85 @@ object Updater {
     fun waiting(context: Context): Boolean =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(LATEST_CODE, 0L) > currentCode(context)
 
-    /** The settings app's "Update now": install the release already found (or look again first). */
+    /**
+     * The settings app's "Update now": install the release already found (or look again first). With Offline on, only
+     * a release already downloaded whole goes on to be installed; nothing is fetched.
+     */
     fun installNow(context: Context) {
+        restore(context)
         val release = state.available
         if (release == null) { check(context, install = true); return }
         val app = context.applicationContext
+        if (Net.offline(KeyboardPrefs(app)) && !whole(app, release)) return
         if (busy) return
         busy = true
         io.execute {
             try {
                 downloadAndInstall(app, release, silentOnly = false)
             } catch (e: Exception) {
-                set(state.copy(phase = "failed", progress = null, error = e.message ?: e.javaClass.simpleName))
+                failed(app, e)
             } finally {
                 busy = false
             }
         }
     }
 
+    /** Whether [release]'s file is here at its full size. Its hash is checked when it comes to be installed. */
+    private fun whole(context: Context, release: Release): Boolean = apkFile(context, release).length() == release.bytes
+
+    /** Writes down the release a check found, so it outlives the process. */
+    private fun remember(context: Context, release: Release) {
+        val json = JSONObject().put("version", release.version).put("code", release.code).put("sha256", release.sha256).put("bytes", release.bytes).put("url", release.url)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(FOUND, json.toString()).apply()
+    }
+
+    /** Lets go of the release written down: it was installed, or the box no longer has a newer one. */
+    private fun forget(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(FOUND).apply()
+    }
+
+    /**
+     * After a restart: the release a check found before is on offer again, "ready" where its file is here whole and
+     * "available" where it is not. Opens no connection, and changes nothing while an update is already known or under
+     * way. Called as the keyboard and the settings app start, and before "Update now".
+     */
+    fun restore(context: Context) {
+        if (state.available != null || busy || state.phase != "idle") return
+        val app = context.applicationContext
+        if (isDebuggable(app)) return
+        val release = runCatching {
+            val o = JSONObject(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(FOUND, null) ?: return)
+            Release(o.getString("version"), o.getLong("code"), o.getString("sha256"), o.getLong("bytes"), o.getString("url"))
+        }.getOrNull() ?: return
+        if (release.code <= currentCode(app)) { forget(app); return }
+        set(State(phase = if (whole(app, release)) "ready" else "available", available = release))
+    }
+
+    /**
+     * A check or a download that did not finish. Stopped by the Offline switch, it is no failure: the release already
+     * found stays on offer for when Offline is off again.
+     */
+    private fun failed(context: Context, e: Exception) {
+        if (Net.offline(KeyboardPrefs(context))) {
+            val found = state.available
+            set(if (found != null) State(phase = "available", available = found) else State())
+            return
+        }
+        set(state.copy(phase = "failed", progress = null, error = e.message ?: e.javaClass.simpleName))
+    }
+
     // --- the steps --------------------------------------------------------------------------------------------------
 
-    private fun open(url: String): HttpURLConnection = (URL(url).openConnection() as HttpURLConnection).apply {
+    /** A GET of the box through the guard, uncached; a redirect is followed only to a server the ledger lists. */
+    private fun open(context: Context, path: NetPath, url: String): HttpURLConnection = Net.get(KeyboardPrefs(context), path, url) {
         connectTimeout = 15_000
         readTimeout = 30_000
         useCaches = false
         setRequestProperty("Cache-Control", "no-cache")
-        instanceFollowRedirects = true
     }
 
-    private fun fetchRelease(): Release {
-        val conn = open("$BASE/apk.json?t=${System.currentTimeMillis()}")
+    private fun fetchRelease(context: Context): Release {
+        val conn = open(context, NetPath.UPDATE_CHECK, "$BASE/apk.json?t=${System.currentTimeMillis()}")
         try {
             if (conn.responseCode != 200) throw IllegalStateException("The update server answered ${conn.responseCode}.")
             val body = conn.inputStream.use { it.readBytes() }
@@ -184,7 +247,9 @@ object Updater {
     private fun downloadAndInstall(context: Context, release: Release, silentOnly: Boolean) {
         val file = apkFile(context, release)
         if (!(file.exists() && file.length() == release.bytes && sha256(file) == release.sha256)) {
-            download(release, file)
+            // The right size and the wrong hash is not the release: it goes, so it is never taken for a download that is ready.
+            if (file.exists() && file.length() == release.bytes) file.delete()
+            download(context, release, file)
         }
         verifyArchive(context, file, release)
         if (silentOnly && !canUpdateSilently(context)) {
@@ -199,13 +264,14 @@ object Updater {
         commit(context, file)
     }
 
-    private fun download(release: Release, file: File) {
+    private fun download(context: Context, release: Release, file: File) {
         // One release kept at a time: older downloads go.
         file.parentFile?.listFiles()?.forEach { if (it != file) it.delete() }
         val url = if (release.url.startsWith("https://")) release.url else "$BASE/${release.url}"
         val part = File(file.path + ".part")
         val digest = MessageDigest.getInstance("SHA-256")
-        val conn = open(url)
+        val prefs = KeyboardPrefs(context)
+        val conn = open(context, NetPath.UPDATE_DOWNLOAD, url)
         try {
             if (conn.responseCode != 200) throw IllegalStateException("The download answered ${conn.responseCode}.")
             var got = 0L
@@ -214,6 +280,7 @@ object Updater {
                 part.outputStream().use { out ->
                     val buf = ByteArray(64 * 1024)
                     while (true) {
+                        if (Net.offline(prefs)) throw Net.Refused(Net.OFFLINE_MESSAGE)
                         val n = input.read(buf)
                         if (n < 0) break
                         got += n
@@ -298,7 +365,7 @@ object Updater {
                 }
                 confirm?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { runCatching { context.startActivity(it) } }
             }
-            PackageInstaller.STATUS_SUCCESS -> set(State(phase = "upToDate"))
+            PackageInstaller.STATUS_SUCCESS -> { forget(context); set(State(phase = "upToDate")) }
             else -> {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                 set(state.copy(phase = if (status == PackageInstaller.STATUS_FAILURE_ABORTED) "available" else "failed", progress = null, error = message ?: "The install did not finish ($status)."))

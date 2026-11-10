@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>The hero chunk, on its keycap</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="retired/hero.css">
+<style>
+  /* This page only: the chunk at a desktop's width, then in a phone's. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8); }
+  .bench > section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); min-width: 0; }
+  .bench .eyebrow { margin: 0; }
+  .bench__phone { inline-size: min(100%, 320px); }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <section>
+    <p class="eyebrow eyebrow--accent">site/dev/chunk-hero.html · desktop</p>
+    <h1 class="display">Type it. <span id="tail" data-phrases="&lt;&lt;standup tldr&gt;&gt;.|&lt;&lt;decline nicely&gt;&gt;.">&lt;&lt;ask for it&gt;&gt;.</span></h1>
+    <article class="keycap keycap--fluid keycap--static">
+      <div class="keycap__face">
+        <h2 class="keycap__legend">space</h2>
+        <span class="keycap__hint keycap__hint--live">live</span>
+        <div class="keycap__body" data-chunk="hero"></div>
+        <p class="keycap__caption">Type on it. The answer is a sample.</p>
+        <span class="keycap__sub">&lt;&lt; &gt;&gt;</span>
+      </div>
+    </article>
+  </section>
+
+  <section class="bench__phone">
+    <p class="eyebrow">a phone, 360 wide</p>
+    <article class="keycap keycap--fluid keycap--static">
+      <div class="keycap__face">
+        <h2 class="keycap__legend">space</h2>
+        <span class="keycap__hint keycap__hint--live">live</span>
+        <div class="keycap__body" data-chunk="hero"></div>
+        <p class="keycap__caption">Type on it. The answer is a sample.</p>
+        <span class="keycap__sub">&lt;&lt; &gt;&gt;</span>
+      </div>
+    </article>
+  </section>
+</main>
+
+<script type="module">
+import { mount, typeHeadline } from './retired/hero.js';
+
+window.hero = [...document.querySelectorAll('[data-chunk="hero"]')].map((root) => mount(root));
+window.headline = typeHeadline(document.getElementById('tail'));
+</script>
+</body>
+</html>

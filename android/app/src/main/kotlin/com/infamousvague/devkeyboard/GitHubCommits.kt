@@ -3,8 +3,6 @@ package com.infamousvague.devkeyboard
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.time.LocalDate
 
@@ -14,7 +12,8 @@ import java.time.LocalDate
  * The request's own words (less the asking words: summarize, updates, we, made…) are searched for in the commit
  * messages of the repositories the person owns and the organizations they belong to, newest first. Searched by owner
  * rather than author, because many commits are authored by an AI agent rather than the person. "today", "yesterday",
- * "this week", "last week" and "this month" narrow the dates. With the person's own token, straight to GitHub.
+ * "this week", "last week" and "this month" narrow the dates. With the person's own token, straight to GitHub,
+ * through [Net] (the ledger's GITHUB_SEARCH and GITHUB_CHECK): never while Offline is on.
  */
 object GitHubCommits {
     data class Commit(val repo: String, val date: String, val message: String)
@@ -25,16 +24,20 @@ object GitHubCommits {
 
     class GitHubError(message: String) : Exception(message)
 
-    /** The token's account and the owners searched (the account, then its organizations), cached per token. */
-    fun account(context: Context, token: String, refresh: Boolean = false): Account {
+    /**
+     * The token's account and the owners searched (the account, then its organizations), cached per token. [path] is
+     * why it is asked: a Ghostwriter request's search, or Settings' "Check the token".
+     */
+    fun account(context: Context, token: String, refresh: Boolean = false, path: NetPath = NetPath.GITHUB_SEARCH): Account {
+        val prefs = KeyboardPrefs(context)
         val cache = context.getSharedPreferences(CACHE, Context.MODE_PRIVATE)
         val tag = token.hashCode().toString()
         if (!refresh && cache.getString("token", null) == tag) {
             val login = cache.getString("login", "")!!
             if (login.isNotEmpty()) return Account(login, cache.getString("owners", "")!!.split(',').filter { it.isNotBlank() })
         }
-        val login = JSONObject(get("$API/user", token)).optString("login").ifEmpty { throw GitHubError("GitHub didn't say whose token this is") }
-        val orgs = runCatching { JSONArray(get("$API/user/orgs?per_page=50", token)) }.getOrNull()
+        val login = JSONObject(get(prefs, path, "$API/user", token)).optString("login").ifEmpty { throw GitHubError("GitHub didn't say whose token this is") }
+        val orgs = runCatching { JSONArray(get(prefs, path, "$API/user/orgs?per_page=50", token)) }.getOrNull()
         val owners = listOf(login) + (0 until (orgs?.length() ?: 0)).mapNotNull { orgs?.optJSONObject(it)?.optString("login") }.filter { it.isNotBlank() }
         cache.edit().putString("token", tag).putString("login", login).putString("owners", owners.joinToString(",")).apply()
         return Account(login, owners)
@@ -77,13 +80,14 @@ object GitHubCommits {
     fun search(context: Context, token: String, request: String, budget: Int = 9000): List<Commit> {
         val words = keywords(request)
         if (words.isEmpty()) return emptyList()
+        val prefs = KeyboardPrefs(context)
         val owners = account(context, token).owners
         val window = since(request)?.let { " committer-date:>=$it" }.orEmpty()
         val hits = LinkedHashMap<String, Pair<Commit, Int>>()
         for (word in words) for (owner in owners.take(6)) {
             val q = "$word ${if (owner == owners.first()) "user" else "org"}:$owner$window"
             val url = "$API/search/commits?q=${URLEncoder.encode(q, "UTF-8")}&sort=committer-date&order=desc&per_page=20"
-            val items = runCatching { JSONObject(get(url, token)).optJSONArray("items") }.getOrNull() ?: continue
+            val items = runCatching { JSONObject(get(prefs, NetPath.GITHUB_SEARCH, url, token)).optJSONArray("items") }.getOrNull() ?: continue
             for (i in 0 until items.length()) {
                 val item = items.optJSONObject(i) ?: continue
                 val sha = item.optString("sha")
@@ -96,21 +100,23 @@ object GitHubCommits {
                 hits[sha] = (seen?.first ?: Commit(repo, date, message)) to ((seen?.second ?: 0) + 1)
             }
         }
-        var left = budget
-        return hits.values.sortedWith(compareByDescending<Pair<Commit, Int>> { it.second }.thenByDescending { it.first.date })
-            .map { it.first }.takeWhile { c -> (left > 0).also { left -= c.message.length + 40 } }
-            .sortedByDescending { it.date }
+        val best = hits.values.sortedWith(compareByDescending<Pair<Commit, Int>> { it.second }.thenByDescending { it.first.date }).map { it.first }
+        return Ghostwriter.fitting(best, budget) { it.message.length + 40 }.sortedByDescending { it.date }
     }
 
-    private fun get(url: String, token: String): String {
-        val c = URL(url).openConnection() as HttpURLConnection
+    /** One GET of GitHub's API, through the guard; a redirect is an error, so the token goes to api.github.com only. */
+    private fun get(prefs: KeyboardPrefs, path: NetPath, url: String, token: String): String {
+        val c = try {
+            Net.open(prefs, path, url)
+        } catch (e: java.io.IOException) {
+            throw GitHubError(Net.message(prefs, e, "Couldn't reach GitHub: ${e.message ?: "no connection"}"))
+        }
         try {
             c.connectTimeout = 15_000
             c.readTimeout = 30_000
             c.setRequestProperty("Authorization", "Bearer $token")
             c.setRequestProperty("Accept", "application/vnd.github+json")
             c.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            c.setRequestProperty("User-Agent", "GhostKeyboard")
             val code = c.responseCode
             val text = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (code !in 200..299) {
@@ -125,7 +131,7 @@ object GitHubCommits {
         } catch (e: GitHubError) {
             throw e
         } catch (e: java.io.IOException) {
-            throw GitHubError("Couldn't reach GitHub: ${e.message ?: "no connection"}")
+            throw GitHubError(Net.message(prefs, e, "Couldn't reach GitHub: ${e.message ?: "no connection"}"))
         } finally {
             c.disconnect()
         }

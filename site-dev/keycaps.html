@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Keycaps: every size, and fragments of the keyboard on them</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<style>
+  /* This page only. Everything a page of the site needs is in site.css and kbd.css. */
+  .sheet-head { display: grid; gap: var(--s-4); margin-bottom: var(--s-8); }
+  .sheet-part { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); margin-top: var(--s-9); }
+  .sheet-part > h2 { font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .loose { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s-5); }
+  .loose > figure { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); min-width: 0; max-width: 100%; }
+  .loose figcaption { color: var(--ink-3); font-size: var(--t-tiny); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the keys</a>
+<main id="main" class="wrap section section--tight">
+  <header class="sheet-head">
+    <span class="eyebrow eyebrow--accent">site/dev/keycaps.html</span>
+    <h1 class="h1" id="title">Keycaps, every size.</h1>
+    <p class="lead">The site's one signature: a frame shaped like a key, with a small working piece of the real keyboard on its face. This sheet shows each size and state from <code>css/site.css</code>, and four fragments built with <code>GhostKbd</code>'s <code>fragment</code> option. Tap a key, or tab to a fragment and type.</p>
+  </header>
+
+  <div class="keycaps" aria-label="A board of keycaps in every size">
+    <div class="keycaps__row">
+      <article class="keycap keycap--1u">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">1u</h2>
+          <div class="keycap__body"><div class="keycap__glyph">esc</div></div>
+          <p class="keycap__caption">Square.</p>
+        </div>
+      </article>
+
+      <article class="keycap keycap--1_5u">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">1.5u</h2>
+          <span class="keycap__hint keycap__hint--live">live</span>
+          <div class="keycap__body" id="chunk-mic"></div>
+          <p class="keycap__caption" id="mic-says">One key: <code>['mic']</code>. Tap it.</p>
+        </div>
+      </article>
+
+      <article class="keycap keycap--2u">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">2u · named keys</h2>
+          <span class="keycap__hint keycap__hint--live">live</span>
+          <div class="keycap__body" id="chunk-keys"></div>
+          <p class="keycap__caption">Five keys of the board, typing.</p>
+          <span class="keycap__sub">g h o s t</span>
+        </div>
+      </article>
+
+      <article class="keycap keycap--1_5u keycap--accent">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">1.5u · accent</h2>
+          <div class="keycap__body"><div class="keycap__glyph">⇥</div></div>
+          <p class="keycap__caption">An edge in the accent.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="keycaps__row">
+      <article class="keycap keycap--3u">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">3u · the row above the keys</h2>
+          <span class="keycap__hint keycap__hint--live">live</span>
+          <div class="keycap__body" id="chunk-bar"></div>
+          <p class="keycap__caption"><code>fragment: 'bar'</code> with three suggestions. Pick one.</p>
+        </div>
+      </article>
+
+      <article class="keycap keycap--3u">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">3u · a block</h2>
+          <span class="keycap__hint keycap__hint--live">live</span>
+          <div class="keycap__body" id="chunk-block"></div>
+          <p class="keycap__caption">Its real stagger, and the ripple backlight.</p>
+          <span class="keycap__sub">q → f</span>
+        </div>
+      </article>
+    </div>
+
+    <div class="keycaps__row">
+      <article class="keycap keycap--1u keycap--static">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">static</h2>
+          <div class="keycap__body"><div class="keycap__glyph">fn</div></div>
+          <p class="keycap__caption">Stays up.</p>
+        </div>
+      </article>
+
+      <article class="keycap keycap--space">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">space · the bottom row</h2>
+          <span class="keycap__hint keycap__hint--live">live</span>
+          <div class="keycap__body" id="chunk-row"></div>
+          <span class="keycap__sub">{row: -1}</span>
+        </div>
+      </article>
+
+      <article class="keycap keycap--1u keycap--blank">
+        <div class="keycap__face">
+          <h2 class="keycap__legend">blank</h2>
+          <div class="keycap__body"></div>
+          <p class="keycap__caption">Planned, not built.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="keycaps__row">
+      <div class="keycaps__stack">
+        <div class="keycaps__row">
+          <article class="keycap keycap--2u">
+            <div class="keycap__face">
+              <h2 class="keycap__legend">2u</h2>
+              <div class="keycap__body keycap__body--pad"><p class="muted small">A stack is two rows beside a tall key. Rows that add up to less than the board are centred, which is the stagger.</p></div>
+            </div>
+          </article>
+          <article class="keycap keycap--1u is-down">
+            <div class="keycap__face">
+              <h2 class="keycap__legend">.is-down</h2>
+              <div class="keycap__body"><div class="keycap__glyph">↓</div></div>
+              <p class="keycap__caption">Pressed.</p>
+            </div>
+          </article>
+        </div>
+        <div class="keycaps__row">
+          <article class="keycap keycap--1_5u">
+            <div class="keycap__face">
+              <h2 class="keycap__legend">1.5u</h2>
+              <span class="keycap__hint">hint</span>
+              <div class="keycap__body"><div class="keycap__glyph">ctrl</div></div>
+              <span class="keycap__sub">sub</span>
+            </div>
+          </article>
+          <article class="keycap keycap--1_5u">
+            <div class="keycap__face">
+              <h2 class="keycap__legend">1.5u</h2>
+              <div class="keycap__body"><div class="keycap__glyph">alt</div></div>
+              <p class="keycap__caption">Legend, glyph, caption.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <a class="keycap keycap--enter" href="../devkeyboard.apk" id="enter">
+        <div class="keycap__face">
+          <span class="keycap__legend">enter</span>
+          <div class="keycap__body keycap__body--end">
+            <div class="keycap__action"><strong>Download</strong><span id="enter-meta">Android · free</span></div>
+          </div>
+          <span class="keycap__caption">The accent, once a page.</span>
+          <span class="keycap__sub" id="enter-icon"></span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <section class="sheet-part" aria-labelledby="alone">
+    <h2 id="alone">Alone, outside a board</h2>
+    <div class="loose">
+      <figure><div class="keycap keycap--1u"><div class="keycap__face"><span class="keycap__legend">1u</span><div class="keycap__body"></div></div></div><figcaption>.keycap--1u</figcaption></figure>
+      <figure><div class="keycap keycap--1_5u"><div class="keycap__face"><span class="keycap__legend">1.5u</span><div class="keycap__body"></div></div></div><figcaption>.keycap--1_5u</figcaption></figure>
+      <figure><div class="keycap keycap--2u"><div class="keycap__face"><span class="keycap__legend">2u</span><div class="keycap__body"></div></div></div><figcaption>.keycap--2u</figcaption></figure>
+      <figure><div class="keycap keycap--1u keycap--tall"><div class="keycap__face"><span class="keycap__legend">tall</span><div class="keycap__body"></div></div></div><figcaption>.keycap--1u.keycap--tall</figcaption></figure>
+      <figure style="--u: 120px; --cap-min: 0px"><div class="keycap" style="--units: 2.25"><div class="keycap__face"><span class="keycap__legend">2.25u</span><div class="keycap__body"></div></div></div><figcaption>--u: 120px; --units: 2.25</figcaption></figure>
+    </div>
+    <div class="keycap keycap--fluid">
+      <div class="keycap__face">
+        <span class="keycap__legend">fluid</span>
+        <div class="keycap__body keycap__body--pad"><p class="muted">.keycap--fluid: as wide as its place, as tall as what it holds.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { GhostKbd, typeInto, icon } from '../site/js/kbd.js';
+
+// A headline typed out: the sentence is in the page already; this types it once it is seen.
+typeInto(document.getElementById('title'), null, { wpm: 75, caret: 'typing' });
+document.getElementById('enter-icon').innerHTML = icon('enter');
+
+// How a chunk is made (site/js/chunks/<name>.js exports this as mount(root)): a line to type into, a fragment of the
+// keyboard under it in what room is left, a short loop while nobody touches it.
+function mountKeys(root) {
+  root.innerHTML = '<div class="keycap__field" role="textbox" aria-label="What the five keys type"></div><div class="keycap__keys"></div>';
+  const kbd = new GhostKbd(root.lastChild, {
+    fragment: { keys: ['g', 'h', 'o', 's', 't'], fit: 'contain', maxDp: 1.5 },
+    theme: 'auto', bare: true, borders: true, hints: false, preview: false, autoCaps: false,
+    label: 'Five keys of Ghost Keyboard: g, h, o, s, t',
+  });
+  kbd.attach(root.firstChild, { placeholder: 'ghost' });
+  kbd.loop(async (s) => {
+    s.field.clear();
+    await s.wait(500);
+    await s.type('ghost', { wpm: 55 });
+    await s.wait(1800);
+    await s.type('\b\b\b\b\b', { wpm: 160, humanize: false });
+  }, { resume: 5000, still: (k) => k.field.set('ghost') });
+  return kbd;
+}
+
+// Only the row above the keys: suggestions as the app lays them out. Picking one says so.
+function mountBar(root) {
+  root.innerHTML = '<div class="keycap__field" aria-live="polite"></div><div></div>';
+  const line = root.firstChild;
+  const kbd = new GhostKbd(root.lastChild, { fragment: 'bar', theme: 'auto', bare: true, label: 'Suggestions' });
+  const words = ['tomorrow', 'tonight', 'today'];
+  line.textContent = 'See you tomo';
+  kbd.setSuggestions(words, (w) => { line.textContent = 'See you ' + w; });
+  return kbd;
+}
+
+// A block of the board between two keys (q to f), at its real stagger, with the backlight's ripple.
+function mountBlock(root) {
+  root.innerHTML = '<div class="keycap__keys"></div>';
+  const kbd = new GhostKbd(root.firstChild, {
+    fragment: { block: { from: 'q', to: 'f' }, fit: 'contain', maxDp: 1.2 },
+    theme: 'auto', bare: true, borders: true, backlight: 'ripple', preview: false, autoCaps: false, hardKeys: 'shown',
+    label: 'A block of Ghost Keyboard: q w e r over a s d f',
+  });
+  kbd.loop(async (s) => { await s.type('wears', { wpm: 45 }); await s.wait(2400); }, { resume: 4000 });
+  return kbd;
+}
+
+// A whole row of the board: the bottom one, with its space bar (slide along it and the 'cursor' event fires).
+function mountRow(root) {
+  root.innerHTML = '<div class="keycap__keys"></div>';
+  return new GhostKbd(root.firstChild, {
+    fragment: { row: -1, fit: 'contain', maxDp: 1.25 }, theme: 'auto', bare: true, backlight: 'reactive', label: 'The bottom row of Ghost Keyboard',
+  });
+}
+
+// One key. Tapping the mic shows the listening panel, as the app does, and a second tap ends it.
+function mountMic(root, says) {
+  root.innerHTML = '<div class="keycap__keys"></div>';
+  const kbd = new GhostKbd(root.firstChild, {
+    fragment: { keys: ['mic'], fit: 'contain', maxDp: 2 }, theme: 'auto', bare: true, borders: true, label: 'The dictation key',
+  });
+  let level = 0;
+  const stop = () => { clearInterval(level); kbd.setDictation(null); says.textContent = 'Nothing is recorded here.'; };
+  kbd.on('mic', () => {
+    if (kbd.dictation) { stop(); return; }
+    kbd.setDictation('listening');
+    says.textContent = 'Tap again to finish.';
+    let n = 0;
+    level = setInterval(() => { kbd.setLevel(Math.abs(Math.sin(n++ / 3))); if (n > 40) stop(); }, 90);
+  });
+  return kbd;
+}
+
+window.chunks = {
+  keys: mountKeys(document.getElementById('chunk-keys')),
+  bar: mountBar(document.getElementById('chunk-bar')),
+  block: mountBlock(document.getElementById('chunk-block')),
+  row: mountRow(document.getElementById('chunk-row')),
+  mic: mountMic(document.getElementById('chunk-mic'), document.getElementById('mic-says')),
+};
+</script>
+</body>
+</html>

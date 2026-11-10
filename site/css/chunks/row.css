@@ -1,0 +1,29 @@
+/*
+ * The row chunk (js/chunks/row.js), on a space bar: one line of text, then the keyboard's own row across the face,
+ * its arrow keys at the end. The row is 44dp tall at whatever scale the face's width gives it, so the two together
+ * stand inside a key of the least height (--cap-min) with its legend and one caption line.
+ */
+.rowc {
+  padding-block: var(--s-1) 0;
+  gap: var(--s-2);
+}
+
+/* The line: what the row's keys act on. It takes the focus, and then the visitor's own arrow keys move its caret. */
+.rowc .rowc__line {
+  font-size: clamp(1rem, 4.6cqi, 1.125rem);
+  border-radius: 6px;
+}
+
+.rowc .rowc__line:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rowc__bar {
+  flex: none;
+  min-width: 0;
+}
+
+/* A press that is not a pointer's (the idle loop's, or the visitor's own arrow key): as kbd.css draws :active. */
+.rowc .gk-arrow.is-down { background: rgba(128, 128, 128, .133); }
+.rowc .gk-ri.is-down { background: var(--kb-key-down); }

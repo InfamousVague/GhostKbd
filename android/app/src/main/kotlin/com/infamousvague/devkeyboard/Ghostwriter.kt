@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * the field, and with its switch on, your recent clipboard — and the answer replaces the tag. << >> rather than {{ }}
  * so templates and code that use braces are left alone.
  *
- * Never in password fields or while incognito. The keyboard service owns the row; this object owns the request.
+ * Never in password fields or while incognito, and never while Offline is on (Net.kt). The keyboard service owns the
+ * row; this object owns the request.
  */
 object Ghostwriter {
     /** A request just closed before the cursor: "…<<standup tldr>>". */
@@ -46,7 +47,7 @@ object Ghostwriter {
     /** Starts filling [request]; [done] runs on the main thread unless the job is cancelled first. */
     fun start(context: Context, prefs: KeyboardPrefs, request: String, tag: String, before: String, after: String, app: String?, done: (Job) -> Unit): Job {
         val appContext = context.applicationContext
-        return launch(Job(ids.incrementAndGet(), request, tag), done) {
+        return launch(prefs, Job(ids.incrementAndGet(), request, tag), done) {
             val (system, user) = prompt(appContext, prefs, request, before, after, app)
             // Debug builds only: the key "debug-echo" answers without any AI, to try the typing and the row.
             if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
@@ -56,25 +57,30 @@ object Ghostwriter {
                     .filter { it.startsWith("--- ") }.joinToString("; ") { it.removePrefix("--- ") }
                 return@launch "Shipped the PostHog waitlist events today. (debug: notes ${notes.ifEmpty { "none" }})"
             }
-            AiClient.complete(prefs, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
         }
     }
 
     /** Mockingbird's "In my voice": the [selected] text rewritten as you, to replace the selection. */
     fun rewrite(context: Context, prefs: KeyboardPrefs, selected: String, app: String?, done: (Job) -> Unit): Job {
         val appContext = context.applicationContext
-        return launch(Job(ids.incrementAndGet(), "In my voice", selected, selection = true), done) {
+        return launch(prefs, Job(ids.incrementAndGet(), "In my voice", selected, selection = true), done) {
             Mockingbird.rewrite(appContext, prefs, selected, app)
         }
     }
 
     /** The Rewrite plugin: the [selected] text rewritten as [mode] asks, to replace the selection. */
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
-        launch(Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
+        launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
-    private fun launch(job: Job, done: (Job) -> Unit, work: () -> String): Job {
+    /**
+     * Runs [work] on the worker and hands [job] back on the main thread. With Offline on the work is never started
+     * (no notes read, no commits searched): the job ends with "Offline is on", which the row shows as its error.
+     */
+    private fun launch(prefs: KeyboardPrefs, job: Job, done: (Job) -> Unit, work: () -> String): Job {
         worker.execute {
-            runCatching(work).onSuccess { job.result = clean(it) }.onFailure { job.error = it.message ?: "Couldn't write it" }
+            runCatching { if (Net.offline(prefs)) throw AiClient.AiError(Net.OFFLINE_MESSAGE) else work() }
+                .onSuccess { job.result = clean(it) }.onFailure { job.error = it.message ?: "Couldn't write it" }
             main.post { if (!job.cancelled) done(job) }
         }
         return job
@@ -88,13 +94,21 @@ object Ghostwriter {
         return t
     }
 
+    /**
+     * As many of [items], in order, as fit in [budget] characters, each counting [size]: the list ends before the
+     * first that would cross it. So a budget is a cap, and what Settings › Offline says is sent is the most that is.
+     */
+    inline fun <T> fitting(items: List<T>, budget: Int, size: (T) -> Int): List<T> {
+        var left = budget
+        return items.takeWhile { item -> size(item).let { n -> (n <= left).also { fits -> if (fits) left -= n } } }
+    }
+
     /** The system prompt (instructions, voice, memory) and the user message (the field and the request). */
     fun prompt(context: Context, prefs: KeyboardPrefs, request: String, before: String, after: String, app: String?): Pair<String, String> {
         val kind = AppContext.kind(app)
         val memory = if (prefs.ghostwriterMemory) Mockingbird.relevant(context, "$request ${before.takeLast(300)}", app) else emptyList()
         val clips = if (prefs.ghostwriterClipboard && Plugins.isOn(prefs, Plugins.CLIPBOARD)) {
-            var left = 2500
-            ClipHistory.all(context).take(6).map { it.text.take(1200) }.takeWhile { c -> (left > 0).also { left -= c.length } }
+            fitting(ClipHistory.all(context).take(6).map { it.text.take(1200) }, 2500) { it.length }
         } else emptyList()
         // The work behind "<<posthog updates we made>>": the person's commits that match, from GitHub.
         var githubNote: String? = null

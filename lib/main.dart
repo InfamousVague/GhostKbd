@@ -83,7 +83,9 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) { store.refreshStatus(); store.refreshAi(); store.refreshAdaptive(); store.refreshStats(); store.refreshProfiles(); }
+    // The keyboard runs in this app's process and goes on learning while Settings is in the background: what it has
+    // counted (word pairs among it) is read again each time the app comes back to the front.
+    if (state == AppLifecycleState.resumed) { store.refreshStatus(); store.refreshAi(); store.refreshAdaptive(); store.refreshStats(); store.refreshProfiles(); store.refreshNet(); store.refreshNextWords(); store.refreshUpdate(); }
   }
 
   /// The keyboard asked for a page: its section, over Settings.

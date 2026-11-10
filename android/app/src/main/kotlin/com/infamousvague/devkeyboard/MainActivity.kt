@@ -86,7 +86,19 @@ class MainActivity : FlutterActivity() {
         openAt = "ai"
     }
 
+    /**
+     * What the export being saved may carry, as the switches beside it stood when the file picker was opened. Both
+     * start off, and both are kept across the activity being made again while the picker is open
+     * ([onSaveInstanceState]), so a choice to leave something out can never come back as "include it".
+     */
     private var exportSamples = false
+    private var exportPairs = false
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_EXPORT_SAMPLES, exportSamples)
+        outState.putBoolean(STATE_EXPORT_PAIRS, exportPairs)
+    }
 
     @Deprecated("FlutterActivity still routes results here")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -97,7 +109,7 @@ class MainActivity : FlutterActivity() {
             REQUEST_IMPORT -> importProfile(uri)
             REQUEST_EXPORT -> Thread {
                 val error = runCatching {
-                    val text = TypingProfile.export(this, exportSamples)
+                    val text = TypingProfile.export(this, exportSamples, exportPairs)
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } ?: throw TypingProfile.ProfileError("Couldn't write the file")
                 }.exceptionOrNull()?.message
                 runOnUiThread { channel?.invokeMethod("profileDone", mapOf("exported" to (error == null), "error" to error)) }
@@ -141,14 +153,19 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        exportSamples = savedInstanceState?.getBoolean(STATE_EXPORT_SAMPLES) == true
+        exportPairs = savedInstanceState?.getBoolean(STATE_EXPORT_PAIRS) == true
         Updater.addListener(onUpdate)
+        // A release found before the app was last closed is on offer again (and can be installed with Offline on).
+        Updater.restore(this)
         KeyboardPrefs(this).addNewDefaults()
+        KeyboardPrefs(this).pinLegacyLayouts()
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         openAt = intent?.getStringExtra(EXTRA_OPEN)
         signedIn(intent)
         profileIntent(intent)
-        // Automatic updates: look each time the app opens, and install what is found.
+        // Automatic updates: look each time the app opens, and install what is found (never while Offline is on).
         if (KeyboardPrefs(this).autoUpdate) Updater.check(this, install = true)
     }
 
@@ -228,9 +245,10 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "useModel" -> {
-                        // Choosing a model downloads it if it is not here yet.
+                        // Choosing a model downloads it if it is not here yet. With Offline on, a model that is not
+                        // here is not chosen: the one in use stays, and the row says why.
                         val spec = WhisperModel.spec(call.argument<String>("id"))
-                        prefs.set(KeyboardPrefs.WHISPER_MODEL, spec.id)
+                        if (WhisperModel.isReady(this@MainActivity, spec) || !Net.offline(prefs)) prefs.set(KeyboardPrefs.WHISPER_MODEL, spec.id)
                         WhisperModel.download(this@MainActivity, spec)
                         result.success(dictationState())
                     }
@@ -242,7 +260,7 @@ class MainActivity : FlutterActivity() {
                         requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
                         result.success(null)
                     }
-                    "updateState" -> result.success(Updater.state.toMap(this@MainActivity))
+                    "updateState" -> { Updater.restore(this@MainActivity); result.success(Updater.state.toMap(this@MainActivity)) }
                     "checkUpdate" -> {
                         Updater.check(this@MainActivity, install = call.argument<Boolean>("install") == true)
                         result.success(null)
@@ -257,7 +275,9 @@ class MainActivity : FlutterActivity() {
                     }
                     "aiState" -> result.success(aiState())
                     "aiModels" -> background(result) { AiClient.models(prefs) }
-                    "aiTest" -> background(result) { AiClient.complete(prefs, "Reply with the single word OK.", "Are you there?", maxTokens = 2000, effort = "low") }
+                    "aiTest" -> background(result) { AiClient.complete(prefs, NetPath.AI_TEST, "Reply with the single word OK.", "Are you there?", maxTokens = 2000, effort = "low") }
+                    // Settings › Offline, and the Market's "It talks to…": the ledger as things stand (Net.kt).
+                    "netState" -> result.success(Net.toMap(this@MainActivity, prefs))
                     "mockingbirdTrain" -> Mockingbird.train(this@MainActivity) { error ->
                         runOnUiThread { result.success(aiState() + mapOf("trainError" to error)) }
                     }
@@ -270,7 +290,7 @@ class MainActivity : FlutterActivity() {
                     "githubCheck" -> background(result) {
                         val token = prefs.githubToken.trim()
                         if (token.isEmpty()) throw GitHubCommits.GitHubError("Paste a GitHub token first")
-                        val a = GitHubCommits.account(this@MainActivity, token, refresh = true)
+                        val a = GitHubCommits.account(this@MainActivity, token, refresh = true, path = NetPath.GITHUB_CHECK)
                         mapOf("login" to a.login, "owners" to a.owners)
                     }
                     "profileImport" -> {
@@ -281,6 +301,8 @@ class MainActivity : FlutterActivity() {
                     }
                     "profileExport" -> {
                         exportSamples = call.argument<Boolean>("samples") == true
+                        // Word pairs go along unless the switch beside the export was turned off.
+                        exportPairs = call.argument<Boolean>("pairs") != false
                         val save = Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
                             .putExtra(Intent.EXTRA_TITLE, "ghost-typing-profile.json")
                         runCatching { startActivityForResult(save, REQUEST_EXPORT) }
@@ -303,7 +325,13 @@ class MainActivity : FlutterActivity() {
                         result.success(AppProfiles.state(prefs))
                     }
                     "adaptiveState" -> result.success(adaptiveState())
-                    "adaptiveReset" -> { AdaptiveKeys.get(this@MainActivity).reset(); result.success(adaptiveState()) }
+                    "adaptiveReset" -> { AdaptiveKeys.resetAll(this@MainActivity); result.success(adaptiveState()) }
+                    // Settings › Autocorrect › Next word: what has been learned, and forgetting it (NextWords.kt).
+                    // Both wait on its background thread, so neither runs on this one.
+                    "nextWordsState" -> background(result) { NextWords.get(this@MainActivity).run { awaitLoaded(2_000); awaitIdle(2_000); state() } }
+                    "nextWordsReset" -> background(result) { NextWords.get(this@MainActivity).run { reset(); state() } }
+                    // Settings › Languages: every language the keyboard has, and the ones it says it does not (Languages.kt).
+                    "languagesState" -> result.success(languagesState())
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }
                     else -> result.notImplemented()
                 }
@@ -321,11 +349,33 @@ class MainActivity : FlutterActivity() {
         }.start()
     }
 
-    /** Settings › Adaptive keys: how many letters have learned aims, and how many mistakes it remembers. */
+    /** Settings › Adaptive keys: how many letters have learned aims, and how many mistakes it remembers, over every layout. */
     private fun adaptiveState(): Map<String, Any> {
-        val model = AdaptiveKeys.get(this)
-        return mapOf("keys" to model.learnedKeys(), "mistakes" to model.mistakes.size,
-            "common" to model.mistakes.groupingBy { "${it.pressed}→${it.meant}" }.eachCount().entries.sortedByDescending { it.value }.take(5).map { "${it.key} ×${it.value}" })
+        val models = AdaptiveKeys.all(this)
+        val mistakes = models.flatMap { it.mistakes }
+        return mapOf("keys" to models.sumOf { it.learnedKeys() }, "mistakes" to mistakes.size,
+            "common" to mistakes.groupingBy { "${it.pressed}→${it.meant}" }.eachCount().entries.sortedByDescending { it.value }.take(5).map { "${it.key} ×${it.value}" })
+    }
+
+    /**
+     * Settings › Languages: the catalogue. `languages` (code, its own name, its English name, the script, its layouts
+     * as id and label with its own first, whether it has a word list, whether next-word prediction has a starter
+     * table for it inside the app, and a note), `unavailable` (name, english, why) and `max`, how many may be on at
+     * once.
+     */
+    private fun languagesState(): Map<String, Any?> {
+        val tables = runCatching { assets.list("ngram") }.getOrNull().orEmpty().filter { it.endsWith(".tsv") }.map { it.removeSuffix(".tsv") }.toSet()
+        return mapOf(
+            "languages" to Languages.ALL.map { l ->
+                mapOf(
+                    "code" to l.code, "name" to l.name, "english" to l.english, "script" to l.script.name.lowercase(),
+                    "layouts" to l.layouts.mapNotNull { id -> Layouts.spec(id)?.let { mapOf("id" to it.id, "label" to it.label) } },
+                    "dictionary" to (l.dict != null), "nextWords" to (l.dict != null && l.dict in tables), "note" to l.note,
+                )
+            },
+            "unavailable" to Languages.UNAVAILABLE.map { mapOf("name" to it.name, "english" to it.english, "why" to it.why) },
+            "max" to Languages.MAX,
+        )
     }
 
     /** Settings › AI and Mockingbird: the providers, whether one is ready, the samples and the style profile. */
@@ -370,5 +420,7 @@ class MainActivity : FlutterActivity() {
         private const val REQUEST_MIC = 41
         private const val REQUEST_IMPORT = 42
         private const val REQUEST_EXPORT = 43
+        private const val STATE_EXPORT_SAMPLES = "export_samples"
+        private const val STATE_EXPORT_PAIRS = "export_pairs"
     }
 }

@@ -141,9 +141,13 @@ object Mockingbird {
         passwords, health, money, or anything about other people. Plain text with short headings, under 700 words.
     """.trimIndent()
 
-    /** Trains a new profile in the background; [done] gets an error message, or null when it worked. */
+    /**
+     * Trains a new profile in the background; [done] gets an error message, or null when it worked. With Offline on
+     * nothing is sent and nothing is recorded as a failure: [done] gets "Offline is on".
+     */
     fun train(context: Context, done: ((String?) -> Unit)? = null) {
         if (training) return
+        if (Net.offline(KeyboardPrefs(context))) { done?.invoke(Net.OFFLINE_MESSAGE); return }
         training = true
         lastError = null
         val app = context.applicationContext
@@ -160,25 +164,27 @@ object Mockingbird {
                     append("\nWRITING (${writing.size} pieces)\n")
                     writing.forEach { append("---\n").append(it.text).append('\n') }
                 }
-                val text = AiClient.complete(prefs, TRAIN_SYSTEM, user, maxTokens = 8000, effort = "medium")
+                val text = AiClient.complete(prefs, NetPath.TRAIN, TRAIN_SYSTEM, user, maxTokens = 8000, effort = "medium")
                 val setup = AiClient.setup(prefs)
                 saveProfile(app, Profile(text, System.currentTimeMillis(), all.size, setup.provider.name, setup.model))
             }.exceptionOrNull()?.let { it.message ?: "Training failed" }
-            lastError = error
+            // Stopped by the Offline switch part-way: not a failure to show once it is off again.
+            lastError = error.takeUnless { it == Net.OFFLINE_MESSAGE }
             training = false
             done?.invoke(error)
         }
     }
 
-    /** Newest first, as many as fit in [budget] characters, then back in the order they were typed. */
-    private fun pick(list: List<Sample>, budget: Int): List<Sample> {
-        var left = budget
-        return list.asReversed().takeWhile { s -> (left > 0).also { left -= s.text.length + 4 } }.reversed()
-    }
+    /** Newest first, as many as fit in [budget] characters (never over it), then back in the order they were typed. */
+    private fun pick(list: List<Sample>, budget: Int): List<Sample> =
+        Ghostwriter.fitting(list.asReversed(), budget) { it.text.length + 4 }.reversed()
 
-    /** Retrains by itself when switched on, the AI is set up, enough new samples have come in, and a day has passed. */
+    /**
+     * Retrains by itself when switched on, the AI is set up, enough new samples have come in, and a day has passed.
+     * Never while Offline is on: the samples go on being kept, and training waits.
+     */
     fun maybeAutoTrain(context: Context, prefs: KeyboardPrefs) {
-        if (!prefs.mockingbirdAutoTrain || training || !AiClient.ready(prefs)) return
+        if (!prefs.mockingbirdAutoTrain || training || Net.offline(prefs) || !AiClient.ready(prefs)) return
         val count = samples(context).size
         val p = profile(context)
         val due = if (p == null) count >= AUTO_TRAIN_AFTER else count - p.samples >= AUTO_TRAIN_AFTER && System.currentTimeMillis() - p.at > 20 * 3_600_000L
@@ -212,8 +218,7 @@ object Mockingbird {
             .sortedByDescending { it.second + it.first / n * 0.5 }
             .take(15).map { all[it.first] }
         val recent = all.asReversed().filter { it.app == app }.take(6)
-        var left = budget
-        return (scored + recent).distinct().takeWhile { s -> (left > 0).also { left -= s.text.length } }
+        return Ghostwriter.fitting((scored + recent).distinct(), budget) { it.text.length }
     }
 
     /** The profile as a system-prompt section, or a note that there isn't one yet. */
@@ -232,6 +237,6 @@ object Mockingbird {
             append(voiceSection(context))
             if (examples.isNotEmpty()) append("\n\nTHINGS THEY HAVE TYPED\n").append(examples.joinToString("\n---\n") { it.text })
         }
-        return AiClient.complete(prefs, system, text, maxTokens = 3000, effort = "low")
+        return AiClient.complete(prefs, NetPath.MY_VOICE, system, text, maxTokens = 3000, effort = "low")
     }
 }

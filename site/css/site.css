@@ -1,0 +1,2010 @@
+/*
+ * Ghost Keyboard's website: the design tokens, the keycap, and the page's own styles.
+ *
+ * The look is the app's: a near-black ground, #111 surfaces with hairline borders, one accent (the ghost's cyan)
+ * used sparingly. A light theme follows the reader's system, in the app's light colours; <html data-theme="dark|light">
+ * pins one.
+ *
+ * It is a page to read. The keyboard appears only as small working fragments set into KEYCAPS (.keycap, below): frames
+ * shaped like a key seen from above, laid out in rows like a keyboard (.keycaps). Used with restraint they are the
+ * site's signature; the story is told in headlines and sentences.
+ *
+ * No web fonts, no images, nothing fetched from another host: Inter where it is installed, the system's face where
+ * it is not.
+ */
+
+/* ------------------------------------------------------------------------------------------------ tokens --------- */
+
+/* One keyboard unit: the side of a 1u key. A length in its own right, so a key deep in the page still knows it. */
+@property --u {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 176px;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Ground and surfaces. */
+  --ground: #0A0B0C;
+  --ground-2: #0E0F11;          /* a band a step up from the ground */
+  --card: #111111;
+  --card-2: #16181A;            /* a control on a card (the keyboard's function key) */
+  --card-3: #232528;            /* a control's own raised part (the keyboard's key) */
+  --hairline: rgba(232, 237, 237, .09);
+  --hairline-2: rgba(232, 237, 237, .16);
+
+  /* Ink. */
+  --ink: #E8EDED;
+  --ink-2: #8A9393;
+  --ink-3: #7A8484;
+
+  /* The one accent, and what is written on it. */
+  --accent: #51FCFB;
+  --accent-down: #2ED8D7;
+  --on-accent: #00302F;
+  --accent-ink: #51FCFB;        /* the accent as small text: the same on the dark page, deeper on the light one */
+  --accent-fill: #51FCFB;       /* the accent as a surface with words on it (a button, the enter key): deeper on the light page */
+  --accent-wash: rgba(81, 252, 251, .10);
+  --accent-line: rgba(81, 252, 251, .32);
+
+  --danger: #FF6B61;
+  --ok: #4CD571;
+  --warn: #FFB84D;
+
+  /* Type. */
+  --font: Inter, "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  --t-display: clamp(2.75rem, 1.35rem + 6.2vw, 6rem);
+  --t-h1: clamp(2.25rem, 1.4rem + 3.8vw, 4rem);
+  --t-h2: clamp(1.875rem, 1.25rem + 2.7vw, 3.25rem);
+  --t-h3: clamp(1.2rem, 1.1rem + .5vw, 1.4rem);
+  --t-lead: clamp(1.125rem, 1rem + .5vw, 1.375rem);
+  /* Four sizes of running text, and no others: 18 (a story's prose, a list's titles), 16, 14 (captions, the table), 12. */
+  --t-prose: 1.125rem;
+  --t-body: 1rem;
+  --t-small: .875rem;
+  --t-tiny: .75rem;
+  --t-legend: .75rem;           /* a key's legend */
+
+  /* Space: a 4px scale. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --section: clamp(56px, 4vw + 36px, 104px);
+  --gutter: clamp(20px, 5vw, 40px);
+  --page: 1120px;
+  --measure: 60ch;
+
+  /* Shape. */
+  --r-card: 20px;
+  --r-ctl: 12px;
+  --r-chip: 8px;
+  --r-pill: 999px;
+
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, .5), 0 0 0 1px var(--hairline);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --nav-h: 60px;
+
+  /* The keycap: its skirt, the face on top of it, the edge under it, its hairline and the light on its top edge. */
+  /* On a near-black page a key has to stand clear of it: a skirt well above the ground, a face a step above that. */
+  --cap-skirt: #17191C;
+  --cap-face: #1C1E21;
+  --cap-under: #040505;
+  --cap-line: rgba(232, 237, 237, .14);
+  --cap-highlight: rgba(255, 255, 255, .12);
+  --cap-shade: rgba(0, 0, 0, .6);
+  --cap-gap: 12px;              /* between keys */
+  --cap-r: 18px;                /* the key's corners */
+  --cap-face-r: 12px;           /* its face's */
+  --cap-top: 5px;               /* how far the face stands in from the skirt: least at the top, most at the foot, */
+  --cap-side: 8px;              /* as a key looks from above and a little in front */
+  --cap-bottom: 15px;
+  --cap-travel: 5px;            /* how far it goes down when pressed */
+  --cap-pad: 14px;              /* a legend's distance from the face's edge */
+  --cap-min: 168px;             /* a key is never shorter than this, however small a unit gets */
+
+  /* The settings app's section colours: for an icon chip, where a colour says which section. Not decoration. */
+  --hue-blue: #4EA1FF;
+  --hue-purple: #C77DFF;
+  --hue-red: #FF6B61;
+  --hue-graphite: #AEB2B8;
+  --hue-coral: #F0906B;
+  --hue-green: #4CD571;
+  --hue-yellow: #FFD43B;
+  --hue-mint: #5FE0CF;
+  --hue-amber: #FFB84D;
+  --hue-indigo: #8C95FF;
+  --hue-orange: #FF9A4D;
+  --hue-cyan: #4CC9F0;
+  --hue-lime: #A3D93F;
+  --hue-rose: #FF7AA8;
+  --hue-magenta: #F07AE0;
+  --hue-slate: #8FA3BF;
+}
+
+/* The app's light colours (KeyboardTheme.LIGHT): the ground the keyboard's, cards its keys, the cyan deepened. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --ground: #E8EAF0;
+    --ground-2: #DFE2EA;
+    --card: #FFFFFF;
+    --card-2: #F1F3F7;
+    --card-3: #E1E5EC;
+    --hairline: rgba(31, 31, 31, .10);
+    --hairline-2: rgba(31, 31, 31, .18);
+    --ink: #1F1F1F;
+    --ink-2: #5F6368;
+    --ink-3: #595E65;
+    --accent: #008B8A;
+    --accent-down: #006E6D;
+    --on-accent: #FFFFFF;
+    --accent-ink: #006E6D;
+    --accent-fill: #007A79;     /* white on it is 5.2:1; on --accent itself it is 4.1:1 */
+    --accent-wash: rgba(0, 139, 138, .10);
+    --accent-line: rgba(0, 139, 138, .34);
+    --danger: #DD3A30;
+    --ok: #2A9D4B;
+    --warn: #C27C00;
+    --shadow-pop: 0 12px 40px rgba(31, 41, 55, .16), 0 0 0 1px var(--hairline);
+    --cap-skirt: #D2D7E0;
+    --cap-face: #F8F9FB;
+    --cap-under: #B9C0CB;
+    --cap-line: rgba(31, 31, 31, .13);
+    --cap-highlight: rgba(255, 255, 255, .95);
+    --cap-shade: rgba(31, 41, 55, .18);
+    --cap-travel: 4px;
+    --hue-blue: #0A6FE0;
+    --hue-purple: #9A45C9;
+    --hue-red: #DD3A30;
+    --hue-graphite: #5F6368;
+    --hue-coral: #C8643F;
+    --hue-green: #2A9D4B;
+    --hue-yellow: #B58400;
+    --hue-mint: #1F9E8F;
+    --hue-amber: #C27C00;
+    --hue-indigo: #4F5BD5;
+    --hue-orange: #D9600D;
+    --hue-cyan: #0A86A8;
+    --hue-lime: #5A8A00;
+    --hue-rose: #D6336C;
+    --hue-magenta: #B5279F;
+    --hue-slate: #4A5A70;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #E8EAF0;
+  --ground-2: #DFE2EA;
+  --card: #FFFFFF;
+  --card-2: #F1F3F7;
+  --card-3: #E1E5EC;
+  --hairline: rgba(31, 31, 31, .10);
+  --hairline-2: rgba(31, 31, 31, .18);
+  --ink: #1F1F1F;
+  --ink-2: #5F6368;
+  --ink-3: #595E65;
+  --accent: #008B8A;
+  --accent-down: #006E6D;
+  --on-accent: #FFFFFF;
+  --accent-ink: #006E6D;
+  --accent-fill: #007A79;
+  --accent-wash: rgba(0, 139, 138, .10);
+  --accent-line: rgba(0, 139, 138, .34);
+  --danger: #DD3A30;
+  --ok: #2A9D4B;
+  --warn: #C27C00;
+  --shadow-pop: 0 12px 40px rgba(31, 41, 55, .16), 0 0 0 1px var(--hairline);
+  --cap-skirt: #D2D7E0;
+  --cap-face: #F8F9FB;
+  --cap-under: #B9C0CB;
+  --cap-line: rgba(31, 31, 31, .13);
+  --cap-highlight: rgba(255, 255, 255, .95);
+  --cap-shade: rgba(31, 41, 55, .18);
+  --cap-travel: 4px;
+  --hue-blue: #0A6FE0;
+  --hue-purple: #9A45C9;
+  --hue-red: #DD3A30;
+  --hue-graphite: #5F6368;
+  --hue-coral: #C8643F;
+  --hue-green: #2A9D4B;
+  --hue-yellow: #B58400;
+  --hue-mint: #1F9E8F;
+  --hue-amber: #C27C00;
+  --hue-indigo: #4F5BD5;
+  --hue-orange: #D9600D;
+  --hue-cyan: #0A86A8;
+  --hue-lime: #5A8A00;
+  --hue-rose: #D6336C;
+  --hue-magenta: #B5279F;
+  --hue-slate: #4A5A70;
+}
+
+/* A section's colour, for an icon chip or a quiet tint: <span class="icon-chip" data-hue="coral">. */
+[data-hue] { --hue: var(--ink-2); }
+[data-hue="accent"] { --hue: var(--accent); }
+[data-hue="blue"] { --hue: var(--hue-blue); }
+[data-hue="purple"] { --hue: var(--hue-purple); }
+[data-hue="red"] { --hue: var(--hue-red); }
+[data-hue="graphite"] { --hue: var(--hue-graphite); }
+[data-hue="coral"] { --hue: var(--hue-coral); }
+[data-hue="green"] { --hue: var(--hue-green); }
+[data-hue="yellow"] { --hue: var(--hue-yellow); }
+[data-hue="mint"] { --hue: var(--hue-mint); }
+[data-hue="amber"] { --hue: var(--hue-amber); }
+[data-hue="indigo"] { --hue: var(--hue-indigo); }
+[data-hue="orange"] { --hue: var(--hue-orange); }
+[data-hue="cyan"] { --hue: var(--hue-cyan); }
+[data-hue="lime"] { --hue: var(--hue-lime); }
+[data-hue="rose"] { --hue: var(--hue-rose); }
+[data-hue="magenta"] { --hue: var(--hue-magenta); }
+[data-hue="slate"] { --hue: var(--hue-slate); }
+
+/* ------------------------------------------------------------------------------------------------ base ----------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-h) + 16px);
+  background: var(--ground);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  font-feature-settings: "cv11", "ss01", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote, pre { margin: 0; }
+ul[class], ol[class] { padding: 0; list-style: none; }
+img, svg, canvas, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+table { border-collapse: collapse; }
+[hidden] { display: none !important; }
+
+a {
+  color: inherit;
+  text-decoration-color: var(--hairline-2);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  transition: color .15s, text-decoration-color .15s;
+}
+
+a:hover { text-decoration-color: currentColor; }
+
+::selection {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* For a screen reader only. */
+.vh {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip {
+  position: absolute;
+  left: var(--s-4);
+  top: -100px;
+  z-index: 100;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-ctl);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip:focus { top: var(--s-4); }
+
+/* ------------------------------------------------------------------------------------------------ type ----------- */
+
+.display,
+.h1,
+.h2,
+.h3 {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+/* The hero's line: one per page. */
+.display {
+  font-size: var(--t-display);
+  line-height: .98;
+  letter-spacing: -.045em;
+}
+
+/* A page's or a closing section's heading. */
+.h1 {
+  font-size: var(--t-h1);
+  line-height: 1.02;
+  letter-spacing: -.04em;
+}
+
+/* A section's heading. */
+.h2 {
+  font-size: var(--t-h2);
+  line-height: 1.05;
+  letter-spacing: -.035em;
+}
+
+.h3 {
+  font-size: var(--t-h3);
+  line-height: 1.25;
+  letter-spacing: -.015em;
+}
+
+/* A heading's quieter half: "Yours. <span class="dim">Not ours.</span>" */
+.dim { color: var(--ink-2); }
+
+.lead {
+  max-width: var(--measure);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.lead strong { color: var(--ink); font-weight: 500; }
+
+/* The small line over a heading. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.eyebrow--accent { color: var(--accent-ink); }
+
+.muted { color: var(--ink-2); }
+.faint { color: var(--ink-3); }
+.accent { color: var(--accent-ink); }
+.small { font-size: var(--t-small); }
+.tiny { font-size: var(--t-tiny); }
+.nowrap { white-space: nowrap; }
+.center { text-align: center; }
+.center .lead { margin-inline: auto; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+.prose { max-width: var(--measure); }
+.prose > * + * { margin-top: 1em; }
+.prose p { color: var(--ink-2); text-wrap: pretty; }
+.prose strong { color: var(--ink); font-weight: 600; }
+
+code,
+kbd,
+samp,
+.mono {
+  font-family: var(--mono);
+  font-size: .9em;
+  font-feature-settings: normal;
+}
+
+/* Something you type: <code>&lt;&lt;request&gt;&gt;</code>. */
+:not(pre) > code {
+  padding: .12em .38em;
+  border-radius: 6px;
+  background: var(--card-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* A key named in a sentence. (Not the keycap: that is a frame, below.) */
+kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: .1em .45em;
+  border-radius: 6px;
+  background: var(--card-3);
+  box-shadow: inset 0 -1px 0 var(--hairline-2);
+  text-align: center;
+  font-size: .82em;
+}
+
+/* A block of code or a file. */
+.code {
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-ctl);
+  background: var(--card-2);
+  border: 1px solid var(--hairline);
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.code .c { color: var(--ink-3); }             /* a comment */
+.code .k { color: var(--accent-ink); }            /* a key, a keyword */
+.code .s { color: var(--hue-green); }         /* a string */
+.code .n { color: var(--hue-amber); }         /* a number */
+
+/* ------------------------------------------------------------------------------------------------ layout --------- */
+
+.wrap {
+  width: 100%;
+  max-width: calc(var(--page) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.wrap--narrow { max-width: calc(760px + var(--gutter) * 2); }
+
+/* A chapter of the page: one idea, a heading that says it, the proof under it. */
+.section { padding-block: var(--section); }
+.section--tight { padding-block: calc(var(--section) * .6); }
+.section--band { background: var(--ground-2); border-block: 1px solid var(--hairline); }
+.section--rule { border-top: 1px solid var(--hairline); }
+.section + .section--flush { padding-top: 0; }
+
+/* A section's opening: eyebrow, heading, lead. */
+.section-head {
+  display: grid;
+  gap: var(--s-4);
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.section-head.center { justify-items: center; }
+.section-head .lead { margin-top: var(--s-2); }
+
+/* The heading on one side and its lead on the other, on a wide page. */
+@media (min-width: 900px) {
+  .section-head--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: clamp(32px, 6vw, 88px);
+    align-items: end;
+  }
+
+  .section-head--split > .eyebrow { grid-column: 1 / -1; }
+  .section-head--split .lead { margin-top: 0; }
+}
+
+.stack { display: grid; gap: var(--s-4); align-content: start; }
+.stack--1 { gap: var(--s-1); }
+.stack--2 { gap: var(--s-2); }
+.stack--3 { gap: var(--s-3); }
+.stack--5 { gap: var(--s-5); }
+.stack--6 { gap: var(--s-6); }
+.stack--7 { gap: var(--s-7); }
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.cluster--tight { gap: var(--s-2); }
+.cluster--between { justify-content: space-between; }
+.center .cluster,
+.cluster--center { justify-content: center; }
+
+.grid {
+  display: grid;
+  gap: var(--s-4);
+}
+
+/* Cards in columns, as many as fit. */
+.grid--2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); }
+.grid--3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+
+/* Words on one side, one thing on the other (a keycap, a table, a file); one column on a phone, words first. */
+.split {
+  display: grid;
+  gap: clamp(32px, 6vw, 88px);
+  align-items: center;
+}
+
+.split > * { min-width: 0; }
+
+@media (min-width: 900px) {
+  .split { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+  .split--flip > :first-child { order: 2; }
+  .split--even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .split--words { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); }
+  .split--top { align-items: start; }
+}
+
+.rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: var(--hairline);
+}
+
+/* ------------------------------------------------------------------------------------------------ nav ------------ */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--nav-h);
+  background: color-mix(in srgb, var(--ground) 82%, transparent);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s;
+}
+
+.nav.is-stuck { border-bottom-color: var(--hairline); }
+
+.nav__in {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+.nav__brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: var(--s-3);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav__brand svg { width: 24px; height: 24px; color: var(--accent); }
+
+.nav__links {
+  display: none;
+  align-items: center;
+  gap: var(--s-5);
+  margin-left: auto;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.nav__links a { text-decoration: none; }
+.nav__links a:hover,
+.nav__links a[aria-current] { color: var(--ink); }
+.nav__cta { flex: none; }
+
+/* "Pause the keys": the one control that stops every key on the page playing by itself (main.js, kbd.js setPaused). */
+.nav__pause {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 500;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav__pause:hover { color: var(--ink); }
+.nav__pause svg { width: 18px; height: 18px; flex: none; }
+.nav__pause .nav__pause-off,
+.nav__pause[aria-pressed="true"] .nav__pause-on { display: none; }
+.nav__pause[aria-pressed="true"] .nav__pause-off { display: block; }
+.nav__pause[aria-pressed="true"] { color: var(--accent-ink); }
+.nav__pause[hidden] + .nav__cta { margin-left: auto; }
+
+/* On a phone the header has room for the mark, the pause and the download: the pause is its icon alone. */
+@media (max-width: 859px) {
+  .nav__in { gap: var(--s-2); }
+  .nav__pause [data-pause-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 860px) {
+  .nav__links { display: flex; }
+  .nav__pause { margin-left: 0; }
+  .nav__pause[hidden] + .nav__cta { margin-left: 0; }
+}
+
+/* ------------------------------------------------------------------------------------------------ buttons -------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 48px;
+  padding: 0 var(--s-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--card-3);
+  color: var(--ink);
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: -.005em;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s, border-color .15s, color .15s, transform .15s var(--ease);
+}
+
+.btn:hover { background: color-mix(in srgb, var(--card-3) 82%, var(--ink)); }
+.btn:active { transform: scale(.98); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+/* The one thing to do on the page. */
+.btn--primary {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.btn--primary:hover { background: var(--accent-down); }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--hairline-2);
+}
+
+.btn--ghost:hover {
+  background: var(--card-2);
+  border-color: var(--hairline-2);
+}
+
+.btn--lg {
+  min-height: 56px;
+  padding: 0 var(--s-6);
+  font-size: var(--t-prose);
+}
+
+.btn--sm {
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  font-size: var(--t-small);
+}
+
+/* Where a finger is the pointer, the small button is still a finger tall. */
+@media (max-width: 859px), (pointer: coarse) {
+  .btn--sm { min-height: 44px; }
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* A link that goes on: "Read the format". */
+.more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: var(--s-2);
+  font-weight: 600;
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+
+.more::after {
+  content: "";
+  width: .45em;
+  height: .45em;
+  border-right: 1.5px solid;
+  border-top: 1.5px solid;
+  transform: rotate(45deg);
+  transition: transform .2s var(--ease);
+}
+
+.more:hover::after { transform: translateX(3px) rotate(45deg); }
+
+/* ------------------------------------------------------------------------------------------------ chips ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--card-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+.chip svg { width: 14px; height: 14px; }
+
+.chip--accent {
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+}
+
+/* Planned, not built: never dressed as shipped. */
+.chip--soon {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--hairline-2);
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------------------------------------------ the keycap ----- */
+
+/*
+ * A frame shaped like a keycap seen from above: a darker skirt with a hairline round it, a soft top face standing in
+ * from it (least at the top, most at the foot), a faint light along the face's top edge. What it holds lives on the
+ * face and is clipped to its shape. It goes down a few pixels while a pointer is down on it, or with .is-down.
+ *
+ *   <article class="keycap keycap--2u">
+ *     <div class="keycap__face">
+ *       <h3 class="keycap__legend">ghostwriter</h3>           top left, in small capitals, like a key's own legend
+ *       <span class="keycap__hint">live</span>                top right (optional), as a key's long-press hint sits
+ *       <div class="keycap__body" data-chunk="ghostwriter"></div>     the chunk: a working fragment of the keyboard
+ *       <p class="keycap__caption">Type a request between &lt;&lt; and &gt;&gt;.</p>      bottom left: one line
+ *       <span class="keycap__sub">&lt;&lt; &gt;&gt;</span>     bottom right (optional): the sub-legend
+ *     </div>
+ *   </article>
+ *
+ * Sizes are keyboard units: --1u (square), --1_5u, --2u, --3u, --space (a long bar), --enter (two rows tall, in the
+ * accent: the download, once a page). Any other width is style="--units: 2.25"; --tall is two rows. One unit is --u,
+ * which a .keycaps board works out from its own width; a key standing alone takes 176px, or all the room it is
+ * given with --fluid.
+ *
+ * The face is a container (named cap), so what is on it can be sized by its width with @container cap (…).
+ */
+.keycap {
+  --units: 1;
+  --rows: 1;
+  --key-h: max(var(--u), var(--cap-min));
+  position: relative;
+  display: grid;
+  flex: none;
+  inline-size: calc(var(--units) * var(--u) + (var(--units) - 1) * var(--cap-gap));
+  block-size: calc(var(--rows) * var(--key-h) + (var(--rows) - 1) * var(--cap-gap));
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  margin-block-end: var(--cap-travel);
+  padding: var(--cap-top) var(--cap-side) var(--cap-bottom);
+  border-radius: var(--cap-r);
+  /* The skirt falls away from the light: a little darker at its foot than at its top. */
+  background: linear-gradient(to bottom, var(--cap-skirt), color-mix(in srgb, var(--cap-skirt) 78%, #000));
+  /* The hairline; the edge under the key, with a hairline of its own; the shade it stands in. */
+  box-shadow:
+    0 0 0 1px var(--cap-line),
+    0 var(--cap-travel) 0 0 var(--cap-under),
+    0 var(--cap-travel) 0 1px var(--cap-line),
+    0 18px 28px -18px var(--cap-shade);
+  color: var(--ink);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 90ms var(--ease), box-shadow 90ms var(--ease);
+}
+
+.keycap--1u { --units: 1; }
+.keycap--1_5u { --units: 1.5; }
+.keycap--2u { --units: 2; }
+.keycap--3u { --units: 3; }
+.keycap--space { --units: max(2, var(--cols, 6) - 2); }
+.keycap--tall { --rows: 2; }
+
+/* Alone, outside a board: as wide as its place, as tall as what it holds (never less than a unit). */
+.keycap--fluid {
+  inline-size: 100%;
+  block-size: auto;
+  min-block-size: var(--key-h);
+}
+
+/* Down: the key travels, and the edge under it is covered. */
+.keycap:active,
+.keycap.is-down {
+  transform: translateY(var(--cap-travel));
+  box-shadow:
+    0 0 0 1px var(--cap-line),
+    0 0 0 0 var(--cap-under),
+    0 0 0 1px var(--cap-line),
+    0 6px 12px -10px var(--cap-shade);
+}
+
+/* A key that is only a frame: nothing on it answers, so it stays up. */
+.keycap--static:active { transform: none; box-shadow: 0 0 0 1px var(--cap-line), 0 var(--cap-travel) 0 0 var(--cap-under), 0 var(--cap-travel) 0 1px var(--cap-line), 0 18px 28px -18px var(--cap-shade); }
+
+a.keycap:focus-visible,
+button.keycap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+  border-radius: var(--cap-r);
+}
+
+button.keycap {
+  border: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.keycap__face {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template:
+    "legend hint" auto
+    "body body" minmax(0, 1fr)
+    "caption sub" auto
+    / minmax(0, 1fr) auto;
+  border-radius: var(--cap-face-r);
+  background: var(--cap-face);
+  box-shadow: inset 0 0 0 1px var(--cap-line), inset 0 1px 0 0 var(--cap-highlight);
+  overflow: hidden;
+  isolation: isolate;
+  container: cap / inline-size;
+  transition: background-color .15s;
+}
+
+/* The legends: small capitals in the corners, as on a key. */
+.keycap__legend,
+.keycap__hint,
+.keycap__sub {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--t-legend);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.keycap__legend {
+  grid-area: legend;
+  min-width: 0;
+  padding: var(--cap-pad) var(--cap-pad) 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+.keycap__hint {
+  grid-area: hint;
+  justify-self: end;
+  padding: var(--cap-pad) var(--cap-pad) 0 0;
+  color: var(--ink-2);          /* --ink-3 is under 4.5:1 on the key's face at this size */
+}
+
+.keycap__sub {
+  grid-area: sub;
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--cap-pad) var(--cap-pad) 0;
+  color: var(--ink-2);
+}
+
+.keycap__sub svg,
+.keycap__hint svg { width: 14px; height: 14px; }
+
+/*
+ * Where the chunk goes: all of the face between the legends, edge to edge, its content in a column and centred.
+ * --pad gives it the legends' margin. A chunk's own host for a fragment can take what room is left with
+ * .keycap__keys (and the fragment's fit: 'contain').
+ */
+.keycap__body {
+  grid-area: body;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: var(--s-2);
+}
+
+.keycap__body--pad { padding: var(--s-2) var(--cap-pad); }
+.keycap__body--end { justify-content: flex-end; }
+.keycap__body--start { justify-content: flex-start; }
+
+/* A fragment's host inside a chunk: the room that is left, the keys centred in it. */
+.keycap__keys {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* The line a fragment types into, on a key: GhostKbd.attach(el) draws the text and its caret here. */
+.keycap__field {
+  flex: none;
+  min-width: 0;
+  min-height: 1.45em;
+  padding: 0 var(--cap-pad);
+  font-size: clamp(.9375rem, 4.2cqi, 1.125rem);
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.keycap__field--wrap { white-space: pre-wrap; }
+.keycap__field--mono { font-family: var(--mono); font-size: clamp(.8125rem, 3.6cqi, 1rem); }
+
+.keycap__caption {
+  grid-area: caption;
+  min-width: 0;
+  padding: 0 var(--cap-pad) var(--cap-pad);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.keycap__caption strong { color: var(--ink); font-weight: 600; }
+
+/* One large thing on a key: a word, a number, a glyph. */
+.keycap__glyph {
+  padding: 0 var(--cap-pad);
+  font-size: clamp(1.75rem, 16cqi, 3.25rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.keycap__glyph svg { width: 1em; height: 1em; }
+
+/* The enter key: the accent, used once, for the download. */
+.keycap--enter {
+  --units: 1.5;
+  --rows: 2;
+  --cap-face: var(--accent-fill);
+  --cap-skirt: color-mix(in srgb, var(--accent-fill) 58%, #000);
+  --cap-under: color-mix(in srgb, var(--accent-fill) 34%, #000);
+  --cap-line: color-mix(in srgb, var(--accent-fill) 40%, transparent);
+  --cap-highlight: rgba(255, 255, 255, .55);
+  color: var(--on-accent);
+}
+
+/* Small words on the accent keep their full strength: thinned, they fall under 4.5:1 on the light page's teal. */
+.keycap--enter .keycap__legend,
+.keycap--enter .keycap__hint,
+.keycap--enter .keycap__sub,
+.keycap--enter .keycap__caption { color: var(--on-accent); }
+
+.keycap--enter .keycap__sub svg { width: 22px; height: 22px; }
+a.keycap--enter:hover { --cap-face: color-mix(in srgb, var(--accent-fill) 90%, #fff); }
+a.keycap--enter:focus-visible { outline-color: var(--ink); }
+
+/* The download written on the enter key. */
+.keycap__action {
+  display: grid;
+  gap: var(--s-1);
+  padding: 0 var(--cap-pad);
+}
+
+.keycap__action strong {
+  font-size: clamp(1.375rem, 11cqi, 2.25rem);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -.035em;
+}
+
+.keycap__action span {
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A key with an edge in the accent: the one in a row to look at first. Sparingly. */
+.keycap--accent { --cap-line: var(--accent-line); }
+.keycap--accent .keycap__legend { color: var(--accent-ink); }
+
+/* A blank: a key not yet printed, for what is planned and not built. It has no face to press. */
+.keycap--blank {
+  --cap-skirt: transparent;
+  --cap-face: transparent;
+  --cap-under: transparent;
+  --cap-shade: transparent;
+  --cap-highlight: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--hairline-2);
+  outline-offset: -1px;
+}
+
+.keycap--blank .keycap__face { box-shadow: none; }
+.keycap--blank:active { transform: none; box-shadow: none; }
+
+/* ------------------------------------------------------------------------------------------------ keycap bento --- */
+
+/*
+ * Keys in rows, like a keyboard. The board is --cols units across (6; --5, --4 and --8 change it) and works out the
+ * unit --u from its own width, so a 1u key is square and a row of keys that add up to --cols fills it. A row that
+ * adds up to less is centred, which staggers it against its neighbours as real rows are; --start and --end push it to
+ * a side, --in-25/--in-50/--in-75 set it in by that much of a key.
+ *
+ *   <div class="keycaps">
+ *     <div class="keycaps__row"> <article class="keycap keycap--2u">…</article> <article class="keycap keycap--1u">…</article> <article class="keycap keycap--3u">…</article> </div>
+ *     <div class="keycaps__row"> <article class="keycap keycap--1u">…</article> <article class="keycap keycap--space">…</article> <article class="keycap keycap--1u">…</article> </div>
+ *   </div>
+ *
+ * A two-row key (the enter) stands beside a .keycaps__stack of two rows, in a row of its own:
+ *
+ *   <div class="keycaps__row"> <div class="keycaps__stack"> <div class="keycaps__row">…</div> <div class="keycaps__row">…</div> </div> <a class="keycap keycap--enter">…</a> </div>
+ *
+ * Narrower than 900px the board is four units across and rows wrap; narrower than 620px it is one column of
+ * full-width keys, each as tall as what it holds.
+ */
+.keycaps {
+  --cols: 6;
+  display: grid;
+  gap: var(--cap-gap);
+  container: keycaps / inline-size;
+}
+
+.keycaps--4 { --cols: 4; }
+.keycaps--5 { --cols: 5; }
+.keycaps--8 { --cols: 8; }
+
+.keycaps__row {
+  --u: calc((100cqi - (var(--cols) - 1) * var(--cap-gap)) / var(--cols));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--cap-gap);
+  min-width: 0;
+}
+
+.keycaps__row--start { justify-content: flex-start; }
+.keycaps__row--end { justify-content: flex-end; }
+
+.keycaps__row--in-25,
+.keycaps__row--in-50,
+.keycaps__row--in-75 { justify-content: flex-start; }
+
+.keycaps__row--in-25 { padding-inline-start: calc(.25 * (var(--u) + var(--cap-gap))); }
+.keycaps__row--in-50 { padding-inline-start: calc(.5 * (var(--u) + var(--cap-gap))); }
+.keycaps__row--in-75 { padding-inline-start: calc(.75 * (var(--u) + var(--cap-gap))); }
+
+.keycaps__stack {
+  display: grid;
+  gap: var(--cap-gap);
+  flex: none;
+  min-width: 0;
+}
+
+@container keycaps (max-width: 900px) {
+  .keycaps__row { --cols: 4; }
+  .keycaps__row .keycap--3u { --units: 4; }
+}
+
+@container keycaps (max-width: 620px) {
+  .keycaps__row,
+  .keycaps__stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline-start: 0;
+  }
+
+  .keycaps__row .keycap {
+    inline-size: 100%;
+    block-size: auto;
+    min-block-size: var(--cap-min);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------ hero ----------- */
+
+/*
+ * The top of the page: what it is, in one line; who it is for, in one sentence; the download; a line of facts. A row
+ * of keys may stand under the words (.hero__keys) or, on a wide page, beside them (.hero--split).
+ */
+.hero {
+  padding-block: clamp(56px, 9vw, 132px) var(--section);
+}
+
+.hero__in {
+  display: grid;
+  gap: clamp(40px, 6vw, 80px);
+}
+
+.hero__words {
+  display: grid;
+  gap: var(--s-5);
+  justify-items: start;
+  min-width: 0;
+}
+
+.hero__words .lead { max-width: 52ch; }
+.hero__cta { margin-top: var(--s-3); }
+
+/* Under the buttons: the version, the size, what it runs on, what the AI needs. Facts, not adjectives. */
+.hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The dot follows a fact that has another after it, so a wrapped line never begins with one. */
+.hero__meta > li:has(~ li:not([hidden]))::after {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline: var(--s-3);
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+/* On a phone the facts are a short list, one to a line, and need no dots. */
+@media (max-width: 520px) {
+  .hero__meta { flex-direction: column; }
+  .hero__meta > li:has(~ li:not([hidden]))::after { display: none; }
+}
+
+.hero--center .hero__words { justify-items: center; text-align: center; }
+.hero--center .hero__meta { justify-content: center; }
+
+@media (min-width: 1000px) {
+  .hero--split .hero__in {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: center;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------ features ------- */
+
+.card {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--r-card);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+}
+
+.card--pad { padding: clamp(20px, 3vw, 32px); }
+.card--lift { background: var(--card-2); }
+.card--clip { overflow: hidden; }
+
+a.card,
+.card--link {
+  text-decoration: none;
+  transition: border-color .2s, transform .2s var(--ease);
+}
+
+a.card:hover,
+.card--link:hover { border-color: var(--hairline-2); }
+
+/* A feature said plainly: a title, a sentence or two. Most of what the keyboard does is told this way, not in a key. */
+.feature {
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  padding: clamp(20px, 3vw, 28px);
+}
+
+.feature__title {
+  font-size: var(--t-prose);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.3;
+}
+
+.feature__body {
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* Something planned: the card is quieter and says so. */
+.feature--soon {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--hairline-2);
+}
+
+/* Features with no cards at all: a ruled list in columns, a title and a line each. */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--s-6) clamp(24px, 4vw, 56px);
+}
+
+.features > * {
+  display: grid;
+  gap: var(--s-2);
+  align-content: start;
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline-2);
+}
+
+.features h3 {
+  font-size: var(--t-prose);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.3;
+}
+
+.features p {
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* The settings app's icon chip. Neutral unless a data-hue says which section it is. */
+.icon-chip {
+  --hue: var(--ink-2);
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--hue) 14%, transparent);
+  color: var(--hue);
+}
+
+.icon-chip svg { width: 22px; height: 22px; }
+.icon-chip--sm { width: 32px; height: 32px; border-radius: 10px; }
+.icon-chip--sm svg { width: 18px; height: 18px; }
+
+/* A ticked list. */
+.ticks { display: grid; gap: var(--s-3); }
+
+.ticks > li {
+  position: relative;
+  padding-left: 28px;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.ticks > li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: .42em;
+  width: 11px;
+  height: 6px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+
+.ticks strong { color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------------------------------------------------ proof ---------- */
+
+/* Numbers that can be checked, in a ruled row: what each one counts under it. */
+.proof {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  border-block: 1px solid var(--hairline);
+}
+
+.proof > * {
+  padding: var(--s-6) var(--s-5) var(--s-6) 0;
+}
+
+@media (min-width: 720px) {
+  .proof > * + * {
+    padding-left: var(--s-5);
+    border-left: 1px solid var(--hairline);
+  }
+}
+
+.stat { display: grid; gap: var(--s-1); align-content: start; }
+
+.stat__n {
+  font-size: clamp(2rem, 1.4rem + 2vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -.04em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__l { color: var(--ink-2); font-size: var(--t-small); text-wrap: pretty; }
+
+/* A sentence that carries a section on its own: a principle, said large. */
+.statement {
+  max-width: 22ch;
+  font-size: var(--t-h1);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -.04em;
+  text-wrap: balance;
+}
+
+/* What you are downloading, in the open: version, size, checksum. */
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-2) var(--s-5);
+  font-size: var(--t-small);
+}
+
+.facts dt { color: var(--ink-2); white-space: nowrap; }
+
+.facts dd {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------------------------------------ compare -------- */
+
+/*
+ * Ghost Keyboard against the others, said plainly. The first column is what is compared; a column with .is-us is
+ * ours. Cells take .yes, .no, .part for a tick, a dash, or "partly", always with words beside them.
+ */
+.compare-wrap {
+  border-radius: var(--r-card);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.compare {
+  width: 100%;
+  min-width: 640px;
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+
+.compare caption {
+  padding: var(--s-4);
+  text-align: left;
+  color: var(--ink-2);
+  caption-side: bottom;
+  border-top: 1px solid var(--hairline);
+  font-size: var(--t-tiny);
+}
+
+.compare th,
+.compare td {
+  padding: 14px var(--s-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.compare tr:last-child > * { border-bottom: 0; }
+
+.compare thead th {
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.compare tbody th {
+  font-weight: 500;
+  color: var(--ink);
+  min-width: 180px;
+}
+
+/* What each row compares stays in view while the table is scrolled sideways on a narrow screen. */
+.compare tbody th,
+.compare thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--card);
+  box-shadow: inset -1px 0 0 var(--hairline);
+}
+
+@media (max-width: 520px) {
+  .compare tbody th { min-width: 132px; max-width: 132px; }
+  .compare th,
+  .compare td { padding-inline: var(--s-3); }
+}
+
+.compare td { color: var(--ink-2); }
+.compare .is-us { background: var(--accent-wash); color: var(--ink); }
+.compare thead .is-us { color: var(--accent-ink); }
+
+.compare .yes::before,
+.compare .no::before,
+.compare .part::before {
+  display: inline-block;
+  width: 1.3em;
+  font-weight: 700;
+}
+
+.compare .yes::before { content: "\2713"; color: var(--ok); }
+.compare .no::before { content: "\2013"; color: var(--ink-3); }
+.compare .part::before { content: "\00B1"; color: var(--warn); }
+
+.footnote {
+  color: var(--ink-3);
+  font-size: var(--t-tiny);
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------------------------------------ install -------- */
+
+/* Steps in order: 1, 2, 3. */
+.steps {
+  display: grid;
+  gap: var(--s-5);
+  counter-reset: step;
+}
+
+.steps > li {
+  position: relative;
+  padding-left: 48px;
+  counter-increment: step;
+  color: var(--ink-2);
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--card-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps strong { display: block; color: var(--ink); font-weight: 600; }
+
+/* What is planned and not built: a ruled list, each line a name, a sentence, and "coming". */
+.roadmap { border-top: 1px solid var(--hairline); }
+
+.roadmap > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-1) var(--s-4);
+  align-items: baseline;
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.roadmap strong { font-weight: 600; }
+.roadmap p { grid-column: 1; color: var(--ink-2); font-size: var(--t-small); text-wrap: pretty; }
+.roadmap .chip { grid-column: 2; grid-row: 1; }
+
+@media (min-width: 720px) {
+  .roadmap > li { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto; }
+  .roadmap p { grid-column: 2; }
+  .roadmap .chip { grid-column: 3; }
+}
+
+/* ------------------------------------------------------------------------------------------------ faq ------------ */
+
+/* A question and its answer. */
+.faq {
+  border-top: 1px solid var(--hairline);
+}
+
+.faq > details { border-bottom: 1px solid var(--hairline); }
+
+.faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-5) 0;
+  font-size: var(--t-prose);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker { display: none; }
+
+.faq summary::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-right: 4px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: rotate(45deg);
+  transition: transform .2s var(--ease);
+}
+
+.faq details[open] summary::after { transform: rotate(-135deg); }
+.faq details > :not(summary) { max-width: var(--measure); padding-bottom: var(--s-5); color: var(--ink-2); text-wrap: pretty; }
+.faq details > :not(summary) + :not(summary) { margin-top: calc(var(--s-3) - var(--s-5)); }
+
+/* ------------------------------------------------------------------------------------------------ the close ------ */
+
+/* The page's last word: the line again, and the enter key. Words beside the key on a wide page, over it on a phone. */
+.cta {
+  display: grid;
+  gap: clamp(32px, 6vw, 72px);
+  align-items: center;
+}
+
+.cta__words {
+  display: grid;
+  gap: var(--s-5);
+  justify-items: start;
+  min-width: 0;
+}
+
+.cta__key { --u: clamp(150px, 42vw, 200px); display: grid; justify-items: start; }
+
+@media (min-width: 820px) {
+  .cta { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+/* Until the key can stand beside the words it lies under them as a bar, not as a two-row slab of empty accent. */
+@media (max-width: 819px) {
+  .cta__key .keycap {
+    inline-size: min(100%, 420px);
+    block-size: auto;
+    min-block-size: 200px;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------ footer --------- */
+
+.footer {
+  padding-block: var(--s-8) var(--s-7);
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+
+.footer a { text-decoration: none; }
+.footer a:hover { color: var(--ink); }
+
+.footer__in {
+  display: grid;
+  gap: var(--s-7);
+}
+
+.footer__brand {
+  display: grid;
+  gap: var(--s-3);
+  max-width: 34ch;
+  align-content: start;
+}
+
+.footer__brand strong { color: var(--ink); font-weight: 600; }
+
+.footer__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s-6) var(--s-5);
+}
+
+.footer__col { display: grid; gap: 0; align-content: start; }
+
+/* Each link is a finger tall, with no more air between them than before. */
+.footer__col a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+@media (min-width: 820px) and (pointer: fine) {
+  .footer__col a { min-height: 32px; }
+}
+
+.footer__col h2,
+.footer__col h3 {
+  margin-bottom: var(--s-1);
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+}
+
+.footer__legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-5);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-3);
+  font-size: var(--t-tiny);
+}
+
+@media (min-width: 820px) {
+  .footer__in { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); }
+  .footer__legal { grid-column: 1 / -1; }
+}
+
+/* ------------------------------------------------------------------------------------------------ the page ------- */
+
+/*
+ * index.html's own layout: the hero's row of three keys, the story sections (a heading and a paragraph, one row of
+ * keys across the page, three points under it), the privacy statement, and the notes under the comparison.
+ */
+
+/* ---- the hero's keys: << , the key Ghostwriter writes on, >> ---- */
+
+/*
+ * One row of a keyboard, beside the words on a wide page and under them on a narrow one: two small keys and a wide
+ * one between them, all of a height. The small keys are the request's << and >>, and go down as it is typed.
+ */
+.hero__keys {
+  --hero-side: clamp(64px, 17cqi, 92px);
+  width: 100%;
+  max-width: 560px;
+  min-width: 0;
+}
+
+.hero__keys .keycaps__row {
+  display: grid;
+  grid-template-columns: var(--hero-side) minmax(0, 1fr) var(--hero-side);
+  align-items: stretch;
+  padding: 0;
+}
+
+.hero__keys .keycaps__row .keycap {
+  inline-size: auto;
+  block-size: auto;
+  min-block-size: 214px;
+}
+
+.hero__side { cursor: pointer; }
+.hero__side .keycap__face { grid-template: "body" minmax(0, 1fr) / minmax(0, 1fr); }
+.hero__side .keycap__body { justify-content: center; align-items: center; padding: 0; }
+.hero__side .keycap__glyph { padding: 0; font-size: clamp(1.25rem, 30cqi, 1.75rem); color: var(--accent-ink); }
+
+/* A phone has no room for three keys abreast with a line of text on the middle one: the wide key alone. */
+@media (max-width: 560px) {
+  .hero__keys .keycaps__row { grid-template-columns: minmax(0, 1fr); }
+  .hero__side { display: none; }
+}
+
+@media (min-width: 1000px) {
+  .hero--split .hero__keys { justify-self: end; }
+  .hero--split .display { font-size: clamp(3rem, 1.2rem + 4.4vw, 5rem); }
+}
+
+/* What stands on a key's face until its fragment is mounted, and for good if it cannot be: one quiet line. */
+.keycap__still {
+  padding: 0 var(--cap-pad);
+  font-family: var(--mono);
+  font-size: clamp(.8125rem, 3.4cqi, 1rem);
+  line-height: 1.45;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A key whose whole face is one control (the Ghostwriter key, the look key) says so to a mouse. */
+.keycap:has(.ghostwriter__next) { cursor: pointer; }
+
+/* Four pillars in one row on a desktop; a list's points three across. */
+.features--4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 216px), 1fr)); }
+
+@media (min-width: 820px) {
+  .features--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ---- a story: the benefit and one paragraph, a row of keys that show it, three points ---- */
+
+.story__head {
+  display: grid;
+  gap: var(--s-5);
+  margin-bottom: clamp(28px, 4vw, 44px);
+}
+
+.story__title {
+  display: grid;
+  gap: var(--s-4);
+  align-content: start;
+  justify-items: start;
+}
+
+.story__head .prose > p { font-size: var(--t-prose); line-height: 1.6; }
+
+@media (min-width: 900px) {
+  .story__head {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: clamp(32px, 6vw, 88px);
+    align-items: start;
+  }
+
+  /* The paragraph starts level with the heading's first line, not with the eyebrow over it. */
+  .story__head .prose { padding-top: calc(var(--t-tiny) * 1.6 + var(--s-4)); }
+}
+
+/*
+ * The keys: one row of the page's board, six units across, each row of one height (a keyboard's row), the height
+ * that row's fragments need. Narrower than 900px the row wraps at four units; narrower than 620px the keys stand
+ * one to a line, each as tall as what it holds.
+ */
+.story__keys { width: 100%; }
+.story__keys .keycaps__row { align-items: stretch; }
+
+/* Four units across (a tablet): the two small keys of a row stand side by side over the long one. */
+@container keycaps (min-width: 621px) and (max-width: 900px) {
+  .story__keys .keycaps__row .keycap--1_5u { --units: 2; }
+  .story__keys .keycaps__row .keycap--1_5u ~ .keycap--3u { order: 1; }
+}
+
+#ai .story__keys { --cap-min: 206px; }
+#typing .story__keys { --cap-min: 212px; }
+#code .story__keys { --cap-min: 200px; }
+#everything .story__keys { --cap-min: 206px; }
+
+/* A key keeps its caption to the face's whole foot unless it has a sub-legend to share it with. */
+.story__keys .keycap__face:not(:has(> .keycap__sub)) > .keycap__caption { grid-column: 1 / -1; }
+
+/*
+ * One to a line (a phone): each key is at least its row's height, and the few whose fragments need more keep that
+ * room from the first paint (scripting on: the class is set in the head), so the page under them does not move as
+ * fragments are mounted. Least heights, measured at 320 to 414px; a chunk that grows is not cut.
+ */
+@container keycaps (max-width: 620px) {
+  .scripting .story__keys .keycaps__row .keycap[data-holds="privacy"] { min-block-size: 284px; }
+  .scripting .story__keys .keycaps__row .keycap[data-holds="adaptive"] { min-block-size: 246px; }
+  .scripting .story__keys .keycaps__row .keycap[data-holds="terminal"] { min-block-size: 276px; }
+  .scripting .story__keys .keycaps__row .keycap[data-holds="search"] { min-block-size: 220px; }
+}
+
+.story__points { margin-top: clamp(28px, 4vw, 44px); }
+
+/* A line under a story's points: what the feature needs, said at a size that is read. */
+.story__note {
+  max-width: 78ch;
+  margin-top: var(--s-6);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* The privacy statement's own paragraph, beside it. */
+#private .section-head--split { align-items: start; }
+.section-head .prose > p { font-size: var(--t-prose); line-height: 1.6; }
+.section-head .statement { margin-top: var(--s-4); }
+
+/* A word or a few characters as a key's glyph, smaller than one large mark. */
+.keycap__glyph--word {
+  font-size: clamp(1.25rem, 10cqi, 1.875rem);
+  letter-spacing: -.03em;
+  white-space: nowrap;
+}
+
+.keycap__glyph--mono {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(1.0625rem, 8.4cqi, 1.5rem);
+  letter-spacing: -.02em;
+  white-space: nowrap;
+}
+
+/* Under the comparison: where we are behind, said first; then each row's note and where it was read. */
+.candid {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: var(--r-card);
+  border: 1px solid var(--hairline-2);
+}
+
+.candid h3 { font-size: var(--t-prose); font-weight: 600; letter-spacing: -.01em; }
+.candid p { max-width: 78ch; color: var(--ink-2); text-wrap: pretty; }
+
+/* Each shortcoming on its own line, in columns where there is room: read at a glance, not dug out of a paragraph. */
+.candid__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--s-2) var(--s-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+}
+
+.candid__list > li {
+  position: relative;
+  padding-left: 20px;
+  text-wrap: pretty;
+}
+
+.candid__list > li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: .72em;
+  width: 8px;
+  height: 1.5px;
+  background: var(--ink-3);
+}
+
+.compare sup { font-size: .75em; line-height: 0; }
+.compare sup a { position: relative; padding: 0 .25em; color: var(--ink-2); text-decoration: none; }
+.compare sup a:hover { color: var(--ink); }
+
+/* A note's number is small; the room a finger gets to it is not. */
+.compare sup a::after {
+  content: "";
+  position: absolute;
+  inset: -16px -14px;
+}
+
+.sources {
+  margin-top: var(--s-5);
+  color: var(--ink-2);
+  font-size: var(--t-tiny);
+  line-height: 1.55;
+}
+
+.sources summary {
+  width: fit-content;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding-block: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sources ol {
+  display: grid;
+  gap: var(--s-2);
+  max-width: 96ch;
+  margin-top: var(--s-2);
+  padding-left: 1.6em;
+}
+
+.sources li:target { color: var(--ink); }
+.sources a { overflow-wrap: anywhere; }
+
+/* The release, in the open, beside the download: version, size, checksum. Filled from apk.json. */
+.release { max-width: 44rem; }
+
+/* Without scripting: one paragraph saying what the keys would have done. */
+.noscript {
+  margin-top: var(--s-6);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-ctl);
+  border: 1px solid var(--hairline-2);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+
+/* ------------------------------------------------------------------------------------------------ motion --------- */
+
+/* Comes in once as it is scrolled to (main.js adds .is-in). Without scripting, or with reduced motion, it is simply there. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .6s var(--ease), transform .6s var(--ease);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+html:not(.js) .reveal {
+  opacity: 1;
+  transform: none;
+}
+
+/* "Pause the keys" is on (main.js): whatever a stylesheet animates holds where it is. */
+html.is-paused *,
+html.is-paused *::before,
+html.is-paused *::after { animation-play-state: paused !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .keycap { outline: 1px solid CanvasText; }
+  .keycap__face { outline: 1px solid CanvasText; }
+}
+
+@media print {
+  .nav,
+  .skip { display: none; }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .keycap { box-shadow: 0 0 0 1px var(--cap-line); }
+}

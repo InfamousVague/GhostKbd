@@ -1,0 +1,44 @@
+Ghost Keyboard's word lists
+===========================
+
+The .tsv files in this folder are derived from wordfreq 3.1.1 by Robyn Speer
+(https://github.com/rspeer/wordfreq), whose data is distributed under the Creative Commons
+Attribution-ShareAlike 4.0 licence (https://creativecommons.org/licenses/by-sa/4.0/). These files are distributed
+under the same licence.
+
+Citation: Robyn Speer. (2022). rspeer/wordfreq: v3.0 (v3.0.2). Zenodo. https://doi.org/10.5281/zenodo.7199437
+
+What was changed
+----------------
+Each file is one language's commonest words (40,000 for English, up to 30,000 for the others) with wordfreq's Zipf
+frequency to two decimals, made by tool/dictionaries.py in Ghost Keyboard's repository:
+- only words the language's keyboard can type are kept: lower-case words in the language's own script, of 1 to 24
+  characters, with at most one apostrophe (or Catalan middle dot, or Persian and Urdu half-space) inside;
+- Greek words that end in sigma are spelled with the final form (ς);
+- Persian words spelled with the Arabic letters ي and ك are respelled with ی and ک, and merged with the same word
+  where it was there in both spellings (their frequencies added);
+- sr.tsv (Serbian in Cyrillic) is wordfreq's Latin Serbo-Croatian list ("sh") transliterated letter for letter,
+  less the entries among its commonest 30,000 that are English words or foreign names rather than Serbian (they have
+  no Serbian Cyrillic spelling that the letters would give);
+- Urdu entries that are two words written without the space between them (a letter that Urdu writes only at a
+  word's end stands inside them) are left out;
+- en.tsv, de.tsv, es.tsv, fr.tsv, it.tsv and pt.tsv are wordfreq's lists as they are.
+en_contractions.tsv and en_slang.txt are Ghost Keyboard's own and are not from wordfreq.
+
+wordfreq's sources
+------------------
+wordfreq contains data extracted from Google Books Ngrams (http://books.google.com/ngrams) and Google Books Syntactic
+Ngrams, and data derived from these Creative Commons-licensed sources: the Leeds Internet Corpus, from the University
+of Leeds Centre for Translation Studies (http://corpus.leeds.ac.uk/list.html); Wikipedia, the free encyclopedia
+(http://www.wikipedia.org); ParaCrawl, a multilingual Web crawl (https://paracrawl.eu).
+
+It contains data from OPUS OpenSubtitles 2018 (http://opus.nlpl.eu/OpenSubtitles.php), whose data originates from the
+OpenSubtitles project (http://www.opensubtitles.org/) and may be used with attribution to OpenSubtitles.
+
+It contains data from the SUBTLEX word lists SUBTLEX-US, SUBTLEX-UK, SUBTLEX-CH, SUBTLEX-DE and SUBTLEX-NL, created
+by Marc Brysbaert et al. and freely available at http://crr.ugent.be/programs-data/subtitle-frequencies.
+
+It contains data from the OSCAR corpus (https://oscar-corpus.com), NewsCrawl and GlobalVoices, and statistics about
+words commonly used on Twitter and Reddit; none of their text is reproduced.
+
+The full list of citations is in wordfreq's README.

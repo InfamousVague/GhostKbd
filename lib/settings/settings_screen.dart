@@ -13,13 +13,14 @@ import '../settings_store.dart';
 import 'keyboard_preview.dart';
 import 'kit/settings_icons.dart';
 import 'kit/settings_kit.dart';
+import 'panes.dart' show offlineBanner;
 import 'settings_search.dart';
 import 'kit/settings_type.dart';
 
 /// One section: a row on the list and the page it opens.
 @immutable
 class SettingsSection {
-  const SettingsSection({required this.id, required this.label, required this.icon, required this.hue, required this.group, required this.page, this.summary, this.screen, this.parts});
+  const SettingsSection({required this.id, required this.label, required this.icon, required this.hue, required this.group, required this.page, this.summary, this.screen, this.parts, this.control});
 
   final String id;
   final String label;
@@ -43,6 +44,10 @@ class SettingsSection {
   /// Its parts, each a section of its own: listed under the page's own cards, as the home list lists sections, and
   /// opening their pages (AI's Your AI and Your style, Ghostwriter's What it can read…).
   final List<SettingsSection> Function(SettingsStore store)? parts;
+
+  /// A control drawn at the end of its row on the list, where the chevron would be: the section's own switch, there
+  /// without opening its page (Offline). Tapping the rest of the row still opens the page.
+  final Widget Function(SettingsStore store)? control;
 }
 
 /// Every section and every part of one, for opening any of them by id.
@@ -215,6 +220,8 @@ class _SectionPageState extends State<SectionPage> {
           title: section.label,
           hue: section.hue,
           child: PaneBody(children: [
+            // While Offline is on, a page whose features connect says so first, and leads to the switch.
+            ?offlineBanner(context, store, section),
             ...section.page(context, store),
             if (section.parts != null) SettingsList(store: store, sections: section.parts!(store)),
           ]),
@@ -321,7 +328,7 @@ class SettingsList extends StatelessWidget {
       children: [
         if (header != null) ...[header!, SizedBox(height: t.space(5))],
         for (final group in groups.values) ...[
-          _Group(rows: [for (final section in group) _SectionRow(section: section, summary: section.summary?.call(store), index: index++, onPress: () => pushSettings(context, section.screen ?? (_) => SectionPage(section: section, store: store)))]),
+          _Group(rows: [for (final section in group) _SectionRow(section: section, summary: section.summary?.call(store), control: section.control?.call(store), index: index++, onPress: () => pushSettings(context, section.screen ?? (_) => SectionPage(section: section, store: store)))]),
           SizedBox(height: t.space(5)),
         ],
       ],
@@ -361,10 +368,13 @@ class _Group extends StatelessWidget {
 
 /// `.settingsScreen__row`: the section's chip in its colour, its name and a line under it, and a chevron.
 class _SectionRow extends StatelessWidget {
-  const _SectionRow({required this.section, required this.summary, required this.index, required this.onPress});
+  const _SectionRow({required this.section, required this.summary, required this.index, required this.onPress, this.control});
 
   final SettingsSection section;
   final String? summary;
+
+  /// The section's own control ([SettingsSection.control]), in place of the chevron.
+  final Widget? control;
   final int index;
   final VoidCallback onPress;
 
@@ -417,7 +427,7 @@ class _SectionRow extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: gap),
-                  ExcludeSemantics(child: SettingsIcon(SettingsGlyph.chevronRight, size: 18, color: t.color('app-ink-4'))),
+                  control ?? ExcludeSemantics(child: SettingsIcon(SettingsGlyph.chevronRight, size: 18, color: t.color('app-ink-4'))),
                 ],
               ),
             ),

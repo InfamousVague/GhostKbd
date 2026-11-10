@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chunk: swipe typing</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="../site/css/chunks/swipe.css">
+<style>
+  /* This page only: the same key on a six-unit board, and on a board as narrow as a phone. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
+  .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .bench__phone { max-width: 328px; }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <section aria-labelledby="wide">
+    <h2 id="wide">On the board: 2u, two rows tall</h2>
+    <div class="keycaps">
+      <div class="keycaps__row keycaps__row--start">
+        <article class="keycap keycap--2u keycap--tall">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">swipe typing</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="swipe"></div>
+            <p class="keycap__caption">Draw a word, then lift.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="narrow">
+    <h2 id="narrow">On a phone: one column, 328px</h2>
+    <div class="keycaps bench__phone">
+      <div class="keycaps__row">
+        <article class="keycap keycap--2u keycap--tall">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">swipe typing</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="swipe"></div>
+            <p class="keycap__caption">Draw a word, then lift.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { mount } from '../site/js/chunks/swipe.js';
+window.chunks = [...document.querySelectorAll('[data-chunk="swipe"]')].map((el) => mount(el));
+</script>
+</body>
+</html>

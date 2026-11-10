@@ -1,0 +1,119 @@
+/*
+ * The Ghostwriter chunk (js/chunks/ghostwriter.js), on a key three units wide: the line a request is typed on, and
+ * under it the row above the keys beside six keys of the top row. A key that short has no room for the row to sit
+ * over the keys as it does on the phone; on a narrow key (one column, as tall as it needs) it does.
+ */
+.keycap__body.ghostwriter {
+  display: grid;
+  grid-template:
+    "line line" auto
+    "row keys" minmax(36px, 60px)
+    / minmax(0, 1fr) min(244px, 52cqi);
+  align-content: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--cap-pad);
+  cursor: pointer;
+}
+
+/* The line: one line, as text in a message box, the caret kept in view if it ever runs past the end. */
+.ghostwriter__line {
+  grid-area: line;
+  min-width: 0;
+  height: 1.5em;
+  font-size: clamp(.8125rem, 3.1cqi, .9375rem);     /* an answer stays on its one line down to the narrowest 3u */
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre;
+  overflow: hidden;
+  cursor: inherit;
+}
+
+.ghostwriter__tag,
+.ghostwriter__blank { color: var(--accent-ink); }
+
+.ghostwriter__row {
+  grid-area: row;
+  align-self: center;
+  min-width: 0;
+  max-width: 340px;               /* on a very wide key the chips stay the width they are on a phone */
+  margin-inline-start: -4px;      /* a chip's own margin: it stands under the line's first letter */
+}
+
+.ghostwriter .ghostwriter__keys {
+  grid-area: keys;
+  min-height: 0;
+}
+
+/* The whole face is the control. It is drawn only when a keyboard has the focus on it. */
+.ghostwriter__next {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-2);
+  background: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ghostwriter__next:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+
+/* A narrow key: two lines for the text, then the row over the keys, as on the phone. */
+@container cap (max-width: 400px) {
+  .keycap__body.ghostwriter {
+    grid-template:
+      "line" auto
+      "row" auto
+      "keys" 64px
+      / minmax(0, 1fr);
+    row-gap: var(--s-1);
+    padding-block: var(--s-1) var(--s-2);
+  }
+
+  .ghostwriter__line {
+    height: 3em;
+    font-size: .9375rem;
+    white-space: pre-wrap;
+  }
+}
+
+/*
+ * The hero's key (data-ghostwriter="row"): the line and the row only, no letter keys. The line has two lines' room,
+ * so an answer is whole at any width and nothing moves as it is typed.
+ */
+.keycap__body.ghostwriter--row {
+  grid-template:
+    "line" auto
+    "row" auto
+    / minmax(0, 1fr);
+  row-gap: var(--s-3);
+  padding-block: var(--s-2);
+}
+
+.ghostwriter--row .ghostwriter__line {
+  height: 2.9em;
+  font-size: clamp(.9375rem, 4.4cqi, 1.125rem);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.ghostwriter--row .ghostwriter__row {
+  max-width: none;
+  margin-inline: -4px;            /* a chip's own margin: it stands under the line's first letter */
+}
+
+/* The keyboard that only types: it draws nothing, and is here so the typing knows when the key is on screen. */
+.ghostwriter--row .ghostwriter__keys {
+  position: absolute;
+  inset: 0;
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}

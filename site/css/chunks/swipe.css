@@ -1,0 +1,70 @@
+/*
+ * The swipe typing chunk (js/chunks/swipe.js), on a key three units wide: the line the words land on, then the top
+ * row of letters as wide as the face lets it be. The row's height follows the face's width (ten keys of 40.9 by 60dp
+ * and 2dp under them: 62 over 412), within a finger's height and a phone key's.
+ */
+.swipe {
+  --swipe-pad: var(--s-2);
+  gap: var(--s-2);
+  padding-block: var(--s-2);
+}
+
+.swipe__top {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-width: 0;
+  padding-inline: var(--cap-pad);
+}
+
+/* The decoder's other guesses for a visitor's swipe, beside the word. */
+.swipe__more {
+  flex: none;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  white-space: nowrap;
+}
+
+.swipe__more:empty { display: none; }
+.swipe--noted .swipe__more { visibility: hidden; }
+
+/* The line: large, one line, the end of it kept in view. */
+.swipe .swipe__line {
+  padding: 0;
+  flex: 1 1 0;
+  font-size: clamp(1.0625rem, 4.4cqi, 1.375rem);
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1.3;
+  min-height: 1.3em;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+}
+
+/* What it says, in the line's place and for a moment, when a path is no word it knows. */
+.swipe--noted .swipe__line { visibility: hidden; }
+
+.swipe__note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--cap-pad);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  white-space: nowrap;
+}
+
+.swipe__note:empty { display: none; }
+
+.swipe .swipe__keys {
+  flex: 0 0 auto;
+  height: clamp(46px, (100cqi - 2 * var(--swipe-pad)) * 62 / 412, 78px);
+  margin-inline: var(--swipe-pad);
+}
+
+/* Focus a finger or a mouse gave the keys shows no ring; the keyboard's own focus keeps kbd.css's. */
+.swipe--pointed .gk:focus-visible { outline: none; }

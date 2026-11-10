@@ -4,8 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 
@@ -16,7 +14,9 @@ import java.util.concurrent.Executors
  *
  * Sizes and SHA-256s are Hugging Face's own for ggerganov/whisper.cpp (its LFS ids, listed by .github/workflows/models.yml);
  * base.en matches Ghost.md's pinned `BASE_EN_Q5_1`. Fetched from Ghost.md's mirror first and Hugging Face second;
- * the hash decides what is kept either way, so the order is about reliability, not trust.
+ * the hash decides what is kept either way, so the order is about reliability, not trust. Downloads go through
+ * [Net] (the ledger's MODEL): Hugging Face sends them on to its CDN, and each hop is checked. With Offline on nothing
+ * is fetched; a model already on the phone works as before.
  */
 object WhisperModel {
     data class Spec(
@@ -60,13 +60,18 @@ object WhisperModel {
     val state: State get() {
         val ctx = app ?: return State("missing")
         val s = active(ctx)
+        val error = errorOf(ctx, s.id)
         return when {
             downloading == s.id -> State("downloading", progress)
             isReady(ctx, s) -> State("ready")
-            errors[s.id] != null -> State("failed", error = errors[s.id])
+            error != null -> State("failed", error = error)
             else -> State("missing")
         }
     }
+
+    /** Why model [id] last failed to download. "Offline is on" is forgotten once Offline is off: it is no failure then. */
+    private fun errorOf(context: Context, id: String): String? =
+        errors[id]?.takeUnless { it == Net.OFFLINE_MESSAGE && !Net.offline(KeyboardPrefs(context)) }
 
     fun addListener(l: (State) -> Unit) { listeners += l }
     fun removeListener(l: (State) -> Unit) { listeners -= l }
@@ -89,7 +94,7 @@ object WhisperModel {
                 mapOf(
                     "id" to m.id, "name" to m.name, "bytes" to m.bytes, "multilingual" to m.multilingual, "note" to m.note,
                     "installed" to isReady(context, m), "downloading" to (downloading == m.id),
-                    "progress" to if (downloading == m.id) progress else null, "error" to errors[m.id],
+                    "progress" to if (downloading == m.id) progress else null, "error" to errorOf(context, m.id),
                 )
             },
         )
@@ -98,10 +103,16 @@ object WhisperModel {
     /** Where the models stand on this phone, without touching the network. */
     fun refresh(context: Context) { app = context.applicationContext; changed() }
 
+    /**
+     * Fetches [spec] unless it is here already, one model at a time. With Offline on it does not start: the model's
+     * state says "Offline is on" instead.
+     */
     fun download(context: Context, spec: Spec = active(context)) {
         val ctx = context.applicationContext
         app = ctx
         if (isReady(ctx, spec) || downloading == spec.id) { changed(); return }
+        val prefs = KeyboardPrefs(ctx)
+        if (Net.offline(prefs)) { errors[spec.id] = Net.OFFLINE_MESSAGE; changed(); return }
         if (downloading != null) cancelled = true // one at a time: the newest asked for wins
         io.execute {
             cancelled = false
@@ -113,11 +124,13 @@ object WhisperModel {
             for (mirror in MIRRORS) {
                 if (cancelled) break
                 try {
-                    fetch(ctx, spec, "$mirror/${spec.file}")
+                    fetch(ctx, prefs, spec, "$mirror/${spec.file}")
                     lastError = null
                     break
                 } catch (e: Exception) {
                     lastError = e.message ?: e.javaClass.simpleName
+                    // Offline switched on part-way: say so, keep the part for later, and try no other mirror.
+                    if (Net.offline(prefs)) { lastError = Net.OFFLINE_MESSAGE; break }
                 }
             }
             if (!cancelled && !isReady(ctx, spec)) errors[spec.id] = lastError ?: "The model could not be downloaded."
@@ -137,14 +150,13 @@ object WhisperModel {
     }
 
     /** One mirror: resumed with a Range where a part is already here, then held to the size and the hash. */
-    private fun fetch(context: Context, spec: Spec, url: String) {
+    private fun fetch(context: Context, prefs: KeyboardPrefs, spec: Spec, url: String) {
         val target = file(context, spec)
         val part = File(target.path + ".part")
         val have = if (part.exists()) part.length() else 0L
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+        val conn = Net.get(prefs, NetPath.MODEL, url) {
             connectTimeout = 15_000
             readTimeout = 30_000
-            instanceFollowRedirects = true
             if (have in 1 until spec.bytes) setRequestProperty("Range", "bytes=$have-")
         }
         try {
@@ -157,6 +169,7 @@ object WhisperModel {
                     val buf = ByteArray(128 * 1024)
                     while (true) {
                         if (cancelled) throw IllegalStateException("Cancelled.")
+                        if (Net.offline(prefs)) throw Net.Refused(Net.OFFLINE_MESSAGE)
                         val n = input.read(buf)
                         if (n < 0) break
                         got += n

@@ -1,0 +1,226 @@
+/*
+ * Where a request goes (js/chunks/privacy.js), on a keycap: one line, read left to right.
+ *
+ *   six keys ─────────▸ the AI you chose
+ *
+ * On a narrow key (one column, as tall as it needs) the same line is read top to bottom, and the six keys take the
+ * face's whole width, so each is a finger wide.
+ *
+ *   <div class="keycap__body" data-chunk="privacy"></div>     mount() adds .privacy and fills it
+ */
+
+.keycap__body.privacy {
+  --privacy-wire: color-mix(in srgb, var(--ink-2) 50%, transparent);
+  --privacy-run: privacy-run;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--cap-pad);
+}
+
+/* The caption is the chunk's one line of words, and changes while a request is out: it keeps two lines' room. */
+.keycap__caption[data-privacy-says] {
+  grid-column: 1 / -1;
+  min-height: calc(2 * 1.4em + var(--cap-pad));
+}
+
+.privacy__flow {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 252px) minmax(48px, 1fr) auto;     /* the keys, the line, the AI */
+  align-items: center;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------------------------- the keys --------- */
+
+.privacy__typing {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* What the keys typed: one line, the caret kept in view if a visitor runs past the end. */
+.privacy__line {
+  min-width: 0;
+  height: 1.5em;
+  padding-inline: 4px;
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre;
+  overflow: hidden;
+}
+
+.privacy__tag { color: var(--accent-ink); }
+.privacy__keys { min-width: 0; }
+
+/* The face clips what is on it: the keys' focus ring is drawn inside their own edge. */
+.privacy .gk:focus-visible { outline-offset: -2px; border-radius: var(--r-chip); }
+
+/* ---------------------------------------------------------------------------------------------- the line --------- */
+
+/* One line with an arrowhead (.privacy__tip) at its end, level with the keys. */
+.privacy__wire {
+  position: relative;
+  align-self: end;
+  height: 60px;
+  min-width: 0;
+  margin-inline: var(--s-2);
+  isolation: isolate;
+}
+
+.privacy__wire::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1px;
+  margin-top: -.5px;
+  background: var(--privacy-wire);
+  transition: background-color .2s;
+}
+
+.privacy__tip {
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border: solid var(--privacy-wire);
+  border-width: 1px 1px 0 0;
+  transform: rotate(45deg);
+  transition: border-color .2s;
+}
+
+.privacy__wire.is-live { --privacy-wire: var(--accent); }
+
+/* What travels the line: a packet with the key in it. */
+.privacy__dot {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: -11px;
+  border-radius: 50%;
+  background: var(--cap-face);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-ink);
+  pointer-events: none;
+  animation: var(--privacy-run) var(--privacy-ms, 300ms) linear both;
+}
+
+.privacy__dot--back { animation-direction: reverse; }
+.privacy__dot svg { width: 13px; height: 13px; }
+
+@keyframes privacy-run {
+  from { left: 0; }
+  to { left: 100%; }
+}
+
+@keyframes privacy-fall {
+  from { top: 0; }
+  to { top: 100%; }
+}
+
+/* ---------------------------------------------------------------------------------------------- the AI ----------- */
+
+.privacy__ai {
+  align-self: end;
+  min-width: 0;
+  max-width: 9.5em;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--privacy-wire);
+  color: var(--ink);
+  font-size: var(--t-tiny);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: .02em;
+  text-align: center;
+  text-wrap: balance;
+  transition: box-shadow .2s, background-color .2s;
+}
+
+.privacy__ai.is-asked {
+  background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The chunk's own line of words, where the key gives it no caption to use. */
+.privacy__says {
+  flex: none;
+  margin: 0;
+  min-height: 2.8em;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------------------------- a narrow key ----- */
+
+/* Too narrow for six keys a finger wide beside the line: top to bottom, the keys across the whole face. */
+@container cap (max-width: 470px) {
+  .keycap__body.privacy {
+    --privacy-run: privacy-fall;
+    padding-block: var(--s-2);
+  }
+
+  .privacy__flow {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .privacy__typing { width: 100%; max-width: 280px; }
+
+  .privacy__wire {
+    align-self: auto;
+    width: 100%;
+    height: 34px;
+    margin: 2px 0 4px;
+  }
+
+  .privacy__wire::before {
+    inset: 0 auto 0 50%;
+    width: 1px;
+    height: auto;
+    margin: 0 0 0 -.5px;
+  }
+
+  .privacy__tip {
+    top: auto;
+    right: auto;
+    bottom: 1px;
+    left: 50%;
+    margin: 0 0 0 -3px;
+    transform: rotate(135deg);
+  }
+
+  .privacy__dot { top: 0; left: 50%; }
+
+  .privacy__ai {
+    align-self: auto;
+    max-width: none;
+    margin-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .privacy__dot { display: none; }
+
+  .privacy__wire::before,
+  .privacy__tip,
+  .privacy__ai { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .keycap__body.privacy { --privacy-wire: CanvasText; }
+  .privacy__wire.is-live { --privacy-wire: Highlight; }
+  .privacy__ai { outline: 1px solid CanvasText; }
+}

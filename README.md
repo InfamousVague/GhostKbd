@@ -42,8 +42,90 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
 and from the keyboard twice a day, `Updater.kt` reads `apk.json`, downloads the APK, checks its size, SHA-256,
 package, version and signing certificate, and installs it with Android's `PackageInstaller` — silently on Android 12+
-once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › Updates shows
-where it stands and has the **Automatic updates** switch. Debug builds never update.
+once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › About shows
+where it stands and has the **Install updates by itself** switch: off, nothing is installed by itself, but the keyboard
+still asks the box twice a day whether there is a new version (for the dot on its cog). Only **Offline** stops the
+asking. Debug builds never update.
+
+## Languages and layouts
+
+**Settings › Typing › Languages** turns languages on, up to six at once. Each brings its keys and its word list:
+37 lists (Latin-script languages from Catalan to Vietnamese, Russian, Ukrainian, Bulgarian, Macedonian and Serbian in
+Cyrillic, Greek, Hebrew, Arabic, Persian and Urdu), and Korean with a syllable composer but no word list, so it types
+and nothing more. Chinese and Japanese (a conversion engine) and Hindi, Bengali and Tamil (a layered layout) are not
+built; Settings says so. Being listed means a language can be typed and has a word list. Nothing has been measured
+about how well any of them is corrected.
+
+- `Languages.kt` is the catalogue: each language's script, layouts, word list and own long-press letters, and
+  `LanguageState`, the languages that are on and the layout being typed on. The layouts that are on are the stops of
+  the switch: the globe key beside space (tap for the next, hold for the list), a long-press on the space bar, and the
+  space bar's name for the one in use. Languages on one script share their word lists whichever board they are on,
+  so a message can mix English and French.
+- `Layouts.kt` has the boards (`LayoutSpec`): QWERTY, QWERTZ, AZERTY, the Nordic, Spanish, Catalan and Turkish ones,
+  five Cyrillic, Greek, Hebrew, Arabic, Persian, Urdu and Korean, after AOSP's. A board is as wide as its longest
+  row; a script without capitals has no shift. A keyboard that had Spanish, French or German on before layouts keeps
+  them on QWERTY (`KeyboardPrefs.pinLegacyLayouts`).
+- `Autocorrect.kt` works on whichever board is in use: its neighbours for slips, its alphabet for mending, and the
+  script's plain spelling (`Script.plain`: cafe finds café, καλημερα finds καλημέρα) for accents. Adaptive keys and
+  the typing profile keep a model per layout. `Hangul.kt` builds Korean's syllable blocks.
+- Outside the first six languages autocorrect is cautious, because 30,000 words are only the commonest forms of a
+  language with many endings: a word the list lacks is changed on its own only for a near-certain slip (never by
+  taking an ending off it, or when it is a listed word with an ending), and the other guesses are offered in the row.
+  A listed plain spelling gives way to its accented word only on a board where the accent is a long-press away
+  (Swedish "far" stays on the Swedish board). No reader of each language has checked the corrections.
+- The word lists are files in the app (`assets/dict/<code>.tsv`, with `NOTICE.txt` for their licence), made from
+  wordfreq by `tool/dictionaries.py` (`--check` confirms every file is what the script makes). Nothing is downloaded,
+  so every language works with Offline on.
+- `tool/lang_check.sh` (kotlinc and java, no emulator) checks every layout, each script's plain spelling, the Korean
+  composer, the switch, every word list against its board, and autocorrect on QWERTY against what it said for the
+  first six languages before layouts (`tool/lang_check/golden`), listing each difference by its reason.
+
+## Next-word prediction
+
+After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
+words; a tap types one with a space and offers the next three. The tools that used to fill the row there now scroll
+in after the words, the first one peeking in at the row's end. While a word is typed, its completions are ranked by
+the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
+forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the
+formats, the sources and the numbers.
+
+- `NextWordModel.kt` (no Android in it): the reading of text into words and contexts (`NextWordText`), a starter
+  table (`NgramTable`), the person's own counts with their fading and bounds (`PersonalPairs`), and the blend
+  (`Scorer`). `NextWords.kt` holds them for the app: tables read from the assets and the learned file read, saved
+  and forgotten on one background thread; the typing thread never waits on it.
+- Starter tables are files in the app (`assets/ngram/<code>.tsv`), counted from Tatoeba's sentences (CC BY 2.0 FR)
+  by `tool/next_words.py`, for 34 of the 37 word lists. Hungarian, Slovenian and Urdu have none and predict from the
+  person's own typing only; Korean has no word list and no prediction. Nothing is downloaded by the app.
+- What is learned is counted on the phone, never in password fields, while incognito, or in fields that ask for no
+  learning, and kept out of Android's backup. A typing profile carries it (`words.next`).
+- `tool/next_word_check.sh` (kotlinc and java, no emulator) checks the tokenizer against fixtures the generator
+  shares, the blend, the bounds, every table against its word list, and lookup time.
+
+## Offline, and the one door to the network
+
+**Settings › Offline** is one switch for every connection the app can make: with it on, nothing is asked of any
+server (AI, GitHub, Ghost.md online, GIPHY, speech-model downloads, the update check and download), and anything
+under way is cut. What needs no connection carries on. The row above the keys says "· Offline" on the chips that
+would have connected.
+
+- `Net.kt` is the only file that opens a connection. `Net.open` refuses while Offline is on, refuses anything but
+  https, and refuses a server its path does not list; `Net.get` follows a download's redirects by hand, each hop
+  checked the same way. API calls treat a redirect as an error, so a key is never passed on to another server. The
+  connection it hands out asks the switch again each time it would connect, send or read, so a request that was
+  being made ready as Offline was switched on never leaves.
+- Android's own backup is off for the app (`allowBackup`, and rule files for the Android versions that read those):
+  its settings, keys and what it has learned are not copied to a Google account or to a new phone, with Offline on
+  or off. A typing profile is how what was learned moves.
+- `NetLedger.kt` is the list it checks: every reason to connect (`NetPath`), its servers, what starts it and what is
+  sent. Settings › Offline (and its "What leaves your phone") and the Market's "It talks to…" are drawn from the same
+  list, through the channel's `netState`.
+- A new feature that needs the network adds a `NetPath` and connects through `Net`. `tool/net_check.sh` (kotlinc and
+  java, no emulator) tries the ledger's rule on real addresses and fails if any other source opens a connection,
+  names a server the ledger does not list, or the settings app gains a network library; `flutter test` covers the
+  Settings side.
+
+The app keeps Android's internet permission, and other apps keep their own connections: the switch is about Ghost
+Keyboard's own.
 
 To publish a release (from the Mac that has Flutter, the Android SDK and the Ghost.md checkout):
 

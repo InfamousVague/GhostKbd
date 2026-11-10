@@ -53,6 +53,18 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         summary: (s) => s.enabled && s.selected ? 'Ready: you’re typing with Ghost Keyboard' : (s.enabled ? 'One step left' : 'Two steps left'),
         page: _setup,
       ),
+      // One switch for every connection the app can make, on the list itself: the row's own switch turns it on and off.
+      SettingsSection(
+        id: 'offline',
+        label: 'Offline',
+        icon: _icon(Lucide.wifiOff),
+        hue: store.offline ? 'amber' : 'slate',
+        group: 'offline',
+        summary: (s) => s.offline ? 'On · nothing is asked of any server' : 'Off · what leaves your phone',
+        page: _offlinePage,
+        parts: _offlineParts,
+        control: (s) => _switch(s, 'offline', 'Offline'),
+      ),
       SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: _typingSummary, page: _typingPage, parts: _typingParts),
       SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
       SettingsSection(id: 'ai', label: 'AI', icon: _icon(Lucide.sparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),
@@ -93,18 +105,140 @@ String _lookSummary(SettingsStore s) {
 }
 
 String _updateSummary(SettingsStore s) => switch (s.update['phase']) {
+      'ready' => 'Version ${s.update['available']} is ready',
+      // Found and already downloaded whole: it installs with no connection, Offline or not.
+      'available' when s.update['downloaded'] == true => 'Version ${s.update['available']} is ready',
+      _ when s.offline => 'Offline is on: no update check',
       'upToDate' => 'Up to date',
-      'available' || 'ready' => 'Version ${s.update['available']} is ready',
+      'available' => 'Version ${s.update['available']} is ready',
       'downloading' => 'Downloading…',
-      _ => s.flag('auto_update') ? 'Updates itself' : 'Automatic updates off',
+      // Off, the keyboard still looks (for the dot on its cog); only Offline stops the look.
+      _ => s.flag('auto_update') ? 'Updates itself' : 'Checks for updates, installs when you say',
     };
 
 String _dictationSummary(SettingsStore s) => switch (s.dictation['phase']) {
       'ready' => s.dictation['microphone'] == true ? 'Ready: tap the mic beside space' : 'Allow the microphone',
+      _ when s.offline => 'Offline is on: the model can’t be fetched',
       'downloading' => 'Downloading the model… ${(((s.dictation['progress'] as num?) ?? 0) * 100).round()}%',
       'failed' => 'The model did not download',
       _ => 'The model is not downloaded',
     };
+
+// --- Offline --------------------------------------------------------------------------------------------------------
+//
+// The page is drawn from the ledger the guard itself reads (android NetLedger.kt, through SettingsStore.net), so what
+// it says is stopped is what is stopped. The words here must stay true: the app keeps Android's internet permission
+// and other apps keep their own connections, so it says "opens no connection", never that nothing leaves the phone.
+
+List<Widget> _offlinePage(BuildContext context, SettingsStore store) {
+  final on = store.offline;
+  final features = store.netList('features');
+  final works = store.netList('works');
+  const limits = Text(
+    'A privacy switch for Ghost Keyboard’s own connections. The app keeps Android’s internet permission. What you type goes to the app you type in, as with any keyboard; '
+    'your password manager, Ghost.md and your browser keep their own connections. Android’s own backup is turned off for Ghost Keyboard, whatever this switch says: '
+    'its settings, keys and what it has learned are not copied to your Google account or to a new phone.',
+  );
+  return [
+    PaneHero(
+      glyph: AppIcon(Lucide.wifiOff, size: 24),
+      title: on ? 'Offline is on' : 'Offline is off',
+      meta: Text(on
+          ? 'Ghost Keyboard opens no connection: nothing is asked of any server, not even whether there is an update.'
+          : 'One switch for every internet connection Ghost Keyboard can make.'),
+      status: PaneHeroStatus(on ? 'No connections' : 'Connections allowed'),
+    ),
+    PaneSection(
+      footer: works.isEmpty ? limits : null,
+      children: [_toggle(store, 'offline', 'Offline', 'Stops every network connection listed below, and any download or request already under way.')],
+    ),
+    if (features.isNotEmpty)
+      PaneSection(
+        title: on ? 'Stopped' : 'What it stops',
+        footer: const Text('Each is a network connection Ghost Keyboard would otherwise make. What leaves your phone, below, lists them one by one: the servers, what starts each, and what is sent.'),
+        children: [
+          for (final f in features) SettingRow(label: '${f['title']}', hint: Text('${f['stops']}'), value: on ? const Text('Stopped') : null),
+        ],
+      ),
+    if (works.isNotEmpty)
+      PaneSection(
+        title: 'Still works',
+        footer: limits,
+        children: [for (final w in works) SettingRow(label: '${w['title']}', hint: Text('${w['line']}'))],
+      ),
+  ];
+}
+
+List<SettingsSection> _offlineParts(SettingsStore store) => [
+      _part('leaves', 'What leaves your phone', Lucide.globe, 'cyan', _leavesSummary, _leavesPart),
+    ];
+
+String _leavesSummary(SettingsStore s) {
+  final paths = s.netList('paths');
+  if (s.offline) return 'Every connection is stopped';
+  if (paths.isEmpty) return 'Every connection, its servers and what is sent';
+  return '${paths.where((p) => p['armed'] == true).length} of ${paths.length} connections can happen now · their servers';
+}
+
+/// Where a ledger path connects to, in words: its servers, or for the AI's the one provider chosen.
+String _pathHosts(Map<Object?, Object?> path) {
+  final hosts = [for (final h in (path['hosts'] as List? ?? const [])) hostWords('$h')];
+  if (path['ownServer'] == true) return hosts.isEmpty ? 'To the AI server you choose in Settings › Your AI.' : 'To ${hosts.first}, the AI you chose.';
+  return 'To ${joinAnd(hosts)}.';
+}
+
+List<Widget> _leavesPart(BuildContext context, SettingsStore store) {
+  final on = store.offline;
+  final features = store.netList('features');
+  final paths = store.netList('paths');
+  const promise = Text('Ghost Keyboard checks this list before every connection and refuses any server not on it. Every connection also shows that server your phone’s internet address.');
+  if (paths.isEmpty) return [const PaneSection(footer: promise, children: [SettingRow(label: 'The list is read from the keyboard on your phone')])];
+  return [
+    PaneSection(
+      footer: Text(on
+          ? 'Offline is on, so none of these happens. They are listed as they would be with it off.'
+          : 'Every connection Ghost Keyboard can make: where to, what starts it, and what goes with it. On means it can happen as your settings stand; Off, that its plugin, key or switch is not there.'),
+      children: [SettingRow(label: 'Offline', value: Text(on ? 'On' : 'Off'), hint: const Text('The one switch that stops them all.'))],
+    ),
+    for (final f in features)
+      PaneSection(
+        title: '${f['title']}',
+        footer: f == features.last ? promise : null,
+        children: [
+          for (final p in paths.where((p) => p['feature'] == f['id']))
+            SettingRow(
+              label: '${p['title']}',
+              hint: Text('${_pathHosts(p)}\nWhen: ${p['trigger']}\nSent: ${p['sends']}'),
+              value: Text(on ? 'Stopped' : (p['armed'] == true ? 'On' : 'Off')),
+            ),
+        ],
+      ),
+  ];
+}
+
+/// The row a page shows first while Offline is on, where its features connect (the ledger's `sections`): what is
+/// stopped there, and the way to the switch. Null on every other page, and on Offline's own.
+Widget? offlineBanner(BuildContext context, SettingsStore store, SettingsSection section) {
+  if (!store.offline || section.id == 'offline' || !store.offlineSections.contains(section.id)) return null;
+  final stopped = [
+    for (final f in store.netList('features'))
+      if ((f['sections'] as List? ?? const []).contains(section.id)) '${f['title']}',
+  ];
+  final several = stopped.length != 1 || stopped.single.endsWith('s');
+  return PaneSection(
+    children: [
+      SettingRow(
+        label: 'Offline is on',
+        hint: Text('${joinAnd(stopped)} ${several ? 'are' : 'is'} stopped. Turn Offline off to use ${several ? 'them' : 'it'}.'),
+        icon: AppIcon(Lucide.wifiOff, size: 18),
+        onPress: () {
+          final offline = settingsSections(store).where((s) => s.id == 'offline').firstOrNull;
+          if (offline != null) pushSettings(context, (_) => SectionPage(section: offline, store: store));
+        },
+      ),
+    ],
+  );
+}
 
 // --- Setup ------------------------------------------------------------------------------------------------------
 
@@ -258,10 +392,10 @@ List<Widget> _aiSetup(SettingsStore store) {
             onSubmitted: (text) => store.set('ai_model_$chosen', text.trim()),
           ),
         ),
-        SettingRow(label: store.aiBusy ? 'Working…' : 'Load $name’s models', onPress: store.aiBusy ? null : store.fetchAiModels),
+        SettingRow(label: store.aiBusy ? 'Working…' : 'Load $name’s models', onPress: store.aiBusy ? null : store.fetchAiModels, disabledReason: store.offlineReason),
         for (final m in store.aiModels.take(40))
           SettingRow(label: m, value: m == (model.isEmpty ? defaultModel : model) ? const Text('Chosen') : null, onPress: () => store.set('ai_model_$chosen', m)),
-        SettingRow(label: 'Test it', hint: const Text('Sends one tiny request.'), onPress: store.aiBusy ? null : store.testAi),
+        SettingRow(label: 'Test it', hint: const Text('Sends one tiny request.'), onPress: store.aiBusy ? null : store.testAi, disabledReason: store.offlineReason),
         if (store.aiMessage != null) SettingRow(label: store.aiMessage!),
       ],
     ),
@@ -397,7 +531,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
         for (final m in models)
           SettingRow(
             label: m['name'] as String,
-            hint: Text('${m['note']}  ${_megabytes(m['bytes'])}${m['error'] != null ? ' · ${m['error']}' : ''}'),
+            hint: Text('${m['note']}  ${_megabytes(m['bytes'])}${m['error'] != null && m['error'] != store.offlineReason ? ' · ${m['error']}' : ''}'),
             icon: AppIcon(m['id'] == activeId ? Lucide.circleCheck : LucideMore.hardDriveDownload, size: 18),
             value: Text(switch (m) {
               _ when m['downloading'] == true => '${(((m['progress'] as num?) ?? 0) * 100).round()}%',
@@ -406,6 +540,8 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
               _ => 'Get',
             }),
             onPress: m['id'] == activeId && m['installed'] == true ? null : () => store.useModel(m['id'] as String),
+            // A model that is not on the phone would have to be fetched.
+            disabledReason: m['installed'] == true ? null : store.offlineReason,
           ),
       ],
     ),
@@ -516,14 +652,15 @@ String _typingSummary(SettingsStore s) =>
     [if (s.pluginOn('autocorrect')) 'Autocorrect', if (s.pluginOn('swipe')) 'swipe', if (s.pluginOn('adaptive')) 'adaptive keys'].join(', ').ifEmptyThen('Plain typing');
 
 String _aiSummary(SettingsStore s) {
+  if (s.offline) return 'Offline is on';
   if (s.ai['ready'] != true) return 'Add an AI key';
   return [_providerName(s), if (s.pluginOn('mockingbird')) 'Mockingbird', if (s.pluginOn('ghostwriter')) 'Ghostwriter', if (s.pluginOn('rewrite')) 'Rewrite'].join(', ');
 }
 
 String _mockingbirdSummary(SettingsStore s) =>
-    s.ai['ready'] != true ? 'Add an AI key' : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples');
+    s.offline ? 'Offline is on: samples are kept, none is sent' : s.ai['ready'] != true ? 'Add an AI key' : (s.ai['profile'] != null ? 'Your style, trained ${_when((s.ai['profile'] as Map)['at'])}' : 'Learning your style: ${s.ai['samples'] ?? 0} samples');
 
-String _ghostwriterSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
+String _ghostwriterSummary(SettingsStore s) => s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
 const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
 
@@ -548,16 +685,33 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
     ];
 
 List<SettingsSection> _typingParts(SettingsStore store) => [
+      // Languages are the keys themselves as much as the word lists, so the page is here with or without Autocorrect.
+      _part('languages', 'Languages', LucideMore.languages, 'blue', (s) => s.languages.map((c) => s.languageOf(c)?.name ?? c).join(', '), _languagesPart),
       if (store.pluginOn('autocorrect'))
-        _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), _autocorrectPart),
+        _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => [s.flag('autocorrect') ? 'Corrects as you type' : 'Suggests only', if (s.flag('next_word')) 'next words', if (s.flag('slang')) 'slang'].join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
         _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys tuned, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
       _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
       _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
     ];
 
+/// What the Next word card says under its rows: which of the languages that are on start with word pairs counted
+/// from Tatoeba's sentences, and which have none and suggest from the person's own typing only. The words must stay
+/// true: nothing here says how good the suggestions are, which nobody has measured outside Tatoeba's own sentences.
+String nextWordFooter(SettingsStore store) {
+  final on = [for (final code in store.languages) store.languageOf(code)].whereType<LanguageInfo>().where((l) => l.dictionary).toList();
+  final withTable = [for (final l in on) if (l.nextWords) l.name];
+  final without = [for (final l in on) if (!l.nextWords) l.name];
+  return [
+    if (withTable.isNotEmpty) '${withTable.join(', ')} ${withTable.length == 1 ? 'starts' : 'start'} with common word pairs counted from Tatoeba’s sentences. Older habits fade as you type new ones.',
+    for (final name in without) '$name has no starter pairs yet: it suggests from your own typing and how common words are.',
+    if (!store.flag('suggestions')) 'Turn on Suggestions above the keys to see them.',
+  ].join(' ');
+}
+
 List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
   final learned = store.learnedWords;
+  final pairs = (store.nextWords['pairs'] as num?)?.toInt() ?? 0;
   return [
     PaneSection(children: [
       _toggle(store, 'autocorrect', 'Correct on its own', 'Off: it only suggests.'),
@@ -565,11 +719,14 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
       _toggle(store, 'slang', 'Texting slang', 'Leaves lmfao, ngl, ts, sybau and the like alone, and suggests them.'),
     ]),
     PaneSection(
-      title: 'Languages',
-      footer: const Text('They work together, so a message can mix them.'),
+      title: 'Next word',
+      footer: Text(nextWordFooter(store)),
       children: [
-        for (final e in autocorrectLanguages.entries)
-          SettingRow(label: e.value, control: GlacierSwitch(checked: store.languages.contains(e.key), onCheckedChange: (v) => store.setLanguage(e.key, v), ariaLabel: e.value)),
+        _toggle(store, 'next_word', 'Suggest the next word', 'After a space, three likely next words wait above the keys; tap one to type it.'),
+        _toggle(store, 'next_word_learn', 'Learn from what I type', 'Counts which words you put together, on this phone. Never in password fields, while incognito, or in apps that ask keyboards not to learn.'),
+        SettingRow(label: 'Learned so far', value: Text(pairs == 1 ? '1 word pair' : '$pairs word pairs')),
+        // Never greyed out on a count: the keyboard may have learned since the count was read, and forgetting must always be within reach.
+        SettingRow(label: 'Forget what it learned', hint: const Text('Every word pair counted from your typing.'), onPress: store.resetNextWords),
       ],
     ),
     PaneSection(
@@ -580,6 +737,83 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
         for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
       ],
     ),
+  ];
+}
+
+// --- Languages ------------------------------------------------------------------------------------------------------
+//
+// Drawn from the keyboard's own catalogue (Languages.kt, through SettingsStore.languageCatalogue), so a language is
+// here the day it is added there. The words must stay true: a language being here says it can be typed and has a word
+// list, nothing about how well it is corrected, which nobody has measured.
+
+/// What a language's row says under its name: its English name (so "Polish" finds Polski), the keys it types on
+/// where it has a choice of them, and its note.
+String _languageHint(SettingsStore store, LanguageInfo l) {
+  final layout = l.layouts.length > 1 ? l.layouts.firstWhere((y) => y.$1 == store.layoutOf(l)).$2 : null;
+  // A language with a word list and no starter table says so, once the keyboard has told which have one.
+  final own = l.dictionary && !l.nextWords && store.nextWordTables.isNotEmpty ? 'Next words from your typing only' : null;
+  return [l.english == l.name ? null : l.english, layout, own].whereType<String>().join(' · ') + (l.note == null ? '' : '${l.english == l.name && layout == null && own == null ? '' : '. '}${l.note}');
+}
+
+List<Widget> _languagesPart(BuildContext context, SettingsStore store) {
+  final on = [for (final code in store.languages) store.languageOf(code)].whereType<LanguageInfo>().toList();
+  final rest = store.languageCatalogue.where((l) => !on.contains(l)).toList()..sort((a, b) => a.english.compareTo(b.english));
+  // The search reads every row; a person narrowing the list sees only what they typed.
+  final filter = store.indexing ? '' : store.languageFilter.trim().toLowerCase();
+  final shown = [for (final l in rest) if (filter.isEmpty || '${l.name} ${l.english} ${l.code}'.toLowerCase().contains(filter)) l];
+  final full = on.length >= store.maxLanguages;
+  return [
+    PaneSection(
+      title: 'Your languages',
+      footer: Text('Languages on the same keys work together, so a message can mix them. Up to ${store.maxLanguages == 6 ? 'six' : store.maxLanguages} at once.'),
+      children: [
+        for (final l in on) ...[
+          SettingRow(
+            label: l.name,
+            hint: _languageHint(store, l).isEmpty ? null : Text(_languageHint(store, l)),
+            control: GlacierSwitch(checked: true, onCheckedChange: (v) => store.setLanguage(l.code, v), ariaLabel: l.name),
+          ),
+          if (l.layouts.length > 1)
+            SettingRow(
+              label: 'Keys for ${l.name}',
+              layout: SettingRowLayout.stacked,
+              control: GlacierSegmentedControl(
+                options: [for (final y in l.layouts) GlacierSegmentedOption(value: y.$1, label: Text(y.$2))],
+                value: store.layoutOf(l),
+                onValueChange: (v) => store.setLanguageLayout(l.code, v),
+                fullWidth: true,
+                size: GlacierSegmentedSize.sm,
+                ariaLabel: 'Keys for ${l.name}',
+              ),
+            ),
+        ],
+      ],
+    ),
+    PaneSection(
+      title: 'Switching',
+      children: [_toggle(store, 'globe_key', 'Globe key beside space', 'Tap for the next layout; hold it, or the space bar, for the list. It shows once two layouts are on.')],
+    ),
+    PaneSection(
+      title: 'Add a language',
+      footer: const Text('Every word list is inside the app; nothing is downloaded. Outside English, Spanish, French, German, Italian and Portuguese, autocorrect is cautious: '
+          'it changes a word on its own only for a near-certain slip and offers its other guesses above the keys. No reader of each language has checked its corrections yet.'),
+      children: [
+        SettingRowBox(child: GlacierInput(placeholder: 'Find a language', ariaLabel: 'Find a language', defaultValue: store.languageFilter, onChange: store.setLanguageFilter)),
+        for (final l in shown)
+          SettingRow(
+            label: l.name,
+            hint: _languageHint(store, l).isEmpty ? null : Text(_languageHint(store, l)),
+            control: GlacierSwitch(checked: false, disabled: full, onCheckedChange: (v) => store.setLanguage(l.code, v), ariaLabel: l.name),
+            disabledReason: full ? 'Six are on: turn one off first' : null,
+          ),
+        if (shown.isEmpty && rest.isNotEmpty) const SettingRow(label: 'No language by that name', disabled: true),
+      ],
+    ),
+    if (store.unavailableLanguages.isNotEmpty)
+      PaneSection(
+        title: 'Not yet',
+        children: [for (final u in store.unavailableLanguages) SettingRow(label: u.name, hint: Text('${u.english}. ${u.why}'), disabled: true)],
+      ),
   ];
 }
 
@@ -676,7 +910,7 @@ List<Widget> _aiPage(BuildContext context, SettingsStore store) {
       glyph: AppIcon(Lucide.sparkles, size: 24),
       title: ready ? 'Ready' : 'Add an AI key',
       meta: const Text('Your AI key, shared by the AI plugins: Mockingbird, Ghostwriter and Rewrite. Your own key, straight to the provider.'),
-      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
     ),
     if (!mb || !gw || !rw)
       PaneSection(title: 'AI plugins', children: [
@@ -701,7 +935,7 @@ List<Widget> _mockingbirdPage(BuildContext context, SettingsStore store) {
       glyph: AppIcon(LucideMore.bird, size: 24),
       title: ready ? (store.ai['profile'] != null ? 'Trained' : 'Learning') : 'Add an AI key',
       meta: const Text('Keeps samples of what you type, on this phone, and trains a profile of how you write. Ghostwriter and In my voice write with it.'),
-      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
     ),
     PaneSection(children: [_plugin(store, 'mockingbird', 'Learn my style', 'Off removes Mockingbird; add it again from Plugins.')]),
   ];
@@ -724,7 +958,7 @@ List<Widget> _ghostwriterPage(BuildContext context, SettingsStore store) {
       glyph: AppIcon(LucideMore.wandSparkles, size: 24),
       title: ready ? 'Ready' : 'Add an AI key',
       meta: const Text('Type <<what you want>> anywhere; close it with >> or press enter, and the AI writes it as you.'),
-      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
     ),
     PaneSection(children: [_plugin(store, 'ghostwriter', 'Fill <<requests>>', 'Off removes Ghostwriter; add it again from Plugins.')]),
   ];
@@ -765,7 +999,7 @@ List<Widget> _stylePart(BuildContext context, SettingsStore store) {
     PaneSection(
       footer: Text(profile != null ? 'Trained ${_when(profile['at'])} from ${profile['samples']} samples by ${profile['provider']}. $samples kept now: ${ai['chatSamples']} texts, ${ai['writingSamples']} writing.' : '$samples kept so far: ${ai['chatSamples'] ?? 0} texts, ${ai['writingSamples'] ?? 0} writing. It trains itself at about 50.'),
       children: [
-        SettingRow(label: training ? 'Training…' : 'Train now', onPress: training || samples < 10 ? null : store.trainMockingbird),
+        SettingRow(label: training ? 'Training…' : 'Train now', onPress: training || samples < 10 ? null : store.trainMockingbird, disabledReason: store.offlineReason),
         if (ai['error'] is String && !training) SettingRow(label: ai['error'] as String),
         _toggle(store, 'mockingbird_collect', 'Keep samples of what I type', 'Never from passwords, addresses, names, searches or incognito.'),
         _toggle(store, 'mockingbird_auto_train', 'Retrain by itself', 'At most daily, after 50 new samples.'),
@@ -806,9 +1040,10 @@ List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
       children: [
         _toggle(store, 'ghostwriter_notes', 'Search my notes', store.ai['ghostInstalled'] == true ? 'Ghost.md is on this phone.' : 'Ghost.md isn’t on this phone.'),
         if (store.ai['ghostOnline'] == true)
-          SettingRow(label: 'Online: signed in', value: const Text('Sign out'), onPress: store.aiBusy ? null : store.ghostSignOut)
+          // Signing out tells the server to end the session, so it waits for a connection too.
+          SettingRow(label: 'Online: signed in', value: const Text('Sign out'), onPress: store.aiBusy ? null : store.ghostSignOut, disabledReason: store.offlineReason)
         else
-          SettingRow(label: 'Sign in to search online', hint: const Text('In your browser; your password stays on Ghost.md’s page.'), onPress: store.aiBusy ? null : store.ghostSignIn),
+          SettingRow(label: 'Sign in to search online', hint: const Text('In your browser; your password stays on Ghost.md’s page.'), onPress: store.aiBusy ? null : store.ghostSignIn, disabledReason: store.offlineReason),
         if (store.ghostMessage != null) SettingRow(label: store.ghostMessage!),
       ],
     ),
@@ -828,7 +1063,7 @@ List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
             onChange: (text) => store.set('github_token', text.trim()),
           ),
         ),
-        SettingRow(label: store.aiBusy ? 'Checking…' : 'Check the token', onPress: store.aiBusy ? null : store.checkGithub),
+        SettingRow(label: store.aiBusy ? 'Checking…' : 'Check the token', onPress: store.aiBusy ? null : store.checkGithub, disabledReason: store.offlineReason),
         if (store.githubMessage != null) SettingRow(label: store.githubMessage!),
       ],
     ),
@@ -837,7 +1072,7 @@ List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
 
 List<Widget> _profilePart(BuildContext context, SettingsStore store) => [
       PaneSection(
-        footer: const Text('One open file (ghost-typing-profile, docs/typing-profile.md in the GhostKbd repository) for your key aims, slips, words and writing style. Other apps and AI models read it to build reports and write one back; open or share a .json profile with Ghost Keyboard to bring it in.'),
+        footer: const Text('One open file (ghost-typing-profile, docs/typing-profile.md in the GhostKbd repository) for your key aims, slips, words, word pairs and writing style. Other apps and AI models read it to build reports and write one back; open or share a .json profile with Ghost Keyboard to bring it in.'),
         children: [
           SettingRow(label: 'Import a typing profile…', onPress: store.importProfile),
           if (store.profileError != null) SettingRow(label: store.profileError!),
@@ -854,6 +1089,11 @@ List<Widget> _profilePart(BuildContext context, SettingsStore store) => [
             label: 'Include my message samples',
             hint: const Text('Leave off unless you trust where the file goes.'),
             control: GlacierSwitch(checked: store.profileSamples, onCheckedChange: store.setProfileSamples, ariaLabel: 'Include my message samples'),
+          ),
+          SettingRow(
+            label: 'Include my word pairs',
+            hint: const Text('Which words you type together, with counts. They can show phrases and names you use.'),
+            control: GlacierSwitch(checked: store.profilePairs, onCheckedChange: store.setProfilePairs, ariaLabel: 'Include my word pairs'),
           ),
           SettingRow(label: 'Export my typing profile…', onPress: store.exportProfile),
         ],
@@ -911,10 +1151,17 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
   final needsPermission = error == 'needsPermission';
   final canInstall = phase == 'available' || phase == 'ready';
   final busy = phase == 'checking' || phase == 'downloading' || phase == 'installing';
+  final offline = store.offline;
+  // The release's file is on the phone whole (the keyboard says so): installing it opens no connection, whatever
+  // the phase is called. A system install prompt that was cancelled leaves it "available" and still downloaded.
+  final downloaded = phase == 'ready' || (phase == 'available' && u['downloaded'] == true);
   final line = switch (phase) {
+    // Offline, only a release already downloaded has anything left to do.
+    _ when offline && !downloaded && phase != 'installing' => 'Offline is on: no check is made and nothing is downloaded.',
     'disabled' => 'Updates are off in debug builds.',
     'checking' => 'Looking for a new version…',
     'upToDate' => 'You have the latest version.',
+    'available' when downloaded => 'Version $available is downloaded and ready.',
     'available' => 'Version $available is available.',
     'downloading' => 'Downloading version $available… ${((progress ?? 0) * 100).round()}%',
     'ready' when needsPermission => 'Allow Ghost Keyboard to install updates, then tap Update.',
@@ -935,10 +1182,11 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
       title: 'Updates',
       children: [
         if (canInstall)
-          SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate)
+          // A release already downloaded installs with no connection; one only found would have to be fetched.
+          SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate, disabledReason: downloaded ? null : store.offlineReason)
         else
-          SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled'),
-        _toggle(store, 'auto_update', 'Update by itself', 'When the app opens and twice a day.'),
+          SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled', disabledReason: store.offlineReason),
+        _toggle(store, 'auto_update', 'Install updates by itself', 'When the app opens and twice a day. Off, the keyboard still asks attack.fm twice a day whether there is a new version, for the dot on the cog. Offline stops that too.'),
       ],
     ),
     PaneSection(children: [
@@ -965,7 +1213,8 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
         SettingRow(label: 'Glacier', hint: Text('The UI kit, from Ghost.md.')),
         SettingRow(label: 'whisper.cpp', hint: Text('Speech to text on the phone (MIT).')),
         SettingRow(label: 'Phosphor Icons and Lucide', hint: Text('The icons (MIT, ISC).')),
-        SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word list (CC BY-SA 4.0).')),
+        SettingRow(label: 'wordfreq', hint: Text('Autocorrect’s word lists, in 37 languages (CC BY-SA 4.0).')),
+        SettingRow(label: 'Tatoeba', hint: Text('Next-word starter pairs, counted from sentences by Tatoeba’s contributors (CC BY 2.0 FR, tatoeba.org).')),
       ],
     ),
   ];
@@ -1235,7 +1484,7 @@ List<Widget> _appProfilePage(BuildContext context, SettingsStore store, String p
 
 // --- Rewrite (0.9.0) ----------------------------------------------------------------------------------------------
 
-String _rewriteSummary(SettingsStore s) => s.ai['ready'] != true ? 'Add an AI key' : 'Fix, shorten, restyle, translate into ${s.choice('rewrite_language')}';
+String _rewriteSummary(SettingsStore s) => s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : 'Fix, shorten, restyle, translate into ${s.choice('rewrite_language')}';
 
 List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
   final ready = store.ai['ready'] == true;
@@ -1245,7 +1494,7 @@ List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
       glyph: AppIcon(Lucide.penLine, size: 24),
       title: ready ? 'Ready' : 'Add an AI key',
       meta: const Text('Tap Rewrite in the row above the keys, then how: it works on what you selected, or on the whole field, and replaces it.'),
-      status: PaneHeroStatus(ready ? 'On' : 'Waiting'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
     ),
     PaneSection(
       title: 'Translate into',

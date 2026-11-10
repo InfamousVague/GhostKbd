@@ -7,10 +7,21 @@
     <!-- The dictation plugin: speech to text on the phone, asked for only when the plugin is added. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!--
+        Nothing the keyboard keeps is copied off the phone by Android: not to the Google account's backup, not to a new
+        phone in a transfer. Its settings hold AI keys, a GitHub token and Ghost.md's sign-in; its files hold clipboard
+        history, typing stats, Mockingbird's samples and what the keys have learned; and Settings › Offline says they
+        are kept on this phone. allowBackup turns the backup off; the two rule files say the same to the Android
+        versions that read rules instead (11 and earlier: fullBackupContent; 12 and later: dataExtractionRules, which
+        also covers phone-to-phone transfer). A typing profile is how what was learned moves (docs/typing-profile.md).
+    -->
     <application
         android:label="Ghost Keyboard"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
 
         <!-- Setup and settings: the Flutter app, drawn with Glacier. -->
         <activity

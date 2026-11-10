@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chunk: settings search</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="../site/css/chunks/search.css">
+<style>
+  /* This page only: the chunk on its key, on a board and at a phone's width. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
+  .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .bench__phone { width: 320px; max-width: 100%; }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <section aria-labelledby="at-desk">
+    <h2 id="at-desk">On a board, 2u</h2>
+    <div class="keycaps">
+      <div class="keycaps__row keycaps__row--start">
+        <article class="keycap keycap--2u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">search</h3>
+            <span class="keycap__hint">settings</span>
+            <div class="keycap__body" data-chunk="search"></div>
+            <p class="keycap__caption">Every setting, a few letters away.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="at-phone">
+    <h2 id="at-phone">On a phone, one column</h2>
+    <div class="bench__phone">
+      <div class="keycaps">
+        <div class="keycaps__row">
+          <article class="keycap keycap--2u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">search</h3>
+              <span class="keycap__hint">settings</span>
+              <div class="keycap__body" data-chunk="search"></div>
+              <p class="keycap__caption">Every setting, a few letters away.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { mount } from '../site/js/chunks/search.js';
+
+window.chunks = [...document.querySelectorAll('[data-chunk="search"]')].map((el) => mount(el));
+</script>
+</body>
+</html>

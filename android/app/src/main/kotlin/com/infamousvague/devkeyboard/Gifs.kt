@@ -25,8 +25,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.Executors
 
@@ -35,7 +33,8 @@ data class Gif(val id: String, val preview: String, val full: String, val pageUr
 
 /**
  * The GIF plugin's search: GIPHY's API (https://developers.giphy.com), keyed by the build's GIPHY_API_KEY or the key
- * pasted in Settings › GIFs. Results are rated PG-13 at most.
+ * pasted in Settings › GIFs. Results are rated PG-13 at most. Searches and pictures go through [Net] (the ledger's
+ * GIF_SEARCH and GIF_IMAGE): to GIPHY's servers only, and never while Offline is on.
  */
 object Giphy {
     private val pool = Executors.newFixedThreadPool(4)
@@ -56,20 +55,25 @@ object Giphy {
      */
     fun search(prefs: KeyboardPrefs, query: String, done: (List<Gif>?, String?) -> Unit) {
         val key = key(prefs)
+        if (Net.offline(prefs)) { done(null, Net.OFFLINE_MESSAGE); return }
         if (key.isBlank()) { done(null, "Add a GIPHY key in Settings › GIFs"); return }
         pool.execute {
             val result = runCatching {
                 val q = query.trim()
                 val url = if (q.isEmpty()) "https://api.giphy.com/v1/gifs/trending?api_key=$key&limit=30&rating=pg-13"
                 else "https://api.giphy.com/v1/gifs/search?api_key=$key&q=${URLEncoder.encode(q, "UTF-8")}&limit=30&rating=pg-13"
-                val body = fetchApi(url)
+                val body = fetchApi(prefs, url)
                 val data = runCatching { JSONObject(body).getJSONArray("data") }.getOrElse { throw GiphyError("GIPHY sent back something unexpected") }
                 // One odd result is skipped, not the whole search.
                 (0 until data.length()).mapNotNull { i -> runCatching { gif(data.getJSONObject(i)) }.getOrNull() }
             }
             result.exceptionOrNull()?.let { android.util.Log.w("Giphy", "search failed", it) }
             val reason = result.exceptionOrNull()?.let { e ->
-                if (e is GiphyError) e.message else "Couldn’t reach GIPHY: ${if (e is java.io.IOException) "no connection" else e.javaClass.simpleName}"
+                when (e) {
+                    is GiphyError -> e.message
+                    is java.io.IOException -> Net.message(prefs, e, "Couldn’t reach GIPHY: no connection")
+                    else -> "Couldn’t reach GIPHY: ${e.javaClass.simpleName}"
+                }
             }
             main.post { done(result.getOrNull(), reason) }
         }
@@ -85,11 +89,10 @@ object Giphy {
     }
 
     /** An API call's body, or a [GiphyError] saying in words why GIPHY refused it. */
-    private fun fetchApi(url: String): String {
-        val c = URL(url).openConnection() as HttpURLConnection
+    private fun fetchApi(prefs: KeyboardPrefs, url: String): String {
+        val c = Net.open(prefs, NetPath.GIF_SEARCH, url)
         c.connectTimeout = 8000
         c.readTimeout = 15000
-        c.setRequestProperty("User-Agent", "GhostKeyboard")
         try {
             val code = c.responseCode
             if (code in 200..299) return c.inputStream.use { String(it.readBytes()) }
@@ -105,18 +108,16 @@ object Giphy {
         }
     }
 
-    fun load(url: String, done: (ByteArray?) -> Unit) {
+    /** A GIF's bytes (a preview, or the one picked), on the main thread; null when it could not be had, Offline included. */
+    fun load(prefs: KeyboardPrefs, url: String, done: (ByteArray?) -> Unit) {
         pool.execute {
-            val bytes = runCatching { fetch(url) }.getOrNull()
+            val bytes = runCatching { fetch(prefs, url) }.getOrNull()
             main.post { done(bytes) }
         }
     }
 
-    private fun fetch(url: String): ByteArray {
-        val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 15000
-        c.setRequestProperty("User-Agent", "GhostKeyboard")
+    private fun fetch(prefs: KeyboardPrefs, url: String): ByteArray {
+        val c = Net.get(prefs, NetPath.GIF_IMAGE, url) { connectTimeout = 8000; readTimeout = 15000 }
         try {
             if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
             return c.inputStream.use { it.readBytes() }
@@ -191,6 +192,9 @@ class GifPanel(context: Context, private val onPick: (Gif) -> Unit) : FrameLayou
     }
     private var generation = 0
 
+    /** The settings the guard reads before each preview is fetched. */
+    private val prefs = KeyboardPrefs(context)
+
     init {
         scroll.addView(grid)
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -228,7 +232,7 @@ class GifPanel(context: Context, private val onPick: (Gif) -> Unit) : FrameLayou
                 setOnClickListener { onPick(gif) }
             }
             row!!.addView(image, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { leftMargin = gap; rightMargin = gap })
-            Giphy.load(gif.preview) { bytes ->
+            Giphy.load(prefs, gif.preview) { bytes ->
                 if (gen != generation || bytes == null) return@load
                 image.setImageDrawable(Giphy.drawable(context, bytes))
             }

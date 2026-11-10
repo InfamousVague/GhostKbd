@@ -1,0 +1,79 @@
+/*
+ * "In my voice" on a keycap (site/js/chunks/voice.js): a line of text with a sentence selected, and under it a band
+ * of the keyboard, the row above the keys, in the keyboard's own ground.
+ *
+ *   <div class="keycap__body" data-chunk="voice"></div>     mount() adds .voice and fills it
+ */
+
+.voice {
+  justify-content: center;
+  gap: var(--s-2);
+  padding-block: var(--s-1) var(--s-2);
+}
+
+/*
+ * The key's caption shares a grid column with the hint above it ("texting"), which would cost it the hint's width and
+ * a second line. This key has no sub-legend, so its caption takes the whole foot of the face.
+ */
+.keycap__face:has(> [data-chunk="voice"]) > .keycap__caption,
+.keycap__face:has(> .voice) > .keycap__caption { grid-column: 1 / -1; }
+
+/* The text: one line on a wide key, two where the key is narrow. */
+.voice .voice__field {
+  font-size: clamp(.875rem, 4.5cqi, 1rem);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: visible;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* A selection as the phone draws one: a wash of the accent behind the words. */
+.voice__sel {
+  padding-block: .14em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.voice__field.is-new { animation: voice-in .26s var(--ease, ease-out); }
+
+@keyframes voice-in {
+  from { opacity: 0; }
+}
+
+/*
+ * The row above the keys. The keyboard is drawn bare and its ground (the site's --ground is the keyboard's, in both
+ * themes) is painted here instead, edge to edge, so a chip's left edge can stand under the legend's.
+ */
+.voice__row {
+  flex: none;
+  min-width: 0;
+  padding-inline: calc(var(--cap-pad) - 4px);
+  background: var(--ground);
+  box-shadow: 0 -1px 0 var(--cap-line), 0 1px 0 var(--cap-line);
+}
+
+/* The chip going down when the key taps it itself (kbd.css has this for a finger, as :active). */
+.voice .gk-ri.is-down { background: var(--kb-key-down); }
+
+/* A narrow key, where the caption under the chunk takes two lines: less air. */
+@container cap (max-width: 320px) {
+  .voice {
+    gap: var(--s-1);
+    padding-block: 2px var(--s-1);
+  }
+
+  /* And the caption a size down, which keeps it to its one line on a phone. */
+  .keycap__face:has(> [data-chunk="voice"]) > .keycap__caption,
+  .keycap__face:has(> .voice) > .keycap__caption { font-size: var(--t-tiny); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice__field.is-new { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .voice__sel { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+}

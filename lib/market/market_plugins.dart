@@ -10,6 +10,7 @@ import 'package:glacier/glacier.dart';
 import '../art/app_icon.dart';
 import '../art/lucide.g.dart';
 import '../plugins/catalogue.dart';
+import '../settings_store.dart';
 import '../settings/kit/settings_type.dart';
 import 'market_cards.dart';
 
@@ -243,6 +244,8 @@ class PluginDetail extends StatelessWidget {
     final radius = t.radius('lg') * 1.5;
     final gap = t.space(4);
     final body = pageText(t, t.fontSize('md'), height: 1.45, color: t.color('app-ink'));
+    // The servers it may reach: the guard's own list where the app has it (Net.kt's ledger), the catalogue's otherwise.
+    final hosts = [for (final h in SettingsStore.current?.netHosts(plugin.id) ?? plugin.hosts) hostWords(h)];
     final quiet = pageText(t, t.fontSize('sm'), height: 1.4, color: t.color('app-ink-3'));
     final status = plugin.soon != null ? 'Coming in ${plugin.soon}' : (added ? 'Added' : 'Not added');
 
@@ -363,7 +366,7 @@ class PluginDetail extends StatelessWidget {
             point(
               permissionIcon(permission.kind),
               plainPermissionWords[permission.kind]!,
-              hint: permission.kind == Permission.network && plugin.hosts.isNotEmpty ? '${permission.why} It talks to ${joinAnd(plugin.hosts)} and nowhere else.' : permission.why,
+              hint: permission.kind == Permission.network && hosts.isNotEmpty ? '${permission.why} It talks to ${joinAnd(hosts)} and nowhere else.' : permission.why,
             ),
         ]),
         Padding(

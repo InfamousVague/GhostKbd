@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chunk: terminal</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="../site/css/chunks/terminal.css">
+<style>
+  /* This page only: the same key at a desk's width, on a taller key, and in a phone's one column. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
+  .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .bench .phone { max-width: 360px; }
+</style>
+</head>
+<body>
+<main class="wrap section section--tight bench">
+  <h1 class="vh">The terminal chunk, in its keycap</h1>
+
+  <section aria-labelledby="b-desk">
+    <h2 id="b-desk">3u and 2u on a six-unit board</h2>
+    <div class="keycaps">
+      <div class="keycaps__row">
+        <article class="keycap keycap--3u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">terminal</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="terminal"></div>
+            <p class="keycap__caption">Tap Ctrl, then C.</p>
+          </div>
+        </article>
+        <article class="keycap keycap--2u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">terminal</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="terminal"></div>
+            <p class="keycap__caption">Tap Ctrl, then C.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="b-tall">
+    <h2 id="b-tall">2u on a taller key (--cap-min: 280px)</h2>
+    <div class="keycaps" style="--cap-min: 280px">
+      <div class="keycaps__row">
+        <article class="keycap keycap--2u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">terminal</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="terminal"></div>
+            <p class="keycap__caption">Tap Ctrl, then C.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="b-phone">
+    <h2 id="b-phone">A phone's one column</h2>
+    <div class="keycaps phone">
+      <div class="keycaps__row">
+        <article class="keycap keycap--3u">
+          <div class="keycap__face">
+            <h3 class="keycap__legend">terminal</h3>
+            <span class="keycap__hint keycap__hint--live">live</span>
+            <div class="keycap__body" data-chunk="terminal"></div>
+            <p class="keycap__caption">Tap Ctrl, then C.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { mount } from '../site/js/chunks/terminal.js';
+
+window.chunks = [...document.querySelectorAll('[data-chunk="terminal"]')].map(mount);
+</script>
+</body>
+</html>

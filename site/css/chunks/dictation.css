@@ -1,0 +1,102 @@
+/*
+ * Dictation on a keycap (site/js/chunks/dictation.js): the mic key at the left of the face and a line of text beside
+ * it. While a take runs the keyboard's listening panel lies over both, its dot where the key was and its words where
+ * the text is.
+ *
+ *   <div class="keycap__body" data-chunk="dictation"></div>     mount() adds .dictation and fills it
+ */
+
+/* One cell: the line under, the keyboard fragment over it (bare, so the line shows through until the panel is up). */
+.dictation {
+  --dictation-dp: 1.3px;                                    /* one of the keyboard's dp, written by the module */
+  --dictation-inset: calc(var(--cap-pad) - 4px);            /* the key's face stands 4.5dp in from the fragment's edge */
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  align-items: center;
+}
+
+.dictation > .dictation__field,
+.dictation > .dictation__keys { grid-area: 1 / 1; }
+
+.dictation__keys {
+  align-self: stretch;
+  padding-inline: var(--dictation-inset);
+}
+
+/*
+ * The key's caption shares a grid column with the hint above it ("offline"), which would cost it the hint's width and
+ * a second line. This key has no sub-legend, so its caption takes the whole foot of the face.
+ */
+.keycap__face:has(> [data-chunk="dictation"]) > .keycap__caption,
+.keycap__face:has(> .dictation) > .keycap__caption { grid-column: 1 / -1; }
+
+/* The text: beside the key, starting where the panel's words start (5dp, the 34dp dot, 16dp). */
+.dictation .dictation__field {
+  max-height: 100%;
+  padding-inline: calc(var(--dictation-inset) + 55 * var(--dictation-dp)) var(--cap-pad);
+  font-size: clamp(.8125rem, 5.4cqi, 1rem);
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: default;
+  pointer-events: none;
+}
+
+.dictation__field.is-new { animation: dictation-in .22s var(--ease, ease-out); }
+
+@keyframes dictation-in {
+  from { opacity: 0; }
+}
+
+/*
+ * The listening panel on one row of keys lies down (kbd.css: dot, then words). Here the dot stands on the mic key's
+ * centre rather than in the middle of the face, the words stand clear of the ring at its widest (15dp past the dot),
+ * and they may take two lines on a narrow key.
+ */
+.dictation .gk--short .gk-dict {
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-content: start;
+  gap: calc(16 * var(--kb-dp));
+  padding-inline: calc(5 * var(--kb-dp)) 0;
+}
+
+.dictation .gk--short .gk-dict-label {
+  font-size: clamp(.8125rem, 5.4cqi, 1rem);
+  line-height: 1.3;
+  white-space: normal;
+}
+
+/* The key is the tab stop (the module sees to that): its ring, and the same ring on the dot while the panel is up. */
+.dictation .gk-key:focus-visible .gk-face,
+.dictation .gk-keys:has(.gk-key:focus-visible) ~ .gk-dict:not([hidden]) .gk-dict-dot {
+  outline: 2px solid var(--kb-accent);
+  outline-offset: 2px;
+}
+
+/* A key as tall as what it holds (one column of keys on a phone): room for a key worth tapping. */
+@container cap (min-width: 280px) {
+  .dictation__keys { min-height: 80px; }
+}
+
+/* A 1u key: four short lines beside a smaller key. (1.5u is this chunk's size; this only keeps 1u whole.) */
+@container cap (max-width: 200px) {
+  .dictation .dictation__field,
+  .dictation .gk--short .gk-dict-label {
+    font-size: .75rem;
+    line-height: 1.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictation__field.is-new { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .dictation .gk-dict-dot { outline: 1px solid CanvasText; }
+}
+
+/* The sample ended without a second tap: the line says so, as a note and not as dictated words. */
+.dictation .dictation__field--note {
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}

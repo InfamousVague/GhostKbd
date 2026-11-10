@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>GhostKbd: the keyboard component, exercised</title>
+<link rel="stylesheet" href="../site/css/site.css">
+<link rel="stylesheet" href="../site/css/kbd.css">
+<link rel="stylesheet" href="bench.css">
+<style>
+  /* This page only: the bench's own layout. Everything else is site.css and kbd.css. */
+  .bench { display: grid; gap: var(--s-6); align-items: start; }
+  @media (min-width: 980px) { .bench { grid-template-columns: minmax(0, 400px) minmax(0, 1fr); } .bench__phone { position: sticky; top: var(--s-5); } }
+  .panel { display: grid; gap: var(--s-5); }
+  .group { display: grid; gap: var(--s-3); }
+  .group > h2 { font-size: var(--t-tiny); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+  .log { height: 132px; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<main class="wrap section--tight section">
+  <header class="section-head">
+    <span class="eyebrow eyebrow--accent">site/dev/kbd.html</span>
+    <h1 class="h2">GhostKbd, exercised</h1>
+    <p class="lead">A bench, not a page of the site: one whole keyboard from <code>js/kbd.js</code> in a phone frame from <code>dev/bench.css</code>. Tap the keys, or click the keyboard and type on your own. Every button below calls one method of the component. The site itself shows fragments in keycaps: see <a href="keycaps.html">keycaps.html</a>.</p>
+  </header>
+
+  <div class="bench">
+    <div class="bench__phone">
+      <div class="phone" id="phone">
+        <div class="phone__screen">
+          <div class="phone__status"><span>9:41</span><span class="phone__status-r tiny">5G</span></div>
+          <div class="phone__app">
+            <div class="appbar"><span class="avatar" data-hue="mint">S</span><span>Sam<span class="appbar__sub">online</span></span></div>
+            <div class="chat" id="chat">
+              <div class="msg msg--in">are you free to look at the build tonight?</div>
+            </div>
+            <div class="composer">
+              <div class="composer__field" id="field" role="textbox" aria-label="Message" aria-multiline="true"></div>
+              <button class="composer__send" id="send" type="button" aria-label="Send"></button>
+            </div>
+          </div>
+          <div class="phone__kbd" id="kbd"></div>
+          <div class="phone__nav"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="group">
+        <h2>press · type · ghostType · swipe</h2>
+        <div class="cluster cluster--tight">
+          <button class="pick" data-do="press">press('g')</button>
+          <button class="pick" data-do="pressAlt">press('é')</button>
+          <button class="pick" data-do="type">type() a sentence</button>
+          <button class="pick" data-do="typeCode">type() code</button>
+          <button class="pick" data-do="typo">type() with a slip</button>
+          <button class="pick" data-do="ghost">ghostType()</button>
+          <button class="pick" data-do="swipe">swipe('keyboard')</button>
+          <button class="pick" data-do="tapAt">tapAt() off-centre</button>
+          <button class="pick" data-do="finish">finish()</button>
+          <button class="pick" data-do="cancel">cancel()</button>
+          <button class="pick" data-do="clear">field.clear()</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>setRow</h2>
+        <div class="cluster cluster--tight">
+          <button class="pick" data-row="none">empty</button>
+          <button class="pick" data-row="suggest">suggestions</button>
+          <button class="pick" data-row="fix">a correction</button>
+          <button class="pick" data-row="ai">Ghostwriter typing</button>
+          <button class="pick" data-row="clips">clipboard chips</button>
+          <button class="pick" data-row="gif">GIF search</button>
+          <button class="pick" data-row="markdown">markdown</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>setTheme</h2>
+        <div class="cluster cluster--tight" id="themes"></div>
+      </div>
+
+      <div class="group">
+        <h2>setBacklight</h2>
+        <div class="cluster cluster--tight" id="effects"></div>
+        <div class="cluster cluster--tight" id="colours"></div>
+      </div>
+
+      <div class="group">
+        <h2>setPage</h2>
+        <div class="seg" role="group" aria-label="Page" id="pages">
+          <button data-page="letters" aria-pressed="true">letters</button>
+          <button data-page="symbols" aria-pressed="false">?123</button>
+          <button data-page="more" aria-pressed="false">=\&lt;</button>
+          <button data-page="dev" aria-pressed="false">{ }</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>setOverlay · setAdaptive · setDictation</h2>
+        <div class="cluster cluster--tight">
+          <button class="pick" data-over="none" aria-pressed="true">none</button>
+          <button class="pick" data-over="heat" aria-pressed="false">my own heatmap</button>
+          <button class="pick" data-over="adaptive" aria-pressed="false">adaptive keys map</button>
+          <button class="pick" data-over="orbit" aria-pressed="false">an animated one</button>
+          <button class="pick" data-do="dictate">dictation panel</button>
+        </div>
+      </div>
+
+      <div class="setk">
+        <div class="setk__head">set({ … })</div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Key borders</div><div class="setk__sub">Off is the app as installed: only ?123, space and enter have a shape.</div></div><button class="switch" role="switch" aria-checked="false" data-opt="borders" aria-label="Key borders"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Number row</div></div><button class="switch" role="switch" aria-checked="false" data-opt="numberRow" aria-label="Number row"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Arrow keys in the row</div></div><button class="switch" role="switch" aria-checked="false" data-opt="arrows" aria-label="Arrow keys"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Mic key</div></div><button class="switch" role="switch" aria-checked="false" data-opt="mic" aria-label="Mic key"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Swipe typing</div><div class="setk__sub">Slide across the letters: the trail is drawn and a 'swipe' event carries the path.</div></div><button class="switch" role="switch" aria-checked="true" data-opt="swipe" aria-label="Swipe typing"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Key sound</div><div class="setk__sub">WebAudio, made here; nothing is fetched.</div></div><button class="switch" role="switch" aria-checked="false" data-opt="sound" aria-label="Key sound"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">The row above the keys</div></div><button class="switch" role="switch" aria-checked="true" data-opt="row" aria-label="Row"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Update badge on the cog</div></div><button class="switch" role="switch" aria-checked="false" data-badge aria-label="Update badge"></button></div>
+      </div>
+
+      <div class="group">
+        <h2>events</h2>
+        <pre class="code log" id="log" aria-live="off"></pre>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { GhostKbd, applyTheme, icon, EFFECTS, THEME_NAMES, BACKLIGHT_COLOURS } from '../site/js/kbd.js';
+
+const $ = (s) => document.querySelector(s);
+const phone = $('#phone');
+const kbd = new GhostKbd($('#kbd'), { theme: 'ghost', backlight: 'reactive', swipe: true });
+window.kbd = kbd;                                   // for the console
+
+// The field: a block element of this page's own, marked up as the keyboard types (a <<request>>, a [[note]], a #tag).
+const field = kbd.attach($('#field'), {
+  placeholder: 'Message',
+  marks: [{ re: /<<[^>]*(>>)?/, cls: 'gk-mark' }, { re: /\[\[[^\]]*(\]\])?/, cls: 'gk-mark' }],
+});
+$('#send').innerHTML = icon('forward');
+
+const log = (line) => { const el = $('#log'); el.textContent = (line + '\n' + el.textContent).slice(0, 4000); };
+const say = (text, who = 'out') => {
+  const m = document.createElement('div');
+  m.className = `msg msg--${who} msg--new`;
+  m.textContent = text;
+  $('#chat').append(m);
+};
+const send = () => { const t = field.text.trim(); if (t) say(t); field.clear(); };
+$('#send').addEventListener('click', send);
+
+// Events. Enter sends instead of making a line, by preventing the key's own effect.
+kbd.on('key', (e) => {
+  if (e.type === 'enter') { e.preventDefault(); send(); }
+  log(`key   ${e.type.padEnd(6)} ${JSON.stringify(e.char)}  ${e.source}  @${e.x == null ? '-' : Math.round(e.x)},${e.y == null ? '-' : Math.round(e.y)}`);
+});
+kbd.on('page', (e) => { log(`page  ${e.page}`); for (const b of $('#pages').children) b.setAttribute('aria-pressed', String(b.dataset.page === e.page)); });
+kbd.on('shift', (e) => log(`shift ${e.shift}`));
+kbd.on('row', (e) => log(`row   ${e.id}`));
+kbd.on('settings', () => log('settings (the cog, or a long press on { })'));
+kbd.on('arrow', (e) => log(`arrow ${e.dir}`));
+kbd.on('mic', () => { log('mic'); kbd.setDictation(null); });
+kbd.on('swipe', (e) => {
+  log(`swipe ${e.source} ${e.word || ''} letters=${e.letters}`);
+  // A page's own decoder goes here; this bench takes the first and last letters it passed.
+  if (e.source === 'pointer' && e.letters.length > 1) { field.insert((field.before && !/\s$/.test(field.before) ? ' ' : '') + e.letters); kbd.lightWord(e.letters); }
+});
+
+// press, type, ghostType, swipe.
+const actions = {
+  press: () => kbd.press('g'),
+  pressAlt: () => kbd.press('é', { hold: 500 }).then(() => kbd.press('<', { hold: 500 })),
+  type: () => kbd.type("Yes, give me 10 minutes. I'll push the fix first!", { wpm: 110 }),
+  typeCode: () => kbd.type('const total = items.map(x => x.price);', { wpm: 120 }),
+  typo: () => kbd.type('see you tomorow\b\b\brrow at 9', { wpm: 100, seed: 7 }),
+  ghost: () => { kbd.setRow([{ id: 'ai-typing', label: '✦ Typing…', chip: true, fill: true, disabled: true }, { id: 'ai-skip', label: 'Skip', bold: true, chip: true, onTap: () => { kbd.finish(); kbd.setRow([]); } }]); return kbd.ghostType("Tonight works. I'll pull the branch after dinner and message you once the tests are green.").then((done) => { if (done) kbd.setRow([]); }); },
+  swipe: () => kbd.swipe('keyboard'),
+  tapAt: () => { const r = kbd.keyRect('t'); return r && kbd.tapAt(r.x + r.w * 0.92, r.y + r.h * 0.8).then((k) => log(`tapAt -> ${k && k.char}`)); },
+  finish: () => kbd.finish(),
+  cancel: () => kbd.cancel(),
+  clear: () => field.clear(),
+  dictate: () => {
+    kbd.setDictation('listening');
+    let n = 0;
+    const tick = setInterval(() => { kbd.setLevel(Math.abs(Math.sin(n++ / 2)) * Math.random()); if (n > 30) { clearInterval(tick); kbd.setDictation('transcribing'); setTimeout(() => { kbd.setDictation(null); field.insert('Running five minutes late, start without me.'); }, 900); } }, 90);
+  },
+};
+for (const b of document.querySelectorAll('[data-do]')) b.addEventListener('click', () => actions[b.dataset.do]());
+
+// setRow.
+const rows = {
+  none: () => kbd.setRow([]),
+  suggest: () => kbd.setSuggestions(['tonight', 'tomorrow', 'today'], (w) => { field.insert(w + ' '); log(`picked ${w}`); }),
+  fix: () => kbd.setRow([{ id: 'keep', label: '“tomorow”', wide: true }, { id: 'fixed', label: 'tomorrow', wide: true, bold: true }]),
+  ai: () => kbd.setRow([{ id: 'ai-typing', label: '✦ Typing…', chip: true, fill: true, disabled: true }, { id: 'ai-skip', label: 'Skip', bold: true, chip: true }]),
+  clips: () => kbd.setRow([{ id: 'back', icon: 'back' }, { id: 'c1', label: 'git rebase -i HEAD~3', chip: true }, { id: 'c2', label: '192.168.1.24', chip: true }, { id: 'c3', label: 'https://attack.fm/devkeyboard/', chip: true }, { id: 'clear', label: 'Clear' }]),
+  gif: () => kbd.setRow([{ id: 'gif-back', icon: 'back' }, { id: 'gif-query', label: 'Search GIPHY', icon: 'search', chip: true, fill: true }]),
+  markdown: () => kbd.setRow(['#', '**', '_', '`', '- [ ]', '[]()', '>', '```'].map((t) => ({ id: 'md-' + t, label: t, chip: true, onTap: () => field.insert(t) }))),
+};
+for (const b of document.querySelectorAll('[data-row]')) b.addEventListener('click', () => rows[b.dataset.row]());
+
+// setTheme: the phone round the keyboard takes the same colours.
+const pressOne = (box, on) => { for (const b of box.children) b.setAttribute('aria-pressed', String(b === on)); };
+const setTheme = (id, b) => { kbd.setTheme(id); applyTheme(phone, id); pressOne($('#themes'), b); };
+for (const id of [...Object.keys(THEME_NAMES), 'auto', 'custom']) {
+  const b = document.createElement('button');
+  b.className = 'pick';
+  b.textContent = THEME_NAMES[id] || (id === 'auto' ? 'Auto' : 'Your own (5 colours)');
+  b.setAttribute('aria-pressed', String(id === 'ghost'));
+  b.addEventListener('click', () => setTheme(id === 'custom' ? '#1B1026,#2D1B3D,#221430,#FF7AD9,#F6E9FF' : id, b));
+  $('#themes').append(b);
+}
+
+// setBacklight: effect, then colour.
+const light = { effect: 'reactive', colour: 'accent' };
+const setLight = () => kbd.setBacklight(light.effect, { colour: light.colour });
+for (const [id, name] of [...EFFECTS, [null, 'Off']]) {
+  const b = document.createElement('button');
+  b.className = 'pick';
+  b.textContent = name;
+  b.setAttribute('aria-pressed', String(id === 'reactive'));
+  b.addEventListener('click', () => { light.effect = id; setLight(); pressOne($('#effects'), b); });
+  $('#effects').append(b);
+}
+for (const id of ['accent', 'rainbow', ...Object.keys(BACKLIGHT_COLOURS)]) {
+  const b = document.createElement('button');
+  b.className = 'pick';
+  b.innerHTML = `<span class="swatch" style="--swatch:${id === 'accent' ? 'var(--accent)' : id === 'rainbow' ? 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)' : '#' + BACKLIGHT_COLOURS[id].toString(16).padStart(6, '0')}"></span>${id}`;
+  b.setAttribute('aria-pressed', String(id === 'accent'));
+  b.addEventListener('click', () => { light.colour = id; setLight(); pressOne($('#colours'), b); });
+  $('#colours').append(b);
+}
+
+// setPage.
+for (const b of $('#pages').children) b.addEventListener('click', () => kbd.setPage(b.dataset.page));
+
+// Overlays: a function of this page's own, the component's adaptive keys map, and one that asks for every frame.
+const taps = [];
+kbd.on('key', (e) => { if (e.source === 'pointer' && e.x != null) { taps.push([e.x, e.y]); if (taps.length > 80) taps.shift(); kbd.redraw(); } });
+const overlays = {
+  none: () => { kbd.setOverlay(null); kbd.setAdaptive(null); },
+  heat: () => { kbd.setAdaptive(null); kbd.setOverlay((ctx, g) => {
+    for (const [x, y] of taps) { const glow = ctx.createRadialGradient(x, y, 0, x, y, g.keyWidth * 0.5); glow.addColorStop(0, 'rgba(81,252,251,.35)'); glow.addColorStop(1, 'rgba(81,252,251,0)'); ctx.fillStyle = glow; ctx.fillRect(x - g.keyWidth, y - g.keyWidth, g.keyWidth * 2, g.keyWidth * 2); }
+    const r = g.keyRect('h');
+    if (r) { ctx.strokeStyle = 'rgba(81,252,251,.8)'; ctx.lineWidth = 1; ctx.strokeRect(r.x + .5, r.y + .5, r.w - 1, r.h - 1); }
+  }); },
+  adaptive: () => { kbd.setOverlay(null); kbd.setPage('letters'); kbd.setAdaptive({
+    offsets: { t: [-0.22, 0.18], y: [0.05, 0.3], o: [-0.12, 0.33], p: [-0.2, 0.3], s: [-0.3, 0.1], h: [0.2, 0.2], n: [0.1, 0.12] },
+    mistakes: [[0.44, 0.2], [0.47, 0.22], [0.52, 0.19], [0.86, 0.24], [0.9, 0.2], [0.17, 0.4], [0.2, 0.43], [0.58, 0.44], [0.63, 0.66], [0.5, 0.21]].map(([x, y]) => ({ x, y })),
+  }, { map: true }); },
+  orbit: () => { kbd.setAdaptive(null); kbd.setOverlay((ctx, g, now) => {
+    const r = g.keyRect('g'); if (!r) return false;
+    const a = now / 400;
+    ctx.fillStyle = '#51FCFB';
+    ctx.beginPath(); ctx.arc(r.cx + Math.cos(a) * r.w * 0.7, r.cy + Math.sin(a) * r.h * 0.4, 3 * g.dp, 0, Math.PI * 2); ctx.fill();
+    return true;                                    // draw me again next frame
+  }); },
+};
+for (const b of document.querySelectorAll('[data-over]')) b.addEventListener('click', () => { overlays[b.dataset.over](); for (const o of document.querySelectorAll('[data-over]')) o.setAttribute('aria-pressed', String(o === b)); });
+
+// set({…}).
+for (const s of document.querySelectorAll('.switch')) s.addEventListener('click', () => {
+  const on = s.getAttribute('aria-checked') !== 'true';
+  s.setAttribute('aria-checked', String(on));
+  if ('badge' in s.dataset) kbd.setBadge(on); else if (s.dataset.opt === 'sound') kbd.setSound(on); else kbd.set({ [s.dataset.opt]: on });
+});
+
+log('ready: ' + JSON.stringify({ width: kbd.geometry.width, height: kbd.geometry.height, dp: +kbd.geometry.dp.toFixed(3), keys: kbd.geometry.keys.length }));
+</script>
+</body>
+</html>

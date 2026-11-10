@@ -1,0 +1,19 @@
+/*
+ * The adaptive keys chunk (js/chunks/adaptive.js): three keys on a keycap's face. The keys and the map over them are
+ * kbd.js's own drawing; this only gives them their room.
+ */
+
+/* The keys carry 6dp of air above and below their faces, so they take the body's whole height. */
+.keycap__body.chunk-adaptive { padding-block: 0; }
+
+/* Never so short the keys cannot be told apart, wherever the key stands. */
+.chunk-adaptive .keycap__keys { min-height: 72px; }
+
+/* The fragment is as wide as the face, which clips: its focus ring is drawn inside. A touch or a click is not a keyboard. */
+.chunk-adaptive .gk:focus-visible { outline-offset: -2px; }
+.chunk-adaptive--touched .gk:focus-visible { outline: none; }
+
+/* One column of full-width keys (a phone): a key is as tall as what it holds, so the three keys ask for a thumb's room. */
+@container keycaps (max-width: 620px) {
+  .chunk-adaptive .keycap__keys { min-height: 124px; }
+}

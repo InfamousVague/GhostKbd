@@ -80,6 +80,10 @@ class PluginManifest {
   final LucideIcon icon;
   final List<String> adds;
   final List<PluginPermission> permissions;
+
+  /// The servers it may reach, for where the app's own ledger cannot be read (off-device). On a phone the Market shows
+  /// the ledger's list for this plugin instead (android NetLedger.kt, through SettingsStore.netHosts), which is the
+  /// list the guard enforces: keep the two the same.
   final List<String> hosts;
   final String version;
   final String author;
@@ -105,7 +109,7 @@ const List<PluginManifest> catalogue = [
     category: PluginCategory.typing,
     hue: 'lime',
     icon: Lucide.spellCheck,
-    adds: ['Corrections when you finish a word', 'Backspace to undo a correction', 'Don’t → don’t, i → I'],
+    adds: ['Corrections when you finish a word', 'Backspace to undo a correction', 'Don’t → don’t, i → I', 'Three next words after a space, tuned by what you type'],
     hasPage: true,
   ),
   PluginManifest(
@@ -125,7 +129,7 @@ const List<PluginManifest> catalogue = [
       PluginPermission(Permission.download, 'Its speech model: 60 MB to start; bigger and multilingual models if you choose them.'),
       PluginPermission(Permission.network, 'Only to download the model.'),
     ],
-    hosts: ['attack.fm', 'huggingface.co'],
+    hosts: ['attack.fm', 'huggingface.co', '*.huggingface.co', '*.hf.co'],
     hasPage: true,
   ),
   PluginManifest(
@@ -175,7 +179,7 @@ const List<PluginManifest> catalogue = [
     hue: 'orange',
     icon: Lucide.image,
     permissions: [PluginPermission(Permission.network, 'To search GIPHY and fetch the GIF you pick.')],
-    hosts: ['api.giphy.com', 'media.giphy.com'],
+    hosts: ['api.giphy.com', '*.giphy.com'],
     adds: ['A GIF button in the row above the keys', 'GIPHY search'],
     hasPage: true,
   ),
@@ -289,7 +293,7 @@ const List<PluginManifest> catalogue = [
     permissions: [
       PluginPermission(Permission.network, 'To train your profile and rewrite text, with your own AI key, straight to the provider you choose.'),
     ],
-    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hosts: ['the AI provider you choose'],
     hasPage: true,
   ),
   PluginManifest(
@@ -309,7 +313,7 @@ const List<PluginManifest> catalogue = [
     permissions: [
       PluginPermission(Permission.network, 'To send the request, the text around it and the matching past messages to the AI you choose, with your own key.'),
     ],
-    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hosts: ['the AI provider you choose', 'api.github.com', 'ghostmarkdown.com'],
     hasPage: true,
   ),
   PluginManifest(
@@ -329,7 +333,7 @@ const List<PluginManifest> catalogue = [
     permissions: [
       PluginPermission(Permission.network, 'To send the text you chose to rewrite to the AI you choose, with your own key.'),
     ],
-    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
+    hosts: ['the AI provider you choose'],
     hasPage: true,
   ),
   PluginManifest(
@@ -413,6 +417,9 @@ PluginManifest? pluginById(String id) {
   }
   return null;
 }
+
+/// A server as the Market says it: a name as it is, and "*.giphy.com" as the servers under giphy.com.
+String hostWords(String host) => host.startsWith('*.') ? 'the servers under ${host.substring(2)}' : host;
 
 /// "a", "a and b", "a, b and c".
 String joinAnd(List<String> words) => switch (words.length) {

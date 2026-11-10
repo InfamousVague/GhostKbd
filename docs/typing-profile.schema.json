@@ -14,10 +14,54 @@
       "properties": { "app": { "type": "string" }, "model": { "type": "string" } }
     },
     "report": { "type": "string", "maxLength": 4000 },
-    "layout": { "enum": ["qwerty"] },
-    "keys": {
+    "layout": {
+      "description": "The layout the top-level keys and slips are for. Absent means qwerty. A keyboard that does not have the layout skips them.",
+      "enum": ["qwerty", "qwertz", "azerty", "spanish", "catalan", "swedish", "danish", "norwegian", "turkish", "russian", "ukrainian", "bulgarian", "macedonian", "serbian", "greek", "hebrew", "arabic", "persian", "urdu", "korean"]
+    },
+    "keys": { "$ref": "#/$defs/keys" },
+    "slips": { "$ref": "#/$defs/slips" },
+    "layouts": {
+      "description": "Keys and slips for further layouts, by layout id. Optional; keyboards that read only one layout ignore it.",
       "type": "object",
-      "propertyNames": { "pattern": "^[a-z]$" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": { "keys": { "$ref": "#/$defs/keys" }, "slips": { "$ref": "#/$defs/slips" } }
+      }
+    },
+    "words": {
+      "type": "object",
+      "properties": {
+        "learned": { "type": "array", "items": { "type": "string", "maxLength": 40 } },
+        "next": {
+          "description": "Next-word prediction's counts: for a context (one word in lower case, two words with a space between, or ^ for a sentence's start), the words that followed it, as shown, and how often. Optional; keyboards without prediction ignore it.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "profile": { "type": "string", "maxLength": 6000 },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "properties": { "text": { "type": "string" }, "kind": { "enum": ["chat", "writing"] } }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "keys": {
+      "description": "Per letter key of the layout (one lower-case letter of its script): where the person aims at it.",
+      "type": "object",
+      "propertyNames": { "pattern": "^\\p{L}$" },
       "additionalProperties": {
         "type": "object",
         "required": ["dx", "dy"],
@@ -34,29 +78,11 @@
         "type": "object",
         "required": ["pressed", "meant"],
         "properties": {
-          "pressed": { "type": "string", "pattern": "^[a-z]$" },
-          "meant": { "type": "string", "pattern": "^[a-z]$" },
+          "pressed": { "type": "string", "pattern": "^\\p{L}$" },
+          "meant": { "type": "string", "pattern": "^\\p{L}$" },
           "count": { "type": "integer", "minimum": 1 },
           "x": { "type": "number", "minimum": 0, "maximum": 1 },
           "y": { "type": "number", "minimum": 0, "maximum": 1 }
-        }
-      }
-    },
-    "words": {
-      "type": "object",
-      "properties": { "learned": { "type": "array", "items": { "type": "string", "maxLength": 40 } } }
-    },
-    "style": {
-      "type": "object",
-      "properties": {
-        "profile": { "type": "string", "maxLength": 6000 },
-        "samples": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["text"],
-            "properties": { "text": { "type": "string" }, "kind": { "enum": ["chat", "writing"] } }
-          }
         }
       }
     }
