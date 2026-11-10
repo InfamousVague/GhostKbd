@@ -55,9 +55,10 @@ carry more than Ghost Keyboard reads.
 
 - **keys**: blended with what it has learned, each side weighted by its touches (`samples`), so a big report moves a
   new keyboard's aims and nudges an experienced one's. An aim is used at most a third of a key from the middle, and
-  only once it stands on 15 touches.
-- **slips**: each counts three times for the letter meant, at the point given or, without one, part way toward the
-  key pressed; those with `x`/`y` show on the heatmap.
+  only once it stands on 15 touches. Like every nudge it then drifts back toward the key's middle: a little with each
+  clean touch, and by half every two weeks.
+- **slips**: each moves the letter meant a little (3% of the way, up to 60 times a slip) toward the point given or,
+  without one, part way toward the key pressed; those with `x`/`y` show on the heatmap.
 - **words.learned**: added to autocorrect's learned words.
 - **style.profile**: becomes Mockingbird's style profile (its source shown as the file's); **style.samples** join
   Mockingbird's samples.

@@ -335,17 +335,19 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'adaptive',
     name: 'Adaptive keys',
-    line: 'Learns where you aim and the keys you hit by mistake, and moves the keys to fit.',
+    line: 'Nudges a key toward your slips, slowly, and hands it back as your aim comes right.',
     description:
         'Every keyboard has its slips: an i that keeps landing on o, an a your thumb reaches short of. Adaptive keys watches '
-        'what you take back (backspace, then the letter beside it) and what autocorrect fixes, learns where you really aim '
-        'at each letter, and moves the invisible edges between keys to suit, never more than a third of a key. Turn on the '
-        'heatmap to see your mistakes glow on the keyboard and where each key now listens. It all stays on this phone, '
-        'and nothing is learned in password fields or while incognito.',
+        'what you take back (backspace, then the letter beside it) and what autocorrect fixes, and nudges the invisible '
+        'edge of the letter you meant toward where you slipped: a little for each slip, so it takes about ten before you '
+        'feel it, and never more than a third of a key. It is training wheels, not a new layout: every clean touch lets '
+        'the key back toward its place, and every nudge halves in two weeks, so the keys return to the defaults as your '
+        'aim does. Turn on the heatmap to see your mistakes glow on the keyboard and where each key now listens. It all '
+        'stays on this phone, and nothing is learned in password fields or while incognito.',
     category: PluginCategory.typing,
     hue: 'coral',
     icon: LucideMore.target,
-    adds: ['Touch areas that follow your aim', 'Learns from backspace and autocorrect', 'A heatmap of your mistakes on the keys'],
+    adds: ['Touch areas nudged toward your slips', 'Slow to move, and back to the defaults over time', 'A heatmap of your mistakes on the keys'],
     hasPage: true,
   ),
 ];

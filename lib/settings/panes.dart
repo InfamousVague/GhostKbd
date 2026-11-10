@@ -539,7 +539,7 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
         children: [
           _plugin(store, 'autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'),
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
-          _plugin(store, 'adaptive', 'Adaptive keys', 'Learns where you aim and the keys you slip onto, and moves their edges to fit.'),
+          _plugin(store, 'adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
           _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines.'),
           _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
@@ -551,7 +551,7 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
       if (store.pluginOn('autocorrect'))
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => s.languages.map((l) => autocorrectLanguages[l] ?? l).join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
-        _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys tuned, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+        _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys nudged, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
       _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
       _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
     ];
@@ -590,10 +590,14 @@ List<Widget> _adaptivePart(BuildContext context, SettingsStore store) {
   final common = [for (final c in (a['common'] as List? ?? const [])) '$c'];
   return [
     PaneSection(
-      footer: Text(slips == 0 ? 'Type as usual: each letter needs about 15 touches before its edges move, never more than a third of a key.' : 'Most often: ${common.join(', ')}. Try it in the field below.'),
+      footer: Text(
+        '${slips == 0 ? 'Type as usual.' : 'Most often: ${common.join(', ')}.'} '
+        'A key moves a little for each slip, about ten before you feel it, and never more than a third of a key. '
+        'Clean touches let it back, and every nudge halves in two weeks, so the keys return to their places as your aim does.',
+      ),
       children: [
         _toggle(store, 'adaptive_map', 'Show the heatmap on the keyboard', 'Red glows are your slips; a dot on a line is where a key now listens.'),
-        SettingRow(label: 'Learned so far', value: Text('$keys keys, $slips slips')),
+        SettingRow(label: 'Helping now', value: Text('$keys ${keys == 1 ? 'key' : 'keys'} nudged, $slips slips remembered')),
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Forget what it learned', onPress: keys == 0 && slips == 0 ? null : store.resetAdaptive)]),
