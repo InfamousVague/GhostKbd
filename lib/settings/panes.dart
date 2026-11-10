@@ -74,6 +74,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
       if (store.pluginOn('mockingbird'))
         SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'magenta', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbirdPage, parts: _mockingbirdParts),
+      if (store.pluginOn('sherlock'))
+        SettingsSection(id: 'sherlock', label: 'Sherlock', icon: _icon(LucideMore.scanSearch), hue: 'cyan', group: 'plugins', summary: _sherlockSummary, page: _sherlockPage, parts: _sherlockParts),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('rewrite'))
@@ -733,6 +735,58 @@ List<SettingsSection> _mockingbirdParts(SettingsStore store) => [
 
 SettingsSection _aiProviderPart() =>
     _part('ai-provider', 'Your AI', Lucide.sparkles, 'purple', (s) => s.ai['ready'] == true ? '${_providerName(s)} · ${_modelOf(s)}' : 'Add a key', (context, store) => _aiSetup(store));
+
+// --- Sherlock -----------------------------------------------------------------------------------------------------
+
+String _sherlockSummary(SettingsStore s) => s.ai['ready'] != true
+    ? 'Add an AI key'
+    : !s.sherlockEnabled
+        ? 'Turn it on in Android'
+        : s.flag('sherlock_auto')
+            ? 'Drafts as you open a chat'
+            : 'On Reply';
+
+List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  final on = store.sherlockEnabled;
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.scanSearch, size: 24),
+      title: !ready ? 'Add an AI key' : on ? 'Ready' : 'One switch to go',
+      meta: const Text('Open the keyboard in a chat and Sherlock reads the conversation and drafts your reply, in your words. You read it and press send.'),
+      status: PaneHeroStatus(ready && on ? 'On' : 'Waiting'),
+    ),
+    PaneSection(
+      footer: Text(on
+          ? 'Android lets Sherlock read the app under the keyboard. It reads only when it drafts a reply, never in password fields or incognito, and keeps nothing.'
+          : 'Android asks you to turn screen reading on yourself: Accessibility › Installed apps (or Downloaded apps) › Sherlock (Ghost Keyboard) › on. Android may warn that it can see your screen: that is what it reads to draft the reply.'),
+      children: [
+        SettingRow(
+          label: 'Read the screen',
+          icon: AppIcon(LucideMore.scanSearch, size: 18),
+          value: Text(on ? 'On' : 'Off'),
+          onPress: store.openSherlockSettings,
+        ),
+      ],
+    ),
+    PaneSection(children: [
+      _toggle(store, 'sherlock_auto', 'Draft as I open a chat', 'Off: only when you tap Reply in the row.'),
+      _toggle(store, 'sherlock_fill', 'Put it straight in the box', 'Off: the draft waits in the row for a tap.'),
+      _plugin(store, 'sherlock', 'Sherlock', 'Off removes Sherlock; add it again from Plugins.'),
+    ]),
+  ];
+}
+
+List<SettingsSection> _sherlockParts(SettingsStore store) => [
+      _aiProviderPart(),
+      if (!store.pluginOn('mockingbird'))
+        _part('sherlock-voice', 'Your voice', LucideMore.bird, 'magenta', (s) => 'Add Mockingbird', (context, store) => [
+              PaneSection(
+                footer: const Text('With Mockingbird, Sherlock writes from your style profile and your past messages. Without it, it writes a plain casual reply.'),
+                children: [SettingRow(label: 'Add Mockingbird', icon: AppIcon(LucideMore.bird, size: 18), onPress: () => pushSettings(context, (_) => MarketScreen(store: store)))],
+              ),
+            ]),
+    ];
 
 // --- Ghostwriter --------------------------------------------------------------------------------------------------
 

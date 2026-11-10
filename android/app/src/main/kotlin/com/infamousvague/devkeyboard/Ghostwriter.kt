@@ -72,6 +72,12 @@ object Ghostwriter {
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
         launch(Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
+    /** Sherlock: the chat on the screen read and your reply drafted; [hint] is what was in the box already. */
+    fun sherlock(context: Context, prefs: KeyboardPrefs, hint: String, app: String?, fresh: Boolean, keyboardTop: Int, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        return launch(Job(ids.incrementAndGet(), "Reply", hint, mode = Sherlock.MODE), done) { Sherlock.run(appContext, prefs, hint, app, fresh, keyboardTop) }
+    }
+
     private fun launch(job: Job, done: (Job) -> Unit, work: () -> String): Job {
         worker.execute {
             runCatching(work).onSuccess { job.result = clean(it) }.onFailure { job.error = it.message ?: "Couldn't write it" }

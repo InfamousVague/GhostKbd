@@ -256,6 +256,8 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "aiState" -> result.success(aiState())
+                    "sherlockState" -> result.success(mapOf("enabled" to SherlockService.enabled(this@MainActivity), "running" to (SherlockService.instance != null), "ocr" to (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)))
+                    "sherlockOpen" -> { SherlockService.openSettings(this@MainActivity); result.success(null) }
                     "aiModels" -> background(result) { AiClient.models(prefs) }
                     "aiTest" -> background(result) { AiClient.complete(prefs, "Reply with the single word OK.", "Are you there?", maxTokens = 2000, effort = "low") }
                     "mockingbirdTrain" -> Mockingbird.train(this@MainActivity) { error ->

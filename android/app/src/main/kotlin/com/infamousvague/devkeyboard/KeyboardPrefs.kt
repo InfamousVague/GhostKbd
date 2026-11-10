@@ -109,6 +109,10 @@ class KeyboardPrefs(context: Context) {
 
     /** Ghostwriter: fill a <<request>> as soon as its >> is typed; what it may read for context. */
     val ghostwriterAuto: Boolean get() = bool(GHOSTWRITER_AUTO)
+    /** Sherlock drafts a reply on its own as the keyboard opens in a chat app (off: only on a tap of Reply). */
+    val sherlockAuto: Boolean get() = bool(SHERLOCK_AUTO)
+    /** Sherlock's draft goes straight into the box (off: it waits in the row for a tap). */
+    val sherlockFill: Boolean get() = bool(SHERLOCK_FILL)
     val ghostwriterMemory: Boolean get() = bool(GHOSTWRITER_MEMORY)
     val ghostwriterClipboard: Boolean get() = bool(GHOSTWRITER_CLIPBOARD)
     /** Ghostwriter may look facts up online, with the provider's own search (AiClient.SEARCHES). */
@@ -242,6 +246,8 @@ class KeyboardPrefs(context: Context) {
         const val MOCKINGBIRD_COLLECT = "mockingbird_collect"
         const val MOCKINGBIRD_AUTO_TRAIN = "mockingbird_auto_train"
         const val GHOSTWRITER_AUTO = "ghostwriter_auto"
+        const val SHERLOCK_AUTO = "sherlock_auto"
+        const val SHERLOCK_FILL = "sherlock_fill"
         const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
         const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
         const val GHOSTWRITER_WEB = "ghostwriter_web"
@@ -314,6 +320,8 @@ class KeyboardPrefs(context: Context) {
             MOCKINGBIRD_COLLECT to true,
             MOCKINGBIRD_AUTO_TRAIN to true,
             GHOSTWRITER_AUTO to true,
+            SHERLOCK_AUTO to true,
+            SHERLOCK_FILL to false,
             GHOSTWRITER_MEMORY to true,
             GHOSTWRITER_CLIPBOARD to false,
             GHOSTWRITER_WEB to true,

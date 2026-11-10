@@ -63,6 +63,20 @@
                 android:resource="@xml/method" />
         </service>
 
+        <!-- Sherlock's eyes: reads the chat under the keyboard when Sherlock drafts a reply (SherlockService.kt). -->
+        <service
+            android:name=".SherlockService"
+            android:label="@string/sherlock_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/sherlock_service" />
+        </service>
+
         <!-- Android's installer reports a self-update's progress here (Updater.kt). -->
         <receiver
             android:name=".InstallReceiver"
