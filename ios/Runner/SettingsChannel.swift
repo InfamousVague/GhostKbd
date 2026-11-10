@@ -76,7 +76,7 @@ final class SettingsChannel: NSObject {
         case "clipboardState": result(["count": clips.all().count])
         case "clearClipboard": clips.clear(); result(["count": 0])
         // The App Store updates the app; there is no microphone for a keyboard on iOS (docs/IOS.md).
-        case "updateState": result(["phase": "disabled"])
+        case "updateState": result(["phase": "disabled", "current": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""])
         case "dictationState": result(["phase": "unsupported", "microphone": false])
         case "statsState", "statsReset": result([String: Any]())
         case "profilesState": result(["profiles": [Any](), "recent": [Any]()])

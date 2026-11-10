@@ -4,6 +4,8 @@
 /// dictation, picking a look. Shown once, on first launch; Settings › Setup and About replay it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
@@ -13,10 +15,14 @@ import '../art/lucide.g.dart';
 import '../art/lucide_more.dart';
 import '../market/market_cards.dart';
 import '../market/market_plugins.dart' show marketHues;
+import '../platform.dart';
 import '../settings/kit/settings_type.dart';
 import '../settings_store.dart';
 import 'band.dart';
 import 'narration.dart';
+
+// The walkthrough as an iPhone has it (lib/platform.dart `isIOS`): its pages, their words and their steps.
+part 'onboarding_ios.dart';
 
 /// How one page looks: its wash, its sign and the tiles round it.
 @immutable
@@ -28,7 +34,9 @@ class _Look {
   Color get hue => marketHues[hues.first]!.$1;
 }
 
-const List<(String, String, _Look)> _pages = [
+List<(String, String, _Look)> get _pages => isIOS ? _iosPages : _androidPages;
+
+const List<(String, String, _Look)> _androidPages = [
   ('welcome', 'Hi, I’m Ghost Keyboard', _Look(['indigo', 'purple', 'rose'], LucideMore.keyboard, [Lucide.braces, Lucide.mic, Lucide.palette, Lucide.spellCheck])),
   ('enable', 'Turn it on', _Look(['green', 'mint', 'cyan'], Lucide.settings, [LucideMore.keyboard, Lucide.shieldCheck, Lucide.smartphone, Lucide.check])),
   ('choose', 'Make it yours', _Look(['cyan', 'blue', 'indigo'], LucideMore.textCursorInput, [LucideMore.keyboard, Lucide.repeat, Lucide.circleCheck, Lucide.type])),
@@ -64,18 +72,24 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
   int _page = 0;
   bool _voice = true;
 
+  /// iOS: the keyboard says it has run, and with Full Access or not, only as it is used, which may be in this app's
+  /// own field with the app never leaving the screen. So the walkthrough asks every couple of seconds.
+  Timer? _iosStatus;
+
   SettingsStore get store => widget.store;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (isIOS) _iosStatus = Timer.periodic(const Duration(seconds: 2), (_) => store.refreshStatus());
     WidgetsBinding.instance.addPostFrameCallback((_) => _say());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _iosStatus?.cancel();
     _hush();
     _pager.dispose();
     super.dispose();
@@ -88,7 +102,7 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
       store.refreshStatus().then((_) {
         if (!mounted) return;
         final id = _pages[_page].$1;
-        if ((id == 'enable' && store.enabled) || (id == 'choose' && store.selected)) _next();
+        if ((id == 'enable' && store.enabled) || (id == 'choose' && store.selected) || (id == 'iosEnable' && store.enabled)) _next();
       });
     } else if (state == AppLifecycleState.paused) {
       _hush();
@@ -97,6 +111,8 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
 
   Future<void> _say() async {
     if (!_voice) return;
+    // iOS: only the pages that say Android's words have its voice.
+    if (isIOS && iosNarration.containsKey(_pages[_page].$1)) return;
     try {
       await _sounds.invokeMethod<bool>('playAsset', {'asset': narrationAsset(_pages[_page].$1)});
     } on MissingPluginException {
@@ -139,7 +155,8 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
       builder: (context, _) => ColoredBox(
         color: t.color('glacier-bg'),
         child: Padding(
-          padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom),
+          // iOS: the keyboard comes up over the page, so the page makes room for it (the field to try it in is on it).
+          padding: EdgeInsets.only(top: pad.top, bottom: isIOS && MediaQuery.viewInsetsOf(context).bottom > pad.bottom ? MediaQuery.viewInsetsOf(context).bottom : pad.bottom),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -223,7 +240,7 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
         SizedBox(height: t.space(5)),
         Semantics(header: true, child: Text(title, style: pageText(t, t.fontSize('3xl'), weight: 'bold', height: 1.1, color: t.color('app-ink')))),
         SizedBox(height: t.space(3)),
-        Text(narration[id]!, style: pageText(t, t.fontSize('md'), height: 1.5, color: t.color('app-ink-2'))),
+        Text((isIOS ? iosNarration[id] : null) ?? narration[id]!, style: pageText(t, t.fontSize('md'), height: 1.5, color: t.color('app-ink-2'))),
         SizedBox(height: t.space(5)),
         ..._step(context, id, look),
       ],
@@ -233,6 +250,10 @@ class _OnboardingState extends State<Onboarding> with WidgetsBindingObserver {
   /// The page's own step, where it has one.
   List<Widget> _step(BuildContext context, String id, _Look look) {
     final t = context.tokens;
+    if (isIOS) {
+      final own = _iosStep(context, store, id, look);
+      if (own != null) return own;
+    }
     Widget done(String words) => Row(children: [AppIcon(Lucide.circleCheck, size: 20, color: look.hue), SizedBox(width: t.space(2)), Expanded(child: Text(words, style: pageText(t, t.fontSize('md'), weight: 'medium', color: t.color('app-ink'))))]);
     switch (id) {
       case 'enable':

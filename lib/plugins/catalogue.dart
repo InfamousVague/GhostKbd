@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import '../art/app_icon.dart';
 import '../art/lucide.g.dart';
 import '../art/lucide_more.dart';
+import '../platform.dart';
 
 /// Where a plugin stands in the Market's filter.
 enum PluginCategory {
@@ -65,6 +66,11 @@ class PluginManifest {
     this.author = 'InfamousVague',
     this.soon,
     this.hasPage = false,
+    this.ios = true,
+    this.iosWhy,
+    this.iosLine,
+    this.iosDescription,
+    this.iosAdds,
   });
 
   final String id;
@@ -89,7 +95,45 @@ class PluginManifest {
 
   /// It has a page of its own in Settings once added.
   final bool hasPage;
+
+  /// Whether the iOS keyboard has it (ios/GhostKeyboard), and where it has not, the one line of why ([iosWhy]).
+  final bool ios;
+  final String? iosWhy;
+
+  /// Its words on iOS, where Android's would read wrong on an iPhone.
+  final String? iosLine;
+  final String? iosDescription;
+  final List<String>? iosAdds;
+
+  /// Why it cannot be added on this phone; null where it can (always, on Android).
+  String? get unavailable => isIOS && !ios ? (iosWhy ?? 'Not on iPhone yet.') : null;
+
+  /// The plugin as this phone's Market reads it: itself on Android, and on iOS with its iOS words, and Allow Full
+  /// Access said beside the internet where it reaches it.
+  PluginManifest get here => !isIOS
+      ? this
+      : PluginManifest(
+          id: id,
+          name: name,
+          line: iosLine ?? line,
+          description: iosDescription ?? description,
+          category: category,
+          hue: hue,
+          icon: icon,
+          adds: iosAdds ?? adds,
+          permissions: [for (final p in permissions) p.kind == Permission.network ? PluginPermission(p.kind, '${p.why} On iPhone it needs Allow Full Access.') : p],
+          hosts: hosts,
+          version: version,
+          author: author,
+          soon: soon,
+          hasPage: hasPage,
+          ios: ios,
+          iosWhy: iosWhy,
+        );
 }
+
+/// Whether this phone's keyboard has the plugin [id]: every one on Android, and on iOS those ios/GhostKeyboard has.
+bool pluginHere(String id) => !isIOS || (pluginById(id)?.ios ?? true);
 
 /// Every plugin, in the Market's order.
 const List<PluginManifest> catalogue = [
@@ -127,6 +171,8 @@ const List<PluginManifest> catalogue = [
     ],
     hosts: ['attack.fm', 'huggingface.co'],
     hasPage: true,
+    ios: false,
+    iosWhy: 'iOS doesn’t let a keyboard use the microphone. The dictation key under the keyboard still works.',
   ),
   PluginManifest(
     id: 'themes',
@@ -165,6 +211,8 @@ const List<PluginManifest> catalogue = [
     permissions: [PluginPermission(Permission.autofill, 'To show the logins your password manager offers for the field you are in.')],
     adds: ['Logins in the row above the keys'],
     hasPage: true,
+    ios: false,
+    iosWhy: 'On iPhone, passwords are filled by iOS’s own AutoFill. A keyboard can’t show them.',
   ),
   PluginManifest(
     id: 'gifs',
@@ -178,6 +226,7 @@ const List<PluginManifest> catalogue = [
     hosts: ['api.giphy.com', 'media.giphy.com'],
     adds: ['A GIF button in the row above the keys', 'GIPHY search'],
     hasPage: true,
+    ios: false,
   ),
   PluginManifest(
     id: 'markdown',
@@ -206,6 +255,7 @@ const List<PluginManifest> catalogue = [
     icon: Lucide.terminal,
     adds: ['Terminal keys in the row'],
     hasPage: true,
+    iosLine: 'Esc, Tab, Ctrl, Alt and arrows for SSH apps.',
   ),
   PluginManifest(
     id: 'clipboard',
@@ -231,6 +281,7 @@ const List<PluginManifest> catalogue = [
     icon: Lucide.undo2,
     adds: ['Undo and Redo in the row'],
     hasPage: true,
+    iosLine: 'Take back what this keyboard typed, or put it back.',
   ),
   PluginManifest(
     id: 'incognito',
@@ -258,6 +309,8 @@ const List<PluginManifest> catalogue = [
     icon: LucideMore.smile,
     adds: ['An emoji panel and search', ':shortcodes', 'Emoji for the word you type'],
     hasPage: true,
+    ios: false,
+    iosWhy: 'The iPhone’s own emoji keyboard is one tap of the globe away.',
   ),
   PluginManifest(
     id: 'ghostmd',
@@ -271,6 +324,7 @@ const List<PluginManifest> catalogue = [
     icon: Lucide.ghost,
     adds: ['[[note]] and #tag completion in Ghost.md', 'Ghost.md’s blocks in the row', 'Save a selection to Ghost.md from any app'],
     hasPage: true,
+    ios: false,
   ),
   PluginManifest(
     id: 'mockingbird',
@@ -291,6 +345,12 @@ const List<PluginManifest> catalogue = [
     ],
     hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
     hasPage: true,
+    iosDescription:
+        'Mockingbird keeps samples of what you type with Ghost Keyboard, on this phone. The AI provider you choose reads '
+        'them and writes your style profile: punctuation, length, tone, the words you use. Ghostwriter writes in that '
+        'voice. Nothing is kept from passwords, email or web addresses, or while incognito; the samples leave the phone '
+        'only to train, and when one matches a <<request>> you make.',
+    iosAdds: ['A style profile of how you write', 'Ghostwriter writes in your voice', 'Works with the AI provider you choose'],
   ),
   PluginManifest(
     id: 'ghostwriter',
@@ -311,6 +371,13 @@ const List<PluginManifest> catalogue = [
     ],
     hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
     hasPage: true,
+    iosDescription:
+        'Type <<engineering standup tldr>> or <<why do the metrics not fire on signup>> anywhere. When you close it with '
+        '>> the AI writes the answer in your voice and it replaces the request: it reads Mockingbird’s style profile, '
+        'your past messages that match the request, the text around it and, if you let it, your clipboard, your GitHub '
+        'commits and the web. It types the answer out, keys lighting as it goes. Where it doesn’t know a fact it leaves '
+        'a [blank] rather than guessing. << >> keeps clear of templates and code that use braces.',
+    iosAdds: ['<<request>> filled in place, in any app', 'Answers from your messages, commits and the web', 'A Fill button when the cursor is on a request'],
   ),
   PluginManifest(
     id: 'rewrite',
@@ -331,6 +398,11 @@ const List<PluginManifest> catalogue = [
     ],
     hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
     hasPage: true,
+    iosDescription:
+        'A Rewrite button in the row above the keys. Tap it, then Fix (spelling, grammar and punctuation, nothing else), '
+        'Shorter, Formal, Casual, Friendlier, or Translate into the language you choose. It works on the text you '
+        'selected, or on the field’s text when nothing is selected, and the answer replaces it; undo puts yours back. '
+        'It uses the AI provider you choose, with your own key, straight from your phone. Never while incognito.',
   ),
   PluginManifest(
     id: 'adaptive',
@@ -393,10 +465,11 @@ const Set<String> builtInPlugins = {
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.
-List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p];
+List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p.here];
 
 /// The plugins every keyboard has, as the Market's Installed tab lists them beside the added ones.
-List<PluginManifest> get builtInCatalogue => [for (final p in catalogue) if (builtInPlugins.contains(p.id)) p];
+/// On iOS, without those its keyboard has not (emoji, GIFs).
+List<PluginManifest> get builtInCatalogue => [for (final p in catalogue) if (builtInPlugins.contains(p.id) && (!isIOS || p.ios)) p.here];
 
 /// Settings › Look & feel › Layout's choices for a wide screen (android KeyboardView.wideLayout): id, name, what it does.
 const List<(String, String, String)> wideLayouts = [
