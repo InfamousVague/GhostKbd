@@ -404,6 +404,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         updateShift()
         if (!restarting) autoSherlock(info)
+        // Where the keys start, for Sherlock's Auto-reply, which reads the chat with or without the keyboard.
+        keyboard?.post { keyboard?.let { v -> SherlockService.keyboardTopNow = IntArray(2).also { v.getLocationOnScreen(it) }[1] + v.keyboardTop.toInt() } }
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
@@ -1059,6 +1061,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        SherlockService.keyboardTopNow = 0
         super.onFinishInputView(finishingInput)
         finishTyping()
         flushDraft()
@@ -1077,8 +1080,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.SHERLOCK)
-                .any { Plugins.isOn(prefs, it) }
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE)
+                .any { Plugins.isOn(prefs, it) } || Sherlock.on(prefs)
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
     private fun scheduleRow() {
@@ -1329,7 +1332,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
         // Sherlock: your reply to the chat on the screen, drafted in your voice (from what's in the box, if anything).
-        if (Plugins.isOn(prefs, Plugins.SHERLOCK) && aiAllowed() && selStart == selEnd) {
+        if (Sherlock.on(prefs) && aiAllowed() && selStart == selEnd) {
             items += RowItem("sherlock", label = "Reply", icon = RowIcon.SEARCH, tint = RowTint.AI, bold = app == AppKind.CHAT, chip = true) { startSherlock(fresh = true) }
         }
         // Mockingbird: the selection rewritten as you.
@@ -1605,7 +1608,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** Sherlock on its own: as the keyboard opens, empty, in a chat app, once the app has settled under it. */
     private fun autoSherlock(info: EditorInfo) {
-        if (!Plugins.isOn(prefs, Plugins.SHERLOCK) || !prefs.sherlockAuto || !aiAllowed()) return
+        // With Auto-reply on, SherlockService answers the chat itself, keyboard or not.
+        if (!Sherlock.on(prefs) || !prefs.sherlockAuto || prefs.sherlockAutoreply || !aiAllowed()) return
         if (AppContext.kind(info.packageName) != AppKind.CHAT || SherlockService.instance == null) return
         // On its own it never leaves an error in the row at every chat: with Offline on, or no AI set up, it waits for
         // a tap of Reply, which says why.
@@ -1691,6 +1695,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (job !== aiJob) return
         val text = job.result
         if (job.mode == Sherlock.MODE) {
+            // With Auto-reply on, a Reply tapped by hand is sent too, in place of whatever was in the box.
+            if (text != null && prefs.sherlockAutoreply) {
+                aiJob = null
+                Thread {
+                    if (SherlockService.instance?.send(text, replacing = true) != true) android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        android.widget.Toast.makeText(this, "Sherlock couldn’t press send in this app", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }.start()
+                scheduleRow()
+                return
+            }
             // The draft waits in the row unless it is to go straight into the box.
             if (text != null && prefs.sherlockFill && placeSherlock(text)) aiJob = null
             scheduleRow()

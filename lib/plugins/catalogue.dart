@@ -395,8 +395,9 @@ const List<PluginManifest> catalogue = [
         'Open the keyboard in a chat and Sherlock reads the conversation on the screen, works out who said what, and '
         'drafts the reply you would send, in your voice (Mockingbird’s style profile and your past messages, when you '
         'have Mockingbird). The draft waits in the row: tap it to put it in the box, or Another for a different one. '
-        'Type a few words first (“no, busy, maybe sunday”) and tap Reply, and it writes that as you. It never sends '
-        'anything: you read it and press send. It reads the app’s own text where it can, and on Android 11 or later '
+        'Type a few words first (“no, busy, maybe sunday”) and tap Reply, and it writes that as you. With Auto-reply on '
+        'it sends for you and answers each new message while the chat is open, so the conversation carries on; it tells '
+        'you each reply it sends, with Stop. It reads the app’s own text where it can, and on Android 11 or later '
         'reads a picture of the screen with on-phone OCR where an app draws its own. It needs its switch in Android’s '
         'accessibility settings, and reads nothing in password fields or while incognito.',
     category: PluginCategory.tools,
@@ -505,6 +506,12 @@ const Set<String> builtInPlugins = {
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.
+/// Plugins the Market lists only with Settings › Developer on (Matt, 2026-11-10: "put sherlock behind developer mode").
+const Set<String> developerPlugins = {'sherlock'};
+
+/// The Market as this person sees it: [developerPlugins] only with Developer on.
+List<PluginManifest> marketCatalogueFor(bool developer) => [for (final p in marketCatalogue) if (developer || !developerPlugins.contains(p.id)) p];
+
 List<PluginManifest> get marketCatalogue => [for (final p in catalogue) if (!builtInPlugins.contains(p.id)) p.here];
 
 /// The plugins every keyboard has, as the Market's Installed tab lists them beside the added ones.

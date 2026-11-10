@@ -172,6 +172,10 @@ class KeyboardPrefs(context: Context) {
     val sherlockAuto: Boolean get() = bool(SHERLOCK_AUTO)
     /** Sherlock's draft goes straight into the box (off: it waits in the row for a tap). */
     val sherlockFill: Boolean get() = bool(SHERLOCK_FILL)
+    /** Sherlock sends its replies and answers each new message while a chat is open (Matt, 2026-11-10). */
+    val sherlockAutoreply: Boolean get() = bool(SHERLOCK_AUTOREPLY)
+    /** Settings › Developer is showing: the version in About was tapped five times. */
+    val developer: Boolean get() = bool(DEVELOPER)
     val ghostwriterMemory: Boolean get() = bool(GHOSTWRITER_MEMORY)
     val ghostwriterClipboard: Boolean get() = bool(GHOSTWRITER_CLIPBOARD)
     /** Ghostwriter may look facts up online, with the provider's own search (AiClient.SEARCHES). */
@@ -319,6 +323,7 @@ class KeyboardPrefs(context: Context) {
         const val GHOSTWRITER_AUTO = "ghostwriter_auto"
         const val SHERLOCK_AUTO = "sherlock_auto"
         const val SHERLOCK_FILL = "sherlock_fill"
+        const val SHERLOCK_AUTOREPLY = "sherlock_autoreply"
         const val GHOSTWRITER_MEMORY = "ghostwriter_memory"
         const val GHOSTWRITER_CLIPBOARD = "ghostwriter_clipboard"
         const val GHOSTWRITER_WEB = "ghostwriter_web"
@@ -399,6 +404,7 @@ class KeyboardPrefs(context: Context) {
             GHOSTWRITER_AUTO to true,
             SHERLOCK_AUTO to true,
             SHERLOCK_FILL to false,
+            SHERLOCK_AUTOREPLY to false,
             GHOSTWRITER_MEMORY to true,
             GHOSTWRITER_CLIPBOARD to false,
             GHOSTWRITER_WEB to true,

@@ -121,7 +121,7 @@ enum class NetPath(
     ),
     SHERLOCK(
         NetFeature.AI, "sherlock", "Sherlock", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("sherlock"),
-        trigger = "Tapping Reply, Another or Retry, or opening the keyboard in an empty chat box with “Draft as I open a chat” on.",
+        trigger = "Tapping Reply, Another or Retry; opening the keyboard in an empty chat box with “Draft as I open a chat” on; and with Auto-reply on, each new message from the other person while a chat app is open.",
         sends = "Your key and model, the chat read off the screen (up to 5,000 characters, the newest kept), what you had typed in the box, the chat app's name, and with Mockingbird your style profile and up to 2,500 characters of similar things you typed.",
     ),
     TRAIN(

@@ -81,7 +81,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         icon: _icon(Lucide.store),
         hue: 'purple',
         group: 'plugins',
-        summary: (s) => '${marketCatalogue.where((p) => s.pluginOn(p.id)).length} added · browse the Market',
+        summary: (s) => '${marketCatalogueFor(s.flag('developer')).where((p) => s.pluginOn(p.id)).length} added · browse the Market',
         page: (context, store) => const [],
         screen: (context) => MarketScreen(store: store),
       ),
@@ -91,7 +91,7 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'passwords', label: 'Password managers', icon: _icon(Lucide.keyRound), hue: 'green', group: 'plugins', summary: (s) => 'Logins above the keys', page: _passwords),
       if (store.pluginOn('mockingbird'))
         SettingsSection(id: 'mockingbird', label: 'Mockingbird', icon: _icon(LucideMore.bird), hue: 'magenta', group: 'plugins', summary: _mockingbirdSummary, page: _mockingbirdPage, parts: _mockingbirdParts),
-      if (store.pluginOn('sherlock'))
+      if (store.pluginOn('sherlock') && store.flag('developer'))
         SettingsSection(id: 'sherlock', label: 'Sherlock', icon: _icon(LucideMore.scanSearch), hue: 'cyan', group: 'plugins', summary: _sherlockSummary, page: _sherlockPage, parts: _sherlockParts),
       if (store.pluginOn('ghostwriter'))
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
@@ -1002,7 +1002,9 @@ List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
     PaneHero(
       glyph: AppIcon(LucideMore.scanSearch, size: 24),
       title: !ready ? 'Add an AI key' : on ? 'Ready' : 'One switch to go',
-      meta: const Text('Open the keyboard in a chat and Sherlock reads the conversation and drafts your reply, in your words. You read it and press send.'),
+      meta: Text(store.flag('sherlock_autoreply')
+          ? 'Auto-reply is on: while a chat is open, Sherlock answers each new message in your words and sends it.'
+          : 'Open the keyboard in a chat and Sherlock reads the conversation and drafts your reply, in your words. You read it and press send.'),
       status: PaneHeroStatus(ready && on ? 'On' : 'Waiting'),
     ),
     PaneSection(
@@ -1021,6 +1023,26 @@ List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
     PaneSection(children: [
       _toggle(store, 'sherlock_auto', 'Draft as I open a chat', 'Off: only when you tap Reply in the row.'),
       _toggle(store, 'sherlock_fill', 'Put it straight in the box', 'Off: the draft waits in the row for a tap.'),
+    ]),
+    PaneSection(
+      footer: const Text('While a chat app is open, Sherlock answers each new message as you and sends it, so the conversation carries on by itself. It never sends over what you have started typing, pauses after 20 replies in a row until you write one yourself, and tells you each reply it sends in a notification, with Stop.'),
+      children: [
+        SettingRow(
+          label: 'Auto-reply',
+          hint: const Text('Sends for you and keeps the conversation going.'),
+          icon: AppIcon(LucideMore.scanSearch, size: 18),
+          control: GlacierSwitch(
+            checked: store.flag('sherlock_autoreply'),
+            onCheckedChange: (v) {
+              store.set('sherlock_autoreply', v);
+              if (v) store.requestNotifications();
+            },
+            ariaLabel: 'Auto-reply',
+          ),
+        ),
+      ],
+    ),
+    PaneSection(children: [
       _plugin(store, 'sherlock', 'Sherlock', 'Off removes Sherlock; add it again from Plugins.'),
     ]),
   ];

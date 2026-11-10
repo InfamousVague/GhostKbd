@@ -36,7 +36,7 @@ class _MarketScreenState extends State<MarketScreen> {
   PluginCategory? _filter;
 
   /// Installed where something from the Market is added already, else Discover: a new keyboard opens on what there is to add.
-  late bool _installed = marketCatalogue.any((p) => widget.store.pluginOn(p.id));
+  late bool _installed = marketCatalogueFor(widget.store.flag('developer')).any((p) => widget.store.pluginOn(p.id));
 
   SettingsStore get store => widget.store;
 
@@ -67,10 +67,10 @@ class _MarketScreenState extends State<MarketScreen> {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
-        final featured = marketCatalogue.where((p) => p.soon == null && p.unavailable == null).toList();
-        final shown = marketCatalogue.where((p) => _filter == null || p.category == _filter).toList();
-        final categories = {for (final p in marketCatalogue) p.category}.toList();
-        final added = marketCatalogue.where((p) => store.pluginOn(p.id)).toList();
+        final featured = marketCatalogueFor(store.flag('developer')).where((p) => p.soon == null && p.unavailable == null).toList();
+        final shown = marketCatalogueFor(store.flag('developer')).where((p) => _filter == null || p.category == _filter).toList();
+        final categories = {for (final p in marketCatalogueFor(store.flag('developer'))) p.category}.toList();
+        final added = marketCatalogueFor(store.flag('developer')).where((p) => store.pluginOn(p.id)).toList();
         final tabs = GlacierSegmentedControl(
           options: [
             GlacierSegmentedOption(value: 'installed', label: Text('Installed · ${added.length + builtInCatalogue.where((p) => store.pluginOn(p.id)).length}')),
@@ -154,7 +154,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 ],
               ),
               SizedBox(height: t.space(6)),
-              MarketHeading(title: 'All plugins', meta: '${marketCatalogue.length} · ${marketCatalogue.where((p) => store.pluginOn(p.id)).length} added', icon: LucideMore.slidersHorizontal),
+              MarketHeading(title: 'All plugins', meta: '${marketCatalogueFor(store.flag('developer')).length} · ${marketCatalogueFor(store.flag('developer')).where((p) => store.pluginOn(p.id)).length} added', icon: LucideMore.slidersHorizontal),
               Wrap(
                 spacing: t.space(2),
                 runSpacing: t.space(2),

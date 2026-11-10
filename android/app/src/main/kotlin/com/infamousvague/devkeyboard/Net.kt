@@ -236,7 +236,7 @@ object Net {
         return when (path) {
             NetPath.GHOSTWRITER -> on(Plugins.GHOSTWRITER) && ai
             NetPath.REWRITE -> on(Plugins.REWRITE) && ai
-            NetPath.SHERLOCK -> on(Plugins.SHERLOCK) && ai
+            NetPath.SHERLOCK -> Sherlock.on(prefs) && ai
             NetPath.MY_VOICE, NetPath.TRAIN -> on(Plugins.MOCKINGBIRD) && ai
             NetPath.AI_TEST, NetPath.AI_MODELS -> ai
             NetPath.GITHUB_SEARCH -> on(Plugins.GHOSTWRITER) && ai && prefs.ghostwriterGithub && prefs.githubToken.isNotBlank()

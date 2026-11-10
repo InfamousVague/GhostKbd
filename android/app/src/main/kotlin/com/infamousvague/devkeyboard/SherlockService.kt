@@ -35,7 +35,10 @@ class SherlockService : AccessibilityService() {
     override fun onServiceConnected() { instance = this }
     override fun onUnbind(intent: Intent?): Boolean { instance = null; return super.onUnbind(intent) }
     override fun onDestroy() { if (instance === this) instance = null; super.onDestroy() }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    /** Window changes feed Auto-reply only; with it off they are dropped at once. */
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event != null) runCatching { SherlockAutoReply.onEvent(this, event) }
+    }
     override fun onInterrupt() = Unit
 
     enum class Side { THEM, ME, MIDDLE }
@@ -57,9 +60,7 @@ class SherlockService : AccessibilityService() {
         val all = runCatching { windows }.getOrNull().orEmpty()
         val listed = all.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }?.let { w -> Rect().also { w.getBoundsInScreen(it) }.top }
         val keyboard = listOfNotNull(listed, keyboardTop.takeIf { it > 0 }).minOrNull()?.let { Rect(0, it, 0, it) }
-        val apps = all.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
-        val window = apps.firstOrNull { it.isFocused } ?: apps.firstOrNull { it.isActive } ?: apps.maxByOrNull { w -> Rect().also { w.getBoundsInScreen(it) }.let { it.width() * it.height() } }
-        val root = window?.root ?: rootInActiveWindow ?: return null
+        val root = appRoot(all) ?: return null
         val bounds = Rect().also { root.getBoundsInScreen(it) }
         val bottom = keyboard?.top?.takeIf { it > bounds.top } ?: bounds.bottom
         val app = root.packageName?.toString()
@@ -68,6 +69,80 @@ class SherlockService : AccessibilityService() {
         val fromTree = shape(app, found, bounds, bottom, ocr = false)
         if (fromTree.chars >= MIN_TREE_CHARS || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return fromTree
         return runCatching { ocr(app, bounds, bottom) }.getOrNull()?.takeIf { it.chars > fromTree.chars } ?: fromTree
+    }
+
+    /** The app on the screen (not the keyboard, not the status bar): the focused app window, or the biggest. */
+    private fun appRoot(all: List<AccessibilityWindowInfo> = runCatching { windows }.getOrNull().orEmpty()): AccessibilityNodeInfo? {
+        val apps = all.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        val window = apps.firstOrNull { it.isFocused } ?: apps.firstOrNull { it.isActive } ?: apps.maxByOrNull { w -> Rect().also { w.getBoundsInScreen(it) }.let { it.width() * it.height() } }
+        return window?.root ?: rootInActiveWindow
+    }
+
+    /**
+     * Sends [text] in the open chat, as Auto-reply does: puts it in the app's message box and presses the app's own
+     * send button (or the box's enter action where no button is found). Unless [replacing], a box with your own text
+     * in it is left alone and nothing is sent. False when it couldn't. Blocking: off the main thread.
+     */
+    fun send(text: String, replacing: Boolean): Boolean {
+        val root = appRoot() ?: return false
+        val field = field(root) ?: return false
+        val there = field.text?.toString().orEmpty()
+        if (!replacing && there.isNotBlank() && !field.isShowingHintText) return false
+        val args = android.os.Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
+        if (!field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return false
+        // The app swaps its microphone for a send button once the box has text.
+        Thread.sleep(SEND_SETTLE_MS)
+        val after = appRoot() ?: return false
+        val box = field(after) ?: field
+        val at = Rect().also { box.getBoundsInScreen(it) }
+        sendButton(after, at)?.let { if (click(it)) return true }
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && box.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+    }
+
+    /** You have started a message in the open chat's box: Auto-reply leaves it, and the chat, alone. */
+    fun boxBusy(): Boolean {
+        val field = appRoot()?.let(::field) ?: return false
+        return !field.text.isNullOrBlank() && !field.isShowingHintText
+    }
+
+    /** The message box: the focused editable field, or the lowest editable one on the screen. */
+    private fun field(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable }?.let { return it }
+        val found = ArrayList<AccessibilityNodeInfo>()
+        collect(root, 0) { it.isEditable && it.isVisibleToUser }.let(found::addAll)
+        return found.maxByOrNull { Rect().also { r -> it.getBoundsInScreen(r) }.bottom }
+    }
+
+    /** The send button nearest the box: its label, description or view id says send. */
+    private fun sendButton(root: AccessibilityNodeInfo, box: Rect): AccessibilityNodeInfo? {
+        val candidates = collect(root, 0) { n ->
+            !n.isEditable && n.isVisibleToUser && (
+                listOfNotNull(n.contentDescription, n.text).any { SEND.containsMatchIn(it) } ||
+                    n.viewIdResourceName?.substringAfter('/')?.contains("send", ignoreCase = true) == true)
+        }
+        return candidates.minByOrNull { n ->
+            val r = Rect().also { n.getBoundsInScreen(it) }
+            Math.abs(r.centerY() - box.centerY()) * 2 + Math.abs(r.left - box.right)
+        }
+    }
+
+    /** Taps [node], or the nearest tappable thing it sits in. */
+    private fun click(node: AccessibilityNodeInfo): Boolean {
+        var n: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (n != null && depth < 5) {
+            if (n.isClickable && n.isEnabled) return n.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            n = n.parent; depth++
+        }
+        return false
+    }
+
+    private fun collect(node: AccessibilityNodeInfo, depth: Int, keep: (AccessibilityNodeInfo) -> Boolean): List<AccessibilityNodeInfo> {
+        if (depth > 60) return emptyList()
+        val out = ArrayList<AccessibilityNodeInfo>()
+        if (keep(node)) out += node
+        for (i in 0 until node.childCount) node.getChild(i)?.let { out += collect(it, depth + 1, keep) }
+        return out
     }
 
     /** A piece of text and where it sat; [control] when it is inside a button or chip rather than a message. */
@@ -162,6 +237,13 @@ class SherlockService : AccessibilityService() {
         /** The running service, while Android has it bound (the person turned it on). */
         @Volatile var instance: SherlockService? = null
             private set
+
+        /** Where the keyboard starts on the screen while it is up (0 while it is down), from the keyboard itself. */
+        @Volatile var keyboardTopNow = 0
+
+        private const val SEND_SETTLE_MS = 450L
+        /** "Send" in the languages chat apps label their button in. */
+        private val SEND = Regex("(^|\\b)(send|enviar|envoyer|senden|invia|verstuur|wyślij|отправ|gönder|送信|发送|전송)", RegexOption.IGNORE_CASE)
 
         /** Less text than this from the app's own tree means it draws its text itself: read the picture instead. */
         private const val MIN_TREE_CHARS = 40

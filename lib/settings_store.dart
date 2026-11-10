@@ -98,6 +98,7 @@ class SettingsStore extends ChangeNotifier {
     'ghostwriter_auto': true,
     'sherlock_auto': true,
     'sherlock_fill': false,
+    'sherlock_autoreply': false,
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
     'ghostwriter_web': true,
@@ -417,6 +418,7 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> openSherlockSettings() => _call('sherlockOpen');
+  Future<void> requestNotifications() => _call('requestNotifications');
 
   /// The clipboard plugin's history: how many it holds, and clearing it.
   int clipCount = 0;

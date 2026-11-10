@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sherlock_label">Sherlock (Ghost Keyboard)</string>
-    <string name="sherlock_description">Lets Ghost Keyboard\'s Sherlock plugin read the chat on your screen when it drafts a reply for you. It reads only when you open the keyboard in a chat or tap Reply, sends the conversation to your own AI provider with your own key for that one reply, and keeps nothing. It never types or sends anything by itself.</string>
+    <string name="sherlock_description">Lets Ghost Keyboard\'s Sherlock plugin read the chat on your screen when it drafts a reply for you. It reads when you open the keyboard in a chat or tap Reply and, only if you turn on Auto-reply, while a chat is open, to answer each new message for you and send it. The conversation goes to your own AI provider with your own key; nothing is kept. Auto-reply tells you each reply it sends, with Stop.</string>
 </resources>

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- The dictation plugin: speech to text on the phone, asked for only when the plugin is added. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Sherlock's Auto-reply says each reply it sends, with Stop (asked only when that switch is turned on). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
         Nothing the keyboard keeps is copied off the phone by Android: not to the Google account's backup, not to a new
@@ -87,6 +89,9 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/sherlock_service" />
         </service>
+
+        <!-- The Stop on Sherlock's auto-reply notification (SherlockAutoReply.kt). -->
+        <receiver android:name=".SherlockStopReceiver" android:exported="false" />
 
         <!-- Android's installer reports a self-update's progress here (Updater.kt). -->
         <receiver

@@ -13,6 +13,9 @@ import android.content.Context
  */
 object Sherlock {
     const val MODE = "sherlock"
+
+    /** Sherlock is a developer-mode plugin (Matt, 2026-11-10: "put sherlock behind developer mode"): added, and Developer on. */
+    fun on(prefs: KeyboardPrefs) = Plugins.isOn(prefs, Plugins.SHERLOCK) && prefs.developer
     const val NOT_ON = "Turn on Sherlock in Android’s accessibility settings"
     const val NO_CHAT = "Couldn’t find a conversation on the screen"
 
@@ -65,6 +68,15 @@ object Sherlock {
         // request; Another asks afresh.
         val key = "$app\n$hint\n$text"
         if (!fresh) synchronized(this) { if (key == lastKey) lastReply?.let { return it } }
+        val reply = write(context, prefs, screen, hint, app)
+        synchronized(this) { lastKey = key; lastReply = reply }
+        return reply
+    }
+
+    /** The reply to [screen], as you; [hint] is what you want to say, if anything. Blocking. */
+    fun write(context: Context, prefs: KeyboardPrefs, screen: SherlockService.Screen, hint: String, app: String?): String {
+        if (Net.offline(prefs)) throw AiClient.AiError(Net.OFFLINE_MESSAGE)
+        val text = transcript(screen)
         // Debug builds only: the key "debug-echo" answers without any AI, saying what was read, to try it on a device.
         if (Updater.isDebuggable(context) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
             android.util.Log.i("Sherlock", text)
@@ -76,9 +88,7 @@ object Sherlock {
             append(text)
             if (hint.isNotBlank()) append("\n\nWHAT I WANT TO SAY (write it as my reply): ").append(hint.trim())
         }
-        val reply = AiClient.complete(prefs, NetPath.SHERLOCK, system(context, app, examples), user, maxTokens = 2000, effort = "low")
-        synchronized(this) { lastKey = key; lastReply = reply }
-        return reply
+        return AiClient.complete(prefs, NetPath.SHERLOCK, system(context, app, examples), user, maxTokens = 2000, effort = "low")
     }
 
     private var lastKey: String? = null
