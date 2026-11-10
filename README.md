@@ -16,7 +16,7 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - Key preview bubble, long-press panels (digits on the top row, Gboard's symbol hints on the rest, accents, the period's punctuation panel, `( → < [ {` and friends)
 - Shift: tap for one capital, double-tap or long-press for caps lock, auto-caps at sentence starts
 - Backspace repeats while held; deletes a selection in one go
-- Slide along the space bar to move the cursor; long-press space for the keyboard picker
+- Slide along the space bar to move the cursor, or hold it and then slide; with cursor control off, long-press space opens the keyboard picker
 - Double-space period; enter key follows the field (search, go, send, next, done, newline)
 - Number/phone fields open on `?123`; toolbar with settings and hide
 - Settings: theme, key height, number row, symbol hints, auto-caps, double-space period, space-bar cursor, long-press delay, popup, vibrate, sound

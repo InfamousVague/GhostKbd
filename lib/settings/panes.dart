@@ -541,7 +541,7 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
           _plugin(store, 'adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
-          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines.'),
+          _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines. Hold it first and it never types a space. Off: holding it opens the keyboard picker.'),
           _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
         ],
       ),

@@ -1168,7 +1168,17 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     private fun onLongPress(t: Touch) {
         when (t.key.type) {
-            KeyType.SPACE -> { t.longPressed = true; listener.onShowPicker() }
+            // Holding the space bar starts cursor control where it is on (Matt, 2026-11-09: "Holding spacebar is opening
+            // the keyboard selection which makes cursor navigation hard"): a tick, and every slide from here moves the
+            // cursor at once, with no first stretch to cross. Let go without sliding and nothing is typed. The
+            // keyboard picker is the hold's meaning only with cursor control off; Android's own switch button, under
+            // the keys, opens it either way.
+            KeyType.SPACE -> if (spaceCursor) {
+                performHapticFeedback(LONG_PRESS)
+                t.cursorMoved = true
+                t.cursorAnchor = t.lastX
+                t.lineAnchor = t.lastY
+            } else { t.longPressed = true; listener.onShowPicker() }
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
             KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
             KeyType.SHIFT -> {
