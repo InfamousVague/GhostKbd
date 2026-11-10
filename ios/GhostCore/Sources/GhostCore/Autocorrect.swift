@@ -377,12 +377,153 @@ public final class Autocorrect {
         }
         let ranked = scored.enumerated().sorted { a, b in a.element.score != b.element.score ? a.element.score > b.element.score : a.offset < b.offset }
         var out: [String] = []
+        // A whole phrase in one glide ("hey what's up" without lifting): offered first where it fits clearly better
+        // than any one word, so a long word that happens to spell two ("hardship", "hard ship") stays one.
+        if let phrase = swipePhrase(path.map { ($0.x, $0.y) }, letterKeys: letterKeys, keyW: keyW, s: s),
+           phrase.score > (ranked.first?.element.score ?? -.infinity) + Autocorrect.phraseMargin {
+            out.append(phrase.text)
+        }
         for (_, item) in ranked {
             let w = Autocorrect.capitalI(item.word)
             if !out.contains(w) { out.append(w) }
             if out.count >= 5 { break }
         }
         return out
+    }
+
+    /// How much better a phrase must score than the best single word to be offered first, and what each word past
+    /// the first costs it: a glide is read as one word unless several fit it plainly better.
+    static let phraseMargin: CGFloat = 0.6
+    static let phraseWordCost: CGFloat = 0.5
+
+    /// One glide read as several words, the finger never lifting between them. A word ends and the next begins at a
+    /// corner of the path (the finger turns from the last letter towards the next word's first), so the path's corners
+    /// are where it may be cut; each stretch between two corners is matched as one word, as a single glide is, and
+    /// the cuts that make the best words win. Words of one letter are not found this way.
+    private func swipePhrase(_ raw: [Pt], letterKeys: [Pt?], keyW: CGFloat, s: Snapshot) -> (text: String, score: CGFloat)? {
+        guard raw.count >= 2 else { return nil }
+        var length: CGFloat = 0
+        for i in 1..<raw.count { length += Autocorrect.dist(raw[i - 1], raw[i]) }
+        // Two short words are at least this much glide.
+        guard length > keyW * 3 else { return nil }
+        let m = min(240, max(16, Int(length / (keyW * 0.25)) + 1))
+        let p = Autocorrect.resample(raw, m)
+        let step = length / CGFloat(m - 1)
+        // How sharply the path turns at each point, over a span of about three quarters of a key either side.
+        let w = 3
+        var turn = [CGFloat](repeating: 0, count: m)
+        if m > 2 * w {
+            for i in w..<(m - w) {
+                let ax = p[i].x - p[i - w].x, ay = p[i].y - p[i - w].y, bx = p[i + w].x - p[i].x, by = p[i + w].y - p[i].y
+                let la = hypot(ax, ay), lb = hypot(bx, by)
+                if la > 0 && lb > 0 { turn[i] = acos(max(-1, min(1, (ax * bx + ay * by) / (la * lb)))) }
+            }
+        }
+        var anchors = [0]
+        if m > 2 * w {
+            for i in w..<(m - w) where turn[i] > 0.8 {
+                let lo = max(0, i - w), hi = min(m - 1, i + w)
+                guard turn[i] >= turn[lo...hi].max() ?? 0 else { continue }
+                if let last = anchors.last, CGFloat(i - last) * step < keyW * 0.6 { continue }
+                anchors.append(i)
+            }
+        }
+        if let last = anchors.last, CGFloat(m - 1 - last) * step < keyW * 0.6, anchors.count > 1 { anchors.removeLast() }
+        anchors.append(m - 1)
+        let count = anchors.count
+        guard count >= 3, count <= 24 else { return nil }
+        func near(_ q: Pt) -> [Int] {
+            var found: [(i: Int, d: CGFloat)] = []
+            for (i, k) in letterKeys.enumerated() { if let k { let d = Autocorrect.dist(q, k) / keyW; if d <= 1.1 { found.append((i, d)) } } }
+            return found.sorted { $0.d < $1.d }.prefix(3).map { $0.i }
+        }
+        // A word starts at a corner, or where the path runs over a key on its way between two corners (the next word's
+        // first letter can lie on the straight line from the last word's end: "what's up" has its u between s and p).
+        var nearest = [CGFloat](repeating: .infinity, count: m)
+        for i in 0..<m { for k in letterKeys { if let k { nearest[i] = min(nearest[i], Autocorrect.dist(p[i], k) / keyW) } } }
+        var heads = Set(anchors.dropLast())
+        for i in 1..<(m - 1) where nearest[i] < 0.4 && nearest[i] <= nearest[i - 1] && nearest[i] <= nearest[i + 1] {
+            if anchors.contains(where: { CGFloat(abs($0 - i)) * step < keyW * 0.6 }) { continue }
+            heads.insert(i)
+        }
+        var cum = [CGFloat](repeating: 0, count: m)
+        for i in 1..<m { cum[i] = cum[i - 1] + Autocorrect.dist(p[i - 1], p[i]) }
+        let n = 24, words = s.model.words
+        let ends = anchors.map { near(p[$0]) }
+        // The best word from each head to each corner after it, at most seven corners on.
+        var stretch: [Int: (word: String, score: CGFloat)] = [:]
+        var pts: [Pt] = []
+        for i0 in heads.sorted() {
+            let firsts = near(p[i0])
+            guard let after = anchors.firstIndex(where: { $0 > i0 }) else { continue }
+            for b in after..<min(count, after + 7) {
+                let i1 = anchors[b]
+                let span = cum[i1] - cum[i0]
+                let sub = Array(p[i0...i1])
+                let user = Autocorrect.resample(sub, n)
+                var top: (word: String, score: CGFloat)?
+                for f in firsts {
+                    for l in ends[b] {
+                        for index in s.model.byEnds[f * 26 + l] {
+                            let word = s.model.sorted[Int(index)]
+                            pts.removeAll(keepingCapacity: true)
+                            var prev: UInt8 = 32, ok = true
+                            for c in Autocorrect.fold(word).utf8 where c != prev {
+                                guard c >= 97, c <= 122, let k = letterKeys[Int(c - 97)] else { ok = false; break }
+                                pts.append(k); prev = c
+                            }
+                            guard ok, pts.count >= 2 else { continue }
+                            var ideal: CGFloat = 0
+                            for i in 1..<pts.count { ideal += Autocorrect.dist(pts[i - 1], pts[i]) }
+                            guard ideal > 0, span / ideal > 0.7, span / ideal < 1.6 else { continue }
+                            var at = 0
+                            for q in pts {
+                                while at < sub.count && Autocorrect.dist(sub[at], q) > keyW * 1.25 { at += 1 }
+                                if at >= sub.count { ok = false; break }
+                            }
+                            guard ok else { continue }
+                            let shape = Autocorrect.resample(pts, n)
+                            var d: CGFloat = 0
+                            for i in 0..<n { d += Autocorrect.dist(user[i], shape[i]) }
+                            d /= CGFloat(n) * keyW
+                            let score = CGFloat(words[word] ?? Autocorrect.learnedZipf) * 0.55 - d * 6
+                            if top == nil || score > top!.score { top = (word, score) }
+                        }
+                    }
+                }
+                if let top { stretch[i0 * 64 + b] = top }
+            }
+        }
+        // The best k words ending at corner b; the next starts at that corner, or at a head before the next corner.
+        let most = 5
+        var best = [[CGFloat]](repeating: [CGFloat](repeating: -.infinity, count: count), count: most + 1)
+        var back = [[(prev: Int, word: String)?]](repeating: [(prev: Int, word: String)?](repeating: nil, count: count), count: most + 1)
+        for b in 1..<count { if let t = stretch[b] { best[1][b] = t.score; back[1][b] = (-1, t.word) } }
+        let sortedHeads = heads.sorted()
+        for k in 1..<most {
+            for b in 1..<(count - 1) where best[k][b] > -.infinity {
+                for h in sortedHeads where h >= anchors[b] && h <= anchors[b + 1] {
+                    for e in (b + 1)..<count {
+                        guard let t = stretch[h * 64 + e] else { continue }
+                        let total = best[k][b] + t.score
+                        if total > best[k + 1][e] { best[k + 1][e] = total; back[k + 1][e] = (b, t.word) }
+                    }
+                }
+            }
+        }
+        var pick: (k: Int, score: CGFloat)?
+        for k in 2...most where best[k][count - 1] > -.infinity {
+            let score = best[k][count - 1] / CGFloat(k) - Autocorrect.phraseWordCost * CGFloat(k - 1)
+            if pick == nil || score > pick!.score { pick = (k, score) }
+        }
+        guard let pick else { return nil }
+        var said: [String] = []
+        var k = pick.k, b = count - 1
+        while k > 0, let step = back[k][b] {
+            said.append(Autocorrect.capitalI(s.model.contractions[step.word] ?? step.word))
+            b = step.prev; k -= 1
+        }
+        return (said.reversed().joined(separator: " "), pick.score)
     }
 
     private static func dist(_ a: Pt, _ b: Pt) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }

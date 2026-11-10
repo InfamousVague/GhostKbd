@@ -181,6 +181,23 @@ final class AutocorrectTests: XCTestCase {
         XCTAssertTrue(en.swipe(path: glide("qwop"), keys: qwertyKeys, keyW: 36).contains("qwop"))
     }
 
+    /// A phrase in one glide, the finger never lifting (Matt: "The swipe still says hardship instead of hey what's
+    /// up"): read as its words, with a wobbling finger too; and a word that happens to spell two stays one.
+    func testSwipePhrases() {
+        func first(_ letters: String, wobble: CGFloat = 0) -> String? {
+            var path = glide(letters, wobble: wobble)
+            path.append(qwertyKeys[letters.last!]!)
+            return en.swipe(path: path, keys: qwertyKeys, keyW: 36).first
+        }
+        for (letters, phrase) in [("heywhatsup", "hey what's up"), ("howareyou", "how are you"), ("thankyou", "thank you"), ("goodmorning", "good morning"), ("onmyway", "on my way")] {
+            XCTAssertEqual(first(letters), phrase)
+            XCTAssertEqual(first(letters, wobble: 4), phrase)
+        }
+        for word in ["hardship", "keyboard", "something", "together", "everyone", "understand", "thanks", "hey", "the"] {
+            XCTAssertEqual(first(word), word)
+        }
+    }
+
     func testBackgroundLoad() {
         let ac = Autocorrect(dictDirectory: dictDirectory)
         let ready = expectation(description: "ready")
