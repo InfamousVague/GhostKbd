@@ -37,7 +37,7 @@ class SherlockService : AccessibilityService() {
     override fun onDestroy() { if (instance === this) instance = null; super.onDestroy() }
     /** Window changes feed Auto-reply only; with it off they are dropped at once. */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event != null) runCatching { SherlockAutoReply.onEvent(this, event) }
+        if (event != null) runCatching { SherlockAutoReply.onEvent(this, event) }.onFailure { android.util.Log.w("Sherlock", "auto-reply event failed", it) }
     }
     override fun onInterrupt() = Unit
 
@@ -66,11 +66,13 @@ class SherlockService : AccessibilityService() {
         val bottom = keyboard?.top?.takeIf { it > bounds.top } ?: bounds.bottom
         val app = root.packageName?.toString()
         val found = ArrayList<Piece>()
-        walk(root, found, bottom, bounds.width(), 0, false)
+        walk(root, found, bottom, bounds.width(), 0, false, null)
         val fromTree = shape(app, found, bounds, bottom, ocr = false)
         if (fromTree.chars >= MIN_TREE_CHARS || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return fromTree
         return runCatching { ocr(app, bounds, bottom) }.getOrNull()?.takeIf { it.chars > fromTree.chars } ?: fromTree
     }
+
+    private fun AccessibilityNodeInfo.stateDescription(sdk: Int): CharSequence? = if (sdk >= Build.VERSION_CODES.R) stateDescription else null
 
     /** The app on the screen (not the keyboard, not the status bar): the focused app window, or the biggest. */
     private fun appRoot(all: List<AccessibilityWindowInfo> = runCatching { windows }.getOrNull().orEmpty()): AccessibilityNodeInfo? {
@@ -147,25 +149,44 @@ class SherlockService : AccessibilityService() {
     }
 
     /** A piece of text and where it sat; [control] when it is inside a button or chip rather than a message. */
-    private class Piece(val text: String, val rect: Rect, val control: Boolean)
+    private class Piece(val text: String, val rect: Rect, val control: Boolean, val said: Side? = null)
+
+    /**
+     * Who sent it, where the app says so in its description for screen readers: "You said …" / "Sent" / "Delivered"
+     * on yours, "Sam said …" / "Received" on theirs (Google Messages, Samsung Messages, WhatsApp and others label
+     * their bubbles so). Null where the app says nothing.
+     */
+    private fun saidBy(description: CharSequence?): Side? {
+        val d = description?.toString()?.trim().orEmpty()
+        if (d.length < 4) return null
+        // "You said" before "Sam said", and both before the status words: their message may say "delivered" itself.
+        return when {
+            YOU_SAID.containsMatchIn(d) -> Side.ME
+            THEIRS.containsMatchIn(d) -> Side.THEM
+            STATUS.containsMatchIn(d) -> Side.ME
+            else -> null
+        }
+    }
 
     /**
      * Every visible piece of text above the keyboard, but the field being typed in (the reply itself). Text inside a
      * small tappable box is a button or a suggestion chip ("Report spam", a "Yep!" quick reply), not a message: a
      * bubble's tappable row runs most of the width.
      */
-    private fun walk(node: AccessibilityNodeInfo, out: MutableList<Piece>, bottom: Int, width: Int, depth: Int, inControl: Boolean) {
+    private fun walk(node: AccessibilityNodeInfo, out: MutableList<Piece>, bottom: Int, width: Int, depth: Int, inControl: Boolean, said: Side?) {
         if (depth > 60 || out.size > 400) return
         if (!node.isVisibleToUser) return
         val r = Rect().also { node.getBoundsInScreen(it) }
         if (r.top >= bottom || r.isEmpty) return
         val control = inControl || ((node.isClickable || node.className?.contains("Button") == true) &&
             r.height() < CONTROL_MAX_DP * resources.displayMetrics.density && r.width() < width * 0.7f)
+        // A label on this node or the bubble around it says whose message this is.
+        val who = saidBy(node.contentDescription) ?: saidBy(node.stateDescription(Build.VERSION.SDK_INT)) ?: said
         if (!node.isEditable && !node.isPassword) {
             val text = node.text?.toString()?.trim().orEmpty()
-            if (text.isNotEmpty() && out.none { it.text == text && it.rect.contains(r) }) out += Piece(text, r, control)
+            if (text.isNotEmpty() && out.none { it.text == text && it.rect.contains(r) }) out += Piece(text, r, control, who)
         }
-        for (i in 0 until node.childCount) node.getChild(i)?.let { walk(it, out, bottom, width, depth + 1, control) }
+        for (i in 0 until node.childCount) node.getChild(i)?.let { walk(it, out, bottom, width, depth + 1, control, who) }
     }
 
     /** The app above the keyboard as a picture, read with ML Kit's on-phone text recognition. */
@@ -224,7 +245,8 @@ class SherlockService : AccessibilityService() {
             if (piece.control) continue
             val leftGap = r.left - window.left
             val rightGap = window.right - r.right
-            val side = when {
+            // The app's own label first; then whether this phone sent these words (SentLog); then which edge it hugs.
+            val side = piece.said ?: (if (SentLog.sent(this, app, text)) Side.ME else null) ?: when {
                 rightGap < leftGap * 0.6f && leftGap > width * 0.12f -> Side.ME
                 leftGap < rightGap * 0.6f && rightGap > width * 0.12f -> Side.THEM
                 else -> Side.MIDDLE
@@ -243,6 +265,12 @@ class SherlockService : AccessibilityService() {
         @Volatile var keyboardTopNow = 0
 
         private const val SEND_SETTLE_MS = 450L
+        /** A screen-reader label on your own message: "You said …", "Me: …", "Sent …", "Outgoing …". */
+        private val YOU_SAID = Regex("^(you|me)\\s*(said|sent|wrote|replied|:)|^(sent|outgoing)\\b", RegexOption.IGNORE_CASE)
+        /** Or a delivery status, which only your own messages carry: "Delivered", "Read by Sam", "Seen". */
+        private val STATUS = Regex("\\b(delivered|read by|seen by)\\b|\\b(sent|delivered|read|seen)\\s*[.,]?\\s*$", RegexOption.IGNORE_CASE)
+        /** On theirs: "Sam said …", "Received", "Incoming". */
+        private val THEIRS = Regex("^\\S.{0,40}?\\s(said|wrote|sent|replied)\\b|^(received|incoming)\\b", RegexOption.IGNORE_CASE)
         /** "Send" in the languages chat apps label their button in. */
         private val SEND = Regex("(^|\\b)(send|enviar|envoyer|senden|invia|verstuur|wyślij|отправ|gönder|送信|发送|전송)", RegexOption.IGNORE_CASE)
 

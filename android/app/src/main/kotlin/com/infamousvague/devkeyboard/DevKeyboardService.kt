@@ -419,6 +419,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (autoSpaceAt < 0) autoSpaceAt = newSelEnd
             else if (newSelEnd != autoSpaceAt || newSelStart != newSelEnd) autoSpaced = false
         }
+        trackSent(newSelStart, newSelEnd)
         // The field emptied under us (a chat app's send button): the message just sent is a sample, and its last
         // words are counted for next-word prediction.
         if (newSelStart == 0 && newSelEnd == 0 && (draft.isNotEmpty() || learner.pending)) {
@@ -1631,6 +1632,25 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /** The message in a chat app's box as it stands, while Sherlock is on: kept by [trackSent] when it is sent. */
+    private var chatDraft = ""
+
+    /**
+     * Sherlock's record of what you send (SentLog): while the box has text, what it says; when the app empties it (its
+     * send button), those words were sent from this phone, and are yours when Sherlock reads the chat.
+     */
+    private fun trackSent(start: Int, end: Int) {
+        val info = currentInputEditorInfo
+        if (!Sherlock.on(prefs) || incognito || isPassword(info) || AppContext.kind(info?.packageName) != AppKind.CHAT) { chatDraft = ""; return }
+        val ic = currentInputConnection ?: return
+        if (start > 0 || end > 0) {
+            chatDraft = ic.getTextBeforeCursor(1000, 0)?.toString().orEmpty() + ic.getTextAfterCursor(1000, 0)?.toString().orEmpty()
+        } else if (chatDraft.isNotBlank() && ic.getTextAfterCursor(1, 0).isNullOrEmpty()) {
+            SentLog.record(this, info?.packageName, chatDraft)
+            chatDraft = ""
+        }
+    }
+
     /** Sherlock's draft into the box, in place of whatever was there (your hint); one step, so undo puts yours back. */
     private fun placeSherlock(text: String): Boolean {
         val ic = currentInputConnection ?: return false
@@ -1698,8 +1718,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // With Auto-reply on, a Reply tapped by hand is sent too, in place of whatever was in the box.
             if (text != null && prefs.sherlockAutoreply) {
                 aiJob = null
+                val app = currentInputEditorInfo?.packageName
                 Thread {
-                    if (SherlockService.instance?.send(text, replacing = true) != true) android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (SherlockService.instance?.send(text, replacing = true) == true) SentLog.record(this, app, text)
+                    else android.os.Handler(android.os.Looper.getMainLooper()).post {
                         android.widget.Toast.makeText(this, "Sherlock couldn’t press send in this app", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }.start()

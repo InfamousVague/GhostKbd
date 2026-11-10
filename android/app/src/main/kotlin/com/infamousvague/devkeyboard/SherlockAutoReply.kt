@@ -37,6 +37,7 @@ object SherlockAutoReply {
     /** How long the chat must be still before it is read: a message arriving comes in several window changes. */
     private const val SETTLE_MS = 1800L
     private const val MIN_GAP_MS = 6000L
+    private const val MAX_WAIT_MS = 5000L
     private const val CHANNEL = "sherlock"
     private const val NOTIFICATION = 7101
     const val STOP_ACTION = "com.infamousvague.devkeyboard.SHERLOCK_STOP"
@@ -63,9 +64,16 @@ object SherlockAutoReply {
         if (pkg == service.packageName || AppContext.kind(pkg) != AppKind.CHAT) return
         val p = prefs ?: KeyboardPrefs(service).also { prefs = it }
         if (!armed(p)) return
+        // Wait for the chat to settle, but no longer than MAX_WAIT_MS: an app that never stops changing (an animated
+        // chip, a typing indicator) must still be read.
+        val now = SystemClock.uptimeMillis()
+        if (pending == null) firstEventAt = now
         pending?.let(main::removeCallbacks)
-        pending = Runnable { worker.execute { check(service, p, pkg) } }.also { main.postDelayed(it, SETTLE_MS) }
+        val delay = minOf(SETTLE_MS, (firstEventAt + MAX_WAIT_MS - now).coerceAtLeast(0))
+        pending = Runnable { pending = null; worker.execute { check(service, p, pkg) } }.also { main.postDelayed(it, delay) }
     }
+
+    private var firstEventAt = 0L
 
     private fun check(service: SherlockService, prefs: KeyboardPrefs, pkg: String) {
         if (!armed(prefs) || !busy.compareAndSet(false, true)) return
@@ -101,6 +109,7 @@ object SherlockAutoReply {
                 return
             }
             synchronized(sent) { sent.addLast(reply); while (sent.size > 30) sent.removeFirst() }
+            SentLog.record(service, pkg, reply)
             inARow[conversation] = (inARow[conversation] ?: 0) + 1
             lastSentAt[conversation] = SystemClock.uptimeMillis()
             notify(service, title(screen, pkg), reply)
@@ -148,6 +157,7 @@ object SherlockAutoReply {
     fun stop(context: Context) {
         KeyboardPrefs(context).set(KeyboardPrefs.SHERLOCK_AUTOREPLY, false)
         pending?.let(main::removeCallbacks)
+        pending = null
         answered.clear(); inARow.clear(); lastSentAt.clear(); pausedSaid.clear()
         context.getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION)
     }
