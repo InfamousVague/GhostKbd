@@ -463,7 +463,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
-        view.configure(profile?.flag("number_row") ?: prefs.numberRow, prefs.keyHeight, prefs.toolbar)
+        view.configure(profile?.flag("number_row") ?: prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
         view.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, locale)
         view.swipeTyping = swipeAllowed()
         view.wideLayout = prefs.wideLayout
@@ -482,9 +482,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val pack = soundToPlay()
             if (pack != null) SoundPacks.prepare(this, pack)
         }
-        val rowShown = prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true
+        // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true)
         view.pluginRow = rowShown
-        row?.let { it.theme = theme; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
+        row?.let { it.theme = theme; it.condensed = prefs.keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
         frame?.working?.theme = theme
         emojiPanel?.theme = theme

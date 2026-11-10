@@ -28,6 +28,8 @@ class KeyboardPrefs(context: Context) {
     val offline: Boolean get() = bool(OFFLINE)
     val keyBorders: Boolean get() = bool(KEY_BORDERS)
     val toolbar: Boolean get() = bool(TOOLBAR)
+    /** Settings › Look & feel › Keys › Hide the row: no strip above the keys at all, whatever plugins are added. */
+    val hideRow: Boolean get() = bool(HIDE_ROW)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -270,6 +272,7 @@ class KeyboardPrefs(context: Context) {
         const val OFFLINE = "offline"
         const val KEY_BORDERS = "key_borders"
         const val TOOLBAR = "toolbar"
+        const val HIDE_ROW = "hide_row"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
@@ -348,6 +351,7 @@ class KeyboardPrefs(context: Context) {
             OFFLINE to false,
             KEY_BORDERS to false,
             TOOLBAR to false,
+            HIDE_ROW to false,
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",

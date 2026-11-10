@@ -87,6 +87,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
      * Arrow keys (Settings › Row tools › Arrow keys), SwiftKey's way: ← ↑ ↓ → pinned at the row's end, there whatever
      * the row is showing, each moving the cursor and repeating while held.
      */
+    /** Condensed keys: a slimmer strip, so the chips keep less room above and below them. */
+    var condensed = false
+        set(value) { if (field != value) { field = value; val now = items; items = emptyList(); setItems(now) } }
     var showArrows = false
         set(value) { field = value; arrows.visibility = if (value) VISIBLE else GONE }
     private val arrowButtons = listOf(
@@ -157,7 +160,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 if (item.view != null) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.MATCH_PARENT,
             )
             lp.gravity = Gravity.CENTER_VERTICAL
-            if (item.chip || item.view != null || item.busy) { lp.leftMargin = dp(4f); lp.rightMargin = dp(4f); lp.topMargin = dp(6f); lp.bottomMargin = dp(6f) }
+            if (item.chip || item.view != null || item.busy) { lp.leftMargin = dp(4f); lp.rightMargin = dp(4f); lp.topMargin = dp(if (condensed) 4f else 6f); lp.bottomMargin = dp(if (condensed) 4f else 6f) }
             strip.addView(v, lp)
         }
         // A filling item (a search bar, the AI's words, an error) shares the row with the buttons beside it and is cut

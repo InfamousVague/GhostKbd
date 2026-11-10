@@ -62,7 +62,7 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
     private fun apply() {
         keys.theme = KeyboardTheme.resolve(keys.context, prefs)
         keys.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(app)
-        keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
+        keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
         val language = prefs.languageState()
         keys.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, language.locale)
         keys.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE) && language.spec.swipe
