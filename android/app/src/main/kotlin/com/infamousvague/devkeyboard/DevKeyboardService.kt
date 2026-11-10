@@ -923,6 +923,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSpaceAt = 0L
         learner.deleted(whole = true)
         autoSpaced = false
+        // A Korean syllable being built goes with its word: the next letter starts a new one.
+        hangul = Hangul.State()
         if (!ic.getSelectedText(0).isNullOrEmpty()) { editor.deleteSelection(); return }
         val before = ic.getTextBeforeCursor(96, 0)?.toString().orEmpty()
         if (before.isEmpty()) return

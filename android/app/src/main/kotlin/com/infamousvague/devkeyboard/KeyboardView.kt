@@ -1147,6 +1147,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         /** Cursor control: where the next word is measured from, as the finger slides left from backspace. */
         var wordAnchor = downX
         var wordsDeleted = false
+        /** How many times a held backspace has repeated: past [DELETE_CHARS] it takes whole words. */
+        var repeats = 0
         /** Swipe typing: the path so far, once the finger has slid far enough to be spelling a word. */
         var swipe: ArrayList<PointF>? = null
     }
@@ -1155,14 +1157,25 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val timer = Handler(Looper.getMainLooper())
 
     private val longPress = Runnable { touch?.let { onLongPress(it) } }
+    /**
+     * A held backspace: a character every 50 ms, then, once it has taken [DELETE_CHARS] (a little over a second),
+     * whole words every [DELETE_WORD_MS] (Matt, 2026-11-10: "when holding backspace make it start to delete entire
+     * words at a time"), as Gboard and SwiftKey do. A sound for each character or word it takes (Matt, 2026-11-09);
+     * the buzz stays on the first press.
+     */
     private val repeatDelete = object : Runnable {
         override fun run() {
             val t = touch ?: return
             if (t.key.type != KeyType.DELETE) return
-            // A sound for each character a held backspace takes (Matt, 2026-11-09); the buzz stays on the first press.
             listener.onKeyFeedback(t.key, haptic = false)
-            listener.onDelete()
-            timer.postDelayed(this, 50)
+            if (t.repeats < DELETE_CHARS) {
+                t.repeats++
+                listener.onDelete()
+                timer.postDelayed(this, 50)
+            } else {
+                listener.onDeleteWord()
+                timer.postDelayed(this, DELETE_WORD_MS)
+            }
         }
     }
 
@@ -1490,6 +1503,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     companion object {
+        /** A held backspace takes this many characters one by one, then whole words, one each [DELETE_WORD_MS]. */
+        const val DELETE_CHARS = 15
+        const val DELETE_WORD_MS = 200L
         /** Wider than this (dp), the keys split: an unfolded foldable's inner screen is 670 or more, a phone 430 or less. */
         const val SPLIT_MIN_DP = 600f
         /** The open middle of a split keyboard, as a share of its width. */
