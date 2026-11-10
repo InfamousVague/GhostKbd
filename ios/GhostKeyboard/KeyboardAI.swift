@@ -96,8 +96,26 @@ extension KeyboardViewController {
     /// the row.
     private func onAiDone(_ job: Ghostwriter.Job) {
         guard job === aiJob else { return }
-        if let text = job.result, placeAnswer(job, text) { aiJob = nil }
-        scheduleRow()
+        guard let text = job.result else { scheduleRow(); return }
+        // The cursor may sit inside the tag (the < > pair key leaves it before the closing >>). iOS has no delete
+        // forward, so it is moved to the tag's end first; and since an app applies a cursor move a moment later than
+        // it is asked for (web views especially), the delete waits for that moment rather than racing it.
+        var ahead = 0
+        if !job.selection {
+            let before = editor.before, after = Array(editor.after)
+            for k in 0...min(job.tag.count, after.count) where (before + String(after.prefix(k))).hasSuffix(job.tag) { ahead = k; break }
+        }
+        if ahead > 0 { editor.move(ahead) }
+        settle(ahead > 0) { [weak self] in
+            guard let self, job === self.aiJob else { return }
+            if self.placeAnswer(job, text) { self.aiJob = nil }
+            self.scheduleRow()
+        }
+    }
+
+    /// Runs `body` now, or a moment from now where the app must first catch up with what was just asked of it.
+    private func settle(_ wait: Bool, _ body: @escaping () -> Void) {
+        if wait { DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: body) } else { body() }
     }
 
     private func placeAnswer(_ job: Ghostwriter.Job, _ text: String) -> Bool {
@@ -112,7 +130,8 @@ extension KeyboardViewController {
             }
         }
         guard placed else { return false }
-        if typeOut { startTyping(text) }
+        // The tag's deletion lands before the first key of the answer is typed.
+        if typeOut { settle(true) { [weak self] in self?.startTyping(text) } }
         aiAnswers.insert(text, at: 0)
         if aiAnswers.count > 6 { aiAnswers.removeLast() }
         updateShift()

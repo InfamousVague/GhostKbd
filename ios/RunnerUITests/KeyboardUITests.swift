@@ -100,6 +100,8 @@ final class KeyboardUITests: XCTestCase {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         a.name = name; a.lifetime = .keepAlways
         add(a)
+        // With SHOTS set (TEST_RUNNER_SHOTS=<folder> for xcodebuild), the picture is written there too.
+        if let dir = ProcessInfo.processInfo.environment["SHOTS"] { try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png")) }
     }
 
     // --- setup, through the Settings app as a person does it -------------------------------------------------------
@@ -272,5 +274,53 @@ final class KeyboardUITests: XCTestCase {
         let done = NSPredicate { _, _ in self.text == "Stubbed answer." }
         wait(for: [XCTNSPredicateExpectation(predicate: done, object: nil)], timeout: 20)
         shot("rewritten")
+    }
+
+    private func drag(from a: CGPoint, to b: CGPoint) {
+        origin.withOffset(CGVector(dx: a.x, dy: a.y)).press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: b.x, dy: b.y)), withVelocity: 120, thenHoldForDuration: 0.1)
+    }
+
+    /// Cursor control: a slide along the space bar moves the cursor; a slide left from delete takes whole words.
+    func test5_SpaceBarCursorAndWordDelete() {
+        openPad()
+        pad.tap()
+        sleep(2)
+        type("one two three")
+        XCTAssertEqual(text, "One two three")
+        let space = point(row: -1) { $0.type == .space }!
+        drag(from: space, to: CGPoint(x: space.x - 70, y: space.y))
+        type("x")
+        let moved = text
+        XCTAssertTrue(moved.contains("x") && !moved.hasSuffix("x"), "the x should land before the end: \(moved)")
+        let delete = point(row: -1) { $0.type == .delete }!
+        drag(from: delete, to: CGPoint(x: delete.x - 90, y: delete.y))
+        XCTAssertTrue(text.count < moved.count - 3, "words should be gone: \(text)")
+        shot("gestures")
+    }
+
+    /// A preset theme with key borders and the number row, and Ghostwriter typing its answer out key by key.
+    func test6_RetroThemeAndTheTypingEffect() {
+        set(stub + "&ai_consent=true&plugins=autocorrect,swipe,clipboard,undo,themes,ghostwriter&theme_preset=retro&number_row=true&ghostwriter_typing=true")
+        openPad()
+        pad.tap()
+        sleep(2)
+        shot("retro")
+        // The number row adds a row above: the layout the taps are placed by must know.
+        set(stub + "&ai_consent=true&plugins=autocorrect,swipe,clipboard,undo,themes,ghostwriter&theme_preset=retro&number_row=false&ghostwriter_typing=true")
+        openPad()
+        pad.tap()
+        sleep(2)
+        typeRequest()
+        key("enter")
+        let done = NSPredicate { _, _ in self.text.contains("Stubbed answer.") }
+        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: done, object: nil)], timeout: 20)
+        shot("typed-out")
+        XCTAssertTrue(text.contains("Stubbed answer."), text)
+        set(stub + "&ai_consent=true&theme_preset=ghost&theme=light&key_borders=true")
+        openPad()
+        pad.tap()
+        sleep(2)
+        shot("light-borders")
+        set(stub + "&ai_consent=true&theme=dark&key_borders=false&ghostwriter_typing=false")
     }
 }

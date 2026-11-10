@@ -135,6 +135,11 @@ On the Simulator (iPhone 17, iOS 27), by the UI tests, typing in Safari:
   "AI is off: agree in the Ghost Keyboard app".
 - With both: `<<standup>>` + return is sent to the stand-in provider with the key from the shared Keychain, and the
   answer replaces the tag. Rewrite from the row replaces the field's text. Undo takes back the keyboard's last edit.
+- A slide along the space bar moves the cursor; a slide left from delete takes whole words.
+- The Retro keycaps with the number row, the light theme with key borders, and the dark default all draw as on
+  Android; the backlight lights a pressed key's legend.
+- With the typing-out effect on, the answer is typed key by key in place of the tag. (This found a fault, now fixed:
+  an app applies a cursor move a moment after it is asked for, so the tag's deletion now waits for it.)
 - Settings written by the app reach the keyboard through the App Group; the keyboard's "seen" and Full Access flags
   reach the app.
 - The app launches into the iOS walkthrough. A release archive builds unsigned.
@@ -146,12 +151,12 @@ Nothing here has run on a real iPhone or iPad. Not exercised at all, beyond comp
 - Haptics and key sounds (the Simulator has neither).
 - The globe key on the keyboard itself (it appears only on phones with a home button; every current Simulator phone
   shows iOS's own globe below the keyboard).
-- Swipe typing by a finger (its decoder is unit-tested; a UI test cannot draw a path), the space-bar cursor, word
-  delete by sliding, the Adaptive keys heatmap.
+- Swipe typing by a finger (its decoder is unit-tested; a UI test cannot draw a path), moving by lines from the
+  space bar, the Adaptive keys heatmap.
 - Landscape, iPad, the split and docked layouts, one-handed mode.
-- Themes other than the dark default, the Retro keycaps, light mode.
+- The other preset themes and a custom theme; the backlight effects other than the default.
 - Clipboard history and Paste (iOS's paste permission prompt), "In my voice", Mockingbird's sample collection and
-  training, the typing-out effect, web search and GitHub search against real services, every real AI provider (only
+  training, web search and GitHub search against real services, every real AI provider (only
   the OpenAI-compatible path ran, against the stand-in).
 - The settings cog opening the app from the keyboard.
 - The settings app's pages beyond the first walkthrough screen, on a device or the Simulator (its widget tests pass).
