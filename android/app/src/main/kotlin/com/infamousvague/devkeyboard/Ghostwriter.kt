@@ -110,6 +110,37 @@ object Ghostwriter {
     }
 
     /** The system prompt (instructions, voice, memory) and the user message (the field and the request). */
+    /** Ghost.md notes found for some words: title and text, where they came from, or why they couldn't be searched. */
+    class Notes(val notes: List<Pair<String, String>>, val from: String, val note: String?)
+
+    /**
+     * Ghost.md's notes that match [words]: from Ghost.md on this phone, else online through its connector when signed
+     * in. Blocking. Ghostwriter's <<requests>> and Sherlock's replies both read them.
+     */
+    fun notes(context: Context, words: List<String>): Notes {
+        if (words.isEmpty()) return Notes(emptyList(), "", null)
+        val local = GhostMd.search(context, words.joinToString(" "), 6).map { it.title to it.body.ifBlank { it.snippet } }
+        if (local.isNotEmpty() || !GhostOnline.signedIn(context)) return Notes(local, "Ghost.md on this phone", null)
+        return runCatching { Notes(GhostOnline.search(context, words).map { it.title to (it.body ?: it.snippet) }, "Ghost.md (online)", null) }
+            .getOrElse { Notes(emptyList(), "Ghost.md (online)", it.message) }
+    }
+
+    /** The notes as a prompt section, at most about 9,000 characters, best first. */
+    fun notesSection(found: Notes, words: List<String>): String = buildString {
+        if (found.notes.isNotEmpty()) {
+            append("\nTHEIR NOTES from ").append(found.from).append(" matching ").append(words.joinToString(", ")).append(" (best first)\n")
+            var left = 9000
+            for ((title, body) in found.notes) {
+                if (left <= 0) break
+                val part = body.take(left.coerceAtMost(2500))
+                left -= part.length
+                append("--- ").append(title).append('\n').append(part).append('\n')
+            }
+        } else if (found.note != null) {
+            append("\n(Their Ghost.md notes couldn't be searched: ").append(found.note).append(")\n")
+        }
+    }
+
     fun prompt(context: Context, prefs: KeyboardPrefs, request: String, before: String, after: String, app: String?): Pair<String, String> {
         val kind = AppContext.kind(app)
         val memory = if (prefs.ghostwriterMemory) Mockingbird.relevant(context, "$request ${before.takeLast(300)}", app) else emptyList()
@@ -123,17 +154,7 @@ object Ghostwriter {
                 .onFailure { githubNote = it.message }.getOrDefault(emptyList())
         } else emptyList()
         val words = GitHubCommits.keywords(request)
-        // Ghost.md's notes that match: from Ghost.md on this phone, else online through its connector.
-        var notesFrom = "Ghost.md on this phone"
-        var notesNote: String? = null
-        val notes: List<Pair<String, String>> = if (prefs.ghostwriterNotes && words.isNotEmpty()) {
-            val local = GhostMd.search(context, words.joinToString(" "), 6).map { it.title to it.body.ifBlank { it.snippet } }
-            if (local.isNotEmpty() || !GhostOnline.signedIn(context)) local else {
-                notesFrom = "Ghost.md (online)"
-                runCatching { GhostOnline.search(context, words).map { it.title to (it.body ?: it.snippet) } }
-                    .onFailure { notesNote = it.message }.getOrDefault(emptyList())
-            }
-        } else emptyList()
+        val found = if (prefs.ghostwriterNotes) notes(context, words) else Notes(emptyList(), "", null)
         val system = buildString {
             append(
                 """
@@ -158,18 +179,7 @@ object Ghostwriter {
                 append("\n\nTHEIR PAST MESSAGES (most relevant first; their memory, for facts and voice)\n")
                 memory.forEach { append("---\n").append(it.text).append('\n') }
             }
-            if (notes.isNotEmpty()) {
-                append("\nTHEIR NOTES from ").append(notesFrom).append(" matching ").append(words.joinToString(", ")).append(" (best first)\n")
-                var left = 9000
-                for ((title, body) in notes) {
-                    if (left <= 0) break
-                    val part = body.take(left.coerceAtMost(2500))
-                    left -= part.length
-                    append("--- ").append(title).append('\n').append(part).append('\n')
-                }
-            } else if (notesNote != null) {
-                append("\n(Their Ghost.md notes couldn't be searched: ").append(notesNote).append(")\n")
-            }
+            append(notesSection(found, words))
             if (commits.isNotEmpty()) {
                 append("\nTHEIR GITHUB COMMITS matching ").append(words.joinToString(", ")).append(" (newest first; what they and their AI agents actually changed)\n")
                 commits.forEach { append("---\n").append(it.date).append(' ').append(it.repo).append('\n').append(it.message).append('\n') }

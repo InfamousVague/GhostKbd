@@ -99,6 +99,7 @@ class SettingsStore extends ChangeNotifier {
     'sherlock_auto': true,
     'sherlock_fill': false,
     'sherlock_autoreply': false,
+    'sherlock_notes': true,
     'ghostwriter_memory': true,
     'ghostwriter_clipboard': false,
     'ghostwriter_web': true,

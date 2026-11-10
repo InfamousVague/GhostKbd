@@ -60,7 +60,8 @@ class SherlockService : AccessibilityService() {
         val all = runCatching { windows }.getOrNull().orEmpty()
         val listed = all.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }?.let { w -> Rect().also { w.getBoundsInScreen(it) }.top }
         val keyboard = listOfNotNull(listed, keyboardTop.takeIf { it > 0 }).minOrNull()?.let { Rect(0, it, 0, it) }
-        val root = appRoot(all) ?: return null
+        val root = appRoot(all)
+        if (root == null) { android.util.Log.w("Sherlock", "no app window: ${all.size} windows ${all.map { it.type }}, info ${serviceInfo?.flags}"); return null }
         val bounds = Rect().also { root.getBoundsInScreen(it) }
         val bottom = keyboard?.top?.takeIf { it > bounds.top } ?: bounds.bottom
         val app = root.packageName?.toString()

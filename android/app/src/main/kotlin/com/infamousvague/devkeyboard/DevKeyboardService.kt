@@ -1613,7 +1613,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (AppContext.kind(info.packageName) != AppKind.CHAT || SherlockService.instance == null) return
         // On its own it never leaves an error in the row at every chat: with Offline on, or no AI set up, it waits for
         // a tap of Reply, which says why.
-        if (Net.offline(prefs) || !AiClient.ready(prefs)) return
+        if (Net.offline(prefs) || !Sherlock.ready(prefs)) return
         rowHandler.postDelayed({
             if (currentInputEditorInfo?.packageName == info.packageName && aiJob == null && !fieldHasText()) startSherlock(fresh = false)
         }, SHERLOCK_SETTLE_MS)

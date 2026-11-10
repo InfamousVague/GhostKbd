@@ -55,7 +55,7 @@ object SherlockAutoReply {
     /** Its own recent replies: never answered, and not taken for you writing. */
     private val sent = ArrayDeque<String>()
 
-    fun armed(prefs: KeyboardPrefs) = Sherlock.on(prefs) && prefs.sherlockAutoreply && !Net.offline(prefs) && AiClient.ready(prefs)
+    fun armed(prefs: KeyboardPrefs) = Sherlock.on(prefs) && prefs.sherlockAutoreply && !Net.offline(prefs) && Sherlock.ready(prefs)
 
     /** A window change in some app: if it is a chat and Auto-reply is armed, look again once it has settled. */
     fun onEvent(service: SherlockService, event: AccessibilityEvent) {

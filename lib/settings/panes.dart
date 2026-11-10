@@ -998,6 +998,7 @@ String _sherlockSummary(SettingsStore s) => s.ai['ready'] != true
 List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
   final ready = store.ai['ready'] == true;
   final on = store.sherlockEnabled;
+  final profile = store.ai['profile'];
   return [
     PaneHero(
       glyph: AppIcon(LucideMore.scanSearch, size: 24),
@@ -1018,6 +1019,23 @@ List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
           value: Text(on ? 'On' : 'Off'),
           onPress: store.openSherlockSettings,
         ),
+      ],
+    ),
+    PaneSection(
+      footer: const Text('Sherlock writes with the AI you set up in AI. It sounds like you from Mockingbird, and takes facts from your Ghost.md notes as Ghostwriter’s <<requests>> do: type a <<question>> in the box and tap Reply to have it answered from them.'),
+      children: [
+        SettingRow(
+          label: 'Writes with',
+          icon: AppIcon(Lucide.sparkles, size: 18),
+          value: Text(ready ? '${_providerName(store)} · ${_modelOf(store)}' : 'Add a key in AI'),
+        ),
+        SettingRow(
+          label: 'Your voice',
+          icon: AppIcon(LucideMore.bird, size: 18),
+          value: Text(profile is Map ? 'Mockingbird profile' : (store.pluginOn('mockingbird') ? 'Not trained yet' : 'Add Mockingbird')),
+          onPress: profile is Map ? null : () => pushSettings(context, (_) => MarketScreen(store: store)),
+        ),
+        _toggle(store, 'sherlock_notes', 'Look in my notes', 'Your Ghost.md notes that match the conversation, for the facts.', LucideMore.squareM),
       ],
     ),
     PaneSection(children: [
