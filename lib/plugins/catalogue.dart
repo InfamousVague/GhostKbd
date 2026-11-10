@@ -148,12 +148,13 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'swipe',
     name: 'Swipe typing',
-    line: 'Draw a word across the keys without lifting your thumb.',
-    description: 'Glide from letter to letter and lift: the word your path traced is typed, with a space after it.',
+    line: 'Draw a word, or a few, across the keys without lifting your thumb.',
+    description: 'Glide from letter to letter and lift: the word your path traced is typed. Keep going into the next '
+        'word and the next, and the whole phrase comes out in one stroke ("hey what’s up").',
     category: PluginCategory.typing,
     hue: 'cyan',
     icon: LucideMore.pointer,
-    adds: ['Glide typing on the letters', 'Other guesses in the row above the keys'],
+    adds: ['Glide typing on the letters', 'Several words in one stroke', 'Other guesses in the row above the keys'],
     hasPage: true,
   ),
   PluginManifest(

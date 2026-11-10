@@ -62,6 +62,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val commonest: Map<String, List<String>> = emptyMap(),
         val sharedI: Boolean = false,
         val cautious: Boolean = false,
+        /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
+        val pairRows: Map<String, String> = emptyMap(),
     )
 
     /** What is typed on and what is known, swapped as one so a key press never sees one board's words under another's keys. */
@@ -97,6 +99,28 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
     /** There are words to correct, suggest and swipe with: false for a layout with no word list (Korean, plain ABC) and while one loads. */
     val active: Boolean get() = now.lexicon.words.isNotEmpty()
+
+    /** Swipe typing's decoder ([SwipeDecoder]), over the lexicon in use; cleared whenever that lexicon changes. */
+    private val decoder = SwipeDecoder(object : SwipeDecoder.Lexicon {
+        override fun ends(first: Char, last: Char): List<String> {
+            val lex = now.lexicon
+            val listed = lex.byEnds["$first$last"].orEmpty()
+            val mine = learned.filter { it.isNotEmpty() && !lex.words.containsKey(it) && letters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
+            return if (mine.isEmpty()) listed else listed + mine
+        }
+        override fun zipf(word: String): Float? = now.lexicon.words[word] ?: if (word in learned) LEARNED_ZIPF else null
+        override fun letters(word: String) = swipeLetters(now.board.script, word)
+        override fun follows(prev: String): Map<String, Float>? = now.lexicon.pairRows[prev]?.let { row ->
+            val out = HashMap<String, Float>()
+            for (e in row.split(' ')) {
+                val c = e.lastIndexOf(':')
+                if (c > 0) e.substring(c + 1).toFloatOrNull()?.let { out[e.substring(0, c).lowercase()] = it / 10_000f }
+            }
+            out
+        }
+    })
+    /** The lexicon the decoder's worked-out shapes are for. */
+    private var decoderLexicon: Lexicon? = null
 
     /** The lexicon asked for last is the one in use: for the self-check, which must not ask before the lists are read. */
     val settled: Boolean @Synchronized get() = now.lexicon.key == wantedKey
@@ -211,9 +235,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 if ((w[plain] ?: 0f) < zipf && (f[plain]?.let { w[it]!! < zipf } != false)) f[plain] = word
                 plains += plain + "\t" + word
             }
-            // Swipe typing: any word of 2 to 20 letters, under its plain first and last letter.
-            if (plain.length < 2 || plain.length > 20 || !plain.all { it.isLetter() }) continue
-            ends.getOrPut("${plain.first()}${plain.last()}") { ArrayList() }.add(word)
+            // Swipe typing: letters and apostrophes ("what's" glides w-h-a-t-s), up to 20 letters, under the plain first
+            // and last letter; a one-letter word only if it's common (it may sit inside a phrase glided in one stroke).
+            if (word.any { !it.isLetter() && it != '\'' && it != '’' }) continue
+            val glide = swipeLetters(script, word)
+            if (glide.isEmpty() || glide.length > 20 || !glide.all { it.isLetter() }) continue
+            if (glide.length == 1 && zipf < SwipeDecoder.ONE_LETTER) continue
+            ends.getOrPut("${glide.first()}${glide.last()}") { ArrayList() }.add(word)
         }
         val gives = HashSet<String>()
         if (lenient && languages.any { it !in STRICT }) {
@@ -227,9 +255,24 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         plains.sort()
         val plainKeys = Array(plains.size) { plains[it].substring(0, plains[it].indexOf('\t')) }
         val plainWords = Array(plains.size) { plains[it].substring(plains[it].indexOf('\t') + 1) }
+        // Which word follows which (assets/ngram), kept as each row's text until swipe typing asks for it.
+        val rows = HashMap<String, String>()
+        for (lang in languages) runCatching {
+            open("ngram/$lang.tsv")?.bufferedReader()?.useLines { lines ->
+                lines.drop(1).forEach { line ->
+                    val tab = line.indexOf('\t')
+                    // One word's row only: swipe typing asks what follows a word, never two ("how are"), and an
+                    // entry with no colon (a row's "=n" total) is passed over when the row is read.
+                    if (tab > 0 && line.indexOf(' ') !in 0 until tab) {
+                        val k = line.substring(0, tab).lowercase()
+                        if (k !in rows) rows[k] = line.substring(tab + 1)
+                    }
+                }
+            }
+        }
         return Lexicon(
             key, w, f, c, sorted, FloatArray(sorted.size) { w[sorted[it]] ?: 0f }, plainKeys, plainWords, FloatArray(plainWords.size) { w[plainWords[it]] ?: 0f },
-            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX },
+            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows,
         )
     }
 
@@ -251,7 +294,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     val isReady: Boolean get() = active
 
     /** Words the person has kept: never corrected, and targets for correcting slips of them. */
-    fun setLearned(words: Set<String>) { learned = words }
+    fun setLearned(words: Set<String>) {
+        if (words == learned) return
+        learned = words
+        synchronized(decoder) { decoder.clear() }
+    }
 
     /** Texting slang on or off (Matt, 2026-11-09: "add slang options to autocorrect like sybau and lmfao and ts"). */
     fun setSlang(on: Boolean) {
@@ -433,101 +480,42 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
-     * Swipe typing: the likeliest words for a finger's [path] over the letters, best first. Each candidate starts
-     * near where the finger came down and ends near where it lifted; its ideal path (straight lines through its
-     * letters' keys) is compared with the finger's, both resampled to the same number of points, and the mean
-     * distance in key widths weighed against how common the word is.
+     * Swipe typing: the likeliest readings of a finger's [path] over the letters, best first: a word, or several
+     * words in one stroke ("hey what's up"). [before] is the word before the cursor in lower case, "^" at a
+     * sentence's start, or null. The decoding is [SwipeDecoder]'s, over the lexicon in use.
      */
-    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float): List<String> {
+    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null): List<String> {
         val now = now
         if (now.lexicon.words.isEmpty() || path.size < 2 || keyW <= 0f) return emptyList()
-        val script = now.board.script
-        val byEnds = now.lexicon.byEnds
-        val n = 40
-        val user = resample(path.map { it.x to it.y }, n)
-        val start = user.first(); val end = user.last()
-        fun near(p: Pair<Float, Float>, limit: Float) = keys.entries
-            .map { (c, k) -> c to dist(p, k.x to k.y) / keyW }
-            .filter { it.second <= limit }.sortedBy { it.second }.take(4).map { it.first }
-        val starts = near(start, 1.1f); val ends = near(end, 1.1f)
-        val words = now.lexicon.words
-        val scored = ArrayList<Pair<String, Float>>()
-        // The index is by plain letters, so a key that is an accented letter (Turkish ö) looks under its plain one.
-        val pairs = LinkedHashSet<String>()
-        for (a in starts) for (b in ends) pairs += "${script.plain(a.toString()).first()}${script.plain(b.toString()).last()}"
-        for (pair in pairs) {
-            val list = byEnds[pair] ?: continue
-            for (word in list) {
-                // The word's keys, a doubled letter once ("hello" glides h-e-l-o). A letter's key is its own or, for
-                // a letter this board keeps behind a long-press, its plain letter's; a word with a letter that has
-                // neither cannot be glided here and is passed over.
-                val pts = ArrayList<Pair<Float, Float>>(word.length)
-                var prev = ' '
-                var typable = true
-                for (c in word) {
-                    if (keys.containsKey(c)) { if (c != prev) { val k = keys[c]!!; pts += k.x to k.y }; prev = c; continue }
-                    for (p in script.plain(c.toString())) {
-                        val k = keys[p]
-                        if (k == null) { typable = false; break }
-                        if (p != prev) pts += k.x to k.y
-                        prev = p
-                    }
-                    if (!typable) break
-                }
-                if (!typable || pts.isEmpty()) continue
-                // Quick test: every letter passes near the path, in order.
-                var at = 0; var ok = true
-                for (p in pts) {
-                    while (at < n && dist(user[at], p) > keyW * 1.25f) at++
-                    if (at >= n) { ok = false; break }
-                }
-                if (!ok) continue
-                val ideal = if (pts.size == 1) List(n) { pts[0] } else resample(pts, n)
-                var d = 0f
-                for (i in 0 until n) d += dist(user[i], ideal[i])
-                d /= n * keyW
-                val zipf = words[word] ?: LEARNED_ZIPF
-                scored += word to (zipf * 0.55f - d * 6f)
+        return synchronized(decoder) {
+            // Another board's words: the shapes worked out for the last lexicon are no use.
+            if (now.lexicon !== decoderLexicon) { decoder.clear(); decoderLexicon = now.lexicon; swipeKeysFrom = null }
+            // The same keys keep the same map, so the decoder keeps the words' shapes it has worked out for them.
+            if (keys != swipeKeysFrom) {
+                swipeKeysFrom = HashMap(keys.mapValues { (_, p) -> android.graphics.PointF(p.x, p.y) })
+                swipeKeys = keys.mapValues { (_, p) -> p.x to p.y }
+                warm(swipeKeys, now.lexicon)
+            }
+            decoder.decode(path.map { it.x to it.y }, swipeKeys, keyW, before)
+        }
+    }
+
+    /**
+     * Works out every word's shape on these [keys] in the background, a pair of letters at a time, so the strokes
+     * after the first don't wait for it. A stroke meanwhile waits for one pair at most.
+     */
+    private fun warm(keys: Map<Char, Pair<Float, Float>>, lexicon: Lexicon) {
+        val pairs = lexicon.byEnds.keys.toList()
+        thread(name = "swipe-warm", isDaemon = true, priority = Thread.MIN_PRIORITY) {
+            for (pair in pairs) {
+                if (swipeKeys !== keys || now.lexicon !== lexicon) return@thread
+                synchronized(decoder) { decoder.warm(pair[0], pair[1], keys) }
             }
         }
-        for (l in learned) {
-            // Learned words glide too: scored the same way when their ends match.
-            if (l.length < 2 || l.first() !in starts || l.last() !in ends || words.containsKey(l)) continue
-            val pts = l.mapNotNull { keys[it]?.let { k -> k.x to k.y } }
-            if (pts.size != l.length) continue
-            val ideal = resample(pts, n)
-            var d = 0f
-            for (i in 0 until n) d += dist(user[i], ideal[i])
-            scored += l to (LEARNED_ZIPF * 0.55f - d / (n * keyW) * 6f)
-        }
-        return scored.sortedByDescending { it.second }.map { capitalI(now, it.first) }.distinct().take(5)
     }
 
-    private fun dist(a: Pair<Float, Float>, b: Pair<Float, Float>) = kotlin.math.hypot(a.first - b.first, a.second - b.second)
-
-    /** [pts] as [n] points evenly spaced along its length. */
-    private fun resample(pts: List<Pair<Float, Float>>, n: Int): List<Pair<Float, Float>> {
-        var total = 0f
-        for (i in 1 until pts.size) total += dist(pts[i - 1], pts[i])
-        if (total <= 0f) return List(n) { pts.first() }
-        val step = total / (n - 1)
-        val out = ArrayList<Pair<Float, Float>>(n)
-        out += pts.first()
-        var acc = 0f
-        var i = 1
-        var prev = pts.first()
-        while (i < pts.size && out.size < n) {
-            val cur = pts[i]
-            val d = dist(prev, cur)
-            if (acc + d >= step && d > 0f) {
-                val t = (step - acc) / d
-                val q = (prev.first + t * (cur.first - prev.first)) to (prev.second + t * (cur.second - prev.second))
-                out += q; prev = q; acc = 0f
-            } else { acc += d; prev = cur; i++ }
-        }
-        while (out.size < n) out += pts.last()
-        return out
-    }
+    private var swipeKeysFrom: Map<Char, android.graphics.PointF>? = null
+    @Volatile private var swipeKeys: Map<Char, Pair<Float, Float>> = emptyMap()
 
     /** What a word should be: [word], and whether autocorrect is [sure] enough to change it by itself (else it is only offered). */
     private class Fix(val word: String, val sure: Boolean)
@@ -884,6 +872,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
         /** The name of a set of word lists as one lexicon: the script and the lists' stems ("LATIN:en,pl"); empty with no list. */
         fun key(script: Script, dictionaries: List<String>): String = if (dictionaries.isEmpty()) "" else script.name + ":" + dictionaries.joinToString(",")
+
+        /** [word]'s letters for swipe typing: lower case, plain ([Script.plain]), apostrophes dropped ("What's" is "whats"). */
+        fun swipeLetters(script: Script, word: String): String = script.plain(word.lowercase()).filter { it != '\'' && it != '’' }
 
         private val DEV_WORDS = """
             npm npx pnpm yarn pip pipx venv conda brew apt sudo ssh scp rsync git github gitlab repo repos rebase

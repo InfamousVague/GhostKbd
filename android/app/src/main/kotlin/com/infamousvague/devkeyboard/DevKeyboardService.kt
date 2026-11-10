@@ -253,6 +253,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onDestroy() {
+        swipeWorker.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SoundPacks.release()
         WhisperModel.removeListener(onModel)
@@ -2041,13 +2042,47 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     // --- swipe typing (the swipe plugin) ----------------------------------------------------------------------------
 
+    /** Decodes swipes away from the main thread: a long stroke read as several words can take a moment. */
+    private val swipeWorker = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "swipe-decoder").apply { isDaemon = true } }
+    private val swipeHandler = Handler(Looper.getMainLooper())
+    /** Bumped by every stroke: a stroke's reading lands only if no later stroke has begun. */
+    private var swipeGeneration = 0
+
     override fun onSwipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyWidth: Float) {
         wordTouches.clear(); takenTouch = null
         hangul = Hangul.State()
         toolsHeld = false
         if (gifMode == GifMode.TYPING) return
         val ic = currentInputConnection ?: return
-        val found = autocorrect.swipe(path, keys, keyWidth)
+        // The word before the cursor, or "^" at a sentence's start, so a stroke's first word reads in context.
+        val context = ic.getTextBeforeCursor(48, 0)?.toString().orEmpty()
+        val tail = context.trimEnd()
+        val prior = when {
+            tail.isEmpty() || tail.last() in ".!?\n" -> "^"
+            context.last().isWhitespace() -> tail.takeLastWhile { it.isLetter() || it == '\'' || it == '’' }.lowercase().ifEmpty { null }
+            else -> null
+        }
+        // Read in the background; typed only if the field, the cursor and the strokes are as they were when the
+        // finger lifted, so a reading that comes late never lands somewhere the person has since moved on from.
+        val generation = ++swipeGeneration
+        val field = currentInputEditorInfo
+        val at = selStart to selEnd
+        val points = path.map { android.graphics.PointF(it.x, it.y) }
+        val centres = HashMap(keys)
+        swipeWorker.execute {
+            val started = android.os.SystemClock.elapsedRealtime()
+            val found = runCatching { autocorrect.swipe(points, centres, keyWidth, prior) }.getOrDefault(emptyList())
+            // How long it took, never what was typed: the system log is no place for someone's words.
+            android.util.Log.d("GhostKeyboard", "swipe decoded in ${android.os.SystemClock.elapsedRealtime() - started} ms, ${found.firstOrNull()?.count { it == ' ' }?.plus(1) ?: 0} words")
+            swipeHandler.post {
+                if (generation == swipeGeneration && currentInputEditorInfo === field && (selStart to selEnd) == at && currentInputConnection != null) typeSwipe(found)
+            }
+        }
+    }
+
+    /** Types a swipe's reading [found] (best first) at the cursor, the rest kept as alternatives in the row. */
+    private fun typeSwipe(found: List<String>) {
+        val ic = currentInputConnection ?: return
         if (found.isEmpty()) return
         val shift = keyboard?.shift ?: ShiftState.OFF
         val words = found.map { w ->
