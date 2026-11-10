@@ -403,6 +403,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
         }
         updateShift()
+        if (!restarting) autoSherlock(info)
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
@@ -1076,7 +1077,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.SHERLOCK)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -1325,6 +1326,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
+        // Sherlock: your reply to the chat on the screen, drafted in your voice (from what's in the box, if anything).
+        if (Plugins.isOn(prefs, Plugins.SHERLOCK) && aiAllowed() && selStart == selEnd) {
+            items += RowItem("sherlock", label = "Reply", icon = RowIcon.SEARCH, tint = RowTint.AI, bold = app == AppKind.CHAT, chip = true) { startSherlock(fresh = true) }
+        }
         // Mockingbird: the selection rewritten as you.
         if (Plugins.isOn(prefs, Plugins.MOCKINGBIRD) && aiAllowed() && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
@@ -1596,6 +1601,46 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /** Sherlock on its own: as the keyboard opens, empty, in a chat app, once the app has settled under it. */
+    private fun autoSherlock(info: EditorInfo) {
+        if (!Plugins.isOn(prefs, Plugins.SHERLOCK) || !prefs.sherlockAuto || !aiAllowed()) return
+        if (AppContext.kind(info.packageName) != AppKind.CHAT || SherlockService.instance == null) return
+        rowHandler.postDelayed({
+            if (currentInputEditorInfo?.packageName == info.packageName && aiJob == null && !fieldHasText()) startSherlock(fresh = false)
+        }, SHERLOCK_SETTLE_MS)
+    }
+
+    /** Sherlock: reads the chat and drafts the reply; what is in the box already is what you want to say. */
+    private fun startSherlock(fresh: Boolean) {
+        if (!aiAllowed()) return
+        val ic = currentInputConnection
+        val hint = if (ic == null) "" else (ic.getTextBeforeCursor(1000, 0)?.toString().orEmpty() + ic.getTextAfterCursor(1000, 0)?.toString().orEmpty())
+        aiJob?.cancelled = true
+        // Where the keyboard starts on the screen, so Sherlock reads only the app above it.
+        val top = keyboard?.let { v -> IntArray(2).also { v.getLocationOnScreen(it) }[1] + v.keyboardTop.toInt() } ?: 0
+        aiJob = Ghostwriter.sherlock(this, prefs, hint, currentInputEditorInfo?.packageName, fresh, top) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /** Sherlock's draft into the box, in place of whatever was there (your hint); one step, so undo puts yours back. */
+    private fun placeSherlock(text: String): Boolean {
+        val ic = currentInputConnection ?: return false
+        finishTyping()
+        val typeOut = prefs.ghostwriterTyping
+        val placed = if (fieldHasText()) {
+            val was = editor.selectionNow()
+            ic.performContextMenuAction(android.R.id.selectAll)
+            editor.sent()
+            val all = ic.getSelectedText(0)?.toString().orEmpty()
+            editor.rememberRewrite(all, was)
+            all.isNotEmpty() && editor.beginFill(0, 0, all, selection = true, full = text, typeOut = typeOut)
+        } else editor.beginFill(0, 0, "", selection = false, full = text, typeOut = typeOut)
+        if (!placed) return false
+        if (typeOut) startTyping(text)
+        remember(text)
+        return true
+    }
+
     private fun rewriteSelection(selected: String) {
         if (offlineOn) { sayOffline(); return }
         aiJob?.cancelled = true
@@ -1640,6 +1685,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun onAiDone(job: Ghostwriter.Job) {
         if (job !== aiJob) return
         val text = job.result
+        if (job.mode == Sherlock.MODE) {
+            // The draft waits in the row unless it is to go straight into the box.
+            if (text != null && prefs.sherlockFill && placeSherlock(text)) aiJob = null
+            scheduleRow()
+            return
+        }
         if (text != null && placeAnswer(job, text)) aiJob = null
         scheduleRow()
     }
@@ -1810,6 +1861,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** What the row says the AI is doing for [job]: writing the request, rewriting as asked, or in the person's voice. */
     private fun doing(job: Ghostwriter.Job): String {
+        if (job.mode == Sherlock.MODE) return "Reading the chat…"
         Rewrite.mode(prefs, job.mode)?.let { return "${it.label}…" }
         if (job.selection) return "Rewriting in your voice…"
         return "Writing \u201C${preview(job.request)}\u201D…"
@@ -1831,13 +1883,27 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += dismiss
             }
             job.error != null -> {
-                items += RowItem("ai-err-${job.id}", label = job.error, icon = RowIcon.WARNING, tint = RowTint.ERROR, chip = true, fill = true) { if (job.error == Net.OFFLINE_MESSAGE) openOfflineSettings() else onOpenSettings() }
+                items += RowItem("ai-err-${job.id}", label = job.error, icon = RowIcon.WARNING, tint = RowTint.ERROR, chip = true, fill = true) {
+                    when (job.error) {
+                        Sherlock.NOT_ON -> SherlockService.openSettings(this)
+                        Net.OFFLINE_MESSAGE -> openOfflineSettings()
+                        else -> onOpenSettings()
+                    }
+                }
                 items += RowItem("ai-retry-${job.id}", label = "Retry", icon = RowIcon.RETRY, bold = true, chip = true) {
                     aiJob = null
                     val mode = Rewrite.mode(prefs, job.mode)
-                    if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    if (job.mode == Sherlock.MODE) startSherlock(fresh = true) else if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
                     scheduleRow()
                 }
+                items += dismiss
+            }
+            job.mode == Sherlock.MODE -> {
+                val text = job.result.orEmpty()
+                items += RowItem("sh-put-${job.id}", label = text.replace(Regex("\\s+"), " ").trim().take(200), icon = RowIcon.SEARCH, tint = RowTint.AI, bold = true, chip = true, fill = true, description = "Put this reply in the box") {
+                    if (placeSherlock(text)) aiJob = null; scheduleRow()
+                }
+                items += RowItem("sh-again-${job.id}", label = "Another", icon = RowIcon.RETRY, chip = true) { startSherlock(fresh = true) }
                 items += dismiss
             }
             else -> {
@@ -2230,6 +2296,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     companion object {
+        /** How long Sherlock waits after the keyboard opens before reading the chat: the app moves its messages up first. */
+        private const val SHERLOCK_SETTLE_MS = 700L
         /** Punctuation that finishes a word on every layout, and so runs autocorrect on it before it is typed ([isWordEnd] adds the layout's own). */
         private const val WORD_ENDS = ".,!?"
 

@@ -25,13 +25,14 @@ enum PluginCategory {
 }
 
 /// What a plugin may reach.
-enum Permission { microphone, network, autofill, download }
+enum Permission { microphone, network, autofill, download, screen }
 
 const Map<Permission, String> plainPermissionWords = {
   Permission.microphone: 'Your microphone',
   Permission.network: 'The internet',
   Permission.autofill: 'Your password manager',
   Permission.download: 'Space on your phone',
+  Permission.screen: 'What’s on your screen',
 };
 
 LucideIcon permissionIcon(Permission kind) => switch (kind) {
@@ -39,6 +40,7 @@ LucideIcon permissionIcon(Permission kind) => switch (kind) {
       Permission.network => Lucide.globe,
       Permission.autofill => Lucide.keyRound,
       Permission.download => LucideMore.hardDriveDownload,
+      Permission.screen => LucideMore.scanSearch,
     };
 
 @immutable
@@ -323,6 +325,29 @@ const List<PluginManifest> catalogue = [
       PluginPermission(Permission.network, 'To send the request, the text around it and the matching past messages to the AI you choose, with your own key.'),
     ],
     hosts: ['the AI provider you choose', 'api.github.com', 'ghostmarkdown.com'],
+    hasPage: true,
+  ),
+  PluginManifest(
+    id: 'sherlock',
+    name: 'Sherlock',
+    line: 'Reads the chat on your screen and drafts your reply, in your words.',
+    description:
+        'Open the keyboard in a chat and Sherlock reads the conversation on the screen, works out who said what, and '
+        'drafts the reply you would send, in your voice (Mockingbird’s style profile and your past messages, when you '
+        'have Mockingbird). The draft waits in the row: tap it to put it in the box, or Another for a different one. '
+        'Type a few words first (“no, busy, maybe sunday”) and tap Reply, and it writes that as you. It never sends '
+        'anything: you read it and press send. It reads the app’s own text where it can, and on Android 11 or later '
+        'reads a picture of the screen with on-phone OCR where an app draws its own. It needs its switch in Android’s '
+        'accessibility settings, and reads nothing in password fields or while incognito.',
+    category: PluginCategory.tools,
+    hue: 'cyan',
+    icon: LucideMore.scanSearch,
+    adds: ['A drafted reply as you open a chat', 'Reply: your few words written out in your voice', 'Works in any chat app, with OCR where text can’t be read'],
+    permissions: [
+      PluginPermission(Permission.screen, 'To read the chat under the keyboard, with a switch you turn on in Android’s accessibility settings. Only when it drafts a reply.'),
+      PluginPermission(Permission.network, 'To send the conversation on your screen to the AI you choose, with your own key, for the one reply. Nothing is kept.'),
+    ],
+    hosts: ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com', 'api.mistral.ai', 'api.groq.com', 'api.deepseek.com', 'openrouter.ai'],
     hasPage: true,
   ),
   PluginManifest(

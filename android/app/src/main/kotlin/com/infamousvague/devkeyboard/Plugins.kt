@@ -26,6 +26,8 @@ package com.infamousvague.devkeyboard
  * - `ghostwriter` (Ghostwriter.kt): <<request>> anywhere is written by the AI, as you, in place.
  * - `rewrite` (Rewrite.kt, AiClient.kt): a Rewrite button in the row: the selection, or the whole field, fixed,
  *   shortened, made formal or casual, or translated, in place.
+ * - `sherlock` (Sherlock.kt, SherlockService.kt): reads the chat on the screen (an accessibility service, OCR where an app
+ *   draws its own text) and drafts your reply in your voice, in the row or straight into the box; never sends it.
  * - `adaptive` (AdaptiveKeys.kt): learns where you aim at each letter and the neighbours you hit by mistake, and moves
  *   the keys' touch areas to suit; a heatmap of the mistakes and the moved aims can be drawn over the keys.
  */
@@ -47,7 +49,8 @@ object Plugins {
     const val GHOSTWRITER = "ghostwriter"
     const val ADAPTIVE = "adaptive"
     const val REWRITE = "rewrite"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE)
+    const val SHERLOCK = "sherlock"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, SHERLOCK)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()
