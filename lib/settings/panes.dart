@@ -631,7 +631,7 @@ List<Widget> _typingMorePart(BuildContext context, SettingsStore store) => [
 List<Widget> _lookPage(BuildContext context, SettingsStore store) => [
       PaneSection(children: [
         _choice(store, 'theme', 'Light or dark', const {'system': 'System', 'light': 'Light', 'dark': 'Dark'}),
-        _choice(store, 'key_height', 'Key height', const {'short': 'Short', 'normal': 'Normal', 'tall': 'Tall'}),
+        _choice(store, 'key_height', 'Key height', const {'condensed': 'Condensed', 'short': 'Short', 'normal': 'Normal', 'tall': 'Tall'}, 'Condensed takes about a fifth less of the screen: shorter rows, smaller letters and a slimmer row above.'),
       ]),
     ];
 
@@ -650,6 +650,7 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
         _toggle(store, 'key_borders', 'Key borders'),
         _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
+        _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Long-press { } still opens settings.'),
       ]),
       PaneSection(
         footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),

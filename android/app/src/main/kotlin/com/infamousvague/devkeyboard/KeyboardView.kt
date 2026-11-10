@@ -255,7 +255,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     fun configure(numberRow: Boolean, keyHeight: String, toolbar: Boolean) {
         // Gboard's rows, measured from its own screenshot: a 48dp key and a 12dp gap, 60dp from row to row.
-        val height = when (keyHeight) { "short" -> 52f; "tall" -> 68f; else -> 60f }
+        // Condensed (Matt, 2026-11-10: "a condensed version of the keyboard that takes up 15% or more less space"):
+        // 46dp rows, smaller labels and a slimmer strip above the keys, about a fifth less than Normal in all.
+        val height = when (keyHeight) { "condensed" -> CONDENSED_ROW_DP; "short" -> 52f; "tall" -> 68f; else -> 60f }
         if (numberRow == this.numberRow && height == rowHeightDp && toolbar == showToolbar) return
         this.numberRow = numberRow
         rowHeightDp = height
@@ -329,7 +331,11 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** Where the keyboard itself starts, below [previewSpace]: the service tells Android only this part is the IME. */
     val keyboardTop get() = previewSpace
     // Gboard leaves 24dp above the first row's keys (this, and the key's own 6dp of row gap).
-    private val toolbarHeight get() = if (showToolbar || pluginRow) dp(44f) else dp(18f)
+    private val toolbarHeight get() = if (showToolbar || pluginRow) dp(if (condensed) 34f else 44f) else dp(if (condensed) 8f else 18f)
+    /** Settings › Look & feel › Key height › Condensed. */
+    private val condensed get() = rowHeightDp <= CONDENSED_ROW_DP
+    /** Labels shrink with condensed keys so they keep the same room around them. */
+    private val labelScale get() = if (condensed) 0.87f else 1f
     private val keysTop get() = keyboardTop + toolbarHeight
     /** The plugin row's strip, and where the keys end (above Android's buttons): KeyboardFrame lays out by these. */
     val rowTop get() = keyboardTop
@@ -339,7 +345,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val sidePad get() = dp(1.5f)
     private val bottomPad get() = dp(2f)
     private val keyPadX get() = dp(3f)
-    private val keyPadY get() = dp(6f)
+    private val keyPadY get() = dp(if (condensed) 4.5f else 6f)
     private val keyRadius get() = dp(6f)
     private var navInset = 0
     private var seenInset = -1
@@ -664,19 +670,19 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 val text = shown(key)
                 val letter = page == Page.LETTERS && text.length == 1 && text[0].isLetter()
                 label.typeface = regular
-                label.textSize = sp(if (letter) 23f else if (text.length > 2) 17f else 21f)
+                label.textSize = sp(if (letter) 23f else if (text.length > 2) 17f else 21f) * labelScale
                 label.color = theme.text
                 fitText(text, f.width() - dp(4f))
                 drawCentered(canvas, text, cx, cy)
                 if (showHints && key.hint != null) {
-                    label.textSize = sp(10.5f)
+                    label.textSize = sp(10.5f) * labelScale
                     label.color = theme.hint
-                    canvas.drawText(key.hint, f.right - dp(7f), f.top + dp(13f), label)
+                    canvas.drawText(key.hint, f.right - dp(if (condensed) 6f else 7f), f.top + dp(if (condensed) 11f else 13f), label)
                 }
             }
             KeyType.MODE -> {
                 label.typeface = medium
-                label.textSize = sp(15f)
+                label.textSize = sp(15f) * labelScale
                 // On the developer page its { } key is lit: it is the page's way back.
                 label.color = if (page == Page.DEV && key.label == "{ }") theme.accent else theme.text
                 drawCentered(canvas, key.label, cx, cy)
@@ -1290,6 +1296,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     companion object {
+        /** A condensed key row, row to row (Normal is 60). */
+        const val CONDENSED_ROW_DP = 46f
         /** Wider than this (dp), the keys split: an unfolded foldable's inner screen is 670 or more, a phone 430 or less. */
         const val SPLIT_MIN_DP = 600f
         /** The open middle of a split keyboard, as a share of its width. */

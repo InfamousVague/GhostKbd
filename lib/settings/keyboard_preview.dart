@@ -17,9 +17,11 @@ import 'kit/settings_type.dart';
 /// How tall the native view draws itself, in logical pixels (KeyboardView's own sums: the strip above the keys, the
 /// toolbar or its gap, the rows, and the pad under them).
 double keyboardPreviewHeight(SettingsStore store) {
-  final row = switch (store.choice('key_height')) { 'short' => 52.0, 'tall' => 68.0, _ => 60.0 };
+  final condensed = store.choice('key_height') == 'condensed';
+  final row = switch (store.choice('key_height')) { 'condensed' => 46.0, 'short' => 52.0, 'tall' => 68.0, _ => 60.0 };
   final rows = store.flag('number_row') ? 5 : 4;
-  return 40 + (store.flag('toolbar') ? 44 : 18) + rows * row + 2;
+  final toolbar = store.flag('toolbar') && !store.flag('hide_row');
+  return 40 + (toolbar ? (condensed ? 34 : 44) : (condensed ? 8 : 18)) + rows * row + 2;
 }
 
 /// The keyboard itself, live. Only Android has it; anywhere else (a test, a desktop run) it is nothing.

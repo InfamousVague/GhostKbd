@@ -59,7 +59,7 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
     private fun apply() {
         keys.theme = KeyboardTheme.resolve(keys.context, prefs)
         keys.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(app)
-        keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar)
+        keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
         keys.swipeTyping = Plugins.isOn(prefs, Plugins.SWIPE)
         keys.wideLayout = prefs.wideLayout
         keys.oneHanded = prefs.oneHanded

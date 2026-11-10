@@ -56,6 +56,7 @@ class SettingsStore extends ChangeNotifier {
     'auto_update': true,
     'key_borders': false,
     'toolbar': false,
+    'hide_row': false,
     'haptics': 'medium',
     'developer': false,
     'autocorrect': true,
