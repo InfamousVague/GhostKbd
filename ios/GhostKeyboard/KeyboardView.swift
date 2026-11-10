@@ -158,11 +158,14 @@ final class KeyboardView: UIView {
         if changed { rebuild(); invalidateIntrinsicContentSize(); setNeedsDisplay() }
     }
 
-    /// An iPhone's keyboard rows are a little shorter than Gboard's 60dp on Android; landscape has far less room.
+    /// The rows are as far apart as on iOS's own keyboard, so a thumb finds each key where it expects it: 54 points
+    /// on an iPhone, 56 on the widest ones (measured on iOS 27: iPhone 17, and iPhone 17 Pro Max). Short and tall are
+    /// six points either side. Landscape has far less room.
     private func updateRowHeight() {
         let landscape = (window?.windowScene?.interfaceOrientation.isLandscape ?? false) && traitCollection.userInterfaceIdiom == .phone
+        let stock: CGFloat = traitCollection.userInterfaceIdiom == .phone && Self.screenWidth >= Self.widePhone ? 56 : 54
         let h: CGFloat
-        switch keyHeightSetting { case "short": h = 48; case "tall": h = 60; default: h = 54 }
+        switch keyHeightSetting { case "short": h = stock - 6; case "tall": h = stock + 6; default: h = stock }
         let next = landscape ? min(h, 40) : h
         if next != rowHeight { rowHeight = next; layoutKeys(); invalidateIntrinsicContentSize() }
     }
@@ -218,10 +221,16 @@ final class KeyboardView: UIView {
     // --- metrics ----------------------------------------------------------------------------------------------------
 
     /// The strip above the keys: the row's, or a sliver that leaves the top row room to breathe.
-    private var toolbarHeight: CGFloat { pluginRow ? 44 : 10 }
+    private var toolbarHeight: CGFloat { pluginRow ? (onPhone ? 46 : 44) : 10 }
+    private var onPhone: Bool { traitCollection.userInterfaceIdiom == .phone }
+    /// The screen's shorter side, in points: which iPhone this is, whichever way it is held.
+    static var screenWidth: CGFloat { min(UIScreen.main.bounds.width, UIScreen.main.bounds.height) }
+    /// From this width up, iOS's own keyboard has the taller rows.
+    static let widePhone: CGFloat = 430
     private var keysTop: CGFloat { toolbarHeight }
     var rowBottom: CGFloat { keysTop }
-    private let sidePad: CGFloat = 1.5
+    /// iOS's own keys stop 6.7 points short of the screen's edges on an iPhone: this and a key's own inset make that.
+    private var sidePad: CGFloat { onPhone ? 3.67 : 1.5 }
     private let bottomPad: CGFloat = 2
     private let keyPadX: CGFloat = 3
     private var keyPadY: CGFloat { rowHeight >= 50 ? 5.5 : 4 }

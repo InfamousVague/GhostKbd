@@ -31,8 +31,10 @@ final class KeyboardUITests: XCTestCase {
     var page: Page = .letters
     /// The strip iOS keeps under a keyboard on an iPhone with no home button (its globe and dictation keys).
     var systemBar: CGFloat = 75
-    let rowHeight: CGFloat = 54
-    let rowStrip: CGFloat = 44
+    /// As KeyboardView: iOS's own row spacing, taller on the widest phones; the row above the keys; the side margin.
+    lazy var rowHeight: CGFloat = min(screenSize.width, screenSize.height) >= 430 ? 56 : 54
+    let rowStrip: CGFloat = 46
+    let sidePad: CGFloat = 3.67
 
     lazy var screenSize: CGSize = XCUIApplication(bundleIdentifier: "com.apple.springboard").frame.size
     lazy var origin = XCUIApplication(bundleIdentifier: "com.apple.springboard").coordinate(withNormalizedOffset: .zero)
@@ -44,9 +46,9 @@ final class KeyboardUITests: XCTestCase {
         let all = rows()
         let rowH = rowHeight * 4 / CGFloat(all.count)
         let keysTop = screen.height - systemBar - 2 - rowHeight * 4
-        let unit = (screen.width - 3) / 10
+        let unit = (screen.width - sidePad * 2) / 10
         for (i, row) in all.enumerated() where r < 0 || r == i {
-            var x = 1.5 + row.inset * unit + (10 - row.units) * unit / 2
+            var x = sidePad + row.inset * unit + (10 - row.units) * unit / 2
             for k in row.keys {
                 if match(k) { return CGPoint(x: x + k.width * unit / 2, y: keysTop + CGFloat(i) * rowH + rowH / 2 + 3) }
                 x += k.width * unit

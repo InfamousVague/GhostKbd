@@ -103,4 +103,20 @@ extension KeyboardUITests {
         sleep(2)
         shot("09-setup")
     }
+
+    /// A picture of iOS's own keyboard in the app's field, on a Simulator that has not had Ghost Keyboard added: what
+    /// KeyboardView's row spacing and margins are measured from (docs/IOS.md, "Matching iOS's keyboard").
+    func testStock_ApplesKeyboard() {
+        let app = ghost
+        app.launch()
+        sleep(3)
+        let skip = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Skip")).firstMatch
+        if skip.exists { skip.tap(); sleep(2) }
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        sleep(2)
+        if app.buttons["Continue"].exists { app.buttons["Continue"].tap(); sleep(1) }
+        shot("stock")
+    }
 }
