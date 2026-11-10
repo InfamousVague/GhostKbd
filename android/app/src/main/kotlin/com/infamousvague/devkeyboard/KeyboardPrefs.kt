@@ -176,6 +176,14 @@ class KeyboardPrefs(context: Context) {
      */
     val nextWordMockingbird: Boolean get() = bool(NEXT_WORD_MOCKINGBIRD)
 
+    /**
+     * Settings › Typing › Typing stats › Share anonymous typing reports (Reports.kt): off unless the person turns it
+     * on. On, counts of what the keyboard did, where taps land on their keys, and word-list words that were mistyped
+     * or misread are sent to attack.fm at most once a day, with no account and no id; off again, what was waiting is
+     * deleted.
+     */
+    val shareReports: Boolean get() = bool(SHARE_REPORTS)
+
     /** The AI Mockingbird and Ghostwriter use (AiClient.PROVIDERS' ids), and the person's own key and model for each. */
     val aiProvider: String get() = prefs.getString(AI_PROVIDER, "anthropic")!!
     fun aiKey(provider: String): String = prefs.getString("ai_key_$provider", "")!!
@@ -310,6 +318,7 @@ class KeyboardPrefs(context: Context) {
         const val NEXT_WORD_LEARN = "next_word_learn"
         const val NEXT_WORD_MOCKINGBIRD = "next_word_mockingbird"
         const val LEARN_MISTAKES = "learn_mistakes"
+        const val SHARE_REPORTS = "share_reports"
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
         const val SPLIT = "split_keyboard"
@@ -389,6 +398,7 @@ class KeyboardPrefs(context: Context) {
             NEXT_WORD_LEARN to true,
             NEXT_WORD_MOCKINGBIRD to true,
             LEARN_MISTAKES to true,
+            SHARE_REPORTS to false,
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
             SPLIT to true,

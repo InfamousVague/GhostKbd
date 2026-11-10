@@ -1,0 +1,17 @@
+# Inside the attack.fm site block, before the file server that serves /devkeyboard/:
+# the one path the keyboard posts reports to, passed to the collector on this machine.
+# Nothing of the request is logged: no address, no agent, no time.
+@kbdreport {
+	method POST
+	path /devkeyboard/report
+}
+handle @kbdreport {
+	request_body {
+		max_size 100KB
+	}
+	log_skip
+	reverse_proxy 127.0.0.1:8377 {
+		header_up -X-Forwarded-For
+		header_up -X-Real-IP
+	}
+}

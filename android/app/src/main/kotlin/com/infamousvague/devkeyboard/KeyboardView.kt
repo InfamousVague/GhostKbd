@@ -17,10 +17,8 @@ import android.view.View
 import android.view.WindowInsets
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.min
-import kotlin.math.sin
 
 /** What the keyboard asks of whoever hosts it (the input method service). */
 interface KeyboardListener {
@@ -719,28 +717,13 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         .filter { (k, _) -> k.type == KeyType.CHAR && k.text.length == 1 && k.text[0].isLetter() }
         .associate { (k, r) -> k.text[0].lowercaseChar() to PointF(r.centerX(), r.centerY()) }
 
-    private val settingsRect get() = RectF(dp(4f), keyboardTop, dp(4f) + toolbarHeight, keysTop)
     private val hideRect get() = RectF(width - dp(4f) - toolbarHeight, keyboardTop, width - dp(4f), keysTop)
 
+    /** The old toolbar, where no plugin fills a row: its hide button. Settings opens from the { } key or the comma, held. */
     private fun drawToolbar(canvas: Canvas) {
         stroke.color = theme.toolbarIcon
-        stroke.strokeWidth = dp(1.8f)
-        // Settings: a cog.
-        val g = settingsRect
-        val cx = g.centerX(); val cy = g.centerY()
-        stroke.strokeCap = Paint.Cap.BUTT
-        stroke.strokeWidth = dp(3f)
-        for (i in 0 until 8) {
-            val a = Math.PI / 4 * i
-            canvas.drawLine(
-                cx + (dp(6f) * cos(a)).toFloat(), cy + (dp(6f) * sin(a)).toFloat(),
-                cx + (dp(9f) * cos(a)).toFloat(), cy + (dp(9f) * sin(a)).toFloat(), stroke,
-            )
-        }
         stroke.strokeCap = Paint.Cap.ROUND
         stroke.strokeWidth = dp(1.8f)
-        canvas.drawCircle(cx, cy, dp(6.2f), stroke)
-        canvas.drawCircle(cx, cy, dp(2.4f), stroke)
         // Hide: a chevron down.
         val h = hideRect
         path.reset()
@@ -1300,10 +1283,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     // The plugin row lies under this view: its strip's touches are the row's.
                     if (pluginRow && y >= keyboardTop) return false
                     if (!showToolbar || y < keyboardTop) return true
-                    when {
-                        settingsRect.contains(x, y) -> { performHapticFeedback(KEYBOARD_TAP); listener.onOpenSettings() }
-                        hideRect.contains(x, y) -> { performHapticFeedback(KEYBOARD_TAP); listener.onHideKeyboard() }
-                    }
+                    if (hideRect.contains(x, y)) { performHapticFeedback(KEYBOARD_TAP); listener.onHideKeyboard() }
                     return true
                 }
                 if (dictation != DictationPhase.OFF) {

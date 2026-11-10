@@ -41,8 +41,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private lateinit var autocorrect: Autocorrect
     private val dictation by lazy { Dictation(this) }
     private val onModel: (WhisperModel.State) -> Unit = { applySettings() }
-    /** The cog's update badge follows the updater: on when a check finds a release, off once it is installed. */
+    /** The row's Update chip follows the updater: there when a check finds a release, gone once it is installed. */
     private val onUpdate: (Updater.State) -> Unit = { showUpdateBadge() }
+    private var updateWaiting = false
 
     /**
      * Settings › Offline, as last read ([applySettings] reads it on every settings change and each time the keyboard
@@ -115,11 +116,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private class SwipeState(val lead: String, var word: String, val choices: List<String>, val raw: String = word, val over: SwipeGone? = null) {
         /** The word was chosen in the row, not left as it was read. */
         var picked = false
+        /** The stroke as an anonymous report would carry it ([ReportTally.pathOf]); null where none is being kept. */
+        var path: FloatArray? = null
     }
     private var lastSwipe: SwipeState? = null
 
     /** A swiped word deleted whole a moment ago: what the decoder read it as, what else it offered, and where it stood. */
-    private class SwipeGone(val raw: String, val choices: List<String>, val head: String, val whenMs: Long, val field: EditorInfo?)
+    private class SwipeGone(val raw: String, val choices: List<String>, val head: String, val whenMs: Long, val field: EditorInfo?, val path: FloatArray? = null)
     private var swipeGone: SwipeGone? = null
 
     /** The GIF plugin: closed, showing results, or with the keys typing its search. */
@@ -265,6 +268,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         mistakes.onChange = { autocorrect.setMistakes(mistakes.remembered); autocorrect.setChosen(mistakes.chosen) }
         autocorrect.setMistakes(mistakes.remembered)
         autocorrect.setChosen(mistakes.chosen)
+        // Anonymous typing reports (off unless switched on): only the commonest words of the app's lists are ever in one.
+        Reports.common = { autocorrect.isCommonWord(it) }
+        Reports.known = { autocorrect.isWord(it) }
         // Mockingbird cleans slips out of its samples with these dictionaries, on its own thread.
         Mockingbird.speller = autocorrect
         readMockingbird()
@@ -301,7 +307,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onCreateInputView(): View {
         val view = KeyboardView(this, this)
-        val strip = PluginRow(this, onSettings = { onOpenSettings() }, onHide = { onHideKeyboard() }, onArrow = { code -> arrow(code) })
+        val strip = PluginRow(this, onHide = { onHideKeyboard() }, onArrow = { code -> arrow(code) })
         val panel = GifPanel(this) { pickGif(it) }
         val emoji = EmojiPanel(this) { commitEmoji(it) }
         val host = android.widget.FrameLayout(this).apply {
@@ -475,11 +481,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) = applySettings()
 
-    /** The dot on the cog while an update waits; with Offline on, never: nothing is asked, and a small mark says so instead. */
+    /**
+     * An Update chip leads the row's tools while a release waits (the settings cog that carried a dot for it is
+     * gone); with Offline on, never: nothing is asked.
+     */
     private fun showUpdateBadge() {
-        val offline = prefs.offline
-        row?.offline = offline
-        row?.updateBadge = !offline && Updater.waiting(this)
+        val waiting = !prefs.offline && Updater.waiting(this)
+        if (waiting == updateWaiting) return
+        updateWaiting = waiting
+        scheduleRow()
     }
 
     private fun applySettings() {
@@ -490,6 +500,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autocorrect.setSlang(prefs.slang)
         setPredictionLanguages()
         readMockingbird()
+        if (!prefs.shareReports) runCatching { Reports.discard(this) }
         profile = AppProfiles.of(prefs, currentInputEditorInfo?.packageName)
         // The undo plugin switched on or off: the field in hand starts being recorded, or stops.
         Plugins.isOn(prefs, Plugins.UNDO).let { on ->
@@ -636,6 +647,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
         if ((ctrlOn || altOn) && text.length == 1 && sendWithModifiers(text[0])) return
         stats { TypingStats.typed(this, text) }
+        if (reporting()) keysTyped += text.length
         lastSpaceAt = 0L
         // Next-word prediction's flags: letters typed by hand (a long-press may type several inside a word: Arabic's
         // لا, Catalan's l·l), or something that ends the word before it.
@@ -644,6 +656,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autoSpaced = false
         // A letter straight after a swiped word starts a new word: a space first, as Gboard does.
         if (lastSwipe != null && text.length == 1 && text[0].isLetterOrDigit()) { editor.type(" "); learner.ended() }
+        atSwipe = lastSwipe?.word
         swipeStood()
         lastSwipe = null
         // A full stop or comma straight after a word tapped in the row takes the place of the space the tap typed
@@ -763,10 +776,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (prior != null && prior.typed == lower && !prior.out.equals(lower, ignoreCase = true)) {
             if (!incognito) { prefs.learn(word, locale); autocorrect.setLearned(prefs.learnedWords) }
             if (mistakesOn()) mistakes.forget(prior.typed, prior.out)
+            if (reporting()) Reports.count(this, "words.keptAfterFix")
             noteEnd(lower, word, head, now)
             return false
         }
-        val found = autocorrect.correct(word, scorer, tapsFor(word))
+        val taps = tapsFor(word)
+        val found = autocorrect.correct(word, scorer, taps)
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
         if (prior != null) retyped(prior, stands, opens)
@@ -774,6 +789,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         noteEnd(lower, stands, head, now)
         // Left as typed: where this spelling has been a mistake before, that it is also meant counts against mending it.
         if (found == null && mistakesOn()) mistakes.kept(lower)
+        // A swiped word that a space or a full stop has just ended was counted as a swipe: it is not a typed word too.
+        val swiped = atSwipe?.equals(word, ignoreCase = true) == true
+        atSwipe = null
+        if (reporting() && !swiped) { reportKeys(); reportBoard(taps); Reports.word(this, word, stands, taps) }
         val fixed = found ?: return false
         // One step in the history, after the separator as typed: undo gives back the word as typed, with its space.
         if (!editor.replaceBefore(word, fixed + separator, Kind.CORRECTION, typedFirst = separator)) return false
@@ -810,6 +829,43 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
+     * What is typed here may be counted for an anonymous typing report (Matt, 2026-11-10: "allow anonymous reporting
+     * of swipe and text metrics and mistakes"): its switch is on (it is off unless the person turns it on), and the
+     * field is ordinary writing, by the rule learning has: never a password, incognito or a field that asks keyboards
+     * not to learn, an address, a name, a search, a terminal, or this app's own fields.
+     */
+    private fun reporting(): Boolean {
+        if (!prefs.shareReports) return false
+        val info = currentInputEditorInfo ?: return false
+        if (incognito || isPassword(info) || !collectable(info) || terminalApp()) return false
+        return info.imeOptions and EditorInfo.IME_MASK_ACTION != EditorInfo.IME_ACTION_SEARCH
+    }
+
+    /** The swiped word at the cursor as a key that ends it was pressed, for [correctLastWord] to know it by. */
+    private var atSwipe: String? = null
+
+    /** Keys and backspaces since they were last handed to the report: counted here so a key press queues nothing. */
+    private var keysTyped = 0
+    private var backspaces = 0
+
+    private fun reportKeys() {
+        if (keysTyped > 0) Reports.count(this, "keys", keysTyped.toLong())
+        if (backspaces > 0) Reports.count(this, "backspaces", backspaces.toLong())
+        keysTyped = 0; backspaces = 0
+    }
+
+    /** The board as a report describes it, told once for each size of key: its layout, languages, and how big a key is. */
+    private var boardReported = ""
+    private fun reportBoard(taps: Taps?) {
+        taps ?: return
+        val id = "${language.spec.id}|${language.dictionaries}|${taps.keyW}|${prefs.keyHeight}"
+        if (id == boardReported) return
+        boardReported = id
+        val row = ReportTally.rowPitch(taps.keys, taps.keyW) ?: return
+        Reports.board(language.spec.id, language.dictionaries, taps.keyW / resources.displayMetrics.density, row / taps.keyW, prefs.keyHeight == "condensed", profile?.flag("number_row") ?: prefs.numberRow)
+    }
+
+    /**
      * How a word the person put there is remembered: in lower case, unless they gave it a capital of its own in the
      * middle of a sentence and it is no ordinary word (a name: "kria" was "Kira"). [opens] says it opened a sentence.
      */
@@ -829,6 +885,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val was = prior.out.lowercase(locale)
         if (meant == was && was == prior.typed) return
         if (prior.taught && meant != prior.typed) { prefs.unlearn(prior.typed, locale); autocorrect.setLearned(prefs.learnedWords) }
+        // For an anonymous report: a word put right by hand, and a fix of autocorrect's that was not what was meant.
+        if (reporting() && meant != prior.typed && MistakeMemory.alike(prior.typed, meant)) {
+            Reports.mistake(this, "retyped", prior.typed, meant)
+            if (was != prior.typed && was != meant) Reports.count(this, "fix.retyped")
+        }
         if (!mistakesOn()) return
         if (was != prior.typed && was != meant) mistakes.forget(prior.typed, prior.out)
         // It had been left as typed, and did not stand after all.
@@ -856,6 +917,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private fun swipeStood() {
         val swipe = lastSwipe ?: return
+        if (reporting()) {
+            val stood = swipe.word.lowercase(locale)
+            Reports.stroke(this, if (swipe.picked) "picked" else "kept", swipe.choices, stood, swipe.path)
+            // The stroke that was deleted before this one: where it had offered this word, it was this word misread.
+            swipe.over?.let { gone -> if (stood != gone.raw && gone.choices.any { it.lowercase(locale) == stood }) Reports.stroke(this, "redrawn", gone.choices, stood, gone.path) }
+        }
         if (!mistakesOn()) return
         val meant = swipe.word.lowercase(locale)
         val weight = if (swipe.picked) 1f else Mistakes.STOOD
@@ -892,6 +959,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // The fix was not wanted: it is no lesson. Should another word be typed over this one next, the spelling put
         // back was no word either, and is let go again ([retyped]).
         if (mistakesOn()) mistakes.forget(lower, fixed)
+        if (reporting()) Reports.undone(this, lower, fixed)
         if (fresh && !incognito && !keepSeparator) ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.taught = true
         scheduleRow()
         return true
@@ -906,6 +974,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (emojiMode == GifMode.TYPING) { hangul = Hangul.State(); if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
         stats { TypingStats.backspace(this) }
+        if (reporting()) backspaces++
         if (accuracyOn()) AccuracyLog.deleted()
         learner.deleted()
         autoSpaced = false
@@ -933,7 +1002,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (ic.getTextBeforeCursor(tail.length, 0)?.toString() == tail) {
                 stats { TypingStats.swipeDeleted(this) }
                 // What it was read as is kept a moment: the word swiped or typed in its place says what it was.
-                swipeGone = SwipeGone(swipe.raw, swipe.choices, ic.getTextBeforeCursor(HEAD_CHARS + tail.length, 0)?.toString().orEmpty().dropLast(tail.length).takeLast(HEAD_CHARS), android.os.SystemClock.uptimeMillis(), currentInputEditorInfo)
+                swipeGone = SwipeGone(swipe.raw, swipe.choices, ic.getTextBeforeCursor(HEAD_CHARS + tail.length, 0)?.toString().orEmpty().dropLast(tail.length).takeLast(HEAD_CHARS), android.os.SystemClock.uptimeMillis(), currentInputEditorInfo, swipe.path)
+                if (reporting()) Reports.count(this, "swipe.deleted")
                 editor.deleteBefore(tail)
                 // The swiped word is gone whole: nothing entered by hand is left at the cursor.
                 learner.deleted(whole = true)
@@ -971,6 +1041,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         snapshotDraft()
         val ic = currentInputConnection ?: return
         stats { TypingStats.typed(this, " ") }
+        atSwipe = lastSwipe?.word
         swipeStood()
         lastSwipe = null
         learner.ended()
@@ -1011,6 +1082,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ) { fillAtCursor(); return }
         // Enter finishes a message's last word as a space would have: it is mended too, where enter sends a message
         // or starts a new line of one (never a search, a form's one-word field, or the first word of anything).
+        atSwipe = lastSwipe?.word
         if (endsProse(info, ic)) runCatching { correctLastWord(ic, "") }
         lastSpaceAt = 0L
         lastCorrection = null
@@ -1250,6 +1322,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         runCatching { learner.flush(); nextWords.maintain(); nextWords.save() }
         // What was learned from corrections is written, and Mockingbird's samples looked at again for both.
         runCatching { mistakes.save(); readMockingbird() }
+        // An anonymous report, where sharing is on: what was counted is written, and sent if one is due.
+        runCatching { if (prefs.shareReports) { reportKeys(); Reports.save(this); Reports.maybeSend(this, prefs) } }
         runCatching { TypingStats.flush(this) }
         if (dictation.listening) dictation.stop()
         closeGifs()
@@ -1412,7 +1486,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         lastSwipe?.let { swipe ->
             swipe.choices.forEachIndexed { i, w -> items += RowItem("swipe-$i-$w", label = w, bold = w == swipe.word, wide = true) { replaceSwipe(w) } }
-            strip.setItems(middleBold(items))
+            strip.setItems(middleBold(items), everyday())
             return
         }
         if (!toolsHeld) currentInputConnection?.let { ic -> if (selStart == selEnd && contextual(ic, before, items)) { strip.setItems(items); return } }
@@ -1444,12 +1518,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     val words = nextWords.timed { nextWords.at(predict).top(if (private) 2 else 3) }.map(::shifted).distinct()
                     if (words.isNotEmpty()) {
                         val order = if (words.size >= 2) listOf(words[1], words[0]) + words.drop(2) else words
-                        // "Incognito on" and a clip copied a moment ago come before any word.
-                        val first = tools.filter { it.id.startsWith("fresh-") || it.id == INCOGNITO_ON }
+                        // "Incognito on", a clip copied a moment ago and a waiting update come before any word.
+                        val first = tools.filter(::leads)
                         items += first
                         order.forEach { w -> items += RowItem("nw-$w", label = w, wide = true) { pickPrediction(w) } }
+                        // The everyday tools next (or pinned before it all, where the row is wide), then the rest.
+                        val at = items.size
                         items += tools.filter { it !in first }
-                        strip.setItems(items)
+                        strip.setItems(items, everyday(), at)
                         return
                     }
                 }
@@ -1475,8 +1551,41 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             strip.setItems(items)
             return
         }
-        if (items.isEmpty()) items += tools()
-        strip.setItems(middleBold(items))
+        // Nothing to suggest: the tools, the everyday ones first but for what is about this very moment.
+        if (items.isEmpty()) {
+            val tools = tools()
+            val first = tools.filter(::leads)
+            strip.setItems(first + tools.filter { it !in first }, everyday(), first.size)
+            return
+        }
+        strip.setItems(middleBold(items), everyday())
+    }
+
+    /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
+    private fun leads(item: RowItem): Boolean =
+        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || (item.id.startsWith("rewrite") && item.bold)
+
+    /**
+     * The tools reached for in every app: undo and redo, the clipboard, emoji, GIFs. They lead the row (Matt,
+     * 2026-11-10: "move things like the back forward clipboard emoji and gif stuff to the front of the list"): pinned
+     * at its start where it is wide enough, else the first of the tools ([PluginRow.setItems]). Icons only, so five of
+     * them take no more room than two words.
+     */
+    private fun everyday(): List<RowItem> {
+        val items = ArrayList<RowItem>(5)
+        if (Plugins.isOn(prefs, Plugins.UNDO)) {
+            // Lit: the keyboard's own last step, or the app's undo where it has none. Dim: nothing to do.
+            val canUndo = editor.canUndo
+            val canRedo = editor.canRedo
+            items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", dim = !canUndo, onTap = if (canUndo) ({ undoTap(redo = false) }) else null)
+            items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", dim = !canRedo, onTap = if (canRedo) ({ undoTap(redo = true) }) else null)
+        }
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
+        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
+        // GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
+        if (Plugins.isOn(prefs, Plugins.GIFS)) items += if (offlineOn) RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
+            else RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
+        return items
     }
 
     /**
@@ -1504,12 +1613,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
-     * The plugins' buttons, shown when nothing is being typed: incognito's state, a just-copied clip, terminal keys
-     * and markdown (in the apps they suit, or everywhere), undo and redo, the clipboard, GIFs. Where next words are
-     * offered they come first and these scroll after them, but for "Incognito on" and the fresh clip ([refreshRow]).
+     * The plugins' buttons, shown when nothing is being typed: a waiting update, incognito's state, a just-copied
+     * clip, terminal keys and markdown (in the apps they suit, or everywhere). Where next words are offered they
+     * come first and these scroll after them, but for "Incognito on", the fresh clip and the update ([refreshRow]).
+     * Undo and redo, the clipboard, emoji and GIFs are not among them: they lead the row ([everyday]).
      */
     private fun tools(): List<RowItem> {
         val items = ArrayList<RowItem>()
+        // A release is waiting (the dot the settings cog used to carry): one tap opens the app, which installs it.
+        if (updateWaiting) items += RowItem("update", label = "Update", icon = RowIcon.SETTINGS, bold = true, chip = true, description = "An update is waiting") { onOpenSettings() }
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
@@ -1583,16 +1695,6 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // Ghost.md's own: a link to another note.
             if (!ghost && inGhost) items += RowItem("md-wiki", icon = RowIcon.WIKI, chip = true, description = "Link to a note") { wrap("[[", "]]") }
         }
-        if (Plugins.isOn(prefs, Plugins.UNDO)) {
-            // Lit: the keyboard's own last step, or the app's undo where it has none. Dim: nothing to do.
-            val canUndo = editor.canUndo
-            val canRedo = editor.canRedo
-            items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", dim = !canUndo, onTap = if (canUndo) ({ undoTap(redo = false) }) else null)
-            items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", dim = !canRedo, onTap = if (canRedo) ({ undoTap(redo = true) }) else null)
-        }
-        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
-        if (Plugins.isOn(prefs, Plugins.GIFS)) items += netItem("gifs", null, icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, description = "GIFs") { openGifs() }
         if (Plugins.isOn(prefs, Plugins.PASSWORDS) && isPassword(currentInputEditorInfo)) {
             items += RowItem("passwords-hint", label = "Logins appear here", icon = RowIcon.KEY)
         }
@@ -2219,11 +2321,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!editor.replaceBefore(typed, "$word ", Kind.SUGGESTION)) { scheduleRow(); return }
         if (accuracyOn()) { recordWord(typed, null, ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString().orEmpty().dropLast(word.length + 1)); AccuracyLog.settle(this, "picked:$word") }
         // A word taken from the row that what was typed is no start of, but a slip from: a mistake put right by hand.
-        if (typed.length >= 3 && mistakesOn()) {
+        if (typed.length >= 3 && (mistakesOn() || reporting())) {
             val a = typed.lowercase(locale)
             val b = word.lowercase(locale)
-            if (!b.startsWith(a) && MistakeMemory.alike(a, b)) mistakes.learn(a, meantAs(word, typed[0].isUpperCase()))
+            if (!b.startsWith(a) && MistakeMemory.alike(a, b)) {
+                if (mistakesOn()) mistakes.learn(a, meantAs(word, typed[0].isUpperCase()))
+                if (reporting()) Reports.mistake(this, "picked", a, b)
+            }
         }
+        if (reporting()) Reports.count(this, "words.completed")
         lastCorrection = null
         lastSpaceAt = System.currentTimeMillis()
         // The word was chosen by hand: it counts as typed, and its space gives way to a full stop typed next.
@@ -2269,6 +2375,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val after = ic.getTextAfterCursor(1, 0)
         val space = if (!after.isNullOrEmpty() && after[0].isWhitespace()) "" else " "
         ic.commitText(word + space, 1)
+        if (reporting()) Reports.count(this, "words.predicted")
         lastCorrection = null
         lastSwipe = null
         wordTouches.clear(); takenTouch = null
@@ -2341,8 +2448,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // The reading the person has chosen over this first one before goes first ([Autocorrect.byChoice]).
             val found = runCatching { autocorrect.byChoice(read) }.getOrDefault(read)
             // How long it took, never what was typed: the system log is no place for someone's words.
-            android.util.Log.d("GhostKeyboard", "swipe decoded in ${android.os.SystemClock.elapsedRealtime() - started} ms, ${found.firstOrNull()?.count { it == ' ' }?.plus(1) ?: 0} words")
+            val took = android.os.SystemClock.elapsedRealtime() - started
+            android.util.Log.d("GhostKeyboard", "swipe decoded in $took ms, ${found.firstOrNull()?.count { it == ' ' }?.plus(1) ?: 0} words")
             swipeHandler.post {
+                if (reporting()) Reports.swipeMs(this, took)
                 val now = currentInputConnection
                 val same = now != null && currentInputEditorInfo === stroke.field && selStart == selEnd &&
                     now.getTextBeforeCursor(SWIPE_SAME_CHARS, 0)?.toString().orEmpty() == text.takeLast(SWIPE_SAME_CHARS)
@@ -2383,7 +2492,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!isPassword(currentInputEditorInfo)) keyboard?.lightWord(words[0])
         lastCorrection = null
         lastSpaceAt = 0L
-        lastSwipe = SwipeState(lead, words[0], words, read.lowercase(locale), over)
+        lastSwipe = SwipeState(lead, words[0], words, read.lowercase(locale), over).also { state ->
+            // For an anonymous report: the stroke in key widths from the top row's first key, never in pixels.
+            if (reporting()) runCatching {
+                val keys = stroke.centres.mapValues { (_, p) -> p.x to p.y }
+                val row = ReportTally.rowPitch(keys, stroke.keyWidth)
+                if (row != null && keys.isNotEmpty()) state.path = ReportTally.pathOf(stroke.points.map { it.x to it.y }, keys.values.minOf { it.first }, keys.values.minOf { it.second }, stroke.keyWidth, row)
+            }
+        }
         if (accuracyOn()) AccuracyLog.swipe(this, stroke.points, stroke.times, found, prior, currentInputEditorInfo?.packageName)
         // A swiped word is entered by hand, and is still at the cursor: it is taken up when something ends it (a
         // space, a full stop, the next swipe's space), not now. It ends the word before it only where it put a

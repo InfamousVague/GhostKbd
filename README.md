@@ -59,7 +59,7 @@ and from the keyboard twice a day, `Updater.kt` reads `apk.json`, downloads the 
 package, version and signing certificate, and installs it with Android's `PackageInstaller` — silently on Android 12+
 once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › About shows
 where it stands and has the **Install updates by itself** switch: off, nothing is installed by itself, but the keyboard
-still asks the box twice a day whether there is a new version (for the dot on its cog). Only **Offline** stops the
+still asks the box twice a day whether there is a new version (for the Update chip above its keys). Only **Offline** stops the
 asking. Debug builds never update.
 
 ## Languages and layouts
@@ -98,8 +98,10 @@ about how well any of them is corrected.
 ## Next-word prediction
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
-words; a tap types one with a space and offers the next three. The tools that used to fill the row there now scroll
-in after the words, the first one peeking in at the row's end. While a word is typed, its completions are ranked by
+words; a tap types one with a space and offers the next three. The tools scroll in after the words, the first one
+peeking in at the row's end: undo and redo, the clipboard, emoji and GIFs first, and on a row wide enough for them
+and three words (a foldable's inner screen, a tablet) pinned at its start instead. There is no settings cog in the
+row: hold the { } key or the comma. While a word is typed, its completions are ranked by
 the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
 forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the
 formats, the sources and the numbers.
@@ -132,6 +134,19 @@ and the numbers.
   chosen, kept in `mistakes.tsv` on the phone, out of Android's backup, never from a password field or incognito.
 - `tool/typing_bench.sh` types held-out sentences through the keyboard's own code with a simulated thumb, to compare
   one version with another; `tool/accuracy-replay.sh` does the same with a record of real typing.
+
+## Anonymous typing reports (off by default)
+
+Settings › Typing › Typing stats › **Share anonymous typing reports**: off unless the person turns it on. On, the
+keyboard sends attack.fm a report at most once a day: counts of what happened, where taps land on their keys as a grid
+of counts, and common words that were mistyped or misread with what was meant: only ever the few thousand commonest
+words of its own word lists. No account, no id, no time of day, never a word of the person's own or a rarer one,
+nothing from where the keyboard does not learn; and Settings shows the report exactly as it would go. [docs/reports.md](docs/reports.md) has every field.
+
+- `Reports.kt`: the tally (`ReportTally`), the rules for what may go in it (`ReportRules`), and the keeping and
+  sending (`Reports`, through `Net` like every connection).
+- `server/reports/`: the collector that takes them in (standard-library Python, behind the web server) and
+  `summarize.py`, which adds them up.
 
 ## Offline, and the one door to the network
 

@@ -72,6 +72,7 @@ class SettingsStore extends ChangeNotifier {
     'next_word_learn': true,
     'next_word_mockingbird': true,
     'learn_mistakes': true,
+    'share_reports': false,
     'giphy_key': '',
     'theme_tint': '#51FCFB',
     'theme_accent': '',
@@ -414,6 +415,55 @@ class SettingsStore extends ChangeNotifier {
     }
   }
 
+  /// The anonymous typing report that is waiting (Reports.kt): `waiting`, the report exactly as it would be sent (or
+  /// empty), the `words`, `mistakes` and `strokes` in it, whether there are `enough` words for it to go by itself,
+  /// the day one was `lastSent`, and the `server` it goes to.
+  Map<String, Object?> report = const {'waiting': '', 'words': 0, 'mistakes': 0, 'strokes': 0, 'enough': false, 'lastSent': '', 'server': 'attack.fm'};
+
+  /// What the last "Send it now" said.
+  String reportSaid = '';
+
+  /// Whether the report is shown on the page.
+  bool reportShown = false;
+  void showReport(bool on) {
+    reportShown = on;
+    notifyListeners();
+  }
+
+  Future<void> refreshReport() => _reportCall('reportState');
+
+  /// Settings › Typing stats › Discard what is waiting: the report that has not gone, deleted.
+  Future<void> discardReport() async {
+    reportSaid = '';
+    reportShown = false;
+    await _reportCall('reportDiscard');
+  }
+
+  /// Settings › Typing stats › Send it now: what is waiting, sent without waiting for its day (never while Offline is on).
+  Future<void> sendReport() async {
+    reportSaid = 'Sending…';
+    notifyListeners();
+    await _reportCall('reportSend');
+  }
+
+  Future<void> _reportCall(String method) async {
+    try {
+      final r = await _channel.invokeMethod<Object>(method);
+      if (r is! Map) return;
+      final next = r.map((k, v) => MapEntry('$k', v as Object?));
+      final said = next.remove('said');
+      if (said is String) reportSaid = said;
+      if ('$next' == '$report' && said == null) return;
+      report = next;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      if (method == 'reportSend') reportSaid = 'Not sent';
+      notifyListeners();
+    }
+  }
+
   /// What the last Save said: the file's name in Downloads, or why it couldn't be saved.
   String accuracySaid = '';
   Future<void> exportAccuracy() async {
@@ -621,6 +671,7 @@ class SettingsStore extends ChangeNotifier {
   Future<void> refreshStats() async {
     await _statsCall('statsState');
     await refreshAccuracy();
+    await refreshReport();
   }
   Future<void> resetStats() => _statsCall('statsReset');
 

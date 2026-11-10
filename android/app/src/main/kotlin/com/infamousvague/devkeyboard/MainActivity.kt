@@ -336,6 +336,17 @@ class MainActivity : FlutterActivity() {
                     // Settings › Autocorrect › Your corrections: what was learned from mistakes, and forgetting it (Mistakes.kt).
                     "mistakesState" -> background(result) { Mistakes.get(this@MainActivity).state() }
                     "mistakesReset" -> background(result) { Mistakes.get(this@MainActivity).run { reset(); state() } }
+                    // Settings › Typing › Typing stats › Anonymous reports: what is waiting to be sent, exactly as it
+                    // would go; discarding it; and sending it now (Reports.kt). None runs on this thread.
+                    "reportState" -> background(result) { Reports.state(this@MainActivity) }
+                    "reportDiscard" -> background(result) { Reports.discard(this@MainActivity); Reports.awaitIdle(2_000); Reports.state(this@MainActivity) }
+                    "reportSend" -> background(result) {
+                        val said = java.util.concurrent.atomic.AtomicReference("Not sent")
+                        val latch = java.util.concurrent.CountDownLatch(1)
+                        Reports.maybeSend(this@MainActivity, prefs, now = true) { said.set(it); latch.countDown() }
+                        latch.await(40, java.util.concurrent.TimeUnit.SECONDS)
+                        Reports.state(this@MainActivity) + mapOf("said" to said.get())
+                    }
                     // Settings › Languages: every language the keyboard has, and the ones it says it does not (Languages.kt).
                     "languagesState" -> result.success(languagesState())
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }

@@ -61,26 +61,26 @@ class RowItem(
 /**
  * The plugin row: a strip above the keys that plugins fill, scrolling sideways when they offer more than fits.
  * Autocorrect's suggestions, swipe typing's alternatives, a password manager's logins, the GIF key... each plugin
- * hands the service its items and the service puts them here in order (DevKeyboardService.refreshRow). A settings
- * button stays at its start, and a hide button at its end when the old toolbar setting is on.
+ * hands the service its items and the service puts them here in order (DevKeyboardService.refreshRow). A hide button
+ * is at its end when the old toolbar setting is on.
+ *
+ * The everyday tools (undo and redo, the clipboard, emoji, GIFs) lead the row (Matt, 2026-11-10: "the word
+ * suggestion row is too long move things like the back forward clipboard emoji and gif stuff to the front of the
+ * list and remove the settings cog from the toolbar"). Where the row is wide enough for them and three words beside
+ * them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay there while
+ * words are suggested; on a narrow row they are the first of the tools instead, straight after the words. There is no
+ * settings button: a long press on the { } key or the comma opens Settings, as it always has.
  */
 @SuppressLint("ViewConstructor")
-class PluginRow(context: Context, private val onSettings: () -> Unit, private val onHide: () -> Unit, private val onArrow: (Int) -> Unit = {}) : LinearLayout(context) {
+class PluginRow(context: Context, private val onHide: () -> Unit, private val onArrow: (Int) -> Unit = {}) : LinearLayout(context) {
     var theme: KeyboardTheme = KeyboardTheme.LIGHT
         set(value) { field = value; restyle() }
 
     var showHide = false
-        set(value) { field = value; hide.visibility = if (value) VISIBLE else GONE }
+        set(value) { if (field != value) { field = value; hide.visibility = if (value) VISIBLE else GONE; again() } }
 
-    private val settings = IconButton(context, RowIcon.SETTINGS).apply { setOnClickListener { onSettings() } }
-
-    /** A dot on the cog, in the theme's accent, while an update is waiting. */
-    var updateBadge = false
-        set(value) { field = value; settings.badge = value }
-
-    /** A small quiet mark on the cog while Offline is on (Settings › Offline), where the update dot would be. */
-    var offline = false
-        set(value) { field = value; settings.offlineMark = value }
+    /** The everyday tools while they are pinned at the row's start ([setItems]). */
+    private val lead = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = GONE }
     private val hide = IconButton(context, RowIcon.HIDE).apply { setOnClickListener { onHide() }; visibility = GONE }
 
     /**
@@ -89,9 +89,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
      */
     /** Condensed keys: a slimmer strip, so the chips keep less room above and below them. */
     var condensed = false
-        set(value) { if (field != value) { field = value; val now = items; items = emptyList(); setItems(now) } }
+        set(value) { if (field != value) { field = value; again() } }
     var showArrows = false
-        set(value) { field = value; arrows.visibility = if (value) VISIBLE else GONE }
+        set(value) { if (field != value) { field = value; arrows.visibility = if (value) VISIBLE else GONE; again() } }
     private val arrowButtons = listOf(
         RowIcon.CARET_LEFT to android.view.KeyEvent.KEYCODE_DPAD_LEFT,
         RowIcon.CARET_UP to android.view.KeyEvent.KEYCODE_DPAD_UP,
@@ -123,13 +123,19 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
         isFillViewport = true
     }
     private val strip = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    /** What the strip shows now, and what is pinned before it. */
     private var items: List<RowItem> = emptyList()
+    private var pinned: List<RowItem> = emptyList()
+    /** What [setItems] was last given, to lay out again when the row's width or look changes. */
+    private var given: List<RowItem> = emptyList()
+    private var givenLead: List<RowItem> = emptyList()
+    private var givenLeadAt = -1
 
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         scroll.addView(strip, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        addView(settings, LayoutParams(dp(44f), LayoutParams.MATCH_PARENT))
+        addView(lead, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
         addView(scroll, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         addView(arrows, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
         addView(hide, LayoutParams(dp(44f), LayoutParams.MATCH_PARENT))
@@ -138,16 +144,61 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
     private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
 
-    fun setItems(next: List<RowItem>) {
+    /** Lays the row out afresh from what it was last given: its width, its look or what is pinned at its ends changed. */
+    private fun again() {
+        items = emptyList()
+        pinned = listOf(RowItem("\u0000"))
+        setItems(given, givenLead, givenLeadAt)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // Unfolded, turned on its side: whether the everyday tools fit beside three words is asked again.
+        if (w != oldw && oldw > 0) post { again() }
+    }
+
+    private fun look(list: List<RowItem>) = list.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) }
+
+    /** The width the strip and what is pinned before it share: the row's, less the arrow keys and the hide button. */
+    private fun shared(): Int =
+        (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - (if (showArrows) dp(36f) * arrowButtons.size else 0) - (if (showHide) dp(44f) else 0)
+
+    /** Whether [count] everyday tools are pinned at the row's start as the row is now: they fit, with three words beside them. */
+    fun pins(count: Int): Boolean = count > 0 && shared() - count * dp(LEAD_DP) >= 3 * dp(WORD_DP)
+
+    /**
+     * Fills the row with [next]. [leading] are the everyday tools: pinned at the row's start where they and three
+     * words fit ([pins]); else put into the strip before the item at [leadAt] (the first of the other tools), or
+     * left out where [leadAt] is negative (a narrow row showing only words).
+     */
+    fun setItems(next: List<RowItem>, leading: List<RowItem> = emptyList(), leadAt: Int = -1) {
+        given = next; givenLead = leading; givenLeadAt = leadAt
+        val pin = pins(leading.size)
+        val at = leadAt.coerceAtMost(next.size)
+        @Suppress("NAME_SHADOWING")
+        val next = if (pin || leading.isEmpty() || at < 0) next else next.take(at) + leading + next.drop(at)
+        val front = if (pin) leading else emptyList()
+        if (look(front) != look(pinned)) {
+            pinned = front
+            lead.removeAllViews()
+            for (item in front) {
+                val lp = LinearLayout.LayoutParams(dp(LEAD_DP - 4f), ViewGroup.LayoutParams.MATCH_PARENT)
+                lp.leftMargin = dp(2f); lp.rightMargin = dp(2f); lp.topMargin = dp(if (condensed) 4f else 6f); lp.bottomMargin = dp(if (condensed) 4f else 6f)
+                lead.addView(makeView(item).also { it.minimumWidth = 0 }, lp)
+            }
+            lead.visibility = if (front.isEmpty()) GONE else VISIBLE
+            // What the strip has to share changed with it: its words are measured again.
+            items = emptyList()
+        }
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all.
-        if (next.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) } == items.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) }) return
+        if (look(next) == look(items)) return
         // The same buttons with one lit or dimmed (Undo, after a tap on it) stay where they were scrolled to: the
         // arrows must not slide out from under the thumb that is tapping them.
         val keepScroll = if (next.map { it.id } == items.map { it.id }) scroll.scrollX else 0
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
-        val room = scroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(44f))
+        val room = shared() - front.size * dp(LEAD_DP)
         // Too narrow to read (the arrow keys take part of the row): three across, and the rest scroll.
         // Next-word prediction's three words are followed by the tools: they give up a little width, so the first
         // tool peeks in at the row's end and says there is more to scroll to.
@@ -245,33 +296,23 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
     private companion object {
         /** How faint a [RowItem.dim] item is drawn. */
         const val DIM = 0.45f
+        /** The room one pinned everyday tool takes, and the least a suggested word needs beside them, in dp. */
+        const val LEAD_DP = 40f
+        const val WORD_DP = 92f
     }
 
     private fun restyle() {
         setBackgroundColor(theme.background)
-        settings.color = theme.toolbarIcon
-        settings.badgeColor = theme.accent
-        settings.badgeRing = theme.background
         hide.color = theme.toolbarIcon
         arrowButtons.forEach { it.color = theme.toolbarIcon }
-        val now = items
-        items = emptyList()
-        setItems(now)
+        again()
     }
 
     /** A drawn icon button: no images to ship, and it takes the theme's colour. */
     private class IconButton(context: Context, val icon: RowIcon) : View(context) {
         var color = 0xFF444746.toInt()
             set(value) { field = value; invalidate() }
-        var badge = false
-            set(value) { field = value; invalidate() }
-        var badgeColor = 0xFF008B8A.toInt()
-        var badgeRing = 0
-        /** Offline is on: a small struck-through ring at the glyph's corner, in the icon's own colour. */
-        var offlineMark = false
-            set(value) { field = value; invalidate() }
         private val drawer = IconDrawable(icon, color, 0)
-        private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
 
         init {
             isClickable = true
@@ -290,32 +331,6 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             drawer.ink = color
             drawer.setBounds(((width - s) / 2).toInt(), ((height - s) / 2).toInt(), ((width + s) / 2).toInt(), ((height + s) / 2).toInt())
             drawer.draw(canvas)
-            if (badge) {
-                // Top right of the glyph, ringed in the row's ground so it reads apart from the cog's teeth.
-                val r = s * 0.2f
-                val cx = (width + s) / 2 - r * 0.6f
-                val cy = (height - s) / 2 + r * 0.6f
-                dot.color = badgeRing
-                canvas.drawCircle(cx, cy, r + s * 0.08f, dot)
-                dot.color = badgeColor
-                canvas.drawCircle(cx, cy, r, dot)
-            } else if (offlineMark) {
-                // Where the update dot sits, but quiet: the row's ground, then a ring with a stroke through it.
-                val r = s * 0.2f
-                val cx = (width + s) / 2 - r * 0.6f
-                val cy = (height - s) / 2 + r * 0.6f
-                dot.style = Paint.Style.FILL
-                dot.color = badgeRing
-                canvas.drawCircle(cx, cy, r + s * 0.08f, dot)
-                dot.style = Paint.Style.STROKE
-                dot.strokeWidth = s * 0.075f
-                dot.strokeCap = Paint.Cap.ROUND
-                dot.color = color
-                canvas.drawCircle(cx, cy, r * 0.8f, dot)
-                val d = r * 0.8f * 0.7071f
-                canvas.drawLine(cx - d, cy - d, cx + d, cy + d, dot)
-                dot.style = Paint.Style.FILL
-            }
         }
     }
 }

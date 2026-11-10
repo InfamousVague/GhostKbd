@@ -117,7 +117,7 @@ String _updateSummary(SettingsStore s) => isIOS ? _iosAboutSummary(s) : switch (
       'upToDate' => 'Up to date',
       'available' => 'Version ${s.update['available']} is ready',
       'downloading' => 'Downloading…',
-      // Off, the keyboard still looks (for the dot on its cog); only Offline stops the look.
+      // Off, the keyboard still looks (for the Update chip above its keys); only Offline stops the look.
       _ => s.flag('auto_update') ? 'Updates itself' : 'Checks for updates, installs when you say',
     };
 
@@ -1239,7 +1239,7 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
           SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate, disabledReason: downloaded ? null : store.offlineReason)
         else
           SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled', disabledReason: store.offlineReason),
-        _toggle(store, 'auto_update', 'Install updates by itself', 'When the app opens and twice a day. Off, the keyboard still asks attack.fm twice a day whether there is a new version, for the dot on the cog. Offline stops that too.'),
+        _toggle(store, 'auto_update', 'Install updates by itself', 'When the app opens and twice a day. Off, the keyboard still asks attack.fm twice a day whether there is a new version, for the Update chip above the keys. Offline stops that too.'),
       ],
     ),
     PaneSection(children: [
@@ -1316,6 +1316,40 @@ class _StatsPollState extends State<_StatsPoll> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Settings › Typing › Typing stats › Anonymous reports (Reports.kt): the switch, which is off unless the person
+/// turns it on; what is waiting, shown exactly as it would be sent; sending it now and discarding it. The words here
+/// must stay true to what Reports.kt puts in a report: change one with the other.
+List<Widget> _reportPart(SettingsStore store) {
+  final on = store.flag('share_reports');
+  final waiting = '${store.report['waiting'] ?? ''}';
+  final words = (store.report['words'] as num?)?.toInt() ?? 0;
+  final mistakes = (store.report['mistakes'] as num?)?.toInt() ?? 0;
+  final strokes = (store.report['strokes'] as num?)?.toInt() ?? 0;
+  final lastSent = '${store.report['lastSent'] ?? ''}';
+  final server = '${store.report['server'] ?? 'attack.fm'}';
+  final enough = store.report['enough'] == true;
+  return [
+    PaneSection(
+      title: 'Anonymous reports',
+      footer: Text(
+        'Off unless you turn it on. On, the keyboard sends $server a report at most once a day, so autocorrect and swipe typing can be made better from how people really type: '
+        'how often things happened (words typed and swiped, fixes made and undone), where taps land on their keys, and common words that were mistyped or misread, with what was meant. '
+        'No account, no id and no time of day. Only ever the few thousand commonest words of its own word lists, never a word of your own or a rarer one, and nothing from password fields, addresses, searches, terminals or incognito. '
+        '“See the report” shows what is waiting, exactly as it would go. Turn this off and it is deleted; Offline stops it too.',
+      ),
+      children: [
+        _toggle(store, 'share_reports', 'Share anonymous typing reports'),
+        if (on) SettingRow(label: 'Waiting to go', value: Text(waiting.isEmpty ? 'Nothing yet' : '${words == 1 ? '1 word' : '$words words'}, ${mistakes == 1 ? '1 mistake' : '$mistakes mistakes'}, ${strokes == 1 ? '1 swipe' : '$strokes swipes'}'), hint: waiting.isEmpty || enough ? null : const Text('It goes by itself once it has seen 100 words.')),
+        if (on && waiting.isNotEmpty) SettingRow(label: store.reportShown ? 'Hide the report' : 'See the report', hint: const Text('Exactly what would be sent.'), onPress: () => store.showReport(!store.reportShown)),
+        if (on && waiting.isNotEmpty && store.reportShown) SettingRowBox(child: Text(waiting, style: const TextStyle(fontFamily: 'monospace', fontSize: 11, height: 1.35))),
+        if (on && waiting.isNotEmpty) SettingRow(label: 'Send it now', hint: store.reportSaid.isEmpty ? null : Text(store.reportSaid), onPress: store.offline ? null : store.sendReport),
+        if (on && waiting.isNotEmpty) SettingRow(label: 'Discard what is waiting', onPress: store.discardReport),
+        if (lastSent.isNotEmpty) SettingRow(label: 'Last sent', value: Text(lastSent)),
+      ],
+    ),
+  ];
 }
 
 /// The last seven days as bars: each as tall as its words against the busiest day's, with the day under it.
@@ -1420,6 +1454,7 @@ List<Widget> _statsPart(BuildContext context, SettingsStore store) {
         if (store.accuracyCount > 0) SettingRow(label: 'Delete the record', onPress: store.clearAccuracy),
       ],
     ),
+    ..._reportPart(store),
     PaneSection(
       footer: const Text('Counts only, never what you typed. Kept on this phone for 30 days and sent nowhere. Nothing is counted in password fields or while incognito.'),
       children: [

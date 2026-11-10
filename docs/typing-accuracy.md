@@ -116,7 +116,7 @@ wild ones, letters dropped, doubled and swapped, spaces missed or landing on the
 swapped for names and terms no list has, and a list of common misspellings typed on purpose. **A simulated thumb is
 not a person.** The numbers compare one version of the keyboard with another on the same taps; they say nothing of
 how good either is on real typing, which is what the accuracy record is for (Settings › Typing stats,
-`tool/accuracy-replay.sh`).
+`tool/accuracy-replay.sh`) and, from anyone who turns them on, the anonymous typing reports ([reports.md](reports.md)).
 
 Tap typing, 30,000 words (`taps`), 0.10.4's autocorrect beside 0.11.0's on the same taps:
 

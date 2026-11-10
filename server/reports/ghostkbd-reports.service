@@ -1,0 +1,32 @@
+# Ghost Keyboard's report collector (collector.py): /etc/systemd/system/ghostkbd-reports.service
+# It runs as nobody in particular, sees only its own directory, and listens on this machine alone.
+[Unit]
+Description=Ghost Keyboard anonymous typing reports
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/ghostkbd-reports/collector.py
+Environment=REPORT_PORT=8377
+DynamicUser=yes
+StateDirectory=ghostkbd-reports
+Restart=on-failure
+RestartSec=5
+MemoryMax=128M
+CPUQuota=25%
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

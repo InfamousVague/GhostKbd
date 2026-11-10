@@ -395,6 +395,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         return lexicon.words.containsKey(lower) || lexicon.contractions.containsKey(lower) || kept(lower)
     }
 
+    /**
+     * Whether [lower] is one of the commonest words of a word list the app ships: Zipf [REPORTABLE] and up, about
+     * seven thousand words of English. The only words an anonymous typing report ever carries ([Reports]): the lists
+     * themselves hold rarer names and terms (kira, nguyen, the names of illnesses), and those stay on the phone.
+     * The very commonest first names (john, sarah) are among the common words, as they are in any text.
+     */
+    fun isCommonWord(lower: String): Boolean = (now.lexicon.words[lower] ?: 0f) >= REPORTABLE
+
     /** [isWord] without the person's own words: what "in no word list" means when those are worked out. */
     fun isListed(lower: String): Boolean {
         val lexicon = now.lexicon
@@ -1099,6 +1107,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** The most the slips may cost that turn one listed word into another. */
         @JvmField var LISTED_BUDGET = 3.4f
         /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */
+        /** How common a list word must be for an anonymous typing report to carry it ([isCommonWord]). */
+        const val REPORTABLE = 4.0f
         /** What a reading is worth more for being what the person put this same typed word right to before ([setMistakes]). */
         @JvmField var REMEMBERED = 1.5f
         @JvmField var JOIN_FIRST = 3f

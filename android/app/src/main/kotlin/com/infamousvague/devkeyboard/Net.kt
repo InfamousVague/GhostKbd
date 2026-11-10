@@ -246,6 +246,7 @@ object Net {
             NetPath.GIF_SEARCH, NetPath.GIF_IMAGE -> on(Plugins.GIFS) && Giphy.key(prefs).isNotBlank()
             NetPath.MODEL -> on(Plugins.DICTATION)
             NetPath.UPDATE_CHECK, NetPath.UPDATE_DOWNLOAD -> !Updater.isDebuggable(context)
+            NetPath.REPORT -> prefs.shareReports
         }
     }
 

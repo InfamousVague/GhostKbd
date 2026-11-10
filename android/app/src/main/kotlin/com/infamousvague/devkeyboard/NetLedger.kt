@@ -83,7 +83,8 @@ enum class NetFeature(val id: String, val title: String, val stops: String, val 
     GHOST_ONLINE("ghost-online", "Ghost.md online", "Signing in, searching your notes online, and signing out.", listOf("ai-sources")),
     GIFS("gifs", "GIFs", "GIPHY’s trending and search, and loading or sending a GIF.", listOf("rowtools")),
     MODELS("models", "Speech model downloads", "Fetching a dictation model. One already on the phone keeps working.", listOf("dictation")),
-    UPDATES("updates", "Updates", "The check for a new version, by itself and by hand, the dot on the settings cog, and the download.", listOf("about")),
+    UPDATES("updates", "Updates", "The check for a new version, by itself and by hand, the Update chip above the keys, and the download.", listOf("about")),
+    REPORTS("reports", "Anonymous typing reports", "Sending a typing report. What is waiting stays on the phone until it can go, or until you turn sharing off.", listOf("stats")),
 }
 
 /**
@@ -183,5 +184,12 @@ enum class NetPath(
         NetFeature.UPDATES, "update-download", "Update download", listOf("attack.fm"),
         trigger = "A newer version found with “Install updates by itself” on, or tapping Update now.",
         sends = "The request alone.",
+    ),
+    REPORT(
+        NetFeature.REPORTS, "report", "Typing report", listOf("attack.fm"),
+        trigger = "Only with “Share anonymous typing reports” on (it is off unless you turn it on): at most once a day as the keyboard hides, once 100 words have been typed; and tapping Send now.",
+        sends = "How often things happened (words typed and swiped, fixes made and undone, words put right, swipe readings changed); where taps land on their keys, as a grid of counts with no letters; " +
+            "up to 60 words you mistyped with the word you meant, and up to 12 swipe strokes with the word they were, only ever from the few thousand commonest words of the app’s own word lists; your layout, languages and key size; " +
+            "the app’s version and the two days it covers. No account, no device or install id, no time of day, and no word of your own or rarer than those. Settings shows the exact report before it goes.",
     ),
 }
