@@ -1,0 +1,8 @@
+// Signing for a build put straight on a registered iPhone or iPad over USB (docs/IOS.md, "On a device"): the two
+// development profiles, by target, as AppStore.xcconfig names the App Store ones.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Development
+DEVELOPMENT_TEAM = F6ZAL7ANAD
+GHOST_PROFILE_Runner = Ghost Keyboard Development
+GHOST_PROFILE_GhostKeyboard = Ghost Keyboard Extension Development
+PROVISIONING_PROFILE_SPECIFIER = $(GHOST_PROFILE_$(TARGET_NAME))

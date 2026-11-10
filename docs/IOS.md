@@ -196,3 +196,24 @@ ios/tool/ui_test.sh <simulator udid>          # the keyboard driven in Safari (s
 ```
 
 An App Store archive: `docs/store/ios/SUBMIT.md`.
+
+### On a device
+
+Xcode's automatic signing is not usable here (`SUBMIT.md` says why), so a phone gets a release build signed with two
+development profiles named in `ios/Device.xcconfig` ("Ghost Keyboard Development", "Ghost Keyboard Extension
+Development"). They list the devices they were made for: an iPhone Air registered 2026-11-10. Another device has to be
+registered with the team and the two profiles made again with it in them.
+
+```bash
+flutter build ios --release --no-codesign
+```
+
+```bash
+cd ios && xcodebuild build -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ../build/ios-device -xcconfig Device.xcconfig
+```
+
+```bash
+xcrun devicectl device install app --device <udid> build/ios-device/Build/Products/Release-iphoneos/Runner.app
+```
+
+Installed and launched on the iPhone Air that way (2026-11-10); what it does there has not been watched from here.
