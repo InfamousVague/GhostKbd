@@ -171,6 +171,10 @@ final class KeyboardUITests: XCTestCase {
     func test0b_TurnFullAccessOff() { setFullAccess(false) }
     func test0c_TurnFullAccessOn() { setFullAccess(true) }
 
+    /// Brings the keyboard up and does nothing else, then types: for reading its memory from outside (footprint).
+    func testMemoryIdle() { openPad(); pad.tap(); sleep(6) }
+    func testMemoryTyping() { openPad(); pad.tap(); sleep(2); type("teh keybkard wrold tommorow definately recieve "); sleep(2) }
+
     func test1_TypesCorrectsAndSwitchesPages() {
         openPad()
         pad.tap()
@@ -243,5 +247,30 @@ final class KeyboardUITests: XCTestCase {
         key("enter")
         sleep(3)
         XCTAssertFalse(text.contains("Stubbed answer."), text)
+    }
+
+    /// The row: undo takes back what the keyboard typed, an edit at a time; Rewrite sends the text and replaces it.
+    /// Needs Full Access and the stub provider agreed to (test0c, test0e).
+    func test4_UndoAndRewriteFromTheRow() {
+        openPad()
+        pad.tap()
+        sleep(2)
+        type("teh cat ")
+        XCTAssertEqual(text, "The cat ")
+        sleep(1)
+        shot("tools")
+        // The row with nothing being typed: ✦ Rewrite, undo, redo, Clipboard.
+        tapRowStrip(at: 0.41)
+        XCTAssertEqual(text, "The cat", "undo takes back the space")
+        // A word is under the cursor again, so the row is suggestions; a space brings the tools back.
+        key("space")
+        sleep(1)
+        tapRowStrip(at: 0.23)
+        sleep(1)
+        shot("rewrite-modes")
+        tapRowStrip(at: 0.29)
+        let done = NSPredicate { _, _ in self.text == "Stubbed answer." }
+        wait(for: [XCTNSPredicateExpectation(predicate: done, object: nil)], timeout: 20)
+        shot("rewritten")
     }
 }

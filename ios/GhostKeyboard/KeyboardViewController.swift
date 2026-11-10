@@ -76,6 +76,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        memoryMark("start")
         prefs.addNewDefaults()
         keyboard.listener = self
         keyboard.translatesAutoresizingMaskIntoConstraints = false
@@ -95,7 +96,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         row.onArrow = { [weak self] name in self?.arrow(name) }
         row.onHide = { [weak self] in self?.onHideKeyboard() }
         row.onTapFeedback = { [weak self] in self?.keyFeedback(.mode) }
-        autocorrect.onReady = { [weak self] in self?.scheduleRow() }
+        autocorrect.onReady = { [weak self] in self?.memoryMark("dictionary"); self?.scheduleRow() }
         // The app changed a setting while the keyboard is up: it shows on the next frame.
         let me = Unmanaged.passUnretained(self).toOpaque()
         CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), me, { _, observer, _, _, _ in
@@ -104,6 +105,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
             DispatchQueue.main.async { controller.applySettings() }
         }, GhostShared.settingsChanged as CFString, nil, .deliverImmediately)
         applySettings()
+        memoryMark("loaded")
     }
 
     deinit {
@@ -120,6 +122,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         store.local.set(hasFullAccess, forKey: GhostShared.keyboardFullAccess)
         adaptiveModel.reload()
         startField()
+        memoryMark("appear")
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -145,6 +148,20 @@ final class KeyboardViewController: UIInputViewController, KeyboardListener {
         super.didReceiveMemoryWarning()
         // Every language but the first goes: one dictionary is a few megabytes, and iOS ends a keyboard that grows.
         if let first = prefs.languages.first, autocorrect.languages.count > 1 { autocorrect.setLanguages([first]) }
+    }
+
+    /// Debug builds note the keyboard's memory at each stage of starting, for the budget in docs/IOS.md.
+    func memoryMark(_ stage: String) {
+        #if DEBUG
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let ok = withUnsafeMutablePointer(to: &info) { $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) } }
+        guard ok == KERN_SUCCESS else { return }
+        let line = "\(stage)=\(info.phys_footprint / 1_048_576)MB peak=\(info.ledger_phys_footprint_peak / 1_048_576)MB"
+        let had = store.local.string(forKey: "debug_memory") ?? ""
+        store.local.set(stage == "start" ? line : had + "; " + line, forKey: "debug_memory")
+        store.group?.set(store.local.string(forKey: "debug_memory"), forKey: "debug_memory")
+        #endif
     }
 
     private func updateHeight() {
