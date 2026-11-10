@@ -30,6 +30,7 @@ enum class RowIcon { SETTINGS, HIDE, GIF, BACK, FORWARD, SEARCH, KEY, MIC, DELET
  * - [view]: a view of the plugin's own, shown as it is (a password manager's inline suggestion).
  * - [wide]: a suggestion: shares the row's width with the others, a third each, as Gboard's do.
  * - [fill]: takes all the width the others leave (a search bar).
+ * - [dim]: drawn faint and not tappable: a button with nothing to do just now (Undo with nothing to undo).
  */
 class RowItem(
     val id: String,
@@ -40,6 +41,7 @@ class RowItem(
     val chip: Boolean = false,
     val view: View? = null,
     val fill: Boolean = false,
+    val dim: Boolean = false,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -118,7 +120,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
     fun setItems(next: List<RowItem>) {
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all.
-        if (next.map { it.id to it.label?.toString() to it.bold to it.view } == items.map { it.id to it.label?.toString() to it.bold to it.view }) return
+        if (next.map { it.id to it.label?.toString() to it.bold to it.view to it.dim } == items.map { it.id to it.label?.toString() to it.bold to it.view to it.dim }) return
+        // The same buttons with one lit or dimmed (Undo, after a tap on it) stay where they were scrolled to: the
+        // arrows must not slide out from under the thumb that is tapping them.
+        val keepScroll = if (next.map { it.id } == items.map { it.id }) scroll.scrollX else 0
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
@@ -135,7 +140,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             if (item.chip || item.view != null) { lp.leftMargin = dp(4f); lp.rightMargin = dp(4f); lp.topMargin = dp(6f); lp.bottomMargin = dp(6f) }
             strip.addView(v, lp)
         }
-        scroll.scrollTo(0, 0)
+        scroll.scrollTo(keepScroll, 0)
     }
 
     private fun makeView(item: RowItem): View {
@@ -144,6 +149,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 color = theme.toolbarIcon
                 minimumWidth = dp(44f)
                 setOnClickListener { tap(item) }
+                if (item.dim) { alpha = 0.35f; isClickable = false }
             }
         }
         return TextView(context).apply {
@@ -157,8 +163,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             val padX = if (item.wide) dp(6f) else dp(12f)
             setPadding(padX, 0, padX, 0)
             background = pressable(item.chip)
-            isClickable = item.onTap != null
             setOnClickListener { tap(item) }
+            isClickable = item.onTap != null && !item.dim
+            if (item.dim) alpha = 0.35f
             if (item.icon != null) {
                 setCompoundDrawablesRelative(IconDrawable(item.icon, theme.toolbarIcon, dp(18f)), null, null, null)
                 compoundDrawablePadding = dp(6f)
