@@ -132,6 +132,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         autocorrect.setLanguages(prefs.languages)
         autocorrect.setLearned(prefs.learnedWords)
         autocorrect.setSlang(prefs.slang)
+        // Mockingbird cleans slips out of its samples with these dictionaries, on its own thread.
+        Mockingbird.speller = autocorrect
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
         // Automatic updates: a look at most twice a day, installed with no prompt where Android allows it.
@@ -152,6 +154,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         Updater.removeListener(onUpdate)
         dictation.release()
         prefs.prefs.unregisterOnSharedPreferenceChangeListener(this)
+        if (Mockingbird.speller === autocorrect) Mockingbird.speller = null
         super.onDestroy()
     }
 

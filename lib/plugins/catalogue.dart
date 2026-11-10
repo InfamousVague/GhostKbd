@@ -279,7 +279,9 @@ const List<PluginManifest> catalogue = [
     description:
         'Mockingbird keeps samples of what you type on this phone: your texts in chat apps, your writing everywhere else. '
         'The AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter or your own server) reads them '
-        'and writes your style profile: punctuation, length, tone, the words you use. Ghostwriter writes in that voice, '
+        'and writes your style profile: punctuation, length, tone, the words you use. Slips of the thumb are cleaned out '
+        'of the samples, and only a habit you repeat (lower case, u for you, no apostrophes) is learned as yours, so it '
+        'writes like you without your typos. Ghostwriter writes in that voice, '
         'and selecting text offers In my voice to rewrite it as you. Nothing is kept from passwords, email or web '
         'addresses, or while incognito; the samples never leave the phone except, once, to train.',
     category: PluginCategory.typing,

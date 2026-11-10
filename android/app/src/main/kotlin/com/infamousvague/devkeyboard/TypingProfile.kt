@@ -20,7 +20,11 @@ object TypingProfile {
     /** What an import did, in a few lines for Settings. */
     data class Result(val lines: List<String>, val report: String?, val source: String?)
 
-    /** This keyboard's learning as a profile. Message samples only with [samples], since they are the person's words. */
+    /**
+     * This keyboard's learning as a profile. Message samples only with [samples], since they are the person's words;
+     * they go out as Mockingbird's AI reads them, with the obvious slips cleaned out. Waits for that cleaning, so
+     * not for the main thread.
+     */
     fun export(context: Context, samples: Boolean): String {
         val prefs = KeyboardPrefs(context)
         val o = JSONObject()
@@ -42,7 +46,7 @@ object TypingProfile {
         Mockingbird.profile(context)?.let { style.put("profile", it.text) }
         if (samples) {
             val a = JSONArray()
-            Mockingbird.samples(context).forEach { a.put(JSONObject().put("text", it.text).put("kind", if (it.chat) "chat" else "writing")) }
+            Mockingbird.cleanedSamples(context).forEach { a.put(JSONObject().put("text", it.text).put("kind", if (it.chat) "chat" else "writing")) }
             if (a.length() > 0) style.put("samples", a)
         }
         if (style.length() > 0) o.put("style", style)
