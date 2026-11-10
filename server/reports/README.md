@@ -14,21 +14,21 @@ by default): [docs/reports.md](../../docs/reports.md) says what one holds. This 
 
 ## On the box
 
-Not set up by any script: it touches the shared web server, so it is done by hand, once, with Matt's word.
+`node tool/deploy-reports.mjs` does it, in one login (the box counts them):
 
-1. `sudo install -D -m 0644 collector.py /opt/ghostkbd-reports/collector.py`
-2. `sudo install -m 0644 ghostkbd-reports.service /etc/systemd/system/` then
-   `sudo systemctl daemon-reload && sudo systemctl enable --now ghostkbd-reports`
-3. `curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8377/devkeyboard/report`
-   answers `400` (it is up, and `{}` is no report).
-4. Put `Caddyfile.snippet` inside the attack.fm site block, above whatever serves `/devkeyboard/`. Back the Caddyfile
-   up first, `caddy validate` it, reload, and check the other sites still answer. `log_skip` needs Caddy 2.8 or
-   newer (it was `skip_log` before that): no access log line may be written for this path.
-5. From anywhere: the same `curl` against `https://attack.fm/devkeyboard/report` answers `400`; `GET` answers `405`
-   or the site's own 404, never a file.
+- `--look` changes nothing: Caddy's version, attack.fm's block, python, the port, the service.
+- with no flag it installs `collector.py` into `/opt/ghostkbd-reports` and `ghostkbd-reports.service`, starts it, and
+  asks it on the box itself (an empty report must be refused with 400).
+- `--caddy` also writes the route into attack.fm's block of the shared Caddyfile: only the lines between its own two
+  markers, after a timestamped backup, with every site and the release's files asked before and after, `caddy
+  validate`, a reload, and the backup put back if anything answers differently or the route does not reach the
+  collector. `Caddyfile.snippet` is what those lines are.
 
-The reports are in `/var/lib/ghostkbd-reports/`. Until this is up the keyboard's reports are refused by the site
-(404), and it keeps what is waiting and tries again later; nothing is lost but the days past the fortnight it waits.
+No access log line is written for that path (`log_skip`; `skip_log` before Caddy 2.8).
+
+The reports are in `/var/lib/ghostkbd-reports/`. Where the collector is not up, the keyboard's reports are refused by
+the site (404), and it keeps what is waiting and tries again later; nothing is lost but the days past the fortnight
+it waits.
 
 ## Keeping them
 

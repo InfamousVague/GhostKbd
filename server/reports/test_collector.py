@@ -7,8 +7,6 @@ import os
 import tempfile
 import threading
 import unittest
-from http.server import ThreadingHTTPServer
-
 import collector
 
 GOOD = {
@@ -85,7 +83,7 @@ class Serve(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.store = collector.Store(self.dir.name)
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), collector.handler(self.store))
+        self.server = collector.Server(("127.0.0.1", 0), collector.handler(self.store))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def tearDown(self):

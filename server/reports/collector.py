@@ -17,6 +17,7 @@ import datetime
 import json
 import os
 import re
+import socketserver
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -231,11 +232,21 @@ def handler(store):
     return Handler
 
 
+class Server(ThreadingHTTPServer):
+    """This machine only, and nothing asked of the network: not even the name of its own address, which the standard
+    server looks up as it starts."""
+
+    daemon_threads = True
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "localhost", self.server_address[1]
+
+
 def main():
     directory = os.environ.get("REPORT_DIR") or os.environ.get("STATE_DIRECTORY") or "./reports"
     port = int(os.environ.get("REPORT_PORT", "8377"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), handler(Store(directory)))
-    server.daemon_threads = True
+    server = Server(("127.0.0.1", port), handler(Store(directory)))
     print(f"ghost keyboard reports: 127.0.0.1:{port}, kept in {directory}", file=sys.stderr, flush=True)
     try:
         server.serve_forever()
