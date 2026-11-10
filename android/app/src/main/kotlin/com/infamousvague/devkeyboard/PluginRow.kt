@@ -39,6 +39,7 @@ enum class RowIcon {
  * - [tint]: the chip's colour (RowTint): its icon in the hue, on a faint ground of it.
  * - [busy]: the AI is working on it: drawn as a ThinkingView, a sparkle and the words with a light passing over them.
  * - [description]: what a reader says for an icon with no words (TalkBack).
+ * - [dim]: drawn faint and not tappable: a button with nothing to do just now (Undo with nothing to undo).
  */
 class RowItem(
     val id: String,
@@ -52,6 +53,7 @@ class RowItem(
     val tint: RowTint? = null,
     val busy: Boolean = false,
     val description: String? = null,
+    val dim: Boolean = false,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -130,7 +132,10 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
 
     fun setItems(next: List<RowItem>) {
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all.
-        if (next.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy) } == items.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy) }) return
+        if (next.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) } == items.map { listOf(it.id, it.label?.toString(), it.bold, it.view, it.tint, it.busy, it.dim) }) return
+        // The same buttons with one lit or dimmed (Undo, after a tap on it) stay where they were scrolled to: the
+        // arrows must not slide out from under the thumb that is tapping them.
+        val keepScroll = if (next.map { it.id } == items.map { it.id }) scroll.scrollX else 0
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
@@ -168,7 +173,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 is ThinkingView -> c.maxWidth = cap
             }
         }
-        scroll.scrollTo(0, 0)
+        scroll.scrollTo(keepScroll, 0)
     }
 
     private fun makeView(item: RowItem): View {
@@ -186,6 +191,7 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
                 // A tool's chip: the icon alone on a pill, in its colour where it has one.
                 if (item.chip) background = pressable(true, item.tint)
                 setOnClickListener { tap(item) }
+                if (item.dim) { alpha = 0.35f; isClickable = false }
             }
         }
         return TextView(context).apply {
@@ -200,8 +206,9 @@ class PluginRow(context: Context, private val onSettings: () -> Unit, private va
             setPadding(padX, 0, padX, 0)
             background = pressable(item.chip, item.tint)
             contentDescription = item.description
-            isClickable = item.onTap != null
             setOnClickListener { tap(item) }
+            isClickable = item.onTap != null && !item.dim
+            if (item.dim) alpha = 0.35f
             if (item.icon != null) {
                 setCompoundDrawablesRelative(IconDrawable(item.icon, item.tint?.ink(theme) ?: theme.toolbarIcon, dp(18f)), null, null, null)
                 compoundDrawablePadding = dp(6f)

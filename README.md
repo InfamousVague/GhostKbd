@@ -37,6 +37,21 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   docked left, centre or right; on a phone, one-handed left or right. Tap the arrow on the empty side to move the keys.
 - **Market**: two tabs, Installed (what is added, and the built-in plugins' switches) and Discover.
 
+## 0.9.5
+
+- **Undo and redo** (the `undo` plugin; `EditHistory.kt`, `FieldEditor.kt`, `ConnectionPort.kt`): the arrows in the row
+  no longer just send Ctrl+Z. Every edit the keyboard makes goes through `FieldEditor`, which keeps a history of them
+  for the field in hand (a word of typing, a run of backspaces, an autocorrect fix, a swiped word, a paste, an emoji,
+  markdown, a snippet, a Ghostwriter or Rewrite answer, dictation: one step each) and plays it back through the
+  InputConnection, the same in every app, with the cursor put back. Before anything is taken out it is read back and
+  compared; if the text changed some other way the history is dropped and the app is asked to undo instead (its edit
+  menu's Undo, then Ctrl+Z). In memory only, 100 steps and 200,000 characters at most, never in password fields. An
+  arrow dims when there is nothing for it to do. A history is one field's: where an app only starts its input again
+  (which is also how another input on the same web page or Flutter screen arrives) it is kept only if its newest step
+  is found in the text. A new word typed straight after the last step waits on no read of the field, and a field that
+  answers reads slowly is not recorded. The history has no Android in it and is checked off the device:
+  `tool/undo-selfcheck.sh`, or `cd android && ./gradlew :app:testDebugUnitTest --tests '*FieldEditorTest*'`.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
