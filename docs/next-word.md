@@ -6,7 +6,8 @@ three. While a word is being typed its completions are ranked by the word before
 and where autocorrect could mend a slip two ways it picks the likelier one after that word.
 
 It is part of Autocorrect (which owns the word lists and the row's suggestions): **Settings › Typing › Autocorrect ›
-Next word** has the switch, the learning switch, how many word pairs have been learned, and "Forget what it learned".
+Next word** has the switch, the learning switch, how many word pairs have been learned, and "Forget what it learned";
+with the Mockingbird plugin added, "Predict in my voice" too (see [Mockingbird's samples](#mockingbirds-samples)).
 With the switch off, the row, completions and corrections are exactly as they were before there was prediction.
 
 Nothing here opens a connection. The starter tables are files inside the app and what is learned is a file in the
@@ -15,7 +16,7 @@ nothing of it to stop.
 
 ## What it goes by
 
-Two things, blended in `Scorer` (`NextWordModel.kt`):
+Two things, blended in `Scorer` (`NextWordModel.kt`), and a third where Mockingbird is added:
 
 - **Starter tables**, one a language, inside the app: for a word, for two words in a row, or for the start of a
   sentence, the words that most often came next in Tatoeba's sentences and each one's share. A two-word row ("how
@@ -27,15 +28,33 @@ With `u` a personal count, `U` everything the person has typed after that contex
 
     the starter share: B  = (n·B₂ + 15·B₁) / (n + 15)  where the table has a row for the two words before, seen n times
                                                        (else B = B₁, the one-word row's share)
-    after one word:    S2 = (u + 8·B) / (U + 8)
+    after one word:    S2 = (u + 20·B) / (U + 20)
     after two words:   S  = (u + 3·S2) / (U + 3)      where the person has typed that pair of words before
 
 So a new keyboard goes by the starter table alone, a pair the person types leads in its own context after a few uses,
 and a habit after two particular words leads at once. A pair typed once is remembered and not offered; it is offered
 from its second use, or its third if the word is in no word list.
 
-Where nothing is known of a context, the row shows its tools as it always did. Where one or two words are known, the
-row is filled up with the person's most-typed words, then the language's commonest.
+The starter table counted as 8 words after one word until 0.11.0. That let a few of the person's own uses outrank
+it wherever they had any, and prediction got worse the more of a writer's sentences it was given (`tool/typing_bench.sh
+voice`: six of Tatoeba's contributors, 1,500 of each one's sentences as their own typing, the next word of 1,500
+more in the row's three 31.8% of the time at 8, 33.0% at 20, 33.8% at 40, against 31.6% with none). At 20 a habit
+still shows quickly: against a pair the table gives half its row to, it leads from its eleventh use.
+
+**After every word there are words** (0.11.0). Where nothing is known of the word before (a word no table has, a
+name nobody has typed before), the row is filled with the person's most-typed words and the language's commonest,
+as a thin row always was; and a word typed with a capital in the middle of a sentence is followed by what follows a
+name (the row of the tables' own commonest name stands in, at half its weight). On the held-out sentences words
+were offered at 94.1% of places before and 99.5% now; what is offered after an unknown word is right 7% of the
+time and after a name 14%, where there was nothing.
+
+**An emoji starts a sentence.** "great 😀 " is followed by what opens a sentence, not by what follows "great"
+(the generator's tokenizer and the keyboard's agree: `tool/next_words_fixtures.tsv`).
+
+**The person's own words.** A word typed three times or more that is in no word list (a name, a place, a term of
+their work) is theirs: autocorrect leaves it alone and mends slips toward it, swipe typing reads it, and it
+completes in the row. They are worked out from the learned pairs whenever those are read, faded or saved, so
+"Forget what it learned" forgets them too.
 
 Several languages can be on at once. Each table is weighed by how many of the last four words it knows, so the
 language being written leads without being chosen.
@@ -44,6 +63,33 @@ For completions, a word's rank is its Zipf frequency (or what the person's own u
 `log10(1 + 40 · S / the word's own share of all words)`, at most 6. That lift is exactly 0 where the context says
 nothing, so context never ranks a word down. For corrections the same lift counts for at most 1.5, and only among
 candidates that were good enough corrections without it: context never causes a correction.
+
+## Mockingbird's samples
+
+Matt, 2026-11-10: "the next word prediction should be influenced by mockingbird". With the Mockingbird plugin added
+and **Predict in my voice** on (it is by default), the samples Mockingbird keeps of what was written and sent count
+toward the next word, beside what was typed (`NextWords.readMockingbird`):
+
+- each sample is read whole as it would have been counted had it been typed (`PersonalPairs.of`, the same walk of
+  the text, sentence starts and emoji included), in its cleaned form, so a slip Mockingbird mended is not counted;
+- the samples are kept apart by the kind of app they were sent in: chats, and everything else. A pair sent in the
+  kind of app being typed in now counts a quarter of a typed pair; one sent in the other kind a tenth. So how you
+  write to people leads while you chat, and how you write elsewhere leads elsewhere;
+- a word Mockingbird has heard three times or more, and the spellings it judged the person's own, are among their
+  own words (above);
+- the samples are read again when the keyboard hides and when a setting changes, and only if they have changed.
+  Nothing of them is written into `next_words.tsv`: turn the switch off, remove the plugin, or delete the samples in
+  Mockingbird's page, and prediction goes by typing alone again.
+
+It is all on the phone: no request is made for it, with or without an AI key.
+
+What the weights are worth was measured the same way as the starter table's (`tool/typing_bench.sh voice`): with a
+writer's 1,500 earlier sentences as samples and nothing typed, the next word of their later sentences was in the
+row's three 31.6% of the time without them, 35.3% with them at a tenth, 34.8% at a quarter, 33.9% at a half; with
+samples from the same days as what is predicted, 32.1%, then 36.5%, 36.3%, 36.0%. One writer of the six gains
+seventeen points and the others between one lost and six gained. These are Tatoeba's contributors, whose other
+sentences the starter table has already counted, so it understates what a stranger's own messages add; nothing has
+been measured on anyone's real samples.
 
 ## What is learned, and what never is
 
@@ -219,8 +265,13 @@ Together the tables are 11.3 MB as files and about 5.1 MB inside the APK.
   drift apart.
 - `tool/lang_check.sh` still holds autocorrect to its golden with no context given.
 - `flutter test test/next_word_settings_test.dart`: the settings card.
+- `android/app/src/test/.../TypingAccuracyTest.kt`: Mockingbird's samples counted as they would be typed, and blended
+  with what was.
+- `tool/typing_bench.sh next` and `voice`: how often the row has the next word, on held-out sentences.
+
+Swipe typing reads its first word by the prediction here since 0.11.0 ([typing-accuracy.md](typing-accuracy.md)).
 
 ## Not built
 
-Context in swipe typing's ranking; a per-app switch (an app's incognito profile stops learning there); forgetting
+A per-app switch (an app's incognito profile stops learning there); forgetting
 one pair by long-press; starter tables with two words of context; iOS.

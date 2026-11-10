@@ -63,19 +63,32 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
      * The likeliest readings of [path], best first, as text ("hey what's up"); [keys] are the letters' centres.
      * [before] is the word before the cursor in lower case, "^" at a sentence's start, or null when unknown.
      */
-    fun decode(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null, max: Int = 5): List<String> =
-        scored(path, keys, keyW, before, max).map { it.first }
+    fun decode(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null, max: Int = 5, first: ((word: String, zipf: Float) -> Float)? = null): List<String> =
+        scored(path, keys, keyW, before, max, first).map { it.first }
 
-    /** [decode]'s readings with their scores, for the self-check's messages. */
-    fun scored(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null, max: Int = 5): List<Pair<String, Float>> {
+    /**
+     * [decode]'s readings with their scores, for the self-check's messages. [first], where given, says how likely
+     * the reading's first word is where the cursor stands (log10, as [likely] gives it): the keyboard's own
+     * next-word prediction, which goes by the two words before and by what the person types, where [before] alone
+     * goes by the starter tables' one-word rows.
+     */
+    fun scored(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null, max: Int = 5, first: ((word: String, zipf: Float) -> Float)? = null): List<Pair<String, Float>> {
         if (path.size < 2 || keyW <= 0f || keys.isEmpty()) return emptyList()
         val p = resample(path, (length(path) / (keyW / 4f)).roundToInt().coerceIn(16, 240))
         // Most strokes are one word: read the stroke as one first, and look for several only when no word explains it
         // (the best word strays, leaves path unexplained, or ends off its letter). It is the quick case by far.
         val deadline = System.nanoTime() + budgetMs * 1_000_000L
-        val whole = words(p, keys, keyW, null)
+        fun opening(c: Cand) = first?.invoke(c.lower, c.zipf) ?: likely(c, before?.let { rowOf(it) })
+        // More words than a piece of a phrase keeps: where the cursor stands may lift one the stroke alone ranks low.
+        val whole = words(p, keys, keyW, null, keep = WHOLE_KEEP)
+        // A loose stroke says less about which keys were meant, so how common a word is says more: the further even
+        // the best-fitting word strays, the less every reading's distance counts (never under [SLACK_LEAST] of it).
+        slack = if (SLACK <= 0f) 1f else whole.minOfOrNull { it.err / keyW }?.let { (SLACK / maxOf(it, SLACK)).coerceAtLeast(SLACK_LEAST) } ?: 1f
         // Out of time or out of readings: the best single word, however loosely it fits, as the decoder always gave.
-        fun asOneWord() = whole.ifEmpty { words(p, keys, keyW, null, loose = true) }.map { c -> Partial(listOf(c.word), likely(c, before?.let { rowOf(it) }), c.err * c.len, c.len, c.pin, c.off) }
+        // A scrap of two letters (wp, pa, ep) lies along the line of many a real word drawn over the same keys (weep,
+        // pisa): read alone it is the less likely of them, by [SHORT_ALONE].
+        fun alone(c: Cand) = if (c.zipf < SHORT_WORD && lex.letters(c.word).length <= 2) SHORT_ALONE else 0f
+        fun asOneWord() = whole.ifEmpty { words(p, keys, keyW, null, loose = true, keep = WHOLE_KEEP) }.map { c -> Partial(listOf(c.word), opening(c), c.err * c.len, c.len, c.pin, c.off, cost = alone(c)) }
             .sortedByDescending { score(it, keyW) }
             .map { capitalI(it.words[0]) to score(it, keyW) }.distinctBy { it.first }.take(max)
         whole.firstOrNull()?.let { top ->
@@ -91,19 +104,30 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
             val landings = if (first) null else (a + 1..minOf(b, a + LANDING)).flatMap { near(keys, p[kp[it]], keyW, 0.8f).take(2) }.distinct()
             words(p.subList(kp[a], kp[b] + 1), keys, keyW, landings)
         }
+        // A word of a phrase is a word people write: the lists hold scraps of two and three letters (vr, ka, kda)
+        // that a loose stroke would otherwise be cut into.
+        fun scrap(word: String, zipf: Float): Boolean {
+            val n = lex.letters(word).length
+            return (n <= 2 && zipf < SHORT_WORD) || (n == 3 && zipf < THREE_LETTER)
+        }
         val compounds = HashMap<String, Boolean>()
-        fun extend(prev: Partial, c: Cand, at: Int, point: Boolean = false): Partial {
+        fun extend(prev: Partial, c: Cand, at: Int, point: Boolean = false): Partial? {
             val last = prev.words.lastOrNull()?.lowercase()
-            val context = last ?: before
             var cost = prev.cost
             if (last != null) {
+                if (scrap(c.word, c.zipf)) return null
+                if (prev.words.size == 1 && scrap(prev.words[0], lex.zipf(prev.words[0]) ?: 0f)) return null
                 // A break where the finger ran straight on is less likely than one where it turned.
                 if (straight[at]) cost += STRAIGHT
                 // Two words that spell one ("some" "thing") are nearly always that one word swiped.
                 val joined = last + c.lower
                 if (compounds.getOrPut(joined) { (lex.zipf(joined) ?: 0f) >= COMPOUND_ZIPF }) cost += COMPOUND
+                // Words glided in one stroke are a phrase: a pair the tables never saw is less likely one.
+                if (rowOf(last)?.containsKey(c.lower) != true) cost += UNSEEN
             }
-            return Partial(prev.words + c.word, prev.lm + likely(c, context?.let { rowOf(it) }), prev.err + c.err * c.len, prev.len + c.len, prev.pin + c.pin, prev.off + c.off, point, cost)
+            if (last == null) cost += alone(c)
+            val lm = if (last == null) opening(c) else likely(c, rowOf(last))
+            return Partial(prev.words + c.word, prev.lm + lm, prev.err + c.err * c.len, prev.len + c.len, prev.pin + c.pin, prev.off + c.off, point, cost)
                 .also { it.score = score(it, keyW) }
         }
         // A one-letter word ("I", "a") takes no length of path: it sits on a point, and the next word goes on from there.
@@ -118,7 +142,7 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
                     val zipf = lex.zipf(w) ?: continue
                     if (zipf < ONE_LETTER) continue
                     val miss = dist(q, k)
-                    more += extend(prev, Cand(w, zipf, miss, keyW * 0.25f, miss, 0f), b, point = true)
+                    extend(prev, Cand(w, zipf, miss, keyW * 0.25f, miss, 0f), b, point = true)?.let { more += it }
                 }
             }
             list += more
@@ -140,7 +164,7 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
                     for (c in piece(a, b, prev.words.isEmpty())) {
                         // "I" then "important" from the same i is the one word, not two.
                         if (prev.point && c.initial == prev.words.last().firstOrNull()?.lowercaseChar()) continue
-                        here += extend(prev, c, a)
+                        extend(prev, c, a)?.let { here += it }
                     }
                 }
             }
@@ -164,9 +188,12 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
         return kotlin.math.log10(Math.pow(10.0, (c.zipf - 9f).toDouble()) + PAIRS * pair).toFloat()
     }
 
+    /** How much the stroke's distances count for this stroke: see [scored]. */
+    private var slack = 1f
+
     private fun score(r: Partial, keyW: Float): Float {
         val mean = if (r.len > 0f) r.err / r.len / keyW else 0f
-        return 0.55f * r.lm + JOIN * (r.words.size - 1) - 6f * mean - PIN * r.pin / keyW - OFF * r.off / keyW - r.cost
+        return LM * r.lm + JOIN * (r.words.size - 1) - slack * (DIST * mean + PIN * r.pin / keyW + OFF * r.off / keyW) - r.cost
     }
 
     /**
@@ -174,16 +201,17 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
      * starts near where the finger came down. Otherwise it starts at the place the last word ended on, glides from
      * there, and its first letter is one of the [landings]. Either way its last letter is near the piece's end.
      */
-    private fun words(sub: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, landings: List<Char>?, loose: Boolean = false): List<Cand> {
+    private fun words(sub: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, landings: List<Char>?, loose: Boolean = false, keep: Int = PER_PIECE): List<Cand> {
         val first = landings == null
         val len = length(sub).coerceAtLeast(keyW * 0.25f)
-        val n = (len / (keyW / 4f)).roundToInt().coerceIn(8, 48)
+        val n = (len / (keyW / 4f)).roundToInt().coerceIn(8, MAX_SAMPLES)
         // The piece as plain numbers: this loop runs for thousands of words a stroke, and a phone feels every object.
         val user = resample(sub, n)
         val ux = FloatArray(n) { user[it].first }
         val uy = FloatArray(n) { user[it].second }
         val starts = landings ?: near(keys, user.first(), keyW, 1.1f)
         val lasts = near(keys, user.last(), keyW, 1.1f)
+        val turns = turnbacks(ux, uy, n, keyW)
         val out = ArrayList<Cand>()
         val lo = if (loose) 0f else len * 0.6f - keyW * 0.7f
         val hi = if (loose) Float.MAX_VALUE else len * 1.35f + keyW * 0.7f
@@ -215,16 +243,27 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
                 if (!ok) continue
                 val pin = hyp(ux[n - 1] - kx[m - 1], uy[n - 1] - ky[m - 1]) + if (first) hyp(ux[0] - kx[0], uy[0] - ky[0]) else 0f
                 val stray = straying(ux, uy, n, m, keyW)
+                // Where the finger doubled back there is a letter: a word with none of its letters there is not it.
+                var unturned = 0f
+                for (a in 0 until turns) {
+                    var d = Float.MAX_VALUE
+                    for (k in 0 until m) { val h = hyp(turnX[a] - kx[k], turnY[a] - ky[k]); if (h < d) d = h }
+                    unturned += ((d / keyW - TURN_NEAR) / TURN_SPAN).coerceIn(0f, 1f)
+                }
                 // A reading that skips a word is shorter than the finger's path, though the skipped letters may lie on
                 // its own lines ("see tomorrow" for "see you tomorrow", along the top row): what the length doesn't
                 // cover is unexplained too, beyond a fifth for the corners a thumb cuts.
                 val ideal = shape.length + glide
                 val short = (len - ideal - 0.2f * ideal - 0.3f * keyW).coerceAtLeast(0f)
-                out += Cand(shape.word, shape.zipf, (stray + reach(ux, uy, n, m)) / 2, len, pin, maxOf(strayOff * len, short))
+                // A finger goes forward along a word's lines: path drawn going back along one and up to where it was
+                // again (out to the r of "there" and back, for "the") is a letter the reading has not got, beyond
+                // the little a thumb wavers by.
+                val overrun = (strayOver - OVERRUN_FREE * keyW).coerceAtLeast(0f) * OVERRUN
+                out += Cand(shape.word, shape.zipf, (stray + reach(ux, uy, n, m)) / 2, len, pin, maxOf(strayOff * len, short) + unturned * TURNBACK * keyW + overrun)
             }
         }
-        out.sortByDescending { 0.55f * it.zipf - 6f * it.err / keyW - PIN * it.pin / keyW - OFF * it.off / keyW }
-        return out.take(PER_PIECE)
+        out.sortByDescending { LM * it.zipf - slack * (DIST * it.err / keyW + PIN * it.pin / keyW + OFF * it.off / keyW) }
+        return out.take(keep)
     }
 
     /** A word, its keys in order (a doubled letter once: "hello" glides h-e-l-o), their lines' length, and its zipf. */
@@ -239,12 +278,24 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
     private fun shapesOf(first: Char, last: Char, keys: Map<Char, Pair<Float, Float>>): List<Shape> {
         if (shapesFor !== keys) { shapes.clear(); shapesFor = keys }
         return shapes.getOrPut(first.code shl 16 or last.code) {
-            lex.ends(first, last).mapNotNull { word ->
+            // The index is by plain letters, so a key that is an accented letter (Turkish ç, Swedish ö) looks under its plain one.
+            val a = lex.letters(first.toString()).firstOrNull() ?: return@getOrPut emptyList()
+            val b = lex.letters(last.toString()).lastOrNull() ?: return@getOrPut emptyList()
+            val from = keys[first]; val to = keys[last]
+            lex.ends(a, b).mapNotNull { word ->
                 val zipf = lex.zipf(word) ?: return@mapNotNull null
+                // The word's keys, a doubled letter once ("hello" glides h-e-l-o). A letter's key is its own or, for a
+                // letter this board keeps behind a long-press, its plain letter's; a word with a letter that has
+                // neither cannot be glided here.
                 val pts = ArrayList<Pair<Float, Float>>()
                 var prev = ' '
-                for (c in lex.letters(word)) { if (c != prev) pts += keys[c] ?: return@mapNotNull null; prev = c }
-                if (pts.isEmpty()) null
+                for (c in word.lowercase()) {
+                    if (c == '\'' || c == '’') continue
+                    if (keys.containsKey(c)) { if (c != prev) pts += keys.getValue(c); prev = c; continue }
+                    for (p in lex.letters(c.toString())) { if (p != prev) pts += keys[p] ?: return@mapNotNull null; prev = p }
+                }
+                // Only the words that start and end on these two keys themselves (için starts on i, not on ı).
+                if (pts.isEmpty() || pts.first() != from || pts.last() != to) null
                 else Shape(word, FloatArray(pts.size) { pts[it].first }, FloatArray(pts.size) { pts[it].second }, length(pts), zipf)
             }.sortedBy { it.length }
         }
@@ -271,33 +322,140 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
     private var rowB = FloatArray(64)
     /** [straying]'s second answer: the share of the points more than half a key from every line. */
     private var strayOff = 0f
+    /** And its third: how much path the stroke drew behind where it had already got to on one of the word's lines. */
+    private var strayOver = 0f
+    private var wayBack = FloatArray(32)
+    private var wayBackNext = FloatArray(32)
+    // [straying]'s rows, a place a line of the word: the least distance so far, how far along the line, how many points off.
+    private var wayCost = FloatArray(32)
+    private var wayNext = FloatArray(32)
+    private var wayAt = FloatArray(32)
+    private var wayAtNext = FloatArray(32)
+    private var wayOff = IntArray(32)
+    private var wayOffNext = IntArray(32)
 
     /**
      * How far the finger strays from the word's lines (straight from key to key, the [m] points in kx/ky): the mean
-     * distance of the path's [n] points from the nearest of them. Unlike pairing points by how far along each they
-     * are, it doesn't grow with a word's length as a thumb cuts its corners, so a long word isn't beaten by the same
-     * path cut into short ones. Sets [strayOff] too.
+     * distance of the path's [n] points from them. Unlike pairing points by how far along each they are, it doesn't
+     * grow with a word's length as a thumb cuts its corners, so a long word isn't beaten by the same path cut into
+     * short ones. Sets [strayOff] too.
+     *
+     * The lines are followed in the order the word has them, and never backwards ([ORDERED]; Matt, 2026-11-10:
+     * "improving the reliability of the swipe"): each point is held against the line the stroke has got to, from as
+     * far along it as the stroke has come, or against a later one. Before 0.11.0 a point counted its distance from
+     * the nearest line anywhere in the word, so a detour was excused by a line the word only reaches later (the d of
+     * "adriana" by the way back from i, which made it "ariana"), and a there-and-back by the line just drawn (the
+     * "re" of "there" lies along h to e, which made it "the").
      */
     private fun straying(ux: FloatArray, uy: FloatArray, n: Int, m: Int, keyW: Float): Float {
-        var total = 0f
-        var off = 0
         val far = keyW * 0.5f
+        if (m == 1 || !ORDERED) {
+            var total = 0f
+            var off = 0
+            for (j in 0 until n) {
+                val qx = ux[j]; val qy = uy[j]
+                var best = if (m == 1) hyp(qx - kx[0], qy - ky[0]) else Float.MAX_VALUE
+                for (i in 1 until m) {
+                    val ax = kx[i - 1]; val ay = ky[i - 1]
+                    val dx = kx[i] - ax; val dy = ky[i] - ay
+                    val l2 = dx * dx + dy * dy
+                    val t = if (l2 <= 0f) 0f else (((qx - ax) * dx + (qy - ay) * dy) / l2).coerceIn(0f, 1f)
+                    val d = hyp(qx - ax - t * dx, qy - ay - t * dy)
+                    if (d < best) best = d
+                }
+                total += best
+                if (best > far) off++
+            }
+            strayOff = off.toFloat() / n
+            strayOver = 0f
+            return total / n
+        }
+        val segs = m - 1
+        if (wayCost.size < segs) { wayCost = FloatArray(segs * 2); wayNext = FloatArray(segs * 2); wayAt = FloatArray(segs * 2); wayAtNext = FloatArray(segs * 2); wayOff = IntArray(segs * 2); wayOffNext = IntArray(segs * 2); wayBack = FloatArray(segs * 2); wayBackNext = FloatArray(segs * 2) }
+        var cost = wayCost; var next = wayNext
+        var at = wayAt; var atNext = wayAtNext
+        var off = wayOff; var offNext = wayOffNext
+        // How much path the stroke has drawn while behind where it had got to on a line: going back along it, and
+        // coming forward again to where it was.
+        var back = wayBack; var backNext = wayBackNext
         for (j in 0 until n) {
             val qx = ux[j]; val qy = uy[j]
-            var best = if (m == 1) hyp(qx - kx[0], qy - ky[0]) else Float.MAX_VALUE
-            for (i in 1 until m) {
-                val ax = kx[i - 1]; val ay = ky[i - 1]
-                val dx = kx[i] - ax; val dy = ky[i] - ay
+            val step = if (j == 0) 0f else hyp(qx - ux[j - 1], qy - uy[j - 1])
+            // The best the stroke had done one line back or more, up to the point before this.
+            var before = Float.MAX_VALUE
+            var beforeOff = 0
+            var beforeBack = 0f
+            for (i in 0 until segs) {
+                val ax = kx[i]; val ay = ky[i]
+                val dx = kx[i + 1] - ax; val dy = ky[i + 1] - ay
                 val l2 = dx * dx + dy * dy
-                val t = if (l2 <= 0f) 0f else (((qx - ax) * dx + (qy - ay) * dy) / l2).coerceIn(0f, 1f)
-                val d = hyp(qx - ax - t * dx, qy - ay - t * dy)
-                if (d < best) best = d
+                val along = if (l2 <= 0f) 0f else ((qx - ax) * dx + (qy - ay) * dy) / l2
+                // Onto this line from an earlier one (or, the first point, from nowhere): anywhere along it.
+                val t0 = along.coerceIn(0f, 1f)
+                val d0 = hyp(qx - ax - t0 * dx, qy - ay - t0 * dy)
+                var best = if (j == 0) d0 else if (before == Float.MAX_VALUE) Float.MAX_VALUE else before + d0
+                var bestAt = t0
+                var bestOff = (if (j == 0) 0 else beforeOff) + (if (d0 > far) 1 else 0)
+                var bestBack = if (j == 0) 0f else beforeBack
+                if (j > 0) {
+                    // Still on this line: no further back along it than the stroke had come.
+                    val t1 = along.coerceIn(at[i], 1f)
+                    val d1 = hyp(qx - ax - t1 * dx, qy - ay - t1 * dy)
+                    val stay = cost[i] + d1
+                    if (stay <= best) { best = stay; bestAt = t1; bestOff = off[i] + (if (d1 > far) 1 else 0); bestBack = back[i] + (if (along < at[i] - BEHIND) step else 0f) }
+                    if (cost[i] < before) { before = cost[i]; beforeOff = off[i]; beforeBack = back[i] }
+                }
+                next[i] = best; atNext[i] = bestAt; offNext[i] = bestOff; backNext[i] = bestBack
             }
-            total += best
-            if (best > far) off++
+            val b = back; back = backNext; backNext = b
+            val c = cost; cost = next; next = c
+            val a = at; at = atNext; atNext = a
+            val o = off; off = offNext; offNext = o
         }
-        strayOff = off.toFloat() / n
-        return total / n
+        var least = Float.MAX_VALUE
+        var leastOff = 0
+        var leastBack = 0f
+        for (i in 0 until segs) if (cost[i] < least) { least = cost[i]; leastOff = off[i]; leastBack = back[i] }
+        strayOff = leastOff.toFloat() / n
+        strayOver = leastBack
+        return least / n
+    }
+
+    // Where the piece in hand doubles back ([turnbacks]): at most [MAX_TURNS] places.
+    private val turnX = FloatArray(MAX_TURNS)
+    private val turnY = FloatArray(MAX_TURNS)
+
+    /**
+     * Where the path's [n] points double back: the sharpest point of each turn of [TURN_DEGREES] or more, seen over
+     * half a key either side, away from the path's two ends (a finger hooks as it comes down and as it lifts). A
+     * finger doubles back at a letter and nowhere else: the r of "there" is one, which "the" has no letter for, and
+     * a corner cut short of its key still shows where it was heading. Puts them in turnX/turnY; says how many.
+     */
+    private fun turnbacks(ux: FloatArray, uy: FloatArray, n: Int, keyW: Float): Int {
+        if (TURNBACK <= 0f || n < 9) return 0
+        val w = 2
+        val least = keyW * 0.3f
+        val limit = kotlin.math.cos(Math.toRadians(TURN_DEGREES.toDouble())).toFloat()
+        var count = 0
+        var i = w + 1
+        while (i < n - w - 1 && count < MAX_TURNS) {
+            var best = -1
+            var bestCos = limit
+            // A run of points that all see the turn: its sharpest is where the turn is.
+            var j = i
+            while (j < n - w - 1) {
+                val ax = ux[j] - ux[j - w]; val ay = uy[j] - uy[j - w]
+                val bx = ux[j + w] - ux[j]; val by = uy[j + w] - uy[j]
+                val la = hyp(ax, ay); val lb = hyp(bx, by)
+                val cos = if (la < least || lb < least) 1f else (ax * bx + ay * by) / (la * lb)
+                if (cos > limit) break
+                if (cos <= bestCos) { bestCos = cos; best = j }
+                j++
+            }
+            if (best >= 0) { turnX[count] = ux[best]; turnY[count] = uy[best]; count++ }
+            i = j + 1
+        }
+        return count
     }
 
     /** How near the finger passes each of the word's [m] keys, taken in order along the path's [n] points: the mean miss. */
@@ -365,21 +523,53 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
 
     companion object {
         /** What each word after the first gets back of its cost: see the class's note. */
-        const val JOIN = 0.5f
+        @JvmField var JOIN = 0f
+        /** A stroke is held against a word's lines in their order, never backwards along one ([straying]); off only for the benchmark's comparisons. */
+        @JvmField var ORDERED = true
+        /**
+         * The most points a piece of the path is held against a word by: one every quarter of a key up to this many.
+         * It was 48 until 0.11.0, which left a long word's stroke (twenty keys' length and more) a point every half
+         * key: too few to see a one-key there-and-back in it (the "tt" of "spettro", read as "spero").
+         */
+        @JvmField var MAX_SAMPLES = 96
+        /**
+         * A turn of [TURN_DEGREES] or more is the finger doubling back ([turnbacks]). A reading with no letter within
+         * [TURN_NEAR] key widths of one is short of it: by [TURNBACK] key widths of unexplained path once the nearest
+         * letter is [TURN_NEAR] + [TURN_SPAN] away, and in proportion between.
+         */
+        /**
+         * Path drawn behind where the stroke had got to on one of a word's lines ([straying]) counts as unexplained,
+         * [OVERRUN] of its length, past the first [OVERRUN_FREE] key widths. [BEHIND] is how far behind, as a share
+         * of the line, counts as behind at all.
+         */
+        @JvmField var OVERRUN = 1.5f
+        @JvmField var OVERRUN_FREE = 0.3f
+        const val BEHIND = 0.02f
+        @JvmField var TURNBACK = 0.5f
+        @JvmField var TURN_DEGREES = 140f
+        @JvmField var TURN_NEAR = 0.35f
+        @JvmField var TURN_SPAN = 0.35f
+        const val MAX_TURNS = 8
+        /** How much a word's likelihood (log10) counts, and how much a key width of mean distance from the path. */
+        @JvmField var LM = 0.55f
+        @JvmField var DIST = 6f
+        /** The mean distance (key widths) of the best-fitting word past which a stroke is loose, and the least its distances then count: see [scored]. */
+        @JvmField var SLACK = 0.15f
+        @JvmField var SLACK_LEAST = 0.35f
         /** How much a pair's share adds to a word's own frequency (both as probabilities). */
-        const val PAIRS = 2f
+        @JvmField var PAIRS = 8f
         /** How much a key width's miss at a word's ends counts: see the class's note. */
-        const val PIN = 2f
+        @JvmField var PIN = 2f
         /** How much each key width of unexplained path counts: see the class's note. */
-        const val OFF = 2f
+        @JvmField var OFF = 2f
         const val MAX_WORDS = 6
         /** How long a stroke may take to read as several words before the best single word is taken instead. */
         const val BUDGET_MS = 1200L
         /** The stroke is taken as one word, with no search for several, when its best word strays at most this far on
          *  average (key widths), leaves at most [ONE_WORD_OFF] of path unexplained and ends within [ONE_WORD_PIN]. */
-        const val ONE_WORD_FIT = 0.3f
-        const val ONE_WORD_OFF = 1.0f
-        const val ONE_WORD_PIN = 0.8f
+        @JvmField var ONE_WORD_FIT = 0.25f
+        @JvmField var ONE_WORD_OFF = 1.0f
+        @JvmField var ONE_WORD_PIN = 0.8f
         const val MAX_CORNERS = 16
         /** At most this many places a word can end, corners and key passes together. */
         const val MAX_POINTS = 32
@@ -392,13 +582,22 @@ class SwipeDecoder(private val lex: Lexicon, private val budgetMs: Long = BUDGET
         /** A word after the first spans at most this many places. */
         const val LATER_SPAN = 20
         /** What a break costs where the finger ran straight on, over one at a corner. */
-        const val STRAIGHT = 0.5f
+        @JvmField var STRAIGHT = 0.25f
         /** What two words cost that spell one word of at least [COMPOUND_ZIPF] together. */
-        const val COMPOUND = 3f
+        @JvmField var COMPOUND = 3f
         const val COMPOUND_ZIPF = 3f
         const val CORNER = 28f
         const val BEAM = 8
         const val PER_PIECE = 5
+        /** How many words a whole stroke keeps for where the cursor stands to choose among. */
+        @JvmField var WHOLE_KEEP = 12
+        /** A word of one or two letters inside a phrase is at least this common (to, of, me; not vr, ka), and one of three letters this. */
+        @JvmField var SHORT_WORD = 5f
+        @JvmField var THREE_LETTER = 3.8f
+        /** What a two-letter word under [SHORT_WORD] costs as a stroke's only word. */
+        @JvmField var SHORT_ALONE = 0.4f
+        /** What a pair of words costs that the starter tables never saw together. */
+        @JvmField var UNSEEN = 2f
         /** A one-letter word inside a phrase must be this common ("a", "I"), so stray letters don't become words. */
         const val ONE_LETTER = 6f
 

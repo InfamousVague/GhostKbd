@@ -125,8 +125,13 @@ private fun blend() {
     type(r, "on my way. on my way. ")
     same(scorer("go on ", listOf(t), r, known).top(1), listOf("the"), "two uses do not unseat a strong starter pair")
     same(scorer("on ", listOf(t), r, known).top(1), listOf("my"), "but where the two words before are the same as both times, they do")
+    // The starter table counts as twenty words typed after "on", half of them "the" in this table: a habit unseats that
+    // from its eleventh use (0.11.0; it was eight words and a sixth use, which let thin personal counts outrank the
+    // table wherever they were: tool/typing_bench.sh voice).
     repeat(6) { type(r, "on my way. ") }
-    same(scorer("go on ", listOf(t), r, known).top(1), listOf("my"), "eight uses do, whatever came before")
+    same(scorer("go on ", listOf(t), r, known).top(2), listOf("the", "my"), "eight uses bring it up beside the starter pair")
+    repeat(3) { type(r, "on my way. ") }
+    same(scorer("go on ", listOf(t), r, known).top(1), listOf("my"), "eleven uses unseat it, whatever came before")
     // Two words of context beat one.
     val u = PersonalPairs()
     repeat(4) { type(u, "it is going. ") }

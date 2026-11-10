@@ -187,6 +187,12 @@ object Mockingbird {
         return words
     }
 
+    /**
+     * The spellings judged the person's own ([keptWords]), in lower case: next-word prediction and autocorrect take
+     * them for words of theirs. Reads a small file the first time, so not for the main thread.
+     */
+    fun ownWords(context: Context): Set<String> = synchronized(lock) { keptWords(context.applicationContext).mapTo(HashSet()) { it.lowercase() } }
+
     /** Remembers [words] as [keptWords], the newest [MAX_KEPT_WORDS] of them. Worker thread only. */
     private fun keepWords(context: Context, words: Set<String>) {
         if (words == keptWords(context)) return

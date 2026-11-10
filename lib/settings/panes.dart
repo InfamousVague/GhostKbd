@@ -733,6 +733,8 @@ String nextWordFooter(SettingsStore store) {
 List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
   final learned = store.learnedWords;
   final pairs = (store.nextWords['pairs'] as num?)?.toInt() ?? 0;
+  final put = (store.mistakes['typed'] as num?)?.toInt() ?? 0;
+  final picked = (store.mistakes['swiped'] as num?)?.toInt() ?? 0;
   return [
     PaneSection(children: [
       _toggle(store, 'autocorrect', 'Correct on its own', 'Off: it only suggests.'),
@@ -745,9 +747,22 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
       children: [
         _toggle(store, 'next_word', 'Suggest the next word', 'After a space, three likely next words wait above the keys; tap one to type it.'),
         _toggle(store, 'next_word_learn', 'Learn from what I type', 'Counts which words you put together, on this phone. Never in password fields, while incognito, or in apps that ask keyboards not to learn.'),
+        // Android's keyboard only, like the corrections below: the iPhone's has neither yet.
+        if (!isIOS && store.pluginOn('mockingbird'))
+          _toggle(store, 'next_word_mockingbird', 'Predict in my voice', 'What Mockingbird has kept of your writing counts toward the next word, your chats most while you chat. Worked out on this phone.'),
         SettingRow(label: 'Learned so far', value: Text(pairs == 1 ? '1 word pair' : '$pairs word pairs')),
         // Never greyed out on a count: the keyboard may have learned since the count was read, and forgetting must always be within reach.
         SettingRow(label: 'Forget what it learned', hint: const Text('Every word pair counted from your typing.'), onPress: store.resetNextWords),
+      ],
+    ),
+    if (!isIOS) PaneSection(
+      title: 'Your corrections',
+      footer: Text('A word you put right (typed over, or swapped for one above the keys) is remembered on this phone, and a fix you undo is forgotten. Put right the same way twice, it is mended that way for you from then on; a swipe goes by the reading you keep choosing.${store.pluginOn('mockingbird') ? ' The slips Mockingbird cleans out of its samples count too.' : ''}'),
+      children: [
+        _toggle(store, 'learn_mistakes', 'Learn from my corrections', 'Never in password fields, while incognito, or in apps that ask keyboards not to learn.'),
+        SettingRow(label: 'Remembered so far', value: Text('${put == 1 ? '1 word' : '$put words'}, ${picked == 1 ? '1 swipe' : '$picked swipes'}')),
+        // Never greyed out on a count, for the reason the pairs' row is not.
+        SettingRow(label: 'Forget my corrections', hint: const Text('Every mistake and swipe choice it has kept.'), onPress: store.resetMistakes),
       ],
     ),
     PaneSection(

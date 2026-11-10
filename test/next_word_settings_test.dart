@@ -97,6 +97,22 @@ void main() {
     expect(card().last.onPress, isNotNull);
     expect((card()[2].value as Text).data, '42 word pairs');
 
+    // Learning from corrections (0.11.0): its own card between the next word's and the learned words, with the same
+    // promise about where it never learns, a count, and forgetting always within reach.
+    expect(rows.map((e) => e.$1), containsAllInOrder(['Forget what it learned', 'Your corrections', 'Learn from my corrections', 'Remembered so far', 'Forget my corrections', 'Learned words']));
+    expect(rows.firstWhere((e) => e.$1 == 'Learn from my corrections').$2, contains('Never in password fields, while incognito'));
+    expect(store.flag('learn_mistakes'), isTrue);
+    List<SettingRow> corrections() => part('autocorrect').page(context, store).whereType<PaneSection>().firstWhere((s) => s.title == 'Your corrections').children.whereType<SettingRow>().toList();
+    expect((corrections()[1].value as Text).data, '0 words, 0 swipes');
+    store.mistakes = const {'typed': 1, 'swiped': 3, 'settled': 1, 'repairs': 0};
+    expect((corrections()[1].value as Text).data, '1 word, 3 swipes');
+    expect(corrections().last.label, 'Forget my corrections');
+    expect(corrections().last.onPress, isNotNull);
+
+    // Prediction in the person's own voice is Mockingbird's to give: its switch shows only while that plugin is added.
+    expect(rows.map((e) => e.$1), isNot(contains('Predict in my voice')));
+    expect(store.flag('next_word_mockingbird'), isTrue);
+
     // Languages says which of them have no starter pairs, once the keyboard has said which do.
     final languages = pageEntries(part('languages').page(context, store));
     expect(languages.firstWhere((e) => e.$1 == 'Magyar').$2, 'Hungarian · Next words from your typing only');

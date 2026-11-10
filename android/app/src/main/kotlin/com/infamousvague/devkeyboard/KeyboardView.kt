@@ -689,6 +689,31 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     fun letterLayout(): Pair<Map<Char, PointF>, Float> =
         letterCenters() to (keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: 0f)
 
+    /** The space bar's left, top, right and bottom, for the accuracy record. */
+    fun spaceRect(): FloatArray? = keyRects.firstOrNull { it.first.type == KeyType.SPACE }?.second?.let { floatArrayOf(it.left, it.top, it.right, it.bottom) }
+
+    /**
+     * Where each letter key listens on the letters page, for autocorrect's reading of a word's taps ([Taps]): its
+     * middle, moved by the adaptive keys plugin's nudge where it has one, with a letter key's width and the space
+     * bar's left, top, right and bottom. Null on any other page.
+     */
+    fun tapKeys(): Triple<Map<Char, Pair<Float, Float>>, Float, FloatArray?>? {
+        if (page != Page.LETTERS) return null
+        val model = adaptive
+        val out = HashMap<Char, Pair<Float, Float>>(48)
+        var keyW = 0f
+        var space: FloatArray? = null
+        for ((k, r) in keyRects) {
+            if (k.type == KeyType.SPACE) { space = floatArrayOf(r.left, r.top, r.right, r.bottom); continue }
+            if (k.type != KeyType.CHAR || k.text.length != 1 || !k.text[0].isLetter()) continue
+            if (keyW == 0f) keyW = r.width()
+            val c = k.text[0]
+            val (ox, oy) = model?.offset(c) ?: (0f to 0f)
+            out[c] = (r.centerX() + ox * r.width()) to (r.centerY() + oy * r.height())
+        }
+        return if (out.isEmpty() || keyW <= 0f) null else Triple(out, keyW, space)
+    }
+
     /** Each letter key's centre, for the swipe decoder. */
     private fun letterCenters(): Map<Char, PointF> = keyRects
         .filter { (k, _) -> k.type == KeyType.CHAR && k.text.length == 1 && k.text[0].isLetter() }

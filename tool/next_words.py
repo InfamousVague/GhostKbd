@@ -149,7 +149,10 @@ class Classes(dict):
     def __missing__(self, code):
         c = chr(code)
         cat = unicodedata.category(c)
-        if cat[0] in "LM" or c in self.joiners:
+        # A picture (an emoji, a symbol drawn as one, a skin tone, what joins or marks an emoji) starts a sentence.
+        if cat == "So" or (cat == "Sk" and 0x1F3FB <= code <= 0x1F3FF) or code == 0x200D or 0xFE00 <= code <= 0xFE0F or code == 0x20E3:
+            cls = "e"
+        elif cat[0] in "LM" or c in self.joiners:
             cls = "w"
         elif c in self.ends:
             cls = "e"

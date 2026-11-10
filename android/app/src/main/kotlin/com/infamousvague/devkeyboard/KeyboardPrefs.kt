@@ -155,6 +155,27 @@ class KeyboardPrefs(context: Context) {
         if (w !in now) prefs.edit().putString(LEARNED_WORDS, (now + w).sorted().joinToString("\n")).apply()
     }
 
+    /** Lets a learned word go again (lower case by [locale], as [learn] kept it). */
+    fun unlearn(word: String, locale: java.util.Locale = java.util.Locale.ROOT) {
+        val w = word.lowercase(locale)
+        val now = learnedWords
+        if (w in now) prefs.edit().putString(LEARNED_WORDS, (now - w).sorted().joinToString("\n")).apply()
+    }
+
+    /**
+     * Settings › Autocorrect › Learn from my corrections: what a word was put right to (by hand, from the row, or by
+     * a fix left to stand) and which swipe reading was chosen are kept on this phone and gone by afterwards
+     * (Mistakes.kt). Off, nothing more is learned, and Mockingbird's repairs are not gone by; what was learned
+     * already is still used until it is forgotten in Settings.
+     */
+    val learnMistakes: Boolean get() = bool(LEARN_MISTAKES)
+
+    /**
+     * Settings › Autocorrect › Next word › Predict in my voice: with the Mockingbird plugin on, the word pairs of its
+     * samples (what was written and sent, by kind of app) count toward what comes next (NextWords.kt).
+     */
+    val nextWordMockingbird: Boolean get() = bool(NEXT_WORD_MOCKINGBIRD)
+
     /** The AI Mockingbird and Ghostwriter use (AiClient.PROVIDERS' ids), and the person's own key and model for each. */
     val aiProvider: String get() = prefs.getString(AI_PROVIDER, "anthropic")!!
     fun aiKey(provider: String): String = prefs.getString("ai_key_$provider", "")!!
@@ -287,6 +308,8 @@ class KeyboardPrefs(context: Context) {
         /** Next-word prediction, and whether it learns from what is typed (NextWords.kt). */
         const val NEXT_WORD = "next_word"
         const val NEXT_WORD_LEARN = "next_word_learn"
+        const val NEXT_WORD_MOCKINGBIRD = "next_word_mockingbird"
+        const val LEARN_MISTAKES = "learn_mistakes"
         const val GIPHY_KEY = "giphy_key"
         const val WHISPER_MODEL = "whisper_model"
         const val SPLIT = "split_keyboard"
@@ -364,6 +387,8 @@ class KeyboardPrefs(context: Context) {
             SUGGESTIONS to true,
             NEXT_WORD to true,
             NEXT_WORD_LEARN to true,
+            NEXT_WORD_MOCKINGBIRD to true,
+            LEARN_MISTAKES to true,
             GIPHY_KEY to "",
             WHISPER_MODEL to "base.en",
             SPLIT to true,

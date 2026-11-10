@@ -19,7 +19,11 @@ en	0	don't stop	^|don't|stop	~|^|don't|don't
 en	0	foo_bar 	-	-
 en	0	@name 	-	-
 en	0	end.Next 	-	-
-en	0	great 😀 	-	~|^|great|great
+en	0	great 😀 	~|^|	~|^|great|great
+en	0	ok 👍 cool 	^|cool|	~|^|cool|cool
+en	0	love ❤️ you	~|^|you	~|^|love|love
+en	0	nice 👍🏽 one 	^|one|	~|^|one|one
+en	0	it is 5° out 	^|out|	~|^|out|out
 en	0	use camelCase here 	~|here|	-
 en	0	over-the-top thing 	~|thing|	-
 en	0	at 5 pm 	~|pm|	-

@@ -15,7 +15,8 @@ import java.io.File
  * what was typed after deleting it.
  *
  * "Live" is what the phone did when it was recorded (with next-word context and your learned words); "replay" is this
- * tree with neither, so compare replays with each other, run before and after a change.
+ * tree with neither, so compare replays with each other, run before and after a change. A word is replayed twice:
+ * by which keys are neighbours (as every version before 0.11.0 read it), and by where its taps landed.
  */
 class AccuracyReplay {
     private class Miss(val kind: String, val typed: String, val got: String, val truth: String)
@@ -33,6 +34,8 @@ class AccuracyReplay {
         var loaded = ""
         var keys: Map<Char, Pair<Float, Float>> = emptyMap()
         var keyW = 0f
+        var space: FloatArray? = null
+        var plainRight = 0
         var words = 0; var liveRight = 0; var replayRight = 0; var wrongFix = 0; var missed = 0; var fixesMade = 0; var fixesKept = 0
         var swipes = 0; var swipeLive = 0; var swipeTop1 = 0; var swipeTop3 = 0
         val misses = ArrayList<Miss>()
@@ -53,12 +56,21 @@ class AccuracyReplay {
                     val k = o.getJSONObject("keys")
                     keys = k.keys().asSequence().associate { c -> val a = k.getJSONArray(c); c[0] to (a.getDouble(0).toFloat() to a.getDouble(1).toFloat()) }
                     keyW = o.getDouble("keyW").toFloat()
+                    space = o.optJSONArray("space")?.takeIf { it.length() == 4 }?.let { a -> FloatArray(4) { a.getDouble(it).toFloat() } }
                 }
                 "word" -> {
                     val typed = o.getString("typed")
                     val live = if (o.isNull("auto")) typed else o.getString("auto")
                     val truth = truth(o.optString("out"), live, typed) ?: return@forEachLine
-                    val got = ac.correct(typed) ?: typed
+                    // Where each letter's tap landed, where the record has one for every letter of the word.
+                    val recorded = o.optJSONArray("taps")
+                    val taps = if (recorded == null || recorded.length() != typed.length || keyW <= 0f) null else {
+                        val xs = FloatArray(typed.length) { i -> recorded.getJSONArray(i).getDouble(1).toFloat().let { if (it < 0f) Float.NaN else it } }
+                        val ys = FloatArray(typed.length) { i -> recorded.getJSONArray(i).getDouble(2).toFloat().let { if (it < 0f) Float.NaN else it } }
+                        Taps(xs, ys, keys, keyW, space)
+                    }
+                    if ((ac.correct(typed) ?: typed).equals(truth, true)) plainRight++
+                    val got = ac.correct(typed, null, taps) ?: typed
                     words++
                     if (live.equals(truth, true)) liveRight++
                     if (got.equals(truth, true)) replayRight++
@@ -91,7 +103,8 @@ class AccuracyReplay {
             appendLine()
             appendLine("Typed words: $words with a known outcome")
             appendLine("  right, live (on the phone):  ${pct(liveRight, words)}")
-            appendLine("  right, replay (this tree):   ${pct(replayRight, words)}")
+            appendLine("  right, replay by neighbours: ${pct(plainRight, words)}")
+            appendLine("  right, replay by the taps:   ${pct(replayRight, words)}")
             appendLine("  fixes made in replay: $fixesMade, right ${pct(fixesKept, fixesMade)}")
             appendLine("  wrong fixes (changed a word that was meant): $wrongFix")
             appendLine("  missed (left a slip that was fixed by hand):  $missed")

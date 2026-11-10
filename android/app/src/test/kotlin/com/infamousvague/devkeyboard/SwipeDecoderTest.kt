@@ -123,6 +123,34 @@ class SwipeDecoderTest {
         assertTrue("split ${split.size}/150: ${split.map { it to read(it).first() }}", split.size <= 6)
     }
 
+    @Test fun aThereAndBackIsPartOfTheWord() {
+        // The "re" of "there" runs back along the line just drawn. Until 0.11.0 the stroke was held against a word's
+        // lines in no order, so that stretch was excused by the line from h to e and the word read as "the".
+        for (word in listOf("there", "here", "where", "were")) for (seed in 1..5) {
+            assertEquals("$word, seed $seed: ${read(word, seed, null)}", word, read(word, seed, null).first())
+        }
+        assertEquals("the", read("the", 1, null).first())
+        assertEquals("he", read("he", 1, null).first())
+    }
+
+    @Test fun aDetourIsNotExcusedByALineTheWordReachesLater() {
+        // The d of "adriana" lies beside the way back from i to a: it made the word "ariana" while that line could
+        // answer for it. Drawn straight through its keys, a word reads as itself.
+        for (word in listOf("adriana", "there", "masterpiece", "pleaded")) {
+            if (dict[word] == null) continue
+            val got = decoder.decode(stroke(word, 1, shake = 0f), keys, 1f, null)
+            assertEquals("$word: $got", word, got.first())
+        }
+    }
+
+    @Test fun aScrapOfTwoLettersDoesNotTakeAWordsStroke() {
+        // w to p along the top row is "weep" before it is "wp".
+        val got = decoder.decode(stroke("weep", 1, shake = 0f), keys, 1f, null)
+        assertTrue("$got", got.indexOf("weep") in 0 until (got.indexOf("wp").takeIf { it >= 0 } ?: got.size))
+        // A common two-letter word is still itself.
+        for (word in listOf("we", "up", "to", "is", "of")) assertEquals(word, read(word, 1, null).first())
+    }
+
     @Test fun anApostropheWordCanBeSwiped() {
         assertEquals("what's", read("what's").first())
         assertEquals("don't", read("don't").first())

@@ -13,7 +13,9 @@ import kotlin.math.pow
  * - a word is a run of letters, the marks that ride on them and the layout's joiners (an apostrophe, a half-space);
  * - a sentence starts after . ! ? … (and Urdu's ۔, Arabic's ؟, a new line, Greek's ;), and at the start of the text;
  * - commas, semicolons, colons, quotes, brackets and dashes are looked through, as spaces are;
- * - a digit, an emoji or any other symbol ends the context: nothing is predicted from across one;
+ * - an emoji (or any picture character) starts a sentence too: what follows "great 😀" is predicted, and learned,
+ *   as the start of one (Matt, 2026-11-10: "make the next word prediction more robust");
+ * - a digit or any other symbol ends the context: nothing is predicted from across one;
  * - a word straight after a digit or one of @ # / . _ - \ : $ ` is part of something code-shaped (a path, a handle,
  *   an address) and is neither learned nor predicted from, which is the rule autocorrect has for leaving words alone;
  * - so are letters with a digit straight after them (the mp of mp3, the covid of covid19);
@@ -39,8 +41,9 @@ object NextWordText {
      * Where the cursor stands: the word before it ([prev], lower case, or [START]), the one before that ([prev2], or
      * null where there is none to go by), the letters of the word being typed ([typing], empty after a space), and
      * the last few words in lower case ([recent], newest last), which say what language is being written.
+     * [named] says the word before was typed with a capital in the middle of a sentence: a name, as likely as not.
      */
-    class Place(val prev2: String?, val prev: String, val typing: String, val recent: List<String>)
+    class Place(val prev2: String?, val prev: String, val typing: String, val recent: List<String>, val named: Boolean = false)
 
     /**
      * A finished word as it is counted: [word] in lower case after [prev] (and after [prev2] then [prev]), and how it
@@ -84,6 +87,22 @@ object NextWordText {
         return raw
     }
 
+    /**
+     * The character at [i] is a picture: an emoji or another symbol drawn as one (Unicode's "other symbol", a skin
+     * tone), or what holds an emoji together (a joiner, a variation selector, a keycap's mark).
+     */
+    private fun picture(text: String, i: Int): Boolean {
+        val c = text[i]
+        if (c == '\u200D' || Words.isEmojiMark(c)) return true
+        val point = when {
+            c.isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate() -> Character.toCodePoint(c, text[i + 1])
+            c.isLowSurrogate() && i > 0 && text[i - 1].isHighSurrogate() -> Character.toCodePoint(text[i - 1], c)
+            else -> c.code
+        }
+        val type = Character.getType(point)
+        return type == Character.OTHER_SYMBOL.toInt() || (type == Character.MODIFIER_SYMBOL.toInt() && point in 0x1F3FB..0x1F3FF)
+    }
+
     /** One word of a walk: as typed, where it ends, whether it may be learned, and the context it stood in. */
     private class Word(val prev2: String?, val prev: String?, val raw: String, val end: Int, val ok: Boolean)
 
@@ -114,7 +133,7 @@ object NextWordText {
                 continue
             }
             when {
-                c in SENTENCE_ENDS || c in ends -> { prev2 = null; prev = START }
+                c in SENTENCE_ENDS || c in ends || picture(text, i) -> { prev2 = null; prev = START }
                 c.isWhitespace() || c in THROUGH -> Unit
                 else -> { prev2 = null; prev = null }
             }
@@ -139,7 +158,10 @@ object NextWordText {
         val recent = ArrayList<String>(4)
         val upTo = words.size - (if (typing) 2 else 1)
         for (k in maxOf(0, upTo - 4) until upTo) if (words[k].ok) recent += words[k].raw.lowercase(locale)
-        return Place(at.prev2, prev, if (typing) at.raw else "", recent)
+        // The word before, where it was typed with a capital it did not owe to starting a sentence.
+        val before = words.getOrNull(upTo - 1)
+        val named = before != null && before.ok && before.prev != START && before.raw.lowercase(locale) == prev && before.raw[0].isUpperCase()
+        return Place(at.prev2, prev, if (typing) at.raw else "", recent, named)
     }
 
     /**
@@ -156,6 +178,21 @@ object NextWordText {
             return Learned(w.prev2, prev, w.raw.lowercase(locale), shown(w.raw, prev == START), w.end)
         }
         return null
+    }
+
+    /**
+     * Every word of [text] as it would be counted had it been typed here: for a text read whole (one of
+     * Mockingbird's samples), which starts where a sentence does. Words are runs of letters, their marks and
+     * apostrophes; the code-shaped and the unlearnable are passed over as they are when typed.
+     */
+    fun all(text: String, locale: Locale = Locale.ROOT, isWordChar: (Char) -> Boolean = { letterOrMark(it) || it == '\'' || it == '’' }): List<Learned> {
+        val out = ArrayList<Learned>()
+        for (w in walk(text, isWordChar, false, locale, "")) {
+            val prev = w.prev
+            if (w.raw.isEmpty() || !w.ok || prev == null) continue
+            out += Learned(w.prev2, prev, w.raw.lowercase(locale), shown(w.raw, prev == START), w.end)
+        }
+        return out
     }
 
     /** The word still being typed at [place], as it is counted if the message is sent as it stands; null with none. */
@@ -646,16 +683,30 @@ class PersonalPairs {
     /** A copy of the words that followed [context], for a [Scorer] to read outside the lock. */
     fun followers(context: String): List<Entry> = rows[context]?.map { Entry(it.word, it.count) } ?: emptyList()
 
+    /** The words that followed [context] as they are held, not a copy: only for pairs nothing changes any more ([of]). */
+    fun row(context: String): List<Entry>? = rows[context]
+
     /** How often [word] was typed at all, faded. */
     fun unigram(word: String): Float = unigrams[word] ?: 0f
 
     /** How [word] (lower case) is shown: with the capitals it is typed with, else as it is. */
     fun form(word: String): String = forms[word] ?: word
 
-    /** The words typed at least twice that begin with [prefix] (and are not it), with their counts. */
-    fun starting(prefix: String): List<Pair<String, Float>> {
+    /** The words typed at least twice ([least] times) that begin with [prefix] (and are not it), with their counts. */
+    fun starting(prefix: String, least: Float = 2f): List<Pair<String, Float>> {
         val out = ArrayList<Pair<String, Float>>()
-        for ((w, n) in unigrams) if (n >= 2f && w.length > prefix.length && w.startsWith(prefix)) out += w to n
+        for ((w, n) in unigrams) if (n >= least && w.length > prefix.length && w.startsWith(prefix)) out += w to n
+        return out
+    }
+
+    /**
+     * The person's own words: typed at least [least] times as counted now (counts fade), two letters or more, and
+     * not [listed] in any word list. Names, places, the terms of their work: autocorrect leaves them alone, mends
+     * slips toward them, and swipe typing reads them.
+     */
+    fun own(least: Float, listed: (String) -> Boolean): Set<String> {
+        val out = HashSet<String>()
+        for ((w, n) in unigrams) if (n >= least && w.length >= 2 && w.all { it.isLetter() || it == '\'' } && !listed(w)) out += w
         return out
     }
 
@@ -746,6 +797,30 @@ class PersonalPairs {
     }
 
     companion object {
+        /**
+         * The word pairs of [texts], each read whole as a message that was written and sent: what Mockingbird's
+         * samples say comes after what (Matt, 2026-11-10: "the next word prediction should be influenced by
+         * mockingbird"). Made once and never changed after, so any thread may read it.
+         */
+        fun of(texts: Iterable<String>, locale: Locale = Locale.ROOT): PersonalPairs {
+            val pairs = PersonalPairs()
+            for (text in texts) for (l in NextWordText.all(text, locale)) pairs.learn(l)
+            return pairs
+        }
+
+        /**
+         * [mine] with the followers two other tables hold for the same context added in, [near]'s counting [nearBy]
+         * each and [far]'s [farBy]: what was typed here, and what was sent in apps of this kind and of the other.
+         */
+        fun blended(mine: List<Entry>, near: List<Entry>?, nearBy: Float, far: List<Entry>?, farBy: Float): List<Entry> {
+            if (near.isNullOrEmpty() && far.isNullOrEmpty()) return mine
+            val out = LinkedHashMap<String, Entry>(mine.size + 8)
+            for (e in mine) out[e.word] = Entry(e.word, e.count)
+            near?.forEach { e -> out.getOrPut(e.word) { Entry(e.word, 0f) }.count += nearBy * e.count }
+            far?.forEach { e -> out.getOrPut(e.word) { Entry(e.word, 0f) }.count += farBy * e.count }
+            return ArrayList(out.values)
+        }
+
         const val VERSION = 1
         private const val HEADER = "#ghost-next-words"
         private const val FORMS = "="
@@ -814,7 +889,7 @@ class PersonalPairs {
  * row for them: B = (n·B₂ + K·B₁) / (n + K), with B₂ the two-word row's share, n how often those two words were
  * seen together ([NgramTable.seen]) and K [PRIOR_TABLE_TWO]; so "thank" opening a sentence is followed by what
  * follows it there, and a two-word row seen a handful of times only leans on the one-word share. Then:
- * - after one word: S2 = (u + 8·B) / (U + 8), so with nothing learned it is the starter share, and after a few
+ * - after one word: S2 = (u + 20·B) / (U + 20), so with nothing learned it is the starter share, and after a few
  *   dozen words in a context the person's own habits lead;
  * - after two words, where the person has typed that pair before: S = (u + 3·S2) / (U + 3).
  * A personal count is only gone by from its second use (third, for a word no dictionary has): a pair typed once is
@@ -876,6 +951,18 @@ class Scorer(
             }
             shownOf.clear()
         }
+        // A name nobody has a row for (Kira, Mennad) is followed by what follows a name: the row of the tables' own
+        // commonest one stands in for it, at half its weight.
+        if (out.isEmpty() && place.named && BACKOFF) {
+            for (t in tables.indices) {
+                val table = tables[t]
+                val proxy = NAME_PROXIES.firstOrNull { !table.range(it).isEmpty() } ?: continue
+                table.followers(proxy) { shown, lower, share ->
+                    val c = out.getOrPut(lower) { Cand(lower, shown) }
+                    if (weights[t] * share * NAME_WEIGHT > c.bundled) { c.bundled = weights[t] * share * NAME_WEIGHT; c.shown = shown }
+                }
+            }
+        }
         var total1 = 0f
         var total2 = 0f
         for (e in one) { total1 += e.count; out.getOrPut(e.word) { Cand(e.word, "") }.u1 = e.count }
@@ -892,9 +979,10 @@ class Scorer(
     }
 
     /**
-     * The [n] likeliest next words as shown, likeliest first; never the word just typed again. Empty where nothing
-     * is known of this context, so the row can show its tools instead. Fewer than [n] known are filled up with the
-     * person's most-typed words, then the language's commonest.
+     * The [n] likeliest next words as shown, likeliest first; never the word just typed again. Fewer than [n] known
+     * are filled up with the person's most-typed words, then the language's commonest; so are all of them where
+     * nothing is known of this context (a word no table has, a name nobody has typed before), so the row has words
+     * after every word. Empty only where there are none to fill with (a language with no word list).
      */
     fun top(n: Int): List<String> {
         val best = arrayOfNulls<Cand>(n)
@@ -909,7 +997,7 @@ class Scorer(
         val out = ArrayList<String>(n)
         val seen = HashSet<String>()
         for (c in best) if (c != null) { out += c.shown; seen += c.lower }
-        if (out.isEmpty() || out.size >= n) return out
+        if (out.size >= n || (out.isEmpty() && !BACKOFF)) return out
         for (w in lookup.fills()) {
             if (out.size >= n) break
             val lower = w.lowercase()
@@ -959,9 +1047,16 @@ class Scorer(
     }
 
     companion object {
-        /** How many words of the starter tables' say one-word contexts begin with, and two-word contexts of the one-word blend. */
-        const val PRIOR_ONE = 8f
-        const val PRIOR_TWO = 3f
+        /**
+         * How many words of the starter tables' say one-word contexts begin with, and two-word contexts of the
+         * one-word blend. [PRIOR_ONE] was 8 until 0.11.0: with that, a person's thin counts outranked the table
+         * wherever they had any, and prediction got worse the more of a writer's own sentences it was given
+         * (tool/typing_bench.sh voice: the same six writers, 31.8% in the three at 8, 33.0% at 20, 33.8% at 40).
+         * 20 keeps a habit quick to show: it unseats a pair the table gives half its row to from the eleventh use.
+         * The benchmark sets them to try others; the keyboard never changes them.
+         */
+        @JvmField var PRIOR_ONE = 20f
+        @JvmField var PRIOR_TWO = 3f
         /**
          * Tuned on held-out sentences with tool/next_word_eval.sh (2026-11-10), which sets them to try others; the
          * keyboard never changes them. [PRIOR_TABLE_TWO]: how many sightings of a two-word context its starter row
@@ -969,6 +1064,11 @@ class Scorer(
          * completion's rank may gain from context (a correction's gain has its own, smaller cap in Autocorrect).
          */
         @JvmField var PRIOR_TABLE_TWO = 15f
+        /** Words after a word nothing is known of, and a name's stand-in ([blend], [top]): off only for the benchmark's comparisons. */
+        @JvmField var BACKOFF = true
+        /** The names whose rows stand in for a name no table has, in the scripts the tables are in; and how much such a row counts. */
+        val NAME_PROXIES = listOf("tom", "том", "توم", "τομ")
+        const val NAME_WEIGHT = 0.5f
         @JvmField var LIFT_WEIGHT = 40f
         @JvmField var LIFT_CAP = 6f
 

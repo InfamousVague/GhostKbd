@@ -333,6 +333,9 @@ class MainActivity : FlutterActivity() {
                     // Both wait on its background thread, so neither runs on this one.
                     "nextWordsState" -> background(result) { NextWords.get(this@MainActivity).run { awaitLoaded(2_000); awaitIdle(2_000); state() } }
                     "nextWordsReset" -> background(result) { NextWords.get(this@MainActivity).run { reset(); state() } }
+                    // Settings › Autocorrect › Your corrections: what was learned from mistakes, and forgetting it (Mistakes.kt).
+                    "mistakesState" -> background(result) { Mistakes.get(this@MainActivity).state() }
+                    "mistakesReset" -> background(result) { Mistakes.get(this@MainActivity).run { reset(); state() } }
                     // Settings › Languages: every language the keyboard has, and the ones it says it does not (Languages.kt).
                     "languagesState" -> result.success(languagesState())
                     "mockingbirdClear" -> { Mockingbird.clear(this@MainActivity); result.success(aiState()) }

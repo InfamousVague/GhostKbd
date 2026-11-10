@@ -41,6 +41,17 @@ class NextWords private constructor(private val context: Context) {
         /** A save is due after this many newly learned words, once typing has paused. */
         private const val SAVE_AFTER = 200
         private const val SAVE_PAUSE_MS = 3_000L
+        /** A word in no list is the person's own once it has been typed this often (as counted now: counts fade). */
+        private const val OWN_WORD_COUNT = 2.5f
+        /**
+         * What a pair in one of Mockingbird's samples counts beside one typed: a quarter where the sample was sent in
+         * the kind of app being typed in now (a chat, or anything else), a tenth where it was the other kind. So a
+         * pair sent six times in chats shows in a chat with nothing typed since, and what was typed once and sent
+         * once is still a first use. More than this and thin counts outrank the starter table (tool/typing_bench.sh
+         * voice: six writers' own sentences help most between a twentieth and a quarter, and less above).
+         */
+        const val VOICE_NEAR = 0.25f
+        const val VOICE_FAR = 0.1f
         /** How many starter tables are kept in memory: the most languages that can be on at once. */
         private const val MAX_TABLES = Languages.MAX
         /** The most pairs one typing profile may bring, and the most one of them may count. */
@@ -75,8 +86,81 @@ class NextWords private constructor(private val context: Context) {
     /** The worker's own: the tables read so far of the languages that are on (null where a language has none). */
     private val cache = HashMap<String, NgramTable?>()
 
+    /**
+     * Mockingbird's samples as word pairs ([readMockingbird]): what the person wrote and sent in chats, and what
+     * they wrote everywhere else. Each table is made whole and never changed after, so the typing thread reads it
+     * without the lock. [words] are the spellings Mockingbird judged the person's own.
+     */
+    private class Voice(val chat: PersonalPairs, val other: PersonalPairs, val words: Set<String>)
+    @Volatile private var voice: Voice? = null
+    /** The worker's own: what the samples looked like when [voice] was last made. */
+    private var voiceMark = -1L
+
+    /**
+     * Whether the app being typed in is a chat (set by the service as a field is entered): a pair sent in apps of
+     * the same kind counts [VOICE_NEAR] toward what comes next, one sent in the other kind [VOICE_FAR].
+     */
+    @Volatile var chat = false
+
+    /**
+     * Reads Mockingbird's samples again where they have changed since the last look ([on] false lets them go):
+     * their word pairs join what the person has typed, in [at] and in what counts as one of their own words.
+     * [language] is the lead language, whose rule puts the samples in lower case.
+     */
+    fun readMockingbird(on: Boolean, language: String? = null) {
+        worker.execute {
+            runCatching {
+                if (!on) {
+                    voiceMark = -1L
+                    if (voice != null) { voice = null; if (loaded) refreshVocabulary() }
+                    return@runCatching
+                }
+                val samples = Mockingbird.samples(context)
+                val mark = samples.size * 31L + (samples.lastOrNull()?.at ?: 0L) + (language?.hashCode() ?: 0)
+                if (mark == voiceMark) return@runCatching
+                voiceMark = mark
+                val locale = language?.let { Languages.of(it)?.locale } ?: Locale.ROOT
+                voice = if (samples.isEmpty()) null else Voice(
+                    PersonalPairs.of(samples.filter { it.chat }.map { it.text }, locale),
+                    PersonalPairs.of(samples.filter { !it.chat }.map { it.text }, locale),
+                    Mockingbird.ownWords(context),
+                )
+                if (loaded) refreshVocabulary()
+            }.onFailure { Log.w(TAG, "Mockingbird's samples not read", it) }
+        }
+    }
+
+    /** For Settings: how many word pairs Mockingbird's samples hold (0 while they are not gone by). */
+    private fun voicePairs(): Int = voice?.let { it.chat.entries + it.other.entries } ?: 0
+
     /** Whether a word is one autocorrect knows (its dictionaries, learned words, slang): set by the service. */
     @Volatile var isWord: (String) -> Boolean = { false }
+
+    /** Whether a word is in a word list, the learned words or slang, the person's own words apart: set by the service. */
+    @Volatile var isListed: (String) -> Boolean = { true }
+
+    /**
+     * The person's own words ([PersonalPairs.own]: typed three times or more, in no list), as last worked out: when
+     * the learned pairs are read, each time they are faded or saved (the keyboard hiding does both), and when they
+     * are forgotten. Read by any thread.
+     */
+    @Volatile var vocabulary: Set<String> = emptySet()
+        private set
+
+    /** Told, on the worker's thread, when [vocabulary] has changed. */
+    @Volatile var onVocabulary: (() -> Unit)? = null
+
+    /** Works [vocabulary] out again. Worker only. */
+    private fun refreshVocabulary() {
+        val listed = isListed
+        var now = lock.withLock { personal.own(OWN_WORD_COUNT, listed) }
+        // What Mockingbird has heard often enough to mean, and the spellings it judged the person's own.
+        voice?.let { v ->
+            now = now + v.chat.own(OWN_WORD_COUNT, listed) + v.other.own(OWN_WORD_COUNT, listed) +
+                v.words.filterTo(HashSet()) { w -> w.length in 2..NextWordText.MAX_WORD && w.all { it.isLetter() || it == '\'' } && !listed(w) }
+        }
+        if (now != vocabulary) { vocabulary = now; runCatching { onVocabulary?.invoke() } }
+    }
 
     /** The lead language's commonest words, for filling a row that has too few: set by the service. */
     @Volatile var commonest: () -> List<String> = { emptyList() }
@@ -109,6 +193,7 @@ class NextWords private constructor(private val context: Context) {
         loaded = true
         loadedLatch.countDown()
         drain()
+        refreshVocabulary()
     }
 
     /** Counts the words that were waiting, in the order they were typed. Worker only. */
@@ -152,9 +237,31 @@ class NextWords private constructor(private val context: Context) {
 
     private val lookup = object : Scorer.Lookup {
         override fun isWord(lower: String): Boolean = this@NextWords.isWord(lower)
-        override fun form(lower: String): String = quick(lower) { personal.form(lower) }
-        override fun count(lower: String): Float = quick(0f) { personal.unigram(lower) }
-        override fun starting(prefix: String): List<Pair<String, Float>> = quick(emptyList()) { personal.starting(prefix) }
+        override fun form(lower: String): String {
+            val mine = quick(lower) { personal.form(lower) }
+            if (mine != lower) return mine
+            val v = voice ?: return lower
+            return (if (chat) v.chat else v.other).form(lower).takeIf { it != lower } ?: (if (chat) v.other else v.chat).form(lower)
+        }
+        override fun count(lower: String): Float {
+            val mine = quick(0f) { personal.unigram(lower) }
+            val v = voice ?: return mine
+            val near = if (chat) v.chat else v.other
+            val far = if (chat) v.other else v.chat
+            return mine + VOICE_NEAR * near.unigram(lower) + VOICE_FAR * far.unigram(lower)
+        }
+        override fun starting(prefix: String): List<Pair<String, Float>> {
+            val mine = quick(emptyList()) { personal.starting(prefix) }
+            val v = voice ?: return mine
+            // A word counts from its second use, as one typed does: the three tallies are added before that is asked.
+            val sums = HashMap<String, Float>()
+            for ((w, n) in mine) sums[w] = n
+            val near = if (chat) v.chat else v.other
+            val far = if (chat) v.other else v.chat
+            for ((w, n) in near.starting(prefix, 0f)) sums[w] = (sums[w] ?: quick(0f) { personal.unigram(w) }) + VOICE_NEAR * n
+            for ((w, n) in far.starting(prefix, 0f)) sums[w] = (sums[w] ?: quick(0f) { personal.unigram(w) }) + VOICE_FAR * n
+            return sums.entries.filter { it.value >= 2f }.map { it.key to it.value }
+        }
         override fun fills(): List<String> = quick(emptyList()) { personal.top(3).map { personal.form(it) } } + commonest()
     }
 
@@ -175,6 +282,18 @@ class NextWords private constructor(private val context: Context) {
                 val prev2 = place.prev2
                 if (prev2 != null && place.prev != NextWordText.START) two = personal.followers("$prev2 ${place.prev}")
             } finally { lock.unlock() }
+        }
+        // What Mockingbird's samples say follows these words joins what was typed: sent in apps of this kind a
+        // quarter each, of the other kind a tenth. Its tables never change once made, so they are read as they are.
+        voice?.let { v ->
+            val near = if (chat) v.chat else v.other
+            val far = if (chat) v.other else v.chat
+            one = PersonalPairs.blended(one, near.row(place.prev), VOICE_NEAR, far.row(place.prev), VOICE_FAR)
+            val prev2 = place.prev2
+            if (prev2 != null && place.prev != NextWordText.START) {
+                val key = "$prev2 ${place.prev}"
+                two = PersonalPairs.blended(two, near.row(key), VOICE_NEAR, far.row(key), VOICE_FAR)
+            }
         }
         return Scorer(place, now, Scorer.weights(now, place.recent), one, two, lookup)
     }
@@ -219,7 +338,10 @@ class NextWords private constructor(private val context: Context) {
     fun save() { worker.execute { write() } }
 
     /** Fades and bounds what is held ([PersonalPairs.maintain]) soon, off the typing thread. */
-    fun maintain() { worker.execute { drain(); lock.withLock { personal.maintain() } } }
+    fun maintain() { worker.execute { drain(); lock.withLock { personal.maintain() }; refreshVocabulary() } }
+
+    /** Works the person's own words out again soon: the word lists changed, so what counts as "in no list" did. */
+    fun refreshOwnWords() { worker.execute { if (loaded) refreshVocabulary() } }
 
     /** The file written whole to a temporary one and moved into place, from a copy made under the lock. Worker only. */
     private fun write() {
@@ -245,6 +367,7 @@ class NextWords private constructor(private val context: Context) {
         worker.submit {
             synchronized(waiting) { waiting.clear() }
             lock.withLock { personal = PersonalPairs(); unsaved = 0 }
+            refreshVocabulary()
             val dir = file().parentFile
             for (name in listOf(FILE, "$FILE.tmp", SET_ASIDE_BAD, SET_ASIDE_NEWER)) runCatching { File(dir, name).delete() }
         }.get(5, TimeUnit.SECONDS)
@@ -273,7 +396,7 @@ class NextWords private constructor(private val context: Context) {
         val n = minOf(lookups, took.size)
         val sorted = took.copyOf(n).also { it.sort() }
         return mapOf(
-            "pairs" to pairs, "words" to words,
+            "pairs" to pairs, "words" to words, "voicePairs" to voicePairs(),
             "bundled" to (runCatching { context.assets.list("ngram") }.getOrNull().orEmpty()).filter { it.endsWith(".tsv") }.map { it.removeSuffix(".tsv") }.sorted(),
             "fileBytes" to file().length(),
             "loaded" to now.map { it.code }, "tableBytes" to now.sumOf { it.approxBytes },

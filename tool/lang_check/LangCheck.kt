@@ -257,8 +257,27 @@ private fun golden(repo: File) {
     val keys = Golden.QWERTY.keys.associateWith { c -> Golden.centre(c)!!.let { PointF(it.first, it.second) } }
     for (set in Golden.SETS) {
         val ac = autocorrect(repo, set, "qwerty")
-        val rows = Golden.read(Golden.file(dir, set))
+        var rows = Golden.read(Golden.file(dir, set))
         check(rows.size > 1500) { "${set.joinToString(",")}: the golden has ${rows.size} rows" }
+        // A stroke drawn straight over a word's keys reads as that word first, whatever else the readings are: the
+        // floor a change to the swipe decoder may not go under. -Drecord=swipes writes the readings as they are now
+        // (the decoder was rewritten for phrases in 0.9.x and reads by context since 0.11.0), once that is looked at.
+        val strokes = rows.filter { it.kind == "s" }
+        val readings = strokes.associate { row -> row.input to ac.swipe(Golden.path(row.input)!!.map { PointF(it.first, it.second) }, keys, Golden.KEY_WIDTH) }
+        // The inputs are spelled plainly: "fur" swiped is "für", and that is the word read first.
+        fun reads(first: String?, input: String) = first != null && Script.LATIN.plain(first.lowercase()) == Script.LATIN.plain(input.lowercase())
+        val first = strokes.count { reads(readings.getValue(it.input).firstOrNull(), it.input) }
+        val firstWas = strokes.count { reads(it.words.firstOrNull(), it.input) }
+        if (System.getProperty("showSwipes") == "true") {
+            println("  ${set.joinToString(",")}: $first of ${strokes.size} first (golden $firstWas)")
+            for (row in strokes) { val got = readings.getValue(row.input); if (!reads(got.firstOrNull(), row.input)) println("      ${row.input}: now ${got.take(3)}, golden ${row.words.take(3)}") }
+        }
+        check(first * 100 >= strokes.size * 93) { "${set.joinToString(",")}: only $first of ${strokes.size} words swiped straight over read as themselves first (the golden: $firstWas)" }
+        if (System.getProperty("record") == "swipes") {
+            rows = rows.map { if (it.kind == "s") GoldenRow(it.kind, it.input, it.correct, it.fix, it.isWord, readings.getValue(it.input)) else it }
+            Golden.write(Golden.file(dir, set), rows)
+            println("  ${set.joinToString(",").padEnd(9)} swipes recorded: $first of ${strokes.size} read as the word first (they were $firstWas)")
+        }
         var same = 0
         val kinds = LinkedHashMap<String, Int>()
         val examples = LinkedHashMap<String, ArrayList<String>>()
@@ -269,7 +288,7 @@ private fun golden(repo: File) {
         for (row in rows) {
             val lower = row.input.lowercase()
             if (row.kind == "s") {
-                val got = ac.swipe(Golden.path(row.input)!!.map { PointF(it.first, it.second) }, keys, Golden.KEY_WIDTH)
+                val got = readings.getValue(row.input)
                 when {
                     got == row.words -> same++
                     !english(set) && got.map { it.lowercase() } == row.words.map { it.lowercase() } -> differs("\"i\" is a capital only in English", "swipe ${row.input}: ${row.words} → $got")

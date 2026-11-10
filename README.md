@@ -116,6 +116,23 @@ formats, the sources and the numbers.
 - `tool/next_word_check.sh` (kotlinc and java, no emulator) checks the tokenizer against fixtures the generator
   shares, the blend, the bounds, every table against its word list, and lookup time.
 
+## Typing accuracy (0.11.0)
+
+Autocorrect reads a word by where its taps landed, not only by which keys they hit: a tap on the line between two
+keys is either of them, two words run together are parted, and a word no list has is left alone when it was typed
+cleanly. Swipe typing reads its first word in context, takes strokes in the order they were drawn, and holds a
+stroke against a word's lines in their order. Both learn from what the person puts right (**Settings › Typing ›
+Autocorrect › Your corrections**), and with Mockingbird added the next word goes by its samples too.
+[docs/typing-accuracy.md](docs/typing-accuracy.md) has what each part goes by, what is learned and what never is,
+and the numbers.
+
+- `TapDecoder.kt` (no Android in it): the word list as a trie, read against the taps. `Autocorrect.byTaps` weighs
+  its readings; with no taps autocorrect is what it was.
+- `MistakeMemory.kt` (no Android in it) and `Mistakes.kt`: what a word was put right to and which swipe reading was
+  chosen, kept in `mistakes.tsv` on the phone, out of Android's backup, never from a password field or incognito.
+- `tool/typing_bench.sh` types held-out sentences through the keyboard's own code with a simulated thumb, to compare
+  one version with another; `tool/accuracy-replay.sh` does the same with a record of real typing.
+
 ## Offline, and the one door to the network
 
 **Settings › Offline** is one switch for every connection the app can make: with it on, nothing is asked of any

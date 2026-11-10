@@ -44,13 +44,14 @@ object AccuracyLog {
 
     fun clearTaps() = taps.clear()
 
-    /** The keys as they are now, written when they change. */
-    fun layout(context: Context, id: String, dictionaries: List<String>, keys: Map<Char, PointF>, keyW: Float) {
+    /** The keys as they are now (the letters' middles, a letter key's width, the [space] bar's edges), written when they change. */
+    fun layout(context: Context, id: String, dictionaries: List<String>, keys: Map<Char, PointF>, keyW: Float, space: FloatArray? = null) {
         val o = JSONObject().put("t", "layout").put("id", id).put("dicts", JSONArray(dictionaries)).put("keyW", r(keyW))
+        if (space != null && space.size == 4) o.put("space", JSONArray().put(r(space[0])).put(r(space[1])).put(r(space[2])).put(r(space[3])))
         val k = JSONObject()
         keys.toSortedMap().forEach { (c, p) -> k.put(c.toString(), JSONArray().put(r(p.x)).put(r(p.y))) }
         o.put("keys", k)
-        val sig = "$id|$dictionaries|${r(keyW)}|$k"
+        val sig = "$id|$dictionaries|${r(keyW)}|$k|${space?.joinToString()}"
         if (sig == lastLayout) return
         lastLayout = sig
         write(context, o)

@@ -70,6 +70,8 @@ class SettingsStore extends ChangeNotifier {
     'suggestions': true,
     'next_word': true,
     'next_word_learn': true,
+    'next_word_mockingbird': true,
+    'learn_mistakes': true,
     'giphy_key': '',
     'theme_tint': '#51FCFB',
     'theme_accent': '',
@@ -572,7 +574,30 @@ class SettingsStore extends ChangeNotifier {
   /// The languages with a starter table, as codes; empty until the keyboard has said (and off-device).
   Set<String> get nextWordTables => {for (final c in (nextWords['bundled'] as List? ?? const [])) '$c'};
 
-  Future<void> refreshNextWords() => _nextWordsCall('nextWordsState');
+  Future<void> refreshNextWords() async {
+    await _nextWordsCall('nextWordsState');
+    await _mistakesCall('mistakesState');
+  }
+
+  /// What the keyboard has learned from the person's own corrections (Mistakes.kt): `typed` words put right and
+  /// `swiped` readings chosen, how many of the typed ones are `settled` (mended that way from now on), and
+  /// `repairs`, the slips Mockingbird mended in its samples that are gone by too.
+  Map<String, Object?> mistakes = const {'typed': 0, 'swiped': 0, 'settled': 0, 'repairs': 0};
+
+  /// Settings › Autocorrect › Forget my corrections: every remembered mistake and swipe choice, in memory and in its file.
+  Future<void> resetMistakes() => _mistakesCall('mistakesReset');
+
+  Future<void> _mistakesCall(String method) async {
+    try {
+      final r = await _channel.invokeMethod<Object>(method);
+      if (r is Map) mistakes = r.map((k, v) => MapEntry('$k', v as Object?));
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
+  }
 
   /// Settings › Autocorrect › Forget what it learned: every counted word pair, in memory and in its file.
   Future<void> resetNextWords() => _nextWordsCall('nextWordsReset');

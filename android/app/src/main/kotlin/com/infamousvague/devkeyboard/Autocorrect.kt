@@ -64,7 +64,25 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
-    )
+    ) {
+        /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
+        val trie: WordTrie = WordTrie(sorted, sortedZipf)
+
+        /** [pairRows] read: for a word, each word that follows it (lower case) and its share of what followed. Kept once read. */
+        private val pairs = java.util.concurrent.ConcurrentHashMap<String, Map<String, Float>>()
+
+        fun follows(prev: String): Map<String, Float>? {
+            pairs[prev]?.let { return it }
+            val row = pairRows[prev] ?: return null
+            val out = HashMap<String, Float>()
+            for (e in row.split(' ')) {
+                val c = e.lastIndexOf(':')
+                if (c > 0) e.substring(c + 1).toFloatOrNull()?.let { out[e.substring(0, c).lowercase()] = it / 10_000f }
+            }
+            pairs[prev] = out
+            return out
+        }
+    }
 
     /** What is typed on and what is known, swapped as one so a key press never sees one board's words under another's keys. */
     private class Now(val board: Board, val lexicon: Lexicon)
@@ -87,6 +105,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     @Volatile var onLoaded: (() -> Unit)? = null
 
     @Volatile private var learned: Set<String> = emptySet()
+    /** The person's own words, counted from what they type ([NextWords.vocabulary]): treated as learned words are. */
+    @Volatile private var own: Set<String> = emptySet()
+    @Volatile private var mistaken: Map<String, String> = emptyMap()
+    @Volatile private var chosen: Map<String, Map<String, Float>> = emptyMap()
     /** Texting slang (assets/dict/en_slang.txt) while its switch is on: left alone, and offered as you type. */
     @Volatile private var slang: Set<String> = emptySet()
     @Volatile private var slangOn = false
@@ -105,19 +127,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         override fun ends(first: Char, last: Char): List<String> {
             val lex = now.lexicon
             val listed = lex.byEnds["$first$last"].orEmpty()
-            val mine = learned.filter { it.isNotEmpty() && !lex.words.containsKey(it) && letters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
+            val mine = (learned + own).filter { it.isNotEmpty() && !lex.words.containsKey(it) && letters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
             return if (mine.isEmpty()) listed else listed + mine
         }
-        override fun zipf(word: String): Float? = now.lexicon.words[word] ?: if (word in learned) LEARNED_ZIPF else null
+        override fun zipf(word: String): Float? = now.lexicon.words[word] ?: if (word in learned || word in own) LEARNED_ZIPF else null
         override fun letters(word: String) = swipeLetters(now.board.script, word)
-        override fun follows(prev: String): Map<String, Float>? = now.lexicon.pairRows[prev]?.let { row ->
-            val out = HashMap<String, Float>()
-            for (e in row.split(' ')) {
-                val c = e.lastIndexOf(':')
-                if (c > 0) e.substring(c + 1).toFloatOrNull()?.let { out[e.substring(0, c).lowercase()] = it / 10_000f }
-            }
-            out
-        }
+        override fun follows(prev: String): Map<String, Float>? = now.lexicon.follows(prev)
     })
     /** The lexicon the decoder's worked-out shapes are for. */
     private var decoderLexicon: Lexicon? = null
@@ -300,6 +315,66 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         synchronized(decoder) { decoder.clear() }
     }
 
+    /**
+     * The person's own words, as next-word prediction has counted them (typed three times or more, in no list):
+     * never corrected, targets for correcting slips of them, and words to swipe, as learned words are.
+     */
+    fun setOwn(words: Set<String>) {
+        if (words == own) return
+        own = words
+        synchronized(decoder) { decoder.clear() }
+    }
+
+    /**
+     * The person's own mistakes ([Mistakes]: Matt, 2026-11-10: "I want the models to be trained off of previous
+     * mistakes"): what a typed word (lower case) was put right to, often enough to go by. Such a word is mended to
+     * that whatever its taps say, unless it is itself a common word or one the person kept; a common word's
+     * remembered meaning counts [REMEMBERED] more among the readings of its taps ([byTaps]).
+     */
+    fun setMistakes(typed: Map<String, String>) { mistaken = typed }
+
+    /**
+     * The swipe readings the person has chosen over the decoder's first one, by that first reading in lower case, and
+     * how often; the first reading counts under its own name where it was the one meant after all ([byChoice]).
+     */
+    fun setChosen(readings: Map<String, Map<String, Float>>) { chosen = readings }
+
+    /**
+     * A stroke's readings [found] (best first, as [swipe] gives them) with the one the person means by such a stroke
+     * put first: a reading they have picked over this first one [MistakeMemory.TAKEN] times, and
+     * [MistakeMemory.LEAD] more often than the first was meant itself. Only ever one of the readings the stroke gave.
+     */
+    fun byChoice(found: List<String>): List<String> {
+        val first = found.firstOrNull() ?: return found
+        val row = chosen[first.lowercase(now.board.locale)] ?: return found
+        val locale = now.board.locale
+        val stood = row[first.lowercase(locale)] ?: 0f
+        var best: String? = null
+        var most = 0f
+        for (w in found) {
+            if (w === first) continue
+            val n = row[w.lowercase(locale)] ?: continue
+            if (n > most) { most = n; best = w }
+        }
+        val pick = best ?: return found
+        if (most < MistakeMemory.TAKEN || most - stood < MistakeMemory.LEAD) return found
+        return listOf(pick) + found.filter { it != pick }
+    }
+
+    /**
+     * What the person's mistakes say [lower] was meant to be, or null: nothing is remembered of it, they kept it as
+     * a word since, or it is a common word here (which only its taps may change).
+     */
+    private fun remembered(now: Now, lower: String): String? {
+        val meant = mistaken[lower] ?: return null
+        if (lower in learned || lower in slang) return null
+        val lex = now.lexicon
+        if (lex.contractions.containsKey(lower)) return null
+        val known = lex.words[lower]
+        if (known != null && known >= COMMON) return null
+        return if (' ' in meant) meant.split(' ').joinToString(" ") { capitalI(now, it) } else capitalI(now, meant)
+    }
+
     /** Texting slang on or off (Matt, 2026-11-09: "add slang options to autocorrect like sybau and lmfao and ts"). */
     fun setSlang(on: Boolean) {
         if (on == slangOn) return
@@ -308,8 +383,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         thread(name = "autocorrect-slang", isDaemon = true) { if (slangOn) slang = slangList }
     }
 
-    /** A word autocorrect never changes: one the person kept, or slang while that is on. */
-    private fun kept(lower: String) = lower in learned || lower in slang
+    /** A word autocorrect never changes: one the person kept or types often, or slang while that is on. */
+    private fun kept(lower: String) = lower in learned || lower in slang || lower in own
 
     /**
      * Whether [lower] is a word here: in a loaded word list, one of English's contractions, a word the person kept,
@@ -318,6 +393,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     fun isWord(lower: String): Boolean {
         val lexicon = now.lexicon
         return lexicon.words.containsKey(lower) || lexicon.contractions.containsKey(lower) || kept(lower)
+    }
+
+    /** [isWord] without the person's own words: what "in no word list" means when those are worked out. */
+    fun isListed(lower: String): Boolean {
+        val lexicon = now.lexicon
+        return lexicon.words.containsKey(lower) || lexicon.contractions.containsKey(lower) || lower in learned || lower in slang
     }
 
     /**
@@ -342,8 +423,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     /**
      * What [typed] should become, or null to leave it. [typed] is letters, their marks and the layout's joiners (an
      * apostrophe, a half-space) only. [scorer] is what is likely at this place in the text, where prediction is on.
+     * [taps] are where the fingers landed for it, where the keyboard knows (see [byTaps]): the fix may then be two
+     * words ("thankyou" is "thank you").
      */
-    fun correct(typed: String, scorer: Scorer? = null): String? {
+    fun correct(typed: String, scorer: Scorer? = null, taps: Taps? = null): String? {
         val now = now
         if (now.lexicon.words.isEmpty() || typed.isEmpty() || typed.length > 24) return null
         // An acronym or a deliberate capitalised name of two letters or more is left as typed.
@@ -351,8 +434,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // camelCase, iOS, McDonald: a capital after the first letter is deliberate.
         if (typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase(now.board.locale)
-        if (kept(lower) || eszettWord(lower, now.lexicon.words)) return null
-        val fixed = best(now, lower, scorer)?.takeIf { it.sure }?.word ?: return null
+        // One of the person's own often-typed words is left alone, unless they have been putting it right by hand.
+        if ((kept(lower) && remembered(now, lower) == null) || eszettWord(lower, now.lexicon.words)) return null
+        val fixed = best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.takeIf { it.sure }?.word ?: return null
         val cased = recase(now.board.locale, typed, fixed)
         return if (cased == typed) null else cased
     }
@@ -367,7 +451,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * The row's suggestions for [typed]. With a [scorer] (prediction is on) the words it begins are ranked by the
      * word before as well as by how common they are, and the person's own often-typed words join them.
      */
-    fun suggest(typed: String, scorer: Scorer? = null): Suggestions {
+    fun suggest(typed: String, scorer: Scorer? = null, taps: Taps? = null): Suggestions {
         val now = now
         if (now.lexicon.words.isEmpty() || typed.isEmpty() || typed.length > 24) return Suggestions(emptyList(), null, false)
         val locale = now.board.locale
@@ -376,7 +460,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val contractions = now.lexicon.contractions
         val eszett = eszettWord(lower, words)
         val isWord = kept(lower) || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower) || eszett
-        val mend = if (kept(lower) || eszett) null else best(now, lower, scorer)
+        val mend = if ((kept(lower) && remembered(now, lower) == null) || eszett) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
         val fix = mend?.takeIf { it.sure }?.word
         val out = LinkedHashSet<String>()
         fix?.let { out += recase(locale, typed, it) }
@@ -418,10 +502,27 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             accented.into(top)
         }
         for (l in learned) if (l.startsWith(lower) && l != lower) top += l to LEARNED_ZIPF
+        for (l in own) if (l.startsWith(lower) && l != lower && l !in learned) top += l to LEARNED_ZIPF
         for (l in slang) if (l.startsWith(lower) && l != lower && !words.containsKey(l)) top += l to SLANG_ZIPF
         if (scorer != null) inContext(now, lower, scorer, top)
+        // The words the taps so far may be the start of, a slip or two allowed ([TapDecoder.finish]): ranked as the
+        // others are, less what the slips cost, so they lead only where the taps make them likely.
+        val noisy = taps != null && taps.xs.size == typed.length && !now.lexicon.cautious && TAPS
+        if (noisy) runCatching {
+            top.sortByDescending { it.second }
+            val least = (top.getOrNull(4)?.second ?: 0f).coerceAtLeast(FINISH_LEAST)
+            val decoder = tapDecoder(now, taps!!)
+            decoder.load(lower, taps)
+            for (h in decoder.finish(least - (if (scorer == null) 0f else CONTEXT_PICK))) {
+                val word = now.lexicon.sorted[h.index]
+                if (word == lower || h.cost <= 0f) continue
+                val zipf = now.lexicon.sortedZipf[h.index]
+                val lift = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+                top += word to zipf + lift - h.cost
+            }
+        }
         top.sortByDescending { it.second }
-        if (scorer == null) {
+        if (scorer == null && !noisy) {
             for ((cand, _) in top) { if (out.size >= 5) break; out += recase(locale, typed, capitalI(now, cand)) }
         } else {
             // A word ranked twice (by frequency, and in context) is offered once, in its higher place.
@@ -484,11 +585,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * words in one stroke ("hey what's up"). [before] is the word before the cursor in lower case, "^" at a
      * sentence's start, or null. The decoding is [SwipeDecoder]'s, over the lexicon in use.
      */
-    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null): List<String> =
-        swipePlain(path.map { it.x to it.y }, keys.mapValues { (_, p) -> p.x to p.y }, keyW, before)
+    fun swipe(path: List<android.graphics.PointF>, keys: Map<Char, android.graphics.PointF>, keyW: Float, before: String? = null, scorer: Scorer? = null): List<String> =
+        swipePlain(path.map { it.x to it.y }, keys.mapValues { (_, p) -> p.x to p.y }, keyW, before, scorer)
 
-    /** [swipe] in plain numbers, as the accuracy replay (src/test AccuracyReplay) calls it off the device. */
-    fun swipePlain(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null): List<String> {
+    /**
+     * [swipe] in plain numbers, as the accuracy replay (src/test AccuracyReplay) calls it off the device. With a
+     * [scorer] (next-word prediction is on) the stroke's first word is weighed by what is likely where the cursor
+     * stands: the two words before it and the person's own habits, where [before] alone goes by the starter tables'
+     * one-word rows; and a word the person types often counts as that common.
+     */
+    fun swipePlain(path: List<Pair<Float, Float>>, keys: Map<Char, Pair<Float, Float>>, keyW: Float, before: String? = null, scorer: Scorer? = null): List<String> {
         val now = now
         if (now.lexicon.words.isEmpty() || path.size < 2 || keyW <= 0f) return emptyList()
         return synchronized(decoder) {
@@ -499,7 +605,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 swipeKeys = HashMap(keys)
                 warm(swipeKeys, now.lexicon)
             }
-            decoder.decode(path, swipeKeys, keyW, before)
+            val first: ((String, Float) -> Float)? = if (scorer == null) null else { word, zipf ->
+                val own = maxOf(zipf, scorer.personalZipf(word, true))
+                kotlin.math.log10(Math.pow(10.0, (own - 9f).toDouble()) + SwipeDecoder.PAIRS * scorer.share(word)).toFloat()
+            }
+            decoder.decode(path, swipeKeys, keyW, before, first = first)
         }
     }
 
@@ -532,12 +642,19 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * like a listed word with an ending of its own ([inflected]); else it comes back not [Fix.sure], to be offered.
      * With the first six alone every mend is sure, as it always was.
      */
-    private fun best(now: Now, lower: String, scorer: Scorer? = null): Fix? {
+    private fun best(now: Now, lower: String, scorer: Scorer? = null, taps: Taps? = null): Fix? {
         if (lower == "i" && capitalises(now)) return Fix("I", true)
+        // A mistake the person has put right before, the same way each time: it is that again.
+        remembered(now, lower)?.let { return Fix(it, true) }
         val words = now.lexicon.words
         val folded = now.lexicon.folded
         val contractions = now.lexicon.contractions
-        contractions[lower]?.let { return Fix(capitalI(now, it), true) }
+        // Where the taps are known and the lists are the first six languages', the word is read by them ([byTaps]).
+        val read = taps != null && !now.lexicon.cautious && TAPS
+        contractions[lower]?.let { c ->
+            if (read) byTaps(now, lower, c, words[c], scorer, taps)?.let { return it }
+            return Fix(capitalI(now, c), true)
+        }
         val known = words[lower]
         // Typed without its accents: the accented word, unless the plain spelling is itself as common. A listed plain
         // spelling gives way only on a board where the accent is a long-press away: typed on a board that has the
@@ -545,12 +662,138 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         folded[lower]?.let { accented ->
             if (known == null || known < COMMON || (lower in now.lexicon.givesWay && !keyed(now.board, lower, accented))) return Fix(accented, true)
         }
+        if (read) {
+            byTaps(now, lower, lower, known, scorer, taps)?.let { return it }
+            // Nothing the taps fit better: a listed word stands, with English's capital I where it has one.
+            return if (known != null) capitalI(now, lower).takeIf { it != lower }?.let { Fix(it, true) } else null
+        }
         // A common word is never changed; a rare one only for a far commoner word one cheap slip away.
         if (known != null && known >= COMMON) return capitalI(now, lower).takeIf { it != lower }?.let { Fix(it, true) }
         val pick = pick(now, lower, known, scorer) ?: return null
         if (pick.score < MIN_SCORE) return null
         val sure = !now.lexicon.cautious || (pick.score >= CAUTIOUS_SCORE && !ending(now.board, lower, pick.from) && !inflected(words, lower, pick.from))
         return Fix(capitalI(now, pick.word), sure)
+    }
+
+    /**
+     * The word [lower] was meant to be, read by where its taps landed ([TapDecoder]); null to leave it as typed.
+     * [known] is how common the typed word itself is, where the lists have it, and [stands] the word it stands as
+     * (itself, or the contraction it is typed for: "im" stands as "i'm").
+     *
+     * Every reading is worth its word's frequency, plus what the words before lift it by (at most [CONTEXT_PICK]),
+     * less what its slips cost. The typed word is one of the readings, with no slips:
+     * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]):
+     *   any reading worth more replaces it;
+     * - a rare listed word gives way to a reading worth [MARGIN_RARE] more than it;
+     * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one, and only by slips of
+     *   the thumb: "br" with its r tapped on the line between e and r is "be", and with the r tapped in the middle
+     *   of its key it is "br".
+     * The readings are the lists' words ([TapDecoder.search]), the person's own, and two words run together
+     * ([TapDecoder.joins], worth at least [JOIN_BAR]) where the typed one is no common word.
+     */
+    /** A reader of taps over the lexicon in use: a letter's key is its own, or its plain letter's where the board keeps it behind a long-press. */
+    private fun tapDecoder(now: Now, taps: Taps): TapDecoder {
+        val lex = now.lexicon
+        val script = now.board.script
+        val keys = taps.keys
+        return TapDecoder(lex.sorted, lex.sortedZipf, lex.trie, { c ->
+            if (keys.containsKey(c)) c else script.plain(c.toString()).let { p -> if (p.length == 1 && keys.containsKey(p[0])) p[0] else 0.toChar() }
+        }, now.board.neighbours)
+    }
+
+    private fun byTaps(now: Now, lower: String, stands: String, known: Float?, scorer: Scorer?, taps: Taps): Fix? {
+        val lex = now.lexicon
+        val words = lex.words
+        val script = now.board.script
+        val decoder = tapDecoder(now, taps)
+        decoder.load(lower, taps)
+        fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        val common = known != null && known >= COMMON
+        // What the typed word is worth where no list has it: little where it does not look like a word, less where
+        // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
+        val unknown = when {
+            known != null -> UNKNOWN
+            lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
+            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
+            else -> UNKNOWN
+        }
+        // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
+        // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
+        val bar = when {
+            known == null -> unknown
+            !common -> Float.NEGATIVE_INFINITY
+            else -> known + lift(stands, known) + MARGIN_COMMON
+        }
+        var bestWord: String? = null
+        var bestScore = Float.NEGATIVE_INFINITY
+        fun offer(word: String, score: Float, least: Float = bar) {
+            if (word == lower || word == stands || score < least || score <= bestScore) return
+            bestWord = word; bestScore = score
+        }
+        // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
+        val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
+        val floor = if (known != null && !common) known + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
+        for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
+            val word = lex.sorted[h.index]
+            if (known != null && !common && lex.sortedZipf[h.index] < known + RARE_GAP) continue
+            // Typed plainly with a slip: the plain word where there is one (esra is esta, not está).
+            val plain = script.plain(word)
+            if (plain != word && words.containsKey(plain)) continue
+            val zipf = lex.sortedZipf[h.index]
+            // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
+            val least = if (known == null && unknown < UNKNOWN && inflected(words, lower, word)) UNKNOWN else bar
+            offer(word, zipf + lift(word, zipf) - h.cost, least)
+        }
+        // The person's own words: never in the trie, so each is held up against the taps.
+        for (l in learned + own) {
+            if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
+            if (known != null && LEARNED_ZIPF < known + RARE_GAP) continue
+            val cost = decoder.align(l, 0, budget)
+            if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
+        }
+        // What the person has put this very word right to before (a common word typed for another: form for from):
+        // held up against the taps like their own words, and worth [REMEMBERED] more for having been meant before.
+        mistaken[lower]?.takeIf { ' ' !in it && lower !in learned && lower !in slang }?.let { meant ->
+            val m = meant.lowercase(now.board.locale)
+            val zipf = words[m] ?: if (kept(m)) LEARNED_ZIPF else return@let
+            val cost = decoder.align(m, 0, TapDecoder.BUDGET)
+            if (!cost.isInfinite()) offer(meant, zipf + lift(m, zipf) + REMEMBERED - cost)
+        }
+        // Two words run together, where what was typed is no common word.
+        if (!common && lower.length >= 3 && JOINS) {
+            val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + MARGIN_RARE
+            val sorted = lex.sorted
+            val zipfs = lex.sortedZipf
+            // The least share a first word's row lists: a second word the row does not list follows it less often
+            // than that, however common it is elsewhere ("the" after "i": never, for all that "the" is everywhere).
+            val least = HashMap<Int, Float>()
+            fun worth(a: Int, b: Int): Float {
+                val z = zipfs[b]
+                if (sorted[b].length < 2 && z < SwipeDecoder.ONE_LETTER) return Float.NEGATIVE_INFINITY
+                val row = lex.follows(sorted[a])
+                val share = row?.get(sorted[b]) ?: 0f
+                if (share > 0f) return 9f + kotlin.math.log10(Math.pow(10.0, (z - 9f).toDouble()) + share).toFloat()
+                val unseen = z - JOIN_UNSEEN
+                if (row == null || row.size < JOIN_FULL_ROW) return unseen
+                val floor = least.getOrPut(a) { 9f + kotlin.math.log10(row.values.min() * JOIN_UNLISTED) }
+                return minOf(unseen, floor)
+            }
+            val joins = decoder.joins(
+                joinBar,
+                firsts = { i -> zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER) },
+                second = ::worth,
+                followers = { a ->
+                    val row = lex.follows(sorted[a])
+                    if (row == null) IntArray(0) else row.keys.mapNotNull { w -> java.util.Arrays.binarySearch(sorted, w).takeIf { it >= 0 } }.toIntArray()
+                },
+            )
+            for (j in joins) {
+                val a = sorted[j.first]; val b = sorted[j.second]
+                val first = zipfs[j.first] + lift(a, zipfs[j.first])
+                offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - j.cost, joinBar)
+            }
+        }
+        return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
     }
 
     /**
@@ -576,7 +819,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         var next = Float.NEGATIVE_INFINITY
         for ((candidate, cost) in candidates(now.board, lower)) {
             val zipf = words[candidate] ?: contractions[candidate]?.let { words[it] }
-                ?: (if (candidate in learned) LEARNED_ZIPF else null) ?: folded[candidate]?.let { words[it] } ?: continue
+                ?: (if (candidate in learned || candidate in own) LEARNED_ZIPF else null) ?: folded[candidate]?.let { words[it] } ?: continue
             val plain = zipf - cost * COST_WEIGHT
             val word = contractions[candidate] ?: folded[candidate]?.takeIf { candidate !in words } ?: candidate
             val score = if (scorer == null || plain < MIN_SCORE) plain else plain + minOf(scorer.boost(word, zipf), CONTEXT_PICK)
@@ -834,6 +1077,38 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     companion object {
+        /** Reading a word by where its taps landed ([byTaps]), and two words run together: off only for the benchmark's comparisons. */
+        @JvmField var TAPS = true
+        @JvmField var JOINS = true
+        /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
+        @JvmField var UNKNOWN = 3.2f
+        @JvmField var UNKNOWN_ODD = 1.8f
+        /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
+        @JvmField var UNKNOWN_LONG = 1.6f
+        @JvmField var LONG_WORD = 6f
+        /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
+        @JvmField var RARE_GAP = 2f
+        @JvmField var RARE_BUDGET = 2.2f
+        /** The least two words run together must be worth to replace a word no list has. */
+        @JvmField var JOIN_BAR = 0f
+        /** The least a word must be worth to be offered as what a half-typed word with a slip in it was the start of. */
+        @JvmField var FINISH_LEAST = 2.5f
+        /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */
+        @JvmField var MARGIN_RARE = 0.6f
+        @JvmField var MARGIN_COMMON = 1.6f
+        /** The most the slips may cost that turn one listed word into another. */
+        @JvmField var LISTED_BUDGET = 3.4f
+        /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */
+        /** What a reading is worth more for being what the person put this same typed word right to before ([setMistakes]). */
+        @JvmField var REMEMBERED = 1.5f
+        @JvmField var JOIN_FIRST = 3f
+        @JvmField var JOIN_UNSEEN = 0.5f
+        /**
+         * A first word whose row of followers is this long has had its likely followers listed: one it does not list
+         * follows it [JOIN_UNLISTED] as often as the least it does, at most.
+         */
+        @JvmField var JOIN_UNLISTED = 0.5f
+        private const val JOIN_FULL_ROW = 12
         /** Zipf 3.2 is about one in 600,000 words: below it a "word" in the list is as likely a common misspelling. */
         private const val COMMON = 3.2f
         /** How much commoner (in Zipf, so 0.9 is about eight times) an accented word must be for its plain spelling, itself listed, to give way to it. */
