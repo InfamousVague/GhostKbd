@@ -1,7 +1,7 @@
 # Submitting Ghost Keyboard for iOS
 
-Step 1 is done (2026-11-10). Nothing has been uploaded, and the app record (step 2) does not exist yet: steps 2 to 4
-create things in App Store Connect, so they are Matt's to do or to approve.
+Steps 1 and 2 are done (2026-11-10), and the listing's text and screenshots are in place. No build has been uploaded
+and nothing has been submitted: uploading (step 3's last command) and pressing Submit are Matt's to do or to ask for.
 
 ## 1. The identifiers and profiles (done)
 
@@ -23,10 +23,15 @@ Signing is by those named profiles (`ios/AppStore.xcconfig`), not Xcode's automa
 -allowProvisioningUpdates` with the API key is refused ("Authentication failed: … bearer token") although the same key
 works against the App Store Connect API, and Xcode has no account signed in on this Mac.
 
-## 2. Create the app record (App Store Connect › Apps › +)
+## 2. The app record (done)
 
-Platform iOS; name "Ghost Keyboard" (see `metadata.md` if taken); primary language English (U.S.); bundle ID
-`com.infamousvague.ghostkbd`; SKU `ghostkbd-ios`.
+App Store Connect › Apps: **Ghost KBD**, Apple ID `6833061074`, iOS, English (U.S.), bundle ID
+`com.infamousvague.ghostkbd`, SKU `ghostkbd-ios`. "Ghost Keyboard" is another app's name on the store, so the record
+has the name Matt chose instead; the name under the icon is still Ghost Keyboard.
+
+Set on it through the API by `node ios/tool/store_listing.mjs` (run it again after editing `metadata.md` or the
+screenshots; it uploads no build and submits nothing): version 0.9.5, the description, keywords, promotional text,
+subtitle, copyright, categories (Utilities, Developer Tools), nine iPhone 6.9" screenshots and five iPad 13".
 
 ## 3. Archive and upload
 
@@ -46,7 +51,8 @@ That leaves `build/ipa/Ghost Keyboard.ipa`, signed for the App Store, and upload
 `destination: export`). Both commands have been run and succeed; the archive's app and extension carry the App Group
 and the shared Keychain group.
 
-To check it against App Store Connect, and then to send it (each needs the app record of step 2; the key comes from
+The first of these has been run against the record: "VERIFY SUCCEEDED with no errors" for 0.9.5 (64). The second
+sends the build, and has not been run (the key comes from 
 `~/.config/mattssoftware/signing/asc-api.env`):
 
 ```bash
@@ -60,15 +66,16 @@ To check it against App Store Connect, and then to send it (each needs the app r
 The version and build number come from `pubspec.yaml`: the app and the keyboard extension must carry the same pair,
 and both read it from there.
 
-## 4. Fill in App Store Connect
+## 4. Still to fill in, in App Store Connect
 
 | Where | From |
 | --- | --- |
-| App Information, version page | `metadata.md` |
-| Screenshots | `screenshots.md` |
-| App Privacy | `app-privacy.md`; Privacy Policy URL: wherever `privacy-policy.md` is hosted |
-| App Review Information › Notes | `review-notes.md` (needs a review API key with a small limit) |
-| Age rating, pricing | `metadata.md` |
+| App Information › Privacy Policy URL; version page › Support URL | wherever `privacy-policy.md` and a support page are hosted |
+| App Privacy | `app-privacy.md` (the web form only; there is no API for it) |
+| App Information › Age Rating | `metadata.md` |
+| Pricing and Availability | `metadata.md` |
+| App Review Information: contact, notes | `review-notes.md` (needs a review API key with a small limit) |
+| The build | chosen on the version page once step 3's upload has been processed |
 
 ## 5. Before pressing Submit
 

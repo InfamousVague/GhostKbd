@@ -6,9 +6,11 @@ Rule for everything on this page and in the screenshots: no third-party names or
 
 ## Name (30)
 
-    Ghost Keyboard
+    Ghost KBD
 
-If the name is taken: `Ghost Keyboard for Developers`, `Ghost KBD`.
+"Ghost Keyboard" is used by another app on the App Store (found 2026-11-10); Matt chose `Ghost KBD`. The name under
+the icon on the phone is still Ghost Keyboard. (The description cannot show `<<` and `>>`: App Store Connect refuses
+them as markup.)
 
 ## Subtitle (30)
 
@@ -36,7 +38,7 @@ If the name is taken: `Ghost Keyboard for Developers`, `Ghost KBD`.
     Light, dark, preset themes, a theme of your own from five colours, and a mechanical-keycap look. A backlight makes the legends glow as you type: reactive, ripple, heatmap, rainbow, starlight or breathe.
 
     AN AI ASSISTANT, ON YOUR TERMS (OPTIONAL)
-    Type <<what you want>> in any app and the answer is written in its place. Select text and have it rewritten shorter, more formal, or in another language. Teach it how you write and it answers in your voice.
+    Type what you want between double angle brackets in any app and the answer is written in its place. Select text and have it rewritten shorter, more formal, or in another language. Teach it how you write and it answers in your voice.
     • You bring your own API key from the AI provider you choose. Requests go straight from your device to that provider. We run no servers and receive nothing.
     • Nothing is sent unless you use one of these features, and only after you have read and agreed to what is sent.
     • The keyboard works fully without it.
