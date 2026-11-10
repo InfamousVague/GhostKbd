@@ -44,7 +44,7 @@ class SherlockService : AccessibilityService() {
     enum class Side { THEM, ME, MIDDLE }
 
     /** One piece of text on the screen, where it sat: [side] by which edge it hugs, as chat bubbles do. */
-    data class Line(val text: String, val side: Side, val top: Int, val left: Int)
+    data class Line(val text: String, val side: Side, val top: Int, val left: Int, val author: String? = null)
 
     /** What was on the screen: the app, the lines at its top (a chat's name), the rest in reading order, and how it was read. */
     data class Screen(val app: String?, val header: List<String>, val lines: List<Line>, val ocr: Boolean) {
@@ -238,23 +238,80 @@ class SherlockService : AccessibilityService() {
         val headerLine = window.top + resources.displayMetrics.heightPixels * HEADER_SHARE
         val header = ArrayList<String>()
         val lines = ArrayList<Line>()
-        for (piece in found.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))) {
+        val sorted = found.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
+        val names = myNames()
+        val authors = authorHeaders(sorted, names, headerLine, app in BY_AUTHOR)
+        // The messages under each author's name (Discord, Slack, group chats): that author's, until the next name.
+        var author: String? = null
+        var authorIsMe = false
+        for ((i, piece) in sorted.withIndex()) {
             val text = piece.text
             val r = piece.rect
             if (r.bottom <= headerLine) { header += text; continue }
+            val name = authors[i]
+            if (name != null) {
+                author = name
+                authorIsMe = isMine(name, names) || groupSentByMe(sorted, authors, i, app)
+                continue
+            }
             if (piece.control) continue
             val leftGap = r.left - window.left
             val rightGap = window.right - r.right
-            // The app's own label first; then whether this phone sent these words (SentLog); then which edge it hugs.
-            val side = piece.said ?: (if (SentLog.sent(this, app, text)) Side.ME else null) ?: when {
-                rightGap < leftGap * 0.6f && leftGap > width * 0.12f -> Side.ME
-                leftGap < rightGap * 0.6f && rightGap > width * 0.12f -> Side.THEM
-                else -> Side.MIDDLE
-            }
-            lines += Line(text, side, r.top, r.left)
+            // The app's own label first; then whether this phone sent these words (SentLog); then the author whose name
+            // it sits under; then which edge it hugs.
+            val side = piece.said ?: (if (SentLog.sent(this, app, text)) Side.ME else null)
+                ?: author?.let { if (authorIsMe) Side.ME else Side.THEM }
+                ?: when {
+                    rightGap < leftGap * 0.6f && leftGap > width * 0.12f -> Side.ME
+                    leftGap < rightGap * 0.6f && rightGap > width * 0.12f -> Side.THEM
+                    else -> Side.MIDDLE
+                }
+            if (TIME_STAMP.matches(text) && author != null) continue
+            lines += Line(text, side, r.top, r.left, author)
         }
         return Screen(app, header, lines, ocr)
     }
+
+    /** Settings › Sherlock › Your names in chats: your usernames and display names, lowercased. */
+    private fun myNames(): Set<String> =
+        KeyboardPrefs(this).sherlockNames.split(',', '\n').map { normalName(it) }.filter { it.isNotEmpty() }.toSet()
+
+    /** A name as compared: lowercased, without @, spaces round it, or a tag after it ("Sam BOT", "sam#1234"). */
+    private fun normalName(name: String) = name.trim().removePrefix("@").substringBefore('#').lowercase().trim()
+
+    private fun isMine(name: String, names: Set<String>) = normalName(name) in names
+
+    /**
+     * Which pieces are an author's name over their messages, by index: a short line with a time on its row
+     * ("Sam  Today at 2:14 PM"), or one of your own names on a line of its own.
+     */
+    private fun authorHeaders(sorted: List<Piece>, names: Set<String>, headerLine: Float, bareTimes: Boolean): Map<Int, String> {
+        val out = HashMap<Int, String>()
+        for ((i, p) in sorted.withIndex()) {
+            if (p.rect.bottom <= headerLine) continue
+            val t = p.text.trim()
+            if (t.length > 40 || TIME_STAMP.matches(t) || t.any { it == '\n' }) continue
+            // A bare "2:14 PM" beside a short line is a header only where the app groups by author: in WhatsApp it is a
+            // short message's own time.
+            val timed = sorted.any { o ->
+                val ot = o.text.trim()
+                o !== p && TIME_STAMP.matches(ot) && (bareTimes || DAY_STAMP.containsMatchIn(ot)) && o.rect.left >= p.rect.left && sameRow(o.rect, p.rect)
+            }
+            if (timed || isMine(t, names)) out[i] = t
+        }
+        return out
+    }
+
+    /** Any message under the name at [at] was sent from this phone: the name is yours. */
+    private fun groupSentByMe(sorted: List<Piece>, authors: Map<Int, String>, at: Int, app: String?): Boolean {
+        for (j in at + 1 until sorted.size) {
+            if (authors.containsKey(j)) break
+            if (SentLog.sent(this, app, sorted[j].text)) return true
+        }
+        return false
+    }
+
+    private fun sameRow(a: Rect, b: Rect) = minOf(a.bottom, b.bottom) - maxOf(a.top, b.top) > minOf(a.height(), b.height()) / 2
 
     companion object {
         /** The running service, while Android has it bound (the person turned it on). */
@@ -265,6 +322,12 @@ class SherlockService : AccessibilityService() {
         @Volatile var keyboardTopNow = 0
 
         private const val SEND_SETTLE_MS = 450L
+        /** Apps that put the author's name and a time over each run of messages, and draw everyone on one side. */
+        private val BY_AUTHOR = setOf("com.discord", "com.Slack")
+        /** A time that names its day, as only an author header shows it: "Today at …", "Yesterday …", "11/10/2026 …". */
+        private val DAY_STAMP = Regex("^(today|yesterday)|\\d{1,2}/\\d{1,2}/\\d{2,4}", RegexOption.IGNORE_CASE)
+        /** A message's time beside its author's name: "Today at 2:14 PM", "Yesterday at 9:02", "11/10/2026 2:14 PM", "2:14 PM". */
+        private val TIME_STAMP = Regex("^((today|yesterday)( at)?\\s*)?(\\d{1,2}/\\d{1,2}/\\d{2,4},?\\s*)?\\d{1,2}[:.]\\d{2}(\\s?[ap]\\.?m\\.?)?$|^(today|yesterday)$|^\\d{1,2}/\\d{1,2}/\\d{2,4}$", RegexOption.IGNORE_CASE)
         /** A screen-reader label on your own message: "You said …", "Me: …", "Sent …", "Outgoing …". */
         private val YOU_SAID = Regex("^(you|me)\\s*(said|sent|wrote|replied|:)|^(sent|outgoing)\\b", RegexOption.IGNORE_CASE)
         /** Or a delivery status, which only your own messages carry: "Delivered", "Read by Sam", "Seen". */

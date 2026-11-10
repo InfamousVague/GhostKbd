@@ -27,7 +27,11 @@ object Sherlock {
         if (screen.header.isNotEmpty()) append("TOP OF THE SCREEN (usually the chat's name): ").append(screen.header.joinToString(" · ")).append('\n')
         append("CONVERSATION, top to bottom (newest last):\n")
         val lines = screen.lines.map { l ->
-            val who = when (l.side) { SherlockService.Side.ME -> "[me]"; SherlockService.Side.THEM -> "[them]"; SherlockService.Side.MIDDLE -> "[?]" }
+            val who = when (l.side) {
+                SherlockService.Side.ME -> "[me]"
+                SherlockService.Side.THEM -> if (l.author != null) "[them: ${l.author}]" else "[them]"
+                SherlockService.Side.MIDDLE -> "[?]"
+            }
             "$who ${l.text}"
         }
         // The newest are at the bottom: keep those when there is too much.

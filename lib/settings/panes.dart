@@ -1038,6 +1038,20 @@ List<Widget> _sherlockPage(BuildContext context, SettingsStore store) {
         _toggle(store, 'sherlock_notes', 'Look in my notes', 'Your Ghost.md notes that match the conversation, for the facts.', LucideMore.squareM),
       ],
     ),
+    PaneSection(
+      footer: const Text('In Discord, Slack and group chats everyone’s messages sit on one side under their name. Your usernames and display names here, separated by commas, tell Sherlock which are yours. Press enter to save.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('sherlock-names-${store.text('sherlock_names')}'),
+            defaultValue: store.text('sherlock_names'),
+            placeholder: 'Your names in chats, e.g. mattv, Matt',
+            ariaLabel: 'Your names in chats',
+            onSubmitted: (text) => store.set('sherlock_names', text.trim()),
+          ),
+        ),
+      ],
+    ),
     PaneSection(children: [
       _toggle(store, 'sherlock_auto', 'Draft as I open a chat', 'Off: only when you tap Reply in the row.'),
       _toggle(store, 'sherlock_fill', 'Put it straight in the box', 'Off: the draft waits in the row for a tap.'),
