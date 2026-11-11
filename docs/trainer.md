@@ -10,6 +10,9 @@ expanded views and shifting the UI majorly if the setting is enabled when we sta
 timed and scored, the keys' touch areas move a small step toward where the thumbs landed, and what went wrong is
 remembered. After five runs there is a profile.
 
+Its row is at the top of Settings, in the first card with Setup and straight under it (Matt, 2026-11-11: "Place the
+training section at the top next to the setup section"); Offline's card comes after. An iPhone has Setup alone there.
+
 Everything here runs on the phone. Nothing opens a connection, so the Offline switch has nothing of it to stop and
 the network ledger has no path for it (`tool/net_check.sh` is unchanged).
 
@@ -325,7 +328,7 @@ key, so a run never loses a word to the story's own vocabulary.
 The first eight have no Android in them (`TrainerCodec` writes JSON with org.json, as `Reports.kt` does). What changed in files the trainer shares: the service
 gives the view its listener through `TrainerKeys` and reads `Trainer.heightFor` and `Trainer.adapts` in
 `applySettings`; `KeyboardView.peekTyped`; `AdaptiveKeys.trained`; `MainActivity` registers the channel; Settings has
-the row (`panes.dart`), and `main.dart` opens a section's own screen when asked for it by name.
+the row (`panes.dart`, in Setup's group), and `main.dart` opens a section's own screen when asked for it by name.
 
 ## Checks
 
@@ -335,7 +338,7 @@ the row (`panes.dart`), and `main.dart` opens a section's own screen when asked 
   `TrainerAdaptationTest` (the leaning thumb; the layout trials). `cd android && ./gradlew testDebugUnitTest`.
 - `test/trainer_test.dart`: the first page and its switch, off unless turned on; a run refused where Ghost Keyboard
   is not the keyboard in use; a run to its results; a trial said and never set from the screen; the profile and what
-  applying asks for; no Trainer on an iPhone.
+  applying asks for; no Trainer on an iPhone; its row in Settings' top card, under Setup, opening from there.
 - `tool/trainer_sim.sh`: the tables above. `JAVA_OPTS="-Druns=16 -Dseeds=40 -Dlean=0.3,0.1" tool/trainer_sim.sh`.
 - On the emulator (2026-11-10, `emulator-5584`, taps at real key positions): fifteen runs typed to their results (eleven stories, a practice run, one more story on the last build but one, and the two with strokes below); with
   the switch off two runs' keyboards were the same pixel for pixel but for the last key's backlight; with it on a run

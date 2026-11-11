@@ -60,6 +60,11 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         summary: isIOS ? _iosSetupSummary : (s) => s.enabled && s.selected ? 'Ready: you’re typing with Ghost Keyboard' : (s.enabled ? 'One step left' : 'Two steps left'),
         page: _setup,
       ),
+      // The typing trainer (lib/trainer/): a screen of its own, in the top card with Setup and straight under it (Matt,
+      // 2026-11-11: "Place the training section at the top next to the setup section"). Android's keyboard measures
+      // the runs; the iPhone's is another port, and has Setup alone up there.
+      if (!isIOS)
+        SettingsSection(id: 'trainer', label: 'Trainer', icon: _icon(Lucide.graduationCap), hue: trainerHue, group: 'start', summary: (s) => TrainerStore.shared.summaryOr(s.refreshAdaptive), page: (context, store) => const [], screen: (context) => TrainerScreen(store: store)),
       // One switch for every connection the app can make, on the list itself: the row's own switch turns it on and off.
       SettingsSection(
         id: 'offline',
@@ -72,9 +77,6 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         parts: _offlineParts,
         control: (s) => _switch(s, 'offline', 'Offline'),
       ),
-      // The typing trainer (lib/trainer/): a screen of its own. Android's keyboard measures the runs; the iPhone's is another port.
-      if (!isIOS)
-        SettingsSection(id: 'trainer', label: 'Trainer', icon: _icon(Lucide.graduationCap), hue: trainerHue, group: 'trainer', summary: (s) => TrainerStore.shared.summaryOr(s.refreshAdaptive), page: (context, store) => const [], screen: (context) => TrainerScreen(store: store)),
       SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: _typingSummary, page: _typingPage, parts: _typingParts),
       SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
       SettingsSection(id: 'ai', label: 'AI', icon: _icon(Lucide.sparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),

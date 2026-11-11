@@ -35,14 +35,18 @@ void main() {
   // There is no phone behind the channel here: every call is answered with nothing, so the store keeps what the test gives it.
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('dev_keyboard/settings'), (call) async => null);
 
-  test('Offline is the second section, in a group of its own, with its switch on the list', () {
+  test('Offline is the second card, in a group of its own, with its switch on the list', () {
     final store = SettingsStore();
     final sections = settingsSections(store);
     expect(sections[0].id, 'setup');
-    expect(sections[1].id, 'offline');
-    expect(sections.where((s) => s.group == sections[1].group).length, 1);
-    expect(sections[1].control, isNotNull);
-    expect(sections[1].summary!(store), 'Off · what leaves your phone');
+    // Above it only the top card: Setup, and on Android the Trainer beside it (Matt, 2026-11-11: "Place the training
+    // section at the top next to the setup section").
+    final at = sections.indexWhere((s) => s.id == 'offline');
+    expect(sections.take(at).map((s) => s.group).toSet(), {sections[0].group});
+    final offline = sections[at];
+    expect(sections.where((s) => s.group == offline.group).length, 1);
+    expect(offline.control, isNotNull);
+    expect(offline.summary!(store), 'Off · what leaves your phone');
   });
 
   test('off by default, and the rows that would connect say why they are disabled', () async {
@@ -52,7 +56,7 @@ void main() {
     await store.set('offline', true);
     expect(store.offline, isTrue);
     expect(store.offlineReason, 'Offline is on');
-    expect(settingsSections(store)[1].summary!(store), 'On · nothing is asked of any server');
+    expect(settingsSections(store).firstWhere((s) => s.id == 'offline').summary!(store), 'On · nothing is asked of any server');
   });
 
   testWidgets('the search finds it, the page is the ledger, and pages that connect say Offline is on', (tester) async {

@@ -1,13 +1,15 @@
 // The typing trainer's pages (lib/trainer/), over a mocked `dev_keyboard/trainer` channel that answers as Android's
 // Trainer.kt does: the first page and its switch, which is off unless turned on; that a run is refused where Ghost
 // Keyboard is not the keyboard in use; a run from its first key to its results; a trial layout said and never set
-// from here; the profile, and what applying it asks for; and that an iPhone has no Trainer at all.
+// from here; the profile, and what applying it asks for; that an iPhone has no Trainer at all; and that on Android its
+// row stands at the top of Settings, in one card with Setup.
 // Run with `flutter test`.
 
 import 'package:dev_keyboard/market/market_cards.dart';
 import 'package:dev_keyboard/settings/kit/settings_kit.dart';
 import 'package:dev_keyboard/settings/panes.dart';
 import 'package:dev_keyboard/settings/settings_css.dart';
+import 'package:dev_keyboard/settings/settings_screen.dart';
 import 'package:dev_keyboard/settings_store.dart';
 import 'package:dev_keyboard/trainer/trainer_screen.dart';
 import 'package:dev_keyboard/trainer/trainer_store.dart';
@@ -102,8 +104,9 @@ Future<void> _press(WidgetTester tester, Finder what) async {
   await _settle(tester);
 }
 
-/// The trainer's screen over [native], on a phone's width and taller than any (the test font is wide).
-Future<(SettingsStore, TrainerStore)> _open(WidgetTester tester, _Native native, {bool selected = true}) async {
+/// The trainer's screen over [native], on a phone's width and taller than any (the test font is wide). With [home],
+/// that in its place: Settings' own first page, to find the trainer's row on.
+Future<(SettingsStore, TrainerStore)> _open(WidgetTester tester, _Native native, {bool selected = true, Widget Function(SettingsStore store)? home}) async {
   tester.view.physicalSize = const Size(1170, 9000);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -121,7 +124,7 @@ Future<(SettingsStore, TrainerStore)> _open(WidgetTester tester, _Native native,
     color: const Color(0xFF000000),
     pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (context, _, _) => builder(context)),
     builder: (context, child) => GlacierTheme(sheet: sheet, attrs: const {'platform': 'mobile', 'theme': 'dark'}, child: HapticsProvider(child: child!)),
-    home: TrainerScreen(store: store, trainer: trainer),
+    home: home?.call(store) ?? TrainerScreen(store: store, trainer: trainer),
   ));
   await _settle(tester);
   return (store, trainer);
@@ -397,17 +400,53 @@ void main() {
     expect(trainer.label, 'Trainer');
     expect(trainer.screen, isNotNull);
     expect(trainer.summary!(store), 'Type a story; the keys learn your thumbs');
-    // Its own group, before the keyboard's settings.
-    expect(android.indexOf(trainer), lessThan(android.indexWhere((s) => s.id == 'typing')));
+    // At the top, in Setup's group and straight after it (Matt, 2026-11-11: "Place the training section at the top
+    // next to the setup section"): the two are the first card, and nothing else is in it.
+    expect(android.first.id, 'setup');
+    expect(android.indexOf(trainer), 1);
+    expect(android.where((s) => s.group == android.first.group).map((s) => s.id), ['setup', 'trainer']);
 
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    expect(settingsSections(store).where((s) => s.id == 'trainer'), isEmpty);
-    debugDefaultTargetPlatformOverride = null;
+    try {
+      final ios = settingsSections(store);
+      expect(ios.where((s) => s.id == 'trainer'), isEmpty);
+      expect(ios.where((s) => s.group == ios.first.group).map((s) => s.id), ['setup']);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
 
     // The line on Settings' list follows the runs.
     final t = TrainerStore()
       ..state = {'runs': 3, 'best': 44}
       ..loaded = true;
     expect(t.summary, '3 runs · 44 words a minute at best');
+  });
+
+  testWidgets('on Settings’ first page the Trainer is in the top card, straight under Setup, and opens from there', (tester) async {
+    final native = _Native();
+    await _open(tester, native, home: (store) => ListenableBuilder(
+          listenable: store,
+          builder: (context, _) => SingleChildScrollView(child: SettingsHome(store: store, sections: settingsSections(store))),
+        ));
+    final setup = find.text('Setup');
+    final row = find.text('Trainer');
+    final offline = find.text('Offline');
+    expect(setup, findsOneWidget);
+    expect(row, findsOneWidget);
+    expect(offline, findsOneWidget);
+    // Down the page: Setup, the Trainer, then Offline.
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    expect(top(setup), lessThan(top(row)));
+    expect(top(row), lessThan(top(offline)));
+    // One card (the list's rounded group) holds Setup and the Trainer; Offline's is the next one.
+    Set<Element> cards(Finder f) => find.ancestor(of: f, matching: find.byType(ClipRRect)).evaluate().toSet();
+    final shared = cards(setup).intersection(cards(row));
+    expect(shared, isNotEmpty, reason: 'Setup and the Trainer are rows of one card');
+    expect(shared.intersection(cards(offline)), isEmpty, reason: 'Offline is not in their card');
+    // Its row says what it is for, and opens the trainer's own screen.
+    expect(find.text('Type a story; the keys learn your thumbs'), findsOneWidget);
+    await _press(tester, row);
+    expect(find.byType(TrainerScreen), findsOneWidget);
+    await _close(tester);
   });
 }
