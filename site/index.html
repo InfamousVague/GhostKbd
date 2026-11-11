@@ -195,11 +195,11 @@
     <div class="wrap">
       <header class="story__head reveal">
         <div class="story__title">
-          <p class="eyebrow eyebrow--accent">Adaptive keys, autocorrect, swipe, dictation</p>
+          <p class="eyebrow eyebrow--accent">Adaptive keys, autocorrect, next words, swipe, dictation</p>
           <h2 class="h2" id="typing-h">A keyboard that learns your hands.</h2>
         </div>
         <div class="prose">
-          <p>Every thumb has its habits: an i that lands on o, an a you reach short of. Switch on Adaptive keys and the keyboard learns where you really aim at each letter and moves the touch areas to meet you, by up to about a third of a key. Autocorrect catches the slips that still get through. If it gets one wrong, one backspace puts back exactly what you typed, and that word is left alone from then on.</p>
+          <p>Every thumb has its habits: an i that lands on o, an a you reach short of. Switch on Adaptive keys and the keyboard learns where you really aim at each letter and moves the touch areas to meet you, by up to about a third of a key. Autocorrect catches the slips that still get through. If it gets one wrong, one backspace puts back exactly what you typed, and that word is left alone from then on. After a space, the three likeliest next words are waiting above the keys.</p>
         </div>
       </header>
 
@@ -235,11 +235,23 @@
       <div class="features features--3 story__points">
         <div>
           <h3>You can see it</h3>
-          <p>A Stats page draws your speed, the keys you miss and the words you put right most. A heatmap shows your slips and where each key now listens. One tap forgets it all. Adaptive keys is a switch in Settings &rsaquo; Typing, off to start, and the keyboard sends what it learns nowhere.</p>
+          <p>A Stats page draws your speed, the keys you miss and the words you put right most. A heatmap shows your slips and where each key now listens. One tap forgets it all. Adaptive keys is a switch in Settings &rsaquo; Typing, off to start, and what it learns is kept on the phone.</p>
         </div>
         <div>
-          <h3>Six languages</h3>
-          <p>English, Spanish, French, German, Italian and Portuguese, with a programmer&rsquo;s vocabulary and texting slang if you want it.</p>
+          <h3>The next word</h3>
+          <p>After a space, three likely next words wait above the keys; tap one and the next three follow. It starts from common word pairs and learns yours as you type, counted on the phone. Never in password fields or while incognito.</p>
+        </div>
+        <div>
+          <h3>It learns from your corrections</h3>
+          <p>Put a word right the same way twice and it is mended that way for you from then on. A fix you undo is forgotten, and swipe goes by the reading you keep choosing. Remembered on the phone, and yours to clear.</p>
+        </div>
+        <div>
+          <h3>A trainer that proves its fixes</h3>
+          <p>Type a short story and see your speed, the keys you miss and where your taps land. Each run after the first tries a new fix to the touch areas, read against the keyboard as it is on the very same taps, and it is offered only once it is proven better.</p>
+        </div>
+        <div>
+          <h3>38 languages</h3>
+          <p>From English and Espa&ntilde;ol to <span lang="ru">Русский</span>, <bdi lang="ar">العربية</bdi> and <span lang="ko">한국어</span>, each on its own letters, up to six on at once; those that share a board mix in one message. A word list for autocorrect and suggestions in 37, with a programmer&rsquo;s vocabulary and texting slang if you want them.</p>
         </div>
         <div>
           <h3>Swipe and dictation</h3>
@@ -308,7 +320,7 @@
           <h2 class="statement" id="private-h">Nothing between you and your AI.</h2>
         </div>
         <div class="prose">
-          <p>You paste a key from the provider you choose, and a request goes from your phone straight to that provider. The text you ask about, and the sources that are switched on, do go to them. Ghostwriter sends nothing until you close a request. Mockingbird sends samples of your writing to the same provider when it trains your style profile, which you can read and delete.</p>
+          <p>You paste a key from the provider you choose, and a request goes from your phone straight to that provider. The text you ask about, and the sources that are switched on, do go to them. Ghostwriter sends nothing until you close a request. Mockingbird sends samples of your writing to the same provider when it trains your style profile, which you can read and delete. Settings &rsaquo; Offline is one switch that stops every connection the keyboard can make.</p>
           <p><a class="more" href="#faq-leaves">Everything that leaves your phone</a></p>
         </div>
       </header>
@@ -319,7 +331,7 @@
         </div>
         <div>
           <h3>No analytics library</h3>
-          <p>There is no analytics or crash-reporting library in the app. That comes from reading the source, not from an outside audit.</p>
+          <p>There is no analytics or crash-reporting library in the app, by our reading of the source and not an outside audit. Anonymous typing reports are off unless you turn them on.</p>
         </div>
         <div>
           <h3>Private fields stay private</h3>
@@ -393,7 +405,7 @@
     <div class="wrap">
       <header class="section-head section-head--split">
         <h2 class="h2" id="compare-h">Next to Gboard and SwiftKey.</h2>
-        <p class="lead">Ghost Keyboard beside Gboard and SwiftKey, from their vendors&rsquo; pages and Play listings where we could, and from the press where the notes say so, as of 2026-11-09. Three of these rows go against us.</p>
+        <p class="lead">Ghost Keyboard beside Gboard and SwiftKey, from their vendors&rsquo; pages and Play listings where we could, and from the press where the notes say so, as of 2026-11-09; our own column is as of version 0.15.0. Two of these rows go against us.</p>
       </header>
 
       <div class="compare-wrap" role="region" aria-labelledby="compare-h" tabindex="0">
@@ -457,19 +469,19 @@
             </tr>
             <tr>
               <th scope="row">Data the app collects<sup><a href="#n9" aria-label="Note 9">9</a></sup></th>
-              <td class="is-us">No analytics or crash-reporting library in the app</td>
+              <td class="is-us">No analytics or crash-reporting library; anonymous typing reports only if you turn them on</td>
               <td>Device IDs, crash logs; more optional</td>
               <td>Optional location and device IDs for advertising or marketing; usage statistics and crash reports</td>
             </tr>
             <tr>
               <th scope="row">Next-word prediction<sup><a href="#n10" aria-label="Note 10">10</a></sup></th>
-              <td class="is-us no">No, not yet</td>
+              <td class="is-us yes">Yes; learns your word pairs on the phone</td>
               <td class="yes">Yes</td>
               <td class="yes">Yes, its best-known strength</td>
             </tr>
             <tr>
               <th scope="row">Autocorrect languages<sup><a href="#n11" aria-label="Note 11">11</a></sup></th>
-              <td class="is-us">6</td>
+              <td class="is-us">37, six at once</td>
               <td>Many more</td>
               <td>700+, five at once</td>
             </tr>
@@ -486,11 +498,12 @@
       <div class="candid">
         <h3>Where Ghost Keyboard is behind</h3>
         <ul class="candid__list">
-          <li>No next-word prediction yet</li>
-          <li>Six autocorrect languages</li>
+          <li>Next-word prediction is new, and not yet measured against theirs</li>
+          <li>37 autocorrect languages to their hundreds, and outside the first six no native reader has checked the corrections</li>
+          <li>No Chinese, Japanese, Hindi, Bengali or Tamil</li>
           <li>Dictation stops at 60 seconds, and shows text after you stop</li>
           <li>No floating mode, stickers or handwriting</li>
-          <li>Accuracy not yet measured against Gboard or SwiftKey</li>
+          <li>Typing accuracy not yet measured against Gboard or SwiftKey</li>
           <li>The AI needs a key you get from a provider yourself</li>
           <li>An APK, not a Play Store install</li>
         </ul>
@@ -505,11 +518,11 @@
           <li id="n4">Google says Rambler needs an internet connection for full features and has usage limits. Ghost Keyboard shows the text after you stop, not while you speak, and has no AI tidy-up. Sources: <a href="https://support.google.com/gboard/answer/17468539" rel="noopener">Google, Gboard help: Rambler</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-use-voice-to-text-with-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, voice to text in SwiftKey</a>.</li>
           <li id="n5">The absences are what we did not find in the documentation we read in November 2026, not statements by Google or Microsoft, and we have not checked either keyboard on a phone or a foldable for this row. The Gboard Tab key is from a 2022 press report of its tablet layout. In Ghost Keyboard Terminal keys is a switch in Settings &rsaquo; Row tools, off to start; on, the keys show in terminal apps, or in every app if you choose. Sources: <a href="https://9to5google.com/2022/10/10/gboard-android-tablet/" rel="noopener">9to5Google, Gboard&rsquo;s tablet layout</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-enable-disable-arrow-keys-on-my-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, arrow keys in SwiftKey</a>.</li>
           <li id="n6">The Gboard figure is as reported by Android Authority in August 2026; Google does not publish it. A longer-duration setting was seen in a Gboard beta and is not confirmed shipped. Sources: <a href="https://androidauthority.com/gboard-clipboard-duration-slider-apk-teardown-3698099" rel="noopener">Android Authority, Gboard clipboard duration</a>; <a href="https://support.microsoft.com/en-us/topic/how-does-the-clipboard-work-with-microsoft-swiftkey-keyboard-322f9977-dab7-4edb-a7aa-e1c0611cf7eb" rel="noopener">Microsoft, how the SwiftKey clipboard works</a>.</li>
-          <li id="n7">Google says federated learning sends what it learns, not your text, and can be turned off. SwiftKey works with no account. In Ghost Keyboard the touch model and learned words are not sent anywhere by the app (Android&rsquo;s own backup, if it is on, may copy the app&rsquo;s data); Mockingbird&rsquo;s writing samples go to your AI provider when it trains (note 3). Sources: <a href="https://support.google.com/gboard/answer/12373137" rel="noopener">Google, Gboard help: federated learning</a>; <a href="https://support.microsoft.com/en-US/SwiftKey-Keyboard/account" rel="noopener">Microsoft, SwiftKey and your account</a>.</li>
+          <li id="n7">Google says federated learning sends what it learns, not your text, and can be turned off. SwiftKey works with no account. In Ghost Keyboard the touch model and learned words are not sent anywhere by the app, and Android&rsquo;s own backup is turned off for it. Anonymous typing reports, off unless you turn them on, send counts and some common mistyped words (see &ldquo;What leaves my phone?&rdquo;). Mockingbird&rsquo;s writing samples go to your AI provider when it trains (note 3). Sources: <a href="https://support.google.com/gboard/answer/12373137" rel="noopener">Google, Gboard help: federated learning</a>; <a href="https://support.microsoft.com/en-US/SwiftKey-Keyboard/account" rel="noopener">Microsoft, SwiftKey and your account</a>.</li>
           <li id="n8">Play listings read 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
-          <li id="n9">Gboard: its Play data-safety declaration, which also says nothing is shared with other companies. SwiftKey: its Play data-safety declaration lists optional location and device IDs for advertising or marketing as collected, not shared; the usage statistics and crash reports are from a Microsoft support page. Ghost Keyboard: from a search of its source, not an audit; it does contact ghostkbd.com for updates and whichever services you turn on. Sources: <a href="https://play.google.com/store/apps/datasafety?id=com.google.android.inputmethod.latin" rel="noopener">Gboard data safety</a>; <a href="https://play.google.com/store/apps/datasafety?id=com.touchtype.swiftkey" rel="noopener">SwiftKey data safety</a>; <a href="https://support.microsoft.com/en-us/topic/50260e0e-9ed8-4f2c-99b8-9b025fba4b7d" rel="noopener">Microsoft, SwiftKey and your data</a>.</li>
-          <li id="n10">Ghost Keyboard completes and corrects the word you are typing only; the row is quiet after a space. The Gboard and SwiftKey cells are well-known behaviour of those products, not separately sourced. Source: <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
-          <li id="n11">Ghost Keyboard: English, Spanish, French, German, Italian and Portuguese. We did not count Gboard&rsquo;s languages. Source: <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/what-languages-are-currently-supported-for-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, languages in SwiftKey</a>.</li>
+          <li id="n9">Gboard: its Play data-safety declaration, which also says nothing is shared with other companies. SwiftKey: its Play data-safety declaration lists optional location and device IDs for advertising or marketing as collected, not shared; the usage statistics and crash reports are from a Microsoft support page. Ghost Keyboard: from a search of its source, not an audit; it does contact ghostkbd.com for updates and whichever services you turn on, and it sends anonymous typing reports only if you turn them on (off to start; &ldquo;What leaves my phone?&rdquo; says what one holds). Sources: <a href="https://play.google.com/store/apps/datasafety?id=com.google.android.inputmethod.latin" rel="noopener">Gboard data safety</a>; <a href="https://play.google.com/store/apps/datasafety?id=com.touchtype.swiftkey" rel="noopener">SwiftKey data safety</a>; <a href="https://support.microsoft.com/en-us/topic/50260e0e-9ed8-4f2c-99b8-9b025fba4b7d" rel="noopener">Microsoft, SwiftKey and your data</a>.</li>
+          <li id="n10">Ghost Keyboard offers the three likeliest next words after a space, from word pairs counted in Tatoeba&rsquo;s public sentences for 34 of its languages and from your own typing, counted on the phone. It is new and has not been measured against the others. The Gboard and SwiftKey cells are well-known behaviour of those products, not separately sourced. Source: <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
+          <li id="n11">Ghost Keyboard types 38 languages and has a word list for autocorrect in 37 of them; Korean is typing only. Up to six can be on at once. Outside English, Spanish, French, German, Italian and Portuguese its autocorrect is cautious, and no native reader has checked it. We did not count Gboard&rsquo;s languages. Source: <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/what-languages-are-currently-supported-for-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, languages in SwiftKey</a>.</li>
           <li id="n12">Ghost Keyboard is Android only and updates itself. Install counts as shown on Google Play, 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
         </ol>
       </details>
@@ -584,8 +597,10 @@
             <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from ghostkbd.com or huggingface.co.</li>
             <li><strong>Updates.</strong> The app asks ghostkbd.com for the current version when it opens and up to twice a day.</li>
             <li><strong>Ghost.md online.</strong> If you have signed in to Ghost.md and no note on the phone matches a request, its keywords go to ghostmarkdown.com.</li>
-            <li><strong>Android&rsquo;s own backup.</strong> The app does not yet tell Android to leave its data out of backups. If backup or device transfer is on, Android may copy the app&rsquo;s data, including your AI key, clipboard history and what the keyboard has learned.</li>
+            <li><strong>Typing reports.</strong> Only if you turn on &ldquo;Share anonymous typing reports&rdquo; in Settings &rsaquo; Typing &rsaquo; Typing stats; it is off to start. Then, at most once a day, ghostkbd.com gets counts of what happened (words typed and swiped, fixes made and undone), where taps land on their keys with no letters, and up to 60 words you mistyped with the word you meant and 12 swipe strokes, only from the few thousand commonest words of the app&rsquo;s own word lists, and nothing from password fields, addresses, searches, terminals or incognito. No account and no device id, and Settings shows the exact report before it goes.</li>
+            <li><strong>Android&rsquo;s own backup.</strong> Turned off for Ghost Keyboard. Its settings, your AI key, clipboard history and what the keyboard has learned are not copied to your Google account or to a new phone. A typing profile you export is how what it learned moves.</li>
           </ul>
+          <p>Settings &rsaquo; Offline is one switch that stops every connection on this list, and its page names each server and what is sent.</p>
           <p>There is no analytics or crash-reporting library in the app. That comes from reading the source, not from an outside audit.</p>
         </details>
 
@@ -613,7 +628,8 @@
 
         <details>
           <summary>Which languages does it support?</summary>
-          <p>Autocorrect covers English, Spanish, French, German, Italian and Portuguese, and several can be on at once. Dictation starts with an English model; models that hear about a hundred languages can be downloaded in its settings. The letters are QWERTY.</p>
+          <p>It types 38, counting Croatian, Bosnian and Serbian in Latin letters as one: English, Spanish, French, German, Italian, Portuguese, Dutch, Swedish, Norwegian, Danish, Finnish, Icelandic, Polish, Czech, Slovak, Slovenian, Hungarian, Romanian, Lithuanian, Latvian, Turkish, Catalan, Indonesian, Malay, Filipino, Vietnamese, Croatian, Bosnian and Serbian, Russian, Ukrainian, Bulgarian, Macedonian, Serbian in Cyrillic, Greek, Hebrew, Arabic, Persian, Urdu and Korean. Up to six can be on at once, and languages on the same keys work together, so a message can mix them. Each has its own letters where it needs them: QWERTY, QWERTZ, AZERTY, the Nordic, Spanish, Catalan and Turkish boards, Cyrillic, Greek, Hebrew, Arabic, Persian, Urdu and Korean.</p>
+          <p>All but Korean have a word list, so autocorrect and suggestions; Korean is typing only for now. Outside the first six, autocorrect is cautious and no native reader has checked it. Chinese, Japanese, Hindi, Bengali and Tamil are not built yet. Dictation starts with an English model; models that hear about a hundred languages can be downloaded in its settings.</p>
         </details>
 
         <details>
@@ -691,7 +707,7 @@
     </div>
     <div class="footer__legal">
       <span>Source public on GitHub. Other products are named for comparison only and belong to their owners.</span>
-      <span>Last checked 2026-11-09.</span>
+      <span>Other keyboards last checked 2026-11-09; our own, 2026-11-11 (version 0.15.0).</span>
     </div>
   </div>
 </footer>

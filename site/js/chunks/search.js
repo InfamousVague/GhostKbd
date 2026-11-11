@@ -17,6 +17,12 @@
  * added (Ghost.md installed with it) and nothing else touched, so no AI key yet, no speech model downloaded, nothing
  * typed and no app profiles. A setting added to the app has to be added here.
  *
+ * Two pages are not written in panes.dart at all: Settings draws the languages and the connections from what the
+ * keyboard sends it. Their rows are made from the keyboard's own sources by tool/site_search_rows.py, into
+ * search-rows.js (`--check` says whether it is current). Read again by hand for 0.15.0, on 2026-11-11: the top card
+ * (Setup, Trainer, Stats), Offline, and Typing with its parts. From Look & feel down it is as read on 2026-11-09,
+ * with Row tools' one-time codes added.
+ *
  * Left alone it types four words whose first result plainly matches them (ripple, slang, heatmap, github), once
  * through, and rests until the key is scrolled back to. The field is a real one: the visitor's own keyboard types into it, and
  * the typing stops for them. The GhostKbd here draws no keys; it stands unseen behind the face and keeps the idle
@@ -29,6 +35,7 @@
  * Needs css/chunks/search.css after site.css and kbd.css.
  */
 import { GhostKbd, icon } from '../kbd.js';
+import { LANGUAGE_ROWS, LEAVES_ROWS, OFFLINE_ROWS } from './search-rows.js';
 
 const IDLE = ['ripple', 'slang', 'heatmap', 'github'];     // each one's first result shows the word that was typed
 const MOST = 4;         // results on the key, where it has the height; two on most
@@ -65,6 +72,8 @@ const SECTIONS = [
     ['2. Switch to Ghost Keyboard', 'Make it the keyboard you type with.'],
     ['Watch the walkthrough again'],
   ]),
+  // The trainer is a screen of its own, not a page of cards: the app's search finds the section and nothing on it.
+  S('trainer', 'Trainer', 'Type a story; each run tests a fix for your thumbs', null),
   // The Stats page (lib/stats/stats_page.dart), as it stands before anything is typed: its cards and their footnotes.
   S('your-stats', 'Stats', 'Speed, missed keys, shifted keys, misspelled words', [
     ['Last 7 days', 'Words typed each day, and how fast.'],
@@ -77,33 +86,53 @@ const SECTIONS = [
     ['Count my typing'],
     ['Reset stats'],
   ]),
+  // Offline (panes.dart's _offlinePage and its part): what the switch stops, what still works, and every connection.
+  S('offline', 'Offline', 'Off · what leaves your phone', OFFLINE_ROWS, [
+    S('leaves', 'What leaves your phone', 'Every connection, its servers and what is sent', LEAVES_ROWS),
+  ]),
   S('typing', 'Typing', 'Autocorrect, swipe, adaptive keys', [
     ['Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'],
     ['Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'],
-    ['Adaptive keys', 'Learns where you aim and the keys you slip onto, and moves their edges to fit.'],
+    ['Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'],
     ['Capitals at sentence starts'],
-    ['Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines.'],
+    ['Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines. Hold it first and it never types a space. Off: holding it opens the keyboard picker.'],
     ['Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'],
   ], [
-    S('autocorrect', 'Autocorrect', 'English', [
+    S('languages', 'Languages', 'English', LANGUAGE_ROWS),
+    S('autocorrect', 'Autocorrect', 'Corrects as you type, next words, slang', [
       ['Correct on its own', 'Off: it only suggests.'],
       ['Suggestions above the keys'],
       ['Texting slang', 'Leaves lmfao, ngl, ts, sybau and the like alone, and suggests them.'],
-      ['Languages', 'They work together, so a message can mix them.'],
-      ['English'], ['Español'], ['Français'], ['Deutsch'], ['Italiano'], ['Português'],
+      ['Next word', 'English starts with common word pairs counted from Tatoeba’s sentences. Older habits fade as you type new ones.'],
+      ['Suggest the next word', 'After a space, three likely next words wait above the keys; tap one to type it.'],
+      ['Learn from what I type', 'Counts which words you put together, on this phone. Never in password fields, while incognito, or in apps that ask keyboards not to learn.'],
+      ['Predict in my voice', 'What Mockingbird has kept of your writing counts toward the next word, your chats most while you chat. Worked out on this phone.'],
+      ['Learned so far'],
+      ['Forget what it learned', 'Every word pair counted from your typing.'],
+      ['Your corrections', 'A word you put right (typed over, or swapped for one above the keys) is remembered on this phone, and a fix you undo is forgotten. Put right the same way twice, it is mended that way for you from then on; a swipe goes by the reading you keep choosing. The slips Mockingbird cleans out of its samples count too.'],
+      ['Learn from my corrections', 'Never in password fields, while incognito, or in apps that ask keyboards not to learn.'],
+      ['Remembered so far'],
+      ['Forget my corrections', 'Every mistake and swipe choice it has kept.'],
       ['Learned words', 'Words it leaves alone. Undoing a fix adds the word here; tap one to forget it.'],
     ]),
-    S('adaptive', 'Adaptive keys', '0 keys tuned, 0 slips', [
+    S('adaptive', 'Adaptive keys', '0 keys nudged, 0 slips', [
       ['Show the heatmap on the keyboard', 'Red glows are your slips; a dot on a line is where a key now listens.'],
-      ['Learned so far'],
+      ['Helping now'],
       ['Forget what it learned'],
     ]),
     S('stats', 'Typing stats', 'Nothing typed today', [
+      ['Nothing typed today', 'Type in the field below to see it count.'],
       ['Your stats in pictures', 'Speed, missed keys, shifted keys, the words you put right most.'],
       ['Today', 'Accuracy is how much of what you typed stood: a backspace straight after a key, or an autocorrect fix, is a slip.'],
       ['Speed'], ['Accuracy'], ['Words'], ['Fixed by autocorrect'], ['Words swiped'],
-      ['Last 7 days', 'Words typed each day.'],
+      ['How right it gets it, last 30 days', 'Fixes kept: autocorrect’s fixes you didn’t undo. Swipes right first time: swiped words you didn’t swap for another or delete. They show once there are five of each.'],
+      ['Autocorrect fixes kept'], ['Swipes right first time'],
       ['Last 30 days'],
+      ['Accuracy record', 'For testing changes to autocorrect and swipe against your real typing: each word with where your taps landed, each swipe’s path, and what you kept. Unlike the counts above it keeps your words, so it is off unless you turn it on. Never in password fields, addresses or searches, or while incognito; kept on this phone until you delete it, and saved to Downloads only when you tap Save.'],
+      ['Keep a record for accuracy tests'],
+      ['Recorded'],
+      ['Anonymous reports', 'Off unless you turn it on. On, the keyboard sends ghostkbd.com a report at most once a day, so autocorrect and swipe typing can be made better from how people really type: how often things happened (words typed and swiped, fixes made and undone), where taps land on their keys, and common words that were mistyped or misread, with what was meant. No account, no id and no time of day. Only ever the few thousand commonest words of its own word lists, never a word of your own or a rarer one, and nothing from password fields, addresses, searches, terminals or incognito. “See the report” shows what is waiting, exactly as it would go. Turn this off and it is deleted; Offline stops it too.'],
+      ['Share anonymous typing reports'],
       ['Count my typing'],
       ['Reset stats'],
     ]),
