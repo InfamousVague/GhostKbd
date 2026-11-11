@@ -1,7 +1,8 @@
 /// The typing trainer (Matt, 2026-11-11: "a 'trainer' where it has a typeracer style thing where we type stories out
 /// and it tracks everything like wpm and missed words etc"): its first page, a run, a run's results, and the pages for
 /// the history, the mistakes and the profile. The keyboard measures and reckons (Android's Trainer.kt); these pages
-/// show what it says, in the settings kit's cards. docs/trainer.md has the whole of it.
+/// show what it says, in the settings kit's cards, and in pictures of the keyboard (trainer_board.dart).
+/// docs/trainer.md has the whole of it.
 ///
 /// Android only: the iPhone's keyboard is another port, with no trainer in it, so Settings has no row for this there.
 library;
@@ -20,6 +21,7 @@ import '../settings/kit/settings_kit.dart';
 import '../settings/kit/settings_type.dart';
 import '../settings/settings_screen.dart';
 import '../settings_store.dart';
+import 'trainer_board.dart';
 import 'trainer_store.dart';
 
 /// The trainer's colour on Settings' list and on its own pages (settings_css.dart).
@@ -253,6 +255,7 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
   // --- the first page -------------------------------------------------------------------------------------------------
 
   List<Widget> _homeCards(BuildContext context) {
+    final t = context.tokens;
     final next = trainer.map('next');
     final runs = trainer.number('runs');
     final best = trainer.number('best');
@@ -265,6 +268,9 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
     final mistakes = trainer.list('mistakes');
     final ready = trainer.state['profile'] is Map;
     final canStart = selected && latin && next != null;
+    final board = TrainerBoardData.of(trainer.state['board']);
+    // The story runs the charts draw, oldest first: a practice run of one's own mistakes is no measure of speed.
+    final story = history.where((r) => r['practice'] != true).take(12).toList().reversed.toList();
     return [
       PaneHero(
         glyph: AppIcon(Lucide.graduationCap, size: 24),
@@ -308,10 +314,35 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
             SettingRow(label: 'Practise my mistakes', hint: const Text('A short run of the words and letter pairs you miss.'), onPress: selected && latin ? () => _start(practice: true) : null),
         ],
       ),
+      // The keyboard's two pictures, once a run has taps to draw (Matt, 2026-11-11: "Show inforgraphics on the trainer
+      // with charts and stuff to show where the mistakes happen and what has shifted where using a simplified keyboard
+      // display").
+      if (board != null && board.taps > 0) ...[
+        PaneSection(
+          title: 'Where the mistakes happen',
+          footer: const Text('Over every run. A key is tinted by how often a tap meant for it missed, once it has had ten taps, with that share under its letter; an arrow points from a key to the one hit in its place.'),
+          children: [SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-map-misses'), board: board, view: BoardView.misses))],
+        ),
+        PaneSection(
+          title: 'What has shifted',
+          footer: Text(
+            '${board.lean == null ? '' : '${board.lean} '}A ring is where the taps meant for a key land, about its middle. An arrow is how far that key’s touch area has moved toward them: a small step a run, and never more than a third of a key. '
+            'Both are drawn one and a half times their size so that small ones show. The keys look the same as ever; only where each one listens moves.',
+          ),
+          children: [SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-map-areas'), board: board, view: BoardView.areas))],
+        ),
+      ],
       PaneSection(
         title: 'Your runs',
         children: [
-          if (history.length >= 2) SettingRowBox(child: RunBars(runs: history.where((r) => r['practice'] != true).take(12).toList().reversed.toList())),
+          if (story.isNotEmpty && history.length >= 2)
+            SettingRowBox(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [RunBars(runs: story), if (story.length >= 2) ...[SizedBox(height: t.space(4)), RunLines(key: const ValueKey('trainer-lines'), runs: story)]],
+              ),
+            ),
           SettingRow(label: 'History', value: Text(runs == 0 ? 'None yet' : _count(runs, 'run', 'runs')), onPress: history.isEmpty ? null : () => pushSettings(context, (_) => _HistoryPage(trainer: trainer))),
           SettingRow(
             label: 'Your mistakes',
@@ -358,6 +389,9 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
     final profileAt = _int(r['profileAt']);
     final layouts = r['layouts'] is Map ? r['layouts'] as Map : const {};
     final moved = r['moved'] is Map ? r['moved'] as Map : null;
+    // The run's own picture of the keyboard: where it went wrong, and the touch areas as they stand after it.
+    final board = TrainerBoardData.of(r['board']);
+    final wrong = board != null && board.missed > 0;
     String fixes(List<Map<Object?, Object?>> list) => list.map((f) => '${f['typed']} → ${f['made']}').join(', ');
     return [
       PaneHero(
@@ -405,10 +439,11 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
           if (left.isNotEmpty) SettingRow(label: 'Typed wrong and let stand', value: Text('${left.length}'), hint: Text(left.map((m) => '${m['typed']} for ${m['meant']}').join(', '))),
         ],
       ),
-      if (keys.isNotEmpty || pairs.isNotEmpty)
+      if (keys.isNotEmpty || pairs.isNotEmpty || wrong)
         PaneSection(
           title: 'Where it went wrong',
           children: [
+            if (wrong) SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-run-misses'), board: board, view: BoardView.misses, run: true)),
             for (final k in keys)
               SettingRow(label: 'The ${k['key']} key', value: Text('${k['missed']} of ${k['n']} missed'), hint: k['toward'] == null ? null : Text('Mostly ${k['toward']} in its place.')),
             for (final p in pairs) SettingRow(label: '${'${p['pair']}'[0]} then ${'${p['pair']}'[1]}', value: Text('${p['missed']} of ${p['n']} missed')),
@@ -423,6 +458,7 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
             value: Text(!counted ? 'Not counted' : (nudged.isEmpty ? 'None moved' : _count(nudged.length, 'key moved', 'keys moved'))),
             hint: nudged.isEmpty ? null : Text(nudged.map((n) => '${n['key']}').join(' ')),
           ),
+          if (counted && board != null && (board.shifted > 0 || board.landed > 0)) SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-run-areas'), board: board, view: BoardView.areas, run: true)),
           if (taught > 0) SettingRow(label: 'Your corrections', value: Text(_count(taught, 'mistake remembered', 'mistakes remembered'))),
           if (r['trial'] == true)
             SettingRow(
@@ -779,7 +815,14 @@ class _MistakesPage extends StatelessWidget {
           final words = trainer.list('mistakes');
           final pairs = trainer.list('pairs');
           final keys = trainer.list('keys');
+          final board = TrainerBoardData.of(trainer.state['board']);
           return _Page(title: 'Your mistakes', children: [
+            if (board != null && board.taps > 0)
+              PaneSection(
+                title: 'On the keyboard',
+                footer: const Text('Over every run. A key is tinted by how often a tap meant for it missed, once it has had ten taps; an arrow points from a key to the one hit in its place.'),
+                children: [SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-mistakes-map'), board: board, view: BoardView.misses))],
+              ),
             if (words.isNotEmpty)
               PaneSection(
                 title: 'Words',
@@ -872,6 +915,7 @@ class _ProfilePageState extends State<_ProfilePage> {
           final layouts = trainer.map('layouts') ?? const {};
           final scores = _maps(layouts['scores']);
           final adaptive = trainer.flag('adaptive');
+          final board = TrainerBoardData.of(trainer.state['board']);
           return _Page(title: 'Your profile', children: [
             PaneHero(glyph: AppIcon(Lucide.circleUser, size: 24), title: '${p['wpmNow']} words a minute', meta: Text('${p['report']}'), status: PaneHeroStatus('From ${_count(_int(p['runs']), 'run', 'runs')}')),
             PaneSection(
@@ -887,6 +931,7 @@ class _ProfilePageState extends State<_ProfilePage> {
               title: 'Where your taps land',
               footer: const Text('Measured over every tap of your runs, from the middle of the key each was meant for, as a share of the key. The keys furthest off come first.'),
               children: [
+                if (board != null && (board.landed > 0 || board.shifted > 0)) SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-profile-map'), board: board, view: BoardView.areas)),
                 SettingRow(label: 'On the whole', hint: Text('${p['lean']}')),
                 for (final k in keys.take(8)) SettingRow(label: 'The ${k['key']} key', value: Text(_lean(k['dx'], k['dy'])), hint: Text(_count(_int(k['samples']), 'tap', 'taps'))),
                 for (final s in slips.take(5)) SettingRow(label: '${s['pressed']} for ${s['meant']}', value: Text(_count(_int(s['count']), 'slip', 'slips'))),

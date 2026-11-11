@@ -2,7 +2,8 @@
 // Trainer.kt does: the first page and its switch, which is off unless turned on; that a run is refused where Ghost
 // Keyboard is not the keyboard in use; a run from its first key to its results; a trial layout said and never set
 // from here; the profile, and what applying it asks for; that an iPhone has no Trainer at all; and that on Android its
-// row stands at the top of Settings, in one card with Setup.
+// row stands at the top of Settings, in one card with Setup. And the pictures of the keyboard (trainer_board.dart, with
+// tests of its own in trainer_board_test.dart): that each page that has one draws it from what the keyboard sent.
 // Run with `flutter test`.
 
 import 'package:dev_keyboard/market/market_cards.dart';
@@ -11,6 +12,7 @@ import 'package:dev_keyboard/settings/panes.dart';
 import 'package:dev_keyboard/settings/settings_css.dart';
 import 'package:dev_keyboard/settings/settings_screen.dart';
 import 'package:dev_keyboard/settings_store.dart';
+import 'package:dev_keyboard/trainer/trainer_board.dart';
 import 'package:dev_keyboard/trainer/trainer_screen.dart';
 import 'package:dev_keyboard/trainer/trainer_store.dart';
 import 'package:flutter/foundation.dart';
@@ -447,6 +449,137 @@ void main() {
     expect(find.text('Type a story; the keys learn your thumbs'), findsOneWidget);
     await _press(tester, row);
     expect(find.byType(TrainerScreen), findsOneWidget);
+    await _close(tester);
+  });
+
+  testWidgets('the pictures of the keyboard: on the first page, the mistakes, the profile and a run’s results', (tester) async {
+    // The keyboard as Android sends it (TrainerMaps.board): the top row measured where [taps], and nothing else.
+    Map<String, Object?> board({bool taps = true}) {
+      Map<String, Object?> key(String letter, double x, int i, bool top) => {
+            'key': letter, 'x': x, 'taps': taps && top ? 30 : 0, 'missed': taps && top && i == 3 ? 6 : 0,
+            'landX': taps && top ? 0.1 : 0.0, 'landY': 0.0, 'landed': taps && top ? 30 : 0,
+            'shiftX': taps && top && i < 3 ? 0.04 * (i + 1) : 0.0, 'shiftY': 0.0, 'moved': taps && top && i < 2,
+          };
+      return {
+        'rows': [
+          [for (var i = 0; i < 10; i++) key('qwertyuiop'[i], i.toDouble(), i, true)],
+          [for (var i = 0; i < 9; i++) key('asdfghjkl'[i], 0.5 + i, i, false)],
+          [for (var i = 0; i < 7; i++) key('zxcvbnm'[i], 1.5 + i, i, false)],
+        ],
+        'units': 10.0, 'taps': taps ? 300 : 0, 'missed': taps ? 6 : 0, 'maxShift': 0.3,
+        'slips': taps ? [{'pressed': 'e', 'meant': 'r', 'count': 4}] : <Object?>[],
+        'lean': taps ? 'Your taps land a little to the right of a key’s middle.' : null,
+      };
+    }
+
+    // Nothing typed yet: the keys come all the same, and no picture is made of nothing.
+    await _open(tester, _Native()..state['board'] = board(taps: false));
+    expect(find.byType(BoardFigure), findsNothing);
+    expect(find.byType(RunLines), findsNothing);
+    await _close(tester);
+
+    final native = _Native()
+      ..state.addAll({
+        'runs': 6, 'best': 47, 'canPractise': false,
+        'history': [
+          for (var i = 0; i < 6; i++)
+            {'at': 1762862400000 + i * 60000, 'title': 'The lighthouse cat', 'practice': false, 'height': 'normal', 'heightLabel': 'Normal', 'trial': false, 'ms': 60000, 'wpm': 47 - i, 'accuracy': 96 - i, 'words': 45, 'right': 44, 'firstTry': 42 - i},
+        ],
+        'mistakes': [{'word': 'because', 'typed': 'becuase', 'missed': 3, 'seen': 5, 'last': '00011', 'streak': 2}],
+        'keys': [{'key': 'r', 'missed': 6, 'n': 30, 'toward': 'e', 'trend': 0}],
+        'profile': {
+          'runs': 6, 'wpmFirst': 39, 'wpmNow': 44, 'wpmBest': 47, 'accuracyFirst': 93, 'accuracyNow': 95, 'layout': 'qwerty',
+          'lean': 'Your taps land a little to the right of a key’s middle.', 'report': 'Over 6 runs: 44 words a minute.',
+          'keys': [{'key': 'e', 'dx': 0.1, 'dy': 0.0, 'samples': 30}], 'slips': <Object?>[], 'mistakes': <Object?>[], 'pairs': <Object?>[], 'suggestion': null, 'file': '{}',
+        },
+        'board': board(),
+      })
+      ..result['board'] = board();
+    await _open(tester, native);
+
+    // The first page: where the mistakes happen, what has shifted where, and the runs as bars and lines.
+    final misses = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-map-misses')));
+    expect(misses.view, BoardView.misses);
+    expect(misses.run, isFalse);
+    expect(misses.said, 'Missed most: r 20% (e in its place).');
+    final areas = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-map-areas')));
+    expect(areas.view, BoardView.areas);
+    expect(areas.said, '3 keys’ touch areas have moved. Furthest: e, 12% right.');
+    expect(find.text(misses.said), findsOneWidget);
+    expect(find.text(areas.said), findsOneWidget);
+    // Which way the taps lean on the whole is said under the second, with what its marks are.
+    expect(find.textContaining('Your taps land a little to the right of a key’s middle. A ring is where the taps meant for a key land'), findsOneWidget);
+    expect(find.byType(RunBars), findsOneWidget);
+    // Oldest first, as the bars over them: the latest run is the last point.
+    final lines = tester.widget<RunLines>(find.byKey(const ValueKey('trainer-lines')));
+    expect(RunLines.accuracy(lines.runs), [91, 92, 93, 94, 95, 96]);
+    expect(find.text('taps on their key 96%'), findsOneWidget);
+    expect(find.text('words right first time 93%'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // The mistakes have the same keyboard over their lists.
+    await _press(tester, find.text('Your mistakes'));
+    expect(tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-mistakes-map'))).view, BoardView.misses);
+    expect(_value(tester, 'The r key'), '6 of 30');
+    await _press(tester, find.bySemanticsLabel('Back'));
+
+    // The profile draws where the taps land over its rows of them.
+    await _press(tester, find.text('Your profile'));
+    expect(tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-profile-map'))).view, BoardView.areas);
+    expect(_value(tester, 'The e key'), '10% right');
+    await _press(tester, find.bySemanticsLabel('Back'));
+
+    // A run's results have the run's own two: where it went wrong, and the touch areas with what it moved lit.
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
+    await _settle(tester);
+    expect(find.text('43 words a minute'), findsOneWidget);
+    final wrong = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-run-misses')));
+    expect(wrong.view, BoardView.misses);
+    expect(wrong.run, isTrue);
+    final took = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-run-areas')));
+    expect(took.view, BoardView.areas);
+    expect(took.run, isTrue);
+    expect(took.said, 'This run moved 2 keys’ touch areas a step toward where their taps land; 1 had moved before it.');
+    expect(find.text('moved before this run'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _close(tester);
+  });
+
+  testWidgets('a run that was not counted, or sent no keyboard, has no picture of what it moved', (tester) async {
+    // From a keyboard older than the pictures: the results are as they were.
+    final old = _Native();
+    await _open(tester, old);
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
+    await _settle(tester);
+    expect(_value(tester, 'Touch areas'), '2 keys moved');
+    expect(find.byType(BoardFigure), findsNothing);
+    await _close(tester);
+
+    // Not counted: nothing moved, so nothing is drawn as moved; where it went wrong is still worth seeing.
+    final short = _Native();
+    short.result
+      ..['counted'] = false
+      ..['why'] = 'short'
+      ..['nudged'] = <Object?>[]
+      ..['board'] = {
+        'rows': [
+          [
+            {'key': 'o', 'x': 8.0, 'taps': 5, 'missed': 2, 'landX': 0.0, 'landY': 0.0, 'landed': 5, 'shiftX': 0.1, 'shiftY': 0.0, 'moved': false},
+            {'key': 'p', 'x': 9.0, 'taps': 3, 'missed': 0, 'landX': 0.0, 'landY': 0.0, 'landed': 0, 'shiftX': 0.0, 'shiftY': 0.0, 'moved': false},
+          ],
+        ],
+        'units': 10.0, 'slips': [{'pressed': 'p', 'meant': 'o', 'count': 2}], 'taps': 8, 'missed': 2, 'maxShift': 0.3,
+      };
+    await _open(tester, short);
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
+    await _settle(tester);
+    expect(_value(tester, 'Touch areas'), 'Not counted');
+    expect(tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-run-misses'))).said, 'Missed most: o 40% (p in its place).');
+    expect(find.byKey(const ValueKey('trainer-run-areas')), findsNothing);
+    expect(tester.takeException(), isNull);
     await _close(tester);
   });
 }

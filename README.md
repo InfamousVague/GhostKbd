@@ -148,15 +148,17 @@ Adaptive keys' own model, which changes nothing that can be seen. With **Try dif
 off unless turned on, and read as a run starts) some runs are typed on shorter or taller keys, and a height takes over
 only after eight runs or more say so; the setting itself is never touched unless the person takes the suggestion.
 After five runs there is a profile (where the taps land, speed, mistakes, the height the runs point to) that can be
-applied to everyday typing, and a practice run made of the person's own mistakes. A story is not the person's writing:
+applied to everyday typing, and a practice run made of the person's own mistakes. Its pages draw the keyboard simply,
+twice: tinted by where the mistakes happen, and with a ring where each key's taps land and an arrow for how far its
+touch area has moved. A story is not the person's writing:
 a run teaches nothing to next-word prediction or Mockingbird and counts nothing for stats or reports.
 [docs/trainer.md](docs/trainer.md) has all of it.
 
 - `TrainerText.kt`, `TrainerRun.kt`, `TrainerAims.kt`, `LayoutTrials.kt`, `TrainerBook.kt`, `TrainerStories.kt` (no
   Android in them): what was typed against what was meant, a run scored, the step, the layout trials, what is kept.
 - `Trainer.kt`, `TrainerKeys.kt`, `TrainerChannel.kt`: a run in hand, the ear on the keyboard's keys, and the
-  screen's channel. `lib/trainer/` is the pages; `assets/trainer/stories.txt` the fifty-four story parts, written
-  for it.
+  screen's channel. `lib/trainer/` is the pages, and `trainer_board.dart` the pictures of the keyboard on them;
+  `assets/trainer/stories.txt` the fifty-four story parts, written for it.
 - `tool/trainer_sim.sh` (kotlinc and java, no emulator): a simulated thumb with a steady lean types the stories with
   the steps and without, to show the touch areas adapting does what it is meant to.
 

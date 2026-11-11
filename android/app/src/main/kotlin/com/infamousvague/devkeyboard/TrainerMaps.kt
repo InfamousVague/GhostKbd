@@ -19,7 +19,7 @@ object TrainerMaps {
 
     fun line(r: RunLine): Map<String, Any?> = mapOf(
         "at" to r.at, "title" to r.title, "practice" to r.practice, "height" to r.height, "heightLabel" to label(r.height), "trial" to r.trial,
-        "ms" to r.ms, "wpm" to Math.round(r.wpm), "accuracy" to percent(r.accuracy), "words" to r.words, "right" to r.right,
+        "ms" to r.ms, "wpm" to Math.round(r.wpm), "accuracy" to percent(r.accuracy), "words" to r.words, "right" to r.right, "firstTry" to r.firstTry,
     )
 
     fun mistake(m: TrainerMistake): Map<String, Any?> = mapOf("word" to m.word, "typed" to m.typed, "missed" to m.missed, "seen" to m.seen, "last" to m.last, "streak" to m.streak)
@@ -74,6 +74,64 @@ object TrainerMaps {
         )
     }
 
+    /**
+     * The keyboard as the trainer's pictures draw it (lib/trainer/trainer_board.dart; Matt, 2026-11-11: "Show
+     * inforgraphics on the trainer with charts and stuff to show where the mistakes happen and what has shifted where
+     * using a simplified keyboard display"): the layout's letter keys row by row, each with how often it was meant and
+     * how often missed, where the taps meant for it land about its middle, and the nudge its touch area has now; and
+     * the slips between two keys, the commonest first.
+     *
+     * [places] are the keys (a layout's positions: across in key widths, and the row). [taps] gives a key's taps and
+     * how many of them missed; [landing] where they land, in fractions of the key, and on how many taps (null: too few
+     * to say); [shift] the nudge in use, in fractions of the key; [moved] the keys whose nudge the trainer moved (in a
+     * run's own picture: in that run). [slips] is every slip as "pressed>meant" and how often; those seen [slipFloor]
+     * times or more are drawn, [MAX_SLIPS] at most. A key's `instead` is the key hit most in its place, by the rule
+     * the lists of weak keys go by ([TrainerBook.weakKeys], [result]), so a picture and the rows under it agree.
+     */
+    fun board(
+        places: Map<Char, Pair<Float, Int>>,
+        taps: (Char) -> Pair<Int, Int>?,
+        landing: (Char) -> Triple<Float, Float, Int>?,
+        shift: (Char) -> Pair<Float, Float>,
+        moved: Set<Char>,
+        slips: Map<String, Int>,
+        slipFloor: Int = 2,
+    ): Map<String, Any?> {
+        var allTaps = 0
+        var allMissed = 0
+        val rows = places.entries.groupBy { it.value.second }.toSortedMap().values.map { row ->
+            row.sortedWith(compareBy({ it.value.first }, { it.key })).map { (key, place) ->
+                val t = taps(key)
+                val meant = (t?.first ?: 0).coerceAtLeast(0)
+                val missed = (t?.second ?: 0).coerceIn(0, meant)
+                val l = landing(key)?.takeIf { it.third > 0 && !it.first.isNaN() && !it.second.isNaN() }
+                val s = shift(key)
+                allTaps += meant
+                allMissed += missed
+                mapOf(
+                    "key" to key.toString(), "x" to round2(place.first), "taps" to meant, "missed" to missed,
+                    "landX" to round2(l?.first ?: 0f), "landY" to round2(l?.second ?: 0f), "landed" to (l?.third ?: 0),
+                    "shiftX" to round2(s.first), "shiftY" to round2(s.second), "moved" to (key in moved),
+                    "instead" to slips.entries.filter { it.key.length == 3 && it.key[2] == key }.maxByOrNull { it.value }?.key?.get(0)?.toString(),
+                )
+            }
+        }
+        val drawn = slips.entries
+            .filter { (pair, n) -> pair.length == 3 && pair[1] == '>' && n >= slipFloor && pair[0] != pair[2] && pair[0] in places && pair[2] in places }
+            .sortedWith(compareBy({ -it.value }, { it.key })).take(MAX_SLIPS)
+            .map { (pair, n) -> mapOf("pressed" to pair[0].toString(), "meant" to pair[2].toString(), "count" to n) }
+        return mapOf(
+            "rows" to rows, "units" to round2((places.values.maxOfOrNull { it.first } ?: 9f) + 1f), "slips" to drawn,
+            "taps" to allTaps, "missed" to allMissed, "maxShift" to round2(TrainerAims.MAX_SHIFT),
+        )
+    }
+
     /** No list on a results page is longer than this. */
     const val MAX_LISTED = 12
+
+    /** No picture of the keyboard draws more slips than this. */
+    const val MAX_SLIPS = 6
+
+    /** In a run's own picture, a key shows where its taps landed once the run has this many of them. */
+    const val RUN_LANDED = 4
 }

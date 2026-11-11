@@ -45,6 +45,9 @@ object Trainer {
     private const val MAX_READ = 400
     private const val HISTORY = 40
 
+    /** A key counts as moved by the trainer once what it gave the key's nudge adds up to this much of a key, either way. */
+    private const val GIVEN = 0.005f
+
     /**
      * A run in hand. [height] is the key height it is typed on and [trial] whether the layout trials asked for it;
      * [wear] is that height where it is not the person's own ([ownHeight]), which is all the keyboard needs to know.
@@ -233,6 +236,20 @@ object Trainer {
             "height" to s.height, "heightLabel" to TrainerMaps.label(s.height), "trial" to s.trial, "changed" to (s.wear != null),
             "moved" to move?.let { mapOf("from" to TrainerMaps.label(it.from), "to" to TrainerMaps.label(it.to)) },
             "layouts" to TrainerMaps.layouts(book.layouts), "runs" to book.storyRuns, "profileAt" to TrainerBook.PROFILE_RUNS,
+            // The run's own picture of the keyboard: where this run went wrong, where its taps landed, and the touch
+            // areas as they stand after it, with the keys it moved marked.
+            "board" to runCatching {
+                val model = AdaptiveKeys.get(context, s.layout)
+                TrainerMaps.board(
+                    board,
+                    taps = { c -> result.perKey[c]?.let { it.taps to it.missed } },
+                    landing = { c -> result.perKey[c]?.takeIf { it.aimed >= TrainerMaps.RUN_LANDED }?.let { Triple(it.meanX, it.meanY, it.aimed) } },
+                    shift = { c -> model.offset(c) },
+                    moved = nudged.keys,
+                    slips = result.slipPairs,
+                    slipFloor = 1,
+                )
+            }.getOrNull(),
         )
     }
 
@@ -361,6 +378,8 @@ object Trainer {
         val next = TrainerStories.next(all, book.read)
         val profile = book.profile(spec.id, spec.positions)
         val story = book.runs.filter { !it.practice }
+        val model = AdaptiveKeys.get(context, spec.id)
+        val measured = book.aims[spec.id].orEmpty().filter { it.value.total >= TrainerAims.MIN_SAMPLES }
         return mapOf(
             "selected" to selected(context), "latin" to (spec.script == Script.LATIN), "english" to ("en" in language.dictionaries), "layout" to spec.id,
             "trials" to book.trials, "ownHeight" to own, "ownHeightLabel" to TrainerMaps.label(own),
@@ -373,8 +392,18 @@ object Trainer {
             "mistakes" to book.mistakes().map(TrainerMaps::mistake), "pairs" to book.weakPairs().map(TrainerMaps::pair), "keys" to book.weakKeys(spec.id).map(TrainerMaps::key),
             "profile" to profile?.let { TrainerMaps.profile(it, TrainerCodec.profile(it, java.time.Instant.now().toString())) },
             "layouts" to TrainerMaps.layouts(book.layouts),
-            "adaptive" to Plugins.isOn(prefs, Plugins.ADAPTIVE), "nudged" to AdaptiveKeys.get(context, spec.id).learnedKeys(), "learnMistakes" to prefs.learnMistakes,
+            "adaptive" to Plugins.isOn(prefs, Plugins.ADAPTIVE), "nudged" to model.learnedKeys(), "learnMistakes" to prefs.learnMistakes,
             "running" to (session != null),
+            // The keyboard as the pictures draw it, over every run: where the mistakes happen, where the taps land,
+            // and what has shifted where. `lean` says the second of those in a sentence.
+            "board" to TrainerMaps.board(
+                spec.positions,
+                taps = { c -> book.keys[c]?.let { it.n to it.missed } },
+                landing = { c -> measured[c]?.let { Triple(it.x, it.y, it.total) } },
+                shift = { c -> model.offset(c) },
+                moved = book.given[spec.id].orEmpty().filterValues { kotlin.math.abs(it[0]) >= GIVEN || kotlin.math.abs(it[1]) >= GIVEN }.keys,
+                slips = book.slips[spec.id].orEmpty(),
+            ) + mapOf("lean" to if (measured.isEmpty()) null else TrainerBook.lean(measured, spec.positions)),
         )
     }
 }

@@ -269,6 +269,40 @@ that memory's own rules:
 - a mistake is still gone by only once it has been made the same way twice, a common word is still never mended by
   memory alone, and a word typed right counts for its spelling as one left to stand does.
 
+## The pictures
+
+Matt, 2026-11-11: "Show inforgraphics on the trainer with charts and stuff to show where the mistakes happen and what
+has shifted where using a simplified keyboard display". The keyboard is drawn simply (`lib/trainer/trainer_board.dart`:
+its letter keys where the layout in use has them, and the space bar's row as shapes with nothing on them), in two ways.
+
+**Where the mistakes happen.** Each key is tinted by the share of the taps meant for it that missed, with that share
+under its letter: a little shows early (the tint goes by the share to the power 0.6) and one tap in five or more is
+the whole of it. A key is tinted once it has ten taps, since three taps say nothing; in a single run's picture, from
+its second. An arrow runs from a key to the one hit in its place, for the six commonest slips seen twice or more
+(once, in a run's picture).
+
+**What has shifted.** For each key a ring where the taps meant for it land about its middle (`TrainerAims.Measure`,
+once it stands on fifteen taps), and an arrow from the middle for the nudge its touch area has now in Adaptive keys'
+model (`AdaptiveKeys.offset`: none until the key has fifteen touches and stands a fiftieth of a key off). Run by run
+the arrow grows toward the ring. Both are drawn one and a half times their size (`boardOffsetScale`) and kept inside
+their key, and the page says so: a step is a twenty-fifth of a key, which at a key's own scale is a pixel. The line
+under the picture says how many keys have moved and which is furthest; the footer says which way the taps lean on the
+whole (`TrainerBook.lean`).
+
+Where they are:
+
+| Page | What is drawn |
+| --- | --- |
+| The trainer's first page, once a run has been counted | both, over every run; and under the speed bars of **Your runs** two lines, the share of taps on their key and of words right first time, run by run |
+| A run's results | that run's own two: where it went wrong (**Where it went wrong**), and the touch areas as they stand after it, with what the run moved in the trainer's colour and what had moved before it in grey |
+| Your mistakes | where the mistakes happen, over the lists |
+| Your profile | where the taps land and what has shifted, over **Where your taps land** |
+
+The keyboard works all of it out and the screen only draws: `TrainerMaps.board` gives the keys row by row with each
+one's taps, misses, landing place and nudge, and the slips; `Trainer.state` sends it as `board` (with `lean`), and
+`Trainer.finish` sends the run's own. Every picture says what it shows in a line under it, which is also what a
+screen reader is told of it. Nothing new is measured or kept for any of this: it is what the book already held.
+
 ## What is never learned
 
 A story is not the person's writing. From a run:
@@ -319,11 +353,11 @@ key, so a run never loses a word to the story's own vocabulary.
 | `TrainerBook.kt` | what is kept between runs: the history, the mistakes, practice runs, the profile |
 | `TrainerStories.kt` | the stories file, and which part is next |
 | `TrainerCodec.kt` | `trainer.json`, and the profile as a typing profile |
-| `TrainerMaps.kt` | what the screen is told, as a channel carries it |
+| `TrainerMaps.kt` | what the screen is told, as a channel carries it; `board`, the keyboard as the pictures draw it |
 | `Trainer.kt` | the phone's side: a run in hand, the file, the steps into Adaptive keys, the lessons into corrections |
 | `TrainerKeys.kt` | the ear on the keyboard's keys |
 | `TrainerChannel.kt` | `dev_keyboard/trainer`, the screen's line to all of it |
-| `lib/trainer/` | the pages: `trainer_store.dart`, `trainer_screen.dart` |
+| `lib/trainer/` | the pages: `trainer_store.dart`, `trainer_screen.dart`; the pictures: `trainer_board.dart` |
 
 The first eight have no Android in them (`TrainerCodec` writes JSON with org.json, as `Reports.kt` does). What changed in files the trainer shares: the service
 gives the view its listener through `TrainerKeys` and reads `Trainer.heightFor` and `Trainer.adapts` in
@@ -338,7 +372,17 @@ the row (`panes.dart`, in Setup's group), and `main.dart` opens a section's own 
   `TrainerAdaptationTest` (the leaning thumb; the layout trials). `cd android && ./gradlew testDebugUnitTest`.
 - `test/trainer_test.dart`: the first page and its switch, off unless turned on; a run refused where Ghost Keyboard
   is not the keyboard in use; a run to its results; a trial said and never set from the screen; the profile and what
-  applying asks for; no Trainer on an iPhone; its row in Settings' top card, under Setup, opening from there.
+  applying asks for; no Trainer on an iPhone; its row in Settings' top card, under Setup, opening from there; and
+  which page draws which picture, from what the keyboard sent.
+- The pictures: `TrainerBoardTest` (the keys of every layout row by row, a key's numbers, which slips are drawn, and
+  that a channel carries all of it) and `test/trainer_board_test.dart` (what was sent read into a board, each
+  picture's line, and both pictures and the lines drawn at three widths in both themes, measured and not).
+- The pictures on the emulator (2026-11-11, `emulator-5584`, taps at real key positions): after two clean runs,
+  three typed by a thumb leaning about a quarter of a key right and an eighth low. Taps on their key went 167 of 178,
+  166 of 172, 170 of 171 as the touch areas stepped toward the lean. A run's results drew the keys it missed in red
+  with their shares, arrows to the keys hit in their place, and the touch areas it moved (twelve, fourteen, sixteen)
+  in the trainer's colour beside those moved before it in grey; the first page, Your mistakes and Your profile drew
+  theirs, and the runs' two lines stood under the speed bars. Dark theme only; not on a phone.
 - `tool/trainer_sim.sh`: the tables above. `JAVA_OPTS="-Druns=16 -Dseeds=40 -Dlean=0.3,0.1" tool/trainer_sim.sh`.
 - On the emulator (2026-11-10, `emulator-5584`, taps at real key positions): fifteen runs typed to their results (eleven stories, a practice run, one more story on the last build but one, and the two with strokes below); with
   the switch off two runs' keyboards were the same pixel for pixel but for the last key's backlight; with it on a run
