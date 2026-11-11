@@ -16,6 +16,9 @@
   .group { display: grid; gap: var(--s-3); }
   .group > h2 { font-size: var(--t-tiny); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
   .log { height: 132px; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+  /* The wide screen: 690dp across, or the page's width where that is less (the component is given the dp that fits). */
+  .wide { margin-top: var(--s-7); }
+  .wide__screen { inline-size: min(690px, 100%); border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--hairline-2); }
 </style>
 </head>
 <body>
@@ -123,15 +126,37 @@
       </div>
 
       <div class="group">
+        <h2>set({ keyHeight }) · set({ oneHanded })</h2>
+        <div class="seg" role="group" aria-label="Key height" data-seg="keyHeight">
+          <button data-value="condensed" aria-pressed="false">Condensed</button>
+          <button data-value="short" aria-pressed="false">Short</button>
+          <button data-value="normal" aria-pressed="true">Normal</button>
+          <button data-value="tall" aria-pressed="false">Tall</button>
+        </div>
+        <div class="seg" role="group" aria-label="One-handed" data-seg="oneHanded">
+          <button data-value="off" aria-pressed="true">Both hands</button>
+          <button data-value="left" aria-pressed="false">Left hand</button>
+          <button data-value="right" aria-pressed="false">Right hand</button>
+        </div>
+      </div>
+
+      <div class="group">
         <h2>events</h2>
         <pre class="code log" id="log" aria-live="off"></pre>
       </div>
     </div>
   </div>
+
+  <section class="group wide" aria-labelledby="wide-h">
+    <h2 id="wide-h">A wide screen: set({ wideLayout })</h2>
+    <p class="small">The same component 690dp across, an unfolded foldable's inner screen, at the dp that fits this page (<code>scale</code>). Docked, the chevron on the empty side moves the keys across. Key height above sets this board too.</p>
+    <div class="seg" role="group" aria-label="Layout on a wide screen" data-seg="wideLayout"></div>
+    <div class="wide__screen" id="wide"></div>
+  </section>
 </main>
 
 <script type="module">
-import { GhostKbd, applyTheme, icon, EFFECTS, THEME_NAMES, BACKLIGHT_COLOURS } from '../site/js/kbd.js';
+import { GhostKbd, applyTheme, icon, EFFECTS, THEME_NAMES, BACKLIGHT_COLOURS, WIDE_LAYOUTS } from '../site/js/kbd.js';
 
 const $ = (s) => document.querySelector(s);
 const phone = $('#phone');
@@ -270,6 +295,35 @@ for (const s of document.querySelectorAll('.switch')) s.addEventListener('click'
   s.setAttribute('aria-checked', String(on));
   if ('badge' in s.dataset) kbd.setBadge(on); else if (s.dataset.opt === 'sound') kbd.setSound(on); else kbd.set({ [s.dataset.opt]: on });
 });
+
+// Key height, one-handed, and a second board on a wide screen: 690dp across at whatever dp fits the page.
+const WIDE_DP = 690;
+const wideHost = $('#wide');
+const wideScale = () => Math.min(1, (wideHost.clientWidth || WIDE_DP) / WIDE_DP);
+const wide = new GhostKbd(wideHost, { theme: 'ghost', backlight: 'reactive', wideLayout: 'split', scale: wideScale(), label: 'Ghost Keyboard on a wide screen' });
+window.wide = wide;                                 // for the console
+new ResizeObserver(() => { const dp = wideScale(); if (Math.abs(dp - wide.opts.scale) > 0.001) wide.set({ scale: dp }); }).observe(wideHost);
+for (const [id, name] of WIDE_LAYOUTS) {
+  const b = document.createElement('button');
+  b.dataset.value = id;
+  b.textContent = name;
+  b.setAttribute('aria-pressed', String(id === 'split'));
+  document.querySelector('[data-seg="wideLayout"]').append(b);
+}
+function pressSeg(opt, value) { for (const b of document.querySelector(`[data-seg="${opt}"]`).children) b.setAttribute('aria-pressed', String(b.dataset.value === value)); }
+for (const seg of document.querySelectorAll('[data-seg]')) seg.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  const opt = seg.dataset.seg, value = b.dataset.value;
+  if (opt === 'wideLayout') wide.set({ wideLayout: value });
+  else if (opt === 'keyHeight') { kbd.set({ keyHeight: value }); wide.set({ keyHeight: value }); }
+  else kbd.set({ [opt]: value });
+  pressSeg(opt, value);
+  log(`set({ ${opt}: '${value}' })`);
+});
+// The chevron beside docked or one-handed keys moved them: the control follows.
+kbd.on('dock', (e) => { log(`dock: one-handed ${e.side}`); pressSeg('oneHanded', e.side); });
+wide.on('dock', (e) => { log(`dock: docked ${e.side}`); pressSeg('wideLayout', e.side); });
 
 log('ready: ' + JSON.stringify({ width: kbd.geometry.width, height: kbd.geometry.height, dp: +kbd.geometry.dp.toFixed(3), keys: kbd.geometry.keys.length }));
 </script>

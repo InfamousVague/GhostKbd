@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="js">
+<html lang="en" class="js scripting">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,41 +9,51 @@
 <link rel="stylesheet" href="../site/css/kbd.css">
 <link rel="stylesheet" href="../site/css/chunks/look.css">
 <style>
-  /* This page only. */
+  /* This page only. The key's height on the page is #everything's (site.css); here it is given by hand. */
   .bench { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
   .bench h2 { margin-bottom: var(--s-4); font-size: var(--t-tiny); font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
+  .bench__desk { inline-size: 1120px; max-inline-size: 100%; }
+  .bench__desk .keycap { --cap-min: 258px; }
   .bench__phone { inline-size: 320px; max-inline-size: 100%; }
+  .bench__phone .keycap { min-block-size: 316px; }
+  .bench > section > p { max-width: 70ch; margin-bottom: var(--s-4); color: var(--ink-2); font-size: var(--t-small); }
 </style>
 </head>
 <body>
 <main class="wrap section section--tight bench">
   <section aria-labelledby="wide">
-    <h2 id="wide">2u on the board</h2>
-    <div class="keycaps">
-      <div class="keycaps__row">
-        <article class="keycap keycap--2u">
-          <div class="keycap__face">
-            <h3 class="keycap__legend">look &amp; feel</h3>
-            <span class="keycap__hint keycap__hint--live">live</span>
-            <div class="keycap__body" data-chunk="look"></div>
-            <p class="keycap__caption" data-look-status>Five themes, six backlight effects.</p>
-          </div>
-        </article>
+    <h2 id="wide">3u on the board</h2>
+    <p>The whole keyboard at the foot of a small screen. A tap is the next look: a theme, a backlight effect and a layout. Nine looks, one for each layout: Normal, Condensed, Tall and One-handed on a phone; Split, Full width, Docked left, Centred and Docked right on an unfolded foldable. Wider than 900px this key is half the board, as on the page; narrower, the whole of it.</p>
+    <div class="bench__desk">
+      <div class="keycaps">
+        <div class="keycaps__row keycaps__row--start">
+          <article data-holds="look" class="keycap keycap--3u">
+            <div class="keycap__face">
+              <h3 class="keycap__legend">look &amp; feel</h3>
+              <span class="keycap__hint" data-look-layout>themes &middot; layouts</span>
+              <div class="keycap__body" data-chunk="look"></div>
+              <p class="keycap__caption">Tap for the next theme and layout.</p>
+              <span class="keycap__sub" data-look-status>Ghost &middot; Reactive</span>
+            </div>
+          </article>
+        </div>
       </div>
     </div>
   </section>
 
   <section aria-labelledby="narrow">
     <h2 id="narrow">On a phone (a 320px board)</h2>
+    <p>One column: the key is as tall as what it holds, the foot's legend has a line of its own, and the unfolded screen is drawn smaller than the phone's so that it fits.</p>
     <div class="bench__phone">
       <div class="keycaps">
         <div class="keycaps__row">
-          <article class="keycap keycap--2u">
+          <article data-holds="look" class="keycap keycap--3u">
             <div class="keycap__face">
               <h3 class="keycap__legend">look &amp; feel</h3>
-              <span class="keycap__hint keycap__hint--live">live</span>
+              <span class="keycap__hint" data-look-layout>themes &middot; layouts</span>
               <div class="keycap__body" data-chunk="look"></div>
-              <p class="keycap__caption" data-look-status>Five themes, six backlight effects.</p>
+              <p class="keycap__caption">Tap for the next theme and layout.</p>
+              <span class="keycap__sub" data-look-status>Ghost &middot; Reactive</span>
             </div>
           </article>
         </div>

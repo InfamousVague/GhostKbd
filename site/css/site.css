@@ -1808,6 +1808,19 @@ a.card:hover,
 #code .story__keys { --cap-min: 200px; }
 #everything .story__keys { --cap-min: 206px; }
 
+/*
+ * The look key holds a whole keyboard at the foot of a small screen and is given the height for it wherever a key's
+ * height is its row's (wider than a phone's one column, where a key is as tall as what it holds). Side by side on a
+ * desktop the search key beside it is as tall; four units across (a tablet) it stands under it at its own height.
+ */
+@container keycaps (min-width: 621px) {
+  #everything .story__keys .keycap[data-holds="look"] { --cap-min: 258px; }
+}
+
+@container keycaps (min-width: 901px) {
+  #everything .story__keys .keycap[data-holds="search"] { --cap-min: 258px; }
+}
+
 /* A key keeps its caption to the face's whole foot unless it has a sub-legend to share it with. */
 .story__keys .keycap__face:not(:has(> .keycap__sub)) > .keycap__caption { grid-column: 1 / -1; }
 
@@ -1821,6 +1834,7 @@ a.card:hover,
   .scripting .story__keys .keycaps__row .keycap[data-holds="adaptive"] { min-block-size: 246px; }
   .scripting .story__keys .keycaps__row .keycap[data-holds="terminal"] { min-block-size: 276px; }
   .scripting .story__keys .keycaps__row .keycap[data-holds="search"] { min-block-size: 220px; }
+  .scripting .story__keys .keycaps__row .keycap[data-holds="look"] { min-block-size: 316px; }
 }
 
 .story__points { margin-top: clamp(28px, 4vw, 44px); }

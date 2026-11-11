@@ -6,7 +6,8 @@
  * the start of a word. Sections and their parts come first, matched by their names and state lines; then the settings
  * on their pages, matched by their names, their hints and the names of the sections they sit in. Nothing is ranked:
  * the order is the order of Settings' own list, which is why "arrow" finds Layout's two cards (their footers speak of
- * an arrow) before Row tools' Arrow keys. The app lists up to 40; a key has room for two, and says how many there are.
+ * an arrow) before Row tools' Arrow keys. The app lists up to 40; a key has room for two (four where it stands in a
+ * tall row, beside the look key), and says how many there are.
  *
  * Not every setting can be found: the search reads sections, cards and rows, so the theme editor (a page of its
  * own) and rows that show only while a switch is on are not in it. The page's words say "finds a setting", not "every".
@@ -30,7 +31,7 @@
 import { GhostKbd, icon } from '../kbd.js';
 
 const IDLE = ['ripple', 'slang', 'heatmap', 'github'];     // each one's first result shows the word that was typed
-const MOST = 2;         // results on the key
+const MOST = 4;         // results on the key, where it has the height; two on most
 const LIMIT = 40;       // results in the app (searchSettings' limit)
 const HOLD = 2800;      // a finished word and what it found stay this long
 
@@ -102,7 +103,7 @@ const SECTIONS = [
   ]),
   S('look', 'Look & feel', 'Dark · normal keys', [
     ['Light or dark'],
-    ['Key height'],
+    ['Key height', 'Condensed takes about a fifth less of the screen: shorter rows, smaller letters and a slimmer row above.'],
   ], [
     S('colours', 'Colours', 'Ghost'),                      // the theme editor: a page the search does not read
     S('backlight', 'Backlight', 'Reactive', [
@@ -363,7 +364,7 @@ export function mount(root) {
     }, 600);
   }
 
-  // As many results as the key has the height for, two at most (search.css says how short a result may be).
+  // As many results as the key has the height for, four at most (search.css says how short a result may be).
   function fit() {
     const least = parseFloat(getComputedStyle(list).getPropertyValue('--sr-min')) || 17;
     const n = Math.max(1, Math.min(MOST, Math.floor((list.clientHeight + 0.5) / least)));

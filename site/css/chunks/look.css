@@ -1,31 +1,94 @@
 /*
- * look (site/js/chunks/look.js): five keys of the keyboard on a plate in the theme's ground colour. No controls of
- * its own: the whole keycap is the control (a button over the face), and each tap is the next theme and backlight.
+ * look (site/js/chunks/look.js): the foot of a small screen on the key's face, a line being typed and the whole
+ * keyboard under it, in a theme, under a backlight, in one of the app's layouts. No controls of its own: the whole
+ * keycap is the control (a button over the face), and each tap is the next look.
+ *
+ * The script reads two lengths from .look to size the picture: --look-app, the strip of screen left above the
+ * tallest keyboard (the line being typed), and --look-edge, the screen's hairline. The screen is as tall as .look
+ * and as wide as the script makes it (a phone's 412dp or an unfolded foldable's 690dp, at the dp that fits).
  */
 
 .look {
-  --look-pad: 6px;      /* the plate's ground round the keys */
+  --look-app: 26px;
+  --look-edge: 1px;
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
-  min-height: 84px;
+  min-height: 132px;
   margin-inline: var(--cap-pad, 14px);
-  display: grid;
-  place-items: center;
 }
 
-/* The keyboard's own ground, cut into the key's face: --kb-bg is the theme's, written here by the script. */
-.look__plate {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  padding: var(--look-pad);
+/*
+ * A phone's one column: the key is as tall as what it holds, and the picture is given a phone's share of it. The
+ * foot's legend ("Midnight · Rainbow wave") stands on a line of its own under the caption there: sharing the face's
+ * two columns it squeezed the caption into a ribbon and, through the column, the key's own name above.
+ */
+@container keycaps (max-width: 620px) {
+  .look { min-height: 200px; }
+
+  .keycap__face:has(> [data-chunk="look"]) {
+    grid-template:
+      "legend hint" auto
+      "body body" minmax(0, 1fr)
+      "caption caption" auto
+      "sub sub" auto
+      / minmax(0, 1fr) auto;
+  }
+
+  .keycap__face:has(> [data-chunk="look"]) > .keycap__caption { padding-bottom: var(--s-1, 4px); }
+  .keycap__face:has(> [data-chunk="look"]) > .keycap__sub { justify-self: end; }
+}
+
+/*
+ * The screen: its ground is the app that is being typed in, a step from the keyboard's own ground toward the ink
+ * that reads on it (--kb-bg and --kb-icon are the theme's, written here by the script), so the two can be told apart
+ * in a dark theme and in a light one.
+ */
+.look__screen {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  translate: -50% 0;
+  box-sizing: content-box;
+  max-width: calc(100% - 2 * var(--look-edge));
+  display: flex;
+  flex-direction: column;
+  border: var(--look-edge) solid var(--cap-line, rgba(232, 237, 237, .1));
   border-radius: 12px;
-  background: var(--kb-bg, #0A0B0C);
-  box-shadow: inset 0 0 0 1px var(--cap-line, rgba(232, 237, 237, .1));
+  overflow: hidden;
+  background: color-mix(in srgb, var(--kb-bg, #0A0B0C) 88%, var(--kb-icon, #B9C4C4));
+  color: var(--kb-icon, #B9C4C4);
   transition: background-color .18s;
 }
 
-.look__keys { min-width: 0; }
+/* What is above the keyboard: the app, and at its foot the line being typed, in a field let into it. */
+.look__app {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 5px 4px;
+}
+
+.look .look__line {
+  --gk-caret: var(--kb-accent, #51FCFB);
+  flex: 1 1 0;
+  min-width: 0;
+  height: 18px;
+  padding: 0 8px;
+  border-radius: 9px;
+  background: var(--kb-bg, #0A0B0C);
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 18px;
+  letter-spacing: 0;
+  white-space: pre;
+  overflow: hidden;
+  cursor: inherit;
+  transition: background-color .18s;
+}
+
+.look__keys { flex: none; min-width: 0; }
 
 /* The whole face is the control. Its ring is drawn only when a keyboard has the focus on it. */
 .look__next {
@@ -51,9 +114,10 @@
 .keycap:has(.look__next) { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
-  .look__plate { transition: none; }
+  .look__screen,
+  .look .look__line { transition: none; }
 }
 
 @media (forced-colors: active) {
-  .look__plate { border: 1px solid CanvasText; }
+  .look__screen { border-color: CanvasText; }
 }

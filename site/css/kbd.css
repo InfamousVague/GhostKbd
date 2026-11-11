@@ -4,6 +4,8 @@
  * Every length is in "dp": --kb-dp is one of the phone's dp in CSS pixels, set by the component from the keyboard's
  * width (width / 412, clamped), so the keyboard keeps a phone's proportions at any size. The numbers are the app's:
  * 60dp rows (a 48dp key and 12dp of gap), 3dp/6dp of padding round each key's face, 6dp corners, a 44dp row above.
+ * Condensed keys (.gk--condensed: 46dp rows, set by the component) have 4.5dp above and below a key's face, labels at
+ * 87% and a 34dp row above: the four numbers under "key height" below.
  *
  * Colours are KeyboardTheme.kt's, as custom properties the component writes on .gk for the theme in use. The values
  * below are the Ghost theme, the app's own, so the keyboard is right before a theme is set.
@@ -27,6 +29,11 @@
   --kb-icon: #B9C4C4;
   --kb-dp: 1px;
   --kb-shrink: 6px;
+  /* Key height: the padding above and below a key's face, the labels' scale, the row above, a chip's margin in it. */
+  --kb-pad-y: 6;
+  --kb-label: 1;
+  --kb-bar: 44;
+  --kb-chip-gap: 6;
 
   position: relative;
   display: block;
@@ -60,6 +67,14 @@
 .gk:focus-visible {
   outline: 2px solid var(--kb-accent);
   outline-offset: 3px;
+}
+
+/* Settings › Look & feel › Key height › Condensed (KeyboardView: keyPadY, labelScale, toolbarHeight; PluginRow). */
+.gk--condensed {
+  --kb-pad-y: 4.5;
+  --kb-label: .87;
+  --kb-bar: 34;
+  --kb-chip-gap: 4;
 }
 
 /* A keyboard that only plays: nothing in it takes a pointer or the focus. */
@@ -123,8 +138,8 @@
   position: absolute;
   left: calc(3 * var(--kb-dp));
   right: calc(3 * var(--kb-dp));
-  top: calc(6 * var(--kb-dp));
-  bottom: calc(6 * var(--kb-dp));
+  top: calc(var(--kb-pad-y) * var(--kb-dp));
+  bottom: calc(var(--kb-pad-y) * var(--kb-dp));
   border-radius: calc(6 * var(--kb-dp));
   display: grid;
   place-items: center;
@@ -149,15 +164,21 @@
   right: calc(7 * var(--kb-dp));
   top: calc(3.6 * var(--kb-dp));
   transform: translateX(50%);
-  font-size: calc(10.5 * var(--kb-dp));
+  font-size: calc(10.5 * var(--kb-label) * var(--kb-dp));
   color: var(--kb-lit-hint, var(--kb-hint));
   opacity: var(--kb-lit-a, 1);
+}
+
+/* Condensed: the hint a little nearer the corner (its baseline 11dp down the face, 6dp in). */
+.gk--condensed .gk-hint {
+  right: calc(6 * var(--kb-dp));
+  top: calc(2.8 * var(--kb-dp));
 }
 
 .gk--nohints .gk-hint { display: none; }
 
 .gk-k-mode .gk-legend {
-  font-size: calc(15 * var(--kb-dp));
+  font-size: calc(15 * var(--kb-label) * var(--kb-dp));
   font-weight: 500;
 }
 
@@ -188,8 +209,8 @@
 .gk-key.is-down .gk-face { background: var(--kb-key); }
 
 .gk-pill .gk-face {
-  top: calc(6 * var(--kb-dp) + var(--kb-shrink));
-  bottom: calc(6 * var(--kb-dp) + var(--kb-shrink));
+  top: calc(var(--kb-pad-y) * var(--kb-dp) + var(--kb-shrink));
+  bottom: calc(var(--kb-pad-y) * var(--kb-dp) + var(--kb-shrink));
   border-radius: 999px;
   background: var(--kb-key);
 }
@@ -202,8 +223,8 @@
 
 /* Key borders on: every key has its own face; shift, delete and the page keys in the darker function colour. */
 .gk--borders .gk-key .gk-face {
-  top: calc(6 * var(--kb-dp));
-  bottom: calc(6 * var(--kb-dp));
+  top: calc(var(--kb-pad-y) * var(--kb-dp));
+  bottom: calc(var(--kb-pad-y) * var(--kb-dp));
   border-radius: calc(6 * var(--kb-dp));
   background: var(--kb-key);
 }
@@ -222,8 +243,8 @@
  */
 .gk--mech .gk-key .gk-face {
   --cap: var(--kb-key);
-  top: calc(6 * var(--kb-dp));
-  bottom: calc(6 * var(--kb-dp));
+  top: calc(var(--kb-pad-y) * var(--kb-dp));
+  bottom: calc(var(--kb-pad-y) * var(--kb-dp));
   border-radius: calc(4.8 * var(--kb-dp));
   background: color-mix(in srgb, var(--cap) 62%, #000);
   box-shadow: 0 calc(1.5 * var(--kb-dp)) 0 calc(-.5 * var(--kb-dp)) rgba(0, 0, 0, .33);
@@ -258,7 +279,7 @@
   opacity: .55;
 }
 
-.gk--mech .gk-key.is-down .gk-face { top: calc(9.5 * var(--kb-dp)); }
+.gk--mech .gk-key.is-down .gk-face { top: calc((var(--kb-pad-y) + 3.5) * var(--kb-dp)); }
 
 .gk--mech .gk-key.is-down .gk-cap {
   bottom: calc(2.5 * var(--kb-dp));
@@ -313,6 +334,41 @@
   background: var(--kb-popup-sel);
 }
 
+/*
+ * The empty side of docked or one-handed keys (KeyboardView.dockFlip): a chevron in the hint colour at its middle,
+ * pointing where the keys go when it is tapped. The button is that side, less the slack a key's own touch keeps
+ * (--kb-dock-nudge puts the chevron back at the side's true middle).
+ */
+.gk-dock {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: none;
+  color: var(--kb-hint);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gk-dock svg {
+  width: calc(14 * var(--kb-dp));
+  height: calc(24 * var(--kb-dp));
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  translate: var(--kb-dock-nudge, 0) 0;
+}
+
+.gk-dock[data-side="left"] svg { scale: -1 1; }
+.gk-dock:active { color: var(--kb-text); }
+
 /* The canvas over the keys: the swipe trail, the adaptive keys heatmap, a demo's own drawing. */
 .gk-overlay {
   position: absolute;
@@ -331,7 +387,7 @@
   left: 0;
   right: 0;
   top: 0;
-  height: calc(44 * var(--kb-dp));
+  height: calc(var(--kb-bar) * var(--kb-dp));
   display: none;
   align-items: stretch;
   background: var(--kb-bg);
@@ -459,7 +515,7 @@ button.gk-ri:active { background: var(--kb-key-down); }
 
 .gk-ri.gk-chip,
 .gk-view {
-  margin: calc(6 * var(--kb-dp)) calc(4 * var(--kb-dp));
+  margin: calc(var(--kb-chip-gap) * var(--kb-dp)) calc(4 * var(--kb-dp));
 }
 
 .gk-ri.gk-chip { background: var(--kb-fn); }

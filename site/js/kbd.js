@@ -3,7 +3,10 @@
 // Read from the Android sources, and kept in their terms so the two can be compared side by side:
 //   Layouts.kt        the rows of each page, the { } key beside space, long-press choices, hints
 //   KeyboardView.kt   metrics (60dp rows, 3dp/6dp key padding, 6dp radius), the key preview, the long-press panel,
-//                     the pill keys, the Retro keycaps, shift, the space-bar cursor, the swipe trail, the heatmap
+//                     the pill keys, the Retro keycaps, shift, the space-bar cursor, the swipe trail, the heatmap,
+//                     the four key heights (Condensed's 46dp rows and smaller labels), and layoutKeys' layouts: on a
+//                     wide screen split, full width, or a phone-sized board docked left, centre or right; on a
+//                     phone, one-handed
 //   KeyboardTheme.kt  the colours, and fromBase(), which makes a whole theme from five
 //   Backlight.kt      the six effects on the keys' legends
 //   PluginRow.kt      the row above the keys: the cog, the strip, the arrow keys
@@ -608,8 +611,17 @@ function thock(type, volume = 0.35) {
 
 // --- the keyboard ----------------------------------------------------------------------------------------------------
 
-const SPLIT_MIN = 600;      // wider than this (CSS px), a keyboard with split on opens its middle, as on an unfolded Fold
-const SPLIT_GAP = 0.3;
+// KeyboardView's own numbers (its companion object), in dp.
+const SPLIT_MIN = 600;          // a board this wide is on a wide screen: an unfolded Fold's inner screen, a tablet
+const SPLIT_GAP = 0.3;          // the open middle of a split keyboard, as a share of its width
+const COMPACT_DP = 400;         // a docked keyboard on a wide screen is this wide: a phone's, in reach of one thumb
+const ONE_HANDED_SHARE = 0.8;   // one-handed on a phone: the keys take this share of the width, on the thumb's side
+const DOCK_SLACK_DP = 14;       // a touch this far past a docked keyboard's edge still means its nearest key
+/** Settings › Look & feel › Key height: a row, from one to the next, in dp. */
+export const KEY_HEIGHTS = { condensed: 46, short: 52, normal: 60, tall: 68 };
+/** Settings › Look & feel › Layout's choices for a wide screen (catalogue.dart wideLayouts): [id, name]. */
+export const WIDE_LAYOUTS = [['split', 'Split'], ['full', 'Full width'], ['left', 'Docked left'], ['center', 'Centred'], ['right', 'Docked right']];
+const isWideLayout = (id) => WIDE_LAYOUTS.some((l) => l[0] === id);
 const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 const isLetter = (s) => s.length === 1 && s.toLowerCase() !== s.toUpperCase();
 const lightId = (key) => `${key.type.toUpperCase()}|${key.text}|${key.label}`;
@@ -624,7 +636,15 @@ const DEFAULTS = {
   borders: false, hints: true, preview: true, mic: false, split: false, swipe: false, autoCaps: true, doubleSpacePeriod: true,
   spaceCursor: true, keyHeight: 'normal', longPressMs: 300, enter: 'newline', touchAction: 'pan-y', scale: null,
   volume: 0.35, motion: 'auto', label: 'Ghost Keyboard', fragment: null, cog: true, bare: false, hardKeys: 'all',
+  wideLayout: null, oneHanded: 'off',
 };
+// keyHeight: 'condensed' | 'short' | 'normal' | 'tall' (KEY_HEIGHTS).
+// wideLayout: what a board on a wide screen does (WIDE_LAYOUTS: 'split' | 'full' | 'left' | 'center' | 'right'); null
+//   leaves it to `split`, the older way to ask for 'split'. A board is on a wide screen when it is SPLIT_MIN dp across:
+//   with `scale` (the dp, in CSS px) that is its width / scale; without, a board 600 CSS px wide that asks for a wide
+//   layout is drawn at a phone's own size (1dp = 1px), and any other is a phone's board scaled to its width.
+// oneHanded: 'off' | 'left' | 'right', on a board that is not on a wide screen: the keys narrow toward that thumb.
+// A docked or one-handed board has a chevron on its empty side; a tap there moves the keys across ('dock' fires).
 
 // --- fragments -------------------------------------------------------------------------------------------------------
 
@@ -714,6 +734,7 @@ export class GhostKbd {
       [['left', 'caret-left'], ['up', 'caret-up'], ['down', 'caret-down'], ['right', 'caret-right']]
         .map(([d, i]) => `<button type="button" class="gk-ib gk-arrow" tabindex="-1" data-dir="${d}" aria-label="Cursor ${d}">${icon(i)}</button>`).join('') +
       `</div></div><div class="gk-keys"></div>` +
+      `<button type="button" class="gk-dock" tabindex="-1" hidden><svg viewBox="-7 -12 14 24" aria-hidden="true"><path d="M-5-10 5 0-5 10"/></svg></button>` +
       `<div class="gk-dict" hidden><div class="gk-dict-halo"></div><div class="gk-dict-dot">${icon('mic')}</div><div class="gk-dict-label"></div></div>` +
       `<canvas class="gk-overlay" aria-hidden="true"></canvas><div class="gk-pop" aria-hidden="true" hidden></div><div class="gk-panel" aria-hidden="true" hidden></div>`;
     this._bar = el.querySelector('.gk-bar');
@@ -721,6 +742,7 @@ export class GhostKbd {
     this._arrows = el.querySelector('.gk-arrows');
     this._cog = el.querySelector('.gk-cog');
     this._keysEl = el.querySelector('.gk-keys');
+    this._dock = el.querySelector('.gk-dock');
     this._dict = el.querySelector('.gk-dict');
     this._canvas = el.querySelector('.gk-overlay');
     this._pop = el.querySelector('.gk-pop');
@@ -763,7 +785,8 @@ export class GhostKbd {
 
   /**
    * Listens for 'key', 'down', 'input', 'page', 'shift', 'row', 'settings', 'picker', 'arrow', 'cursor', 'swipe', 'mic',
-   * 'user', 'theme', 'layout', 'visible', 'motion' ({paused}: the page's pause went on or off). Returns the unsubscribe.
+   * 'user', 'theme', 'layout', 'visible', 'motion' ({paused}: the page's pause went on or off), 'dock' ({side, wide}:
+   * the chevron beside docked or one-handed keys was tapped, and the keys went across). Returns the unsubscribe.
    */
   on(type, fn) {
     if (!this._subs.has(type)) this._subs.set(type, new Set());
@@ -828,7 +851,10 @@ export class GhostKbd {
     }
   }
 
-  /** Changes options after the fact: any of the constructor's, e.g. {borders: true, arrows: true, numberRow: true}. */
+  /**
+   * Changes options after the fact: any of the constructor's, e.g. {borders: true, arrows: true, numberRow: true},
+   * {keyHeight: 'condensed'}, {wideLayout: 'right'}, {oneHanded: 'left'}.
+   */
   set(opts) {
     Object.assign(this.opts, opts);
     if ('fragment' in opts) {
@@ -965,26 +991,53 @@ export class GhostKbd {
     return this.opts.mic ? Layouts.withMic(rows) : rows;
   }
 
+  /**
+   * Key height's numbers (KeyboardView.configure, toolbarHeight, labelScale, keyPadY): a row in dp; whether that is
+   * Condensed, which also has smaller labels, less padding round a key's face and a slimmer strip above the keys.
+   */
+  _metrics() {
+    const rowDp = KEY_HEIGHTS[this.opts.keyHeight] ?? KEY_HEIGHTS.normal;
+    const condensed = rowDp <= KEY_HEIGHTS.condensed;
+    return { rowDp, condensed, head: this.opts.row ? (condensed ? 34 : 44) : (condensed ? 8 : 18), padY: condensed ? 4.5 : 6, label: condensed ? 0.87 : 1 };
+  }
+
   /** The whole board's keys, laid out across `W` CSS px. */
   _layoutBoard(W) {
     const o = this.opts;
-    const splitOn = !!o.split && W >= SPLIT_MIN;
-    const dp = o.scale || (splitOn ? 1 : clamp(W / 412, 0.62, 1.25));
-    const rowDp = o.keyHeight === 'short' ? 52 : o.keyHeight === 'tall' ? 68 : 60;
-    const keysTop = (o.row ? 44 : 18) * dp;
-    const keysHeight = (o.numberRow ? 5 : 4) * rowDp * dp;
+    const m = this._metrics();
+    // A wide screen (an unfolded foldable, a tablet) takes Layout's choice; a phone can be one-handed. See DEFAULTS.
+    const asked = isWideLayout(o.wideLayout) ? o.wideLayout : o.split ? 'split' : null;
+    const wide = o.scale ? W / o.scale >= SPLIT_MIN : !!asked && W >= SPLIT_MIN;
+    const layout = wide ? asked || 'full' : null;
+    const dp = o.scale || (wide ? 1 : clamp(W / 412, 0.62, 1.25));
+    const keysTop = m.head * dp;
+    const keysHeight = (o.numberRow ? 5 : 4) * m.rowDp * dp;
     const height = Math.ceil(keysTop + keysHeight + 2 * dp);
     const rows = this._rows();
     const units = Math.max(...rows.map((r) => r.units));
     const sidePad = 1.5 * dp;
-    const gap = splitOn ? W * SPLIT_GAP : 0;
-    const unit = (W - sidePad * 2 - gap) / units;
-    const mid = sidePad + (units * unit) / 2;
+    // Split: each half keeps a phone's key size and the middle is left open for the thumbs. Docked: a phone's
+    // keyboard on the big screen, under one thumb or in the middle. One-handed: the keys narrowed toward a thumb.
+    let gap = 0, areaW = W, areaLeft = 0;
+    if (layout === 'split') gap = W * SPLIT_GAP;
+    else if (layout === 'left' || layout === 'center' || layout === 'right') {
+      areaW = Math.min(W, COMPACT_DP * dp);
+      areaLeft = layout === 'left' ? 0 : layout === 'right' ? W - areaW : (W - areaW) / 2;
+    } else if (!wide && (o.oneHanded === 'left' || o.oneHanded === 'right')) {
+      areaW = W * ONE_HANDED_SHARE;
+      areaLeft = o.oneHanded === 'right' ? W - areaW : 0;
+    }
+    const areaRight = areaLeft + areaW;
+    // The empty side of docked or one-handed keys (KeyboardView.dockFlip): where they go when it is tapped. None
+    // when the keys fill the width or stand in the middle.
+    const dock = areaW >= W - 1 ? null : areaLeft <= 0.5 ? { side: 'right', from: areaRight, to: W } : areaRight >= W - 0.5 ? { side: 'left', from: 0, to: areaLeft } : null;
+    const unit = (areaW - sidePad * 2 - gap) / units;
+    const mid = areaLeft + sidePad + (units * unit) / 2;
     const rowH = keysHeight / rows.length;
     const keys = [];
     let y = keysTop;
     for (const r of rows) {
-      let x = sidePad + r.inset * unit + ((units - r.units) * unit) / 2;
+      let x = areaLeft + sidePad + r.inset * unit + ((units - r.units) * unit) / 2;
       for (const key of r.keys) {
         const w = key.width * unit, left = x, right = x + w;
         const add = (l, rgt) => keys.push({ key, rect: { x: l, y, w: rgt - l, h: rowH } });
@@ -996,7 +1049,7 @@ export class GhostKbd {
       }
       y += rowH;
     }
-    return { dp, keysTop, keysHeight, height, rowH, unit, split: splitOn, keys };
+    return { dp, keysTop, keysHeight, height, rowH, unit, split: layout === 'split', keys, layout, oneHanded: dock && !wide ? o.oneHanded : null, area: { left: areaLeft, right: areaRight }, dock };
   }
 
   /** One key of a fragment by name: a character, a label ('( )', '?123'), 'space', 'enter', 'delete', 'shift', 'mic', 'tab'. */
@@ -1070,9 +1123,10 @@ export class GhostKbd {
     const o = this.opts, f = this._frag;
     const { rows, units } = this._fragRows();
     const n = rows.length;
-    const rowDp = o.keyHeight === 'short' ? 52 : o.keyHeight === 'tall' ? 68 : 60;
+    const m = this._metrics();
+    const rowDp = m.rowDp;
     // Room above the first row: the row above the keys, or what a key's preview bubble (or long-press panel) needs.
-    const head = o.row ? 44 : HEADROOM[f.headroom] ?? (+f.headroom || 0);
+    const head = o.row ? m.head : HEADROOM[f.headroom] ?? (+f.headroom || 0);
     const foot = n ? 2 : 0;
     const totalDp = head + n * rowDp + foot;
     const designW = +f.width || (n ? units * UNIT_DP + 3 : 360);
@@ -1088,7 +1142,7 @@ export class GhostKbd {
     const keysTop = head * dp, rowH = rowDp * dp, keysHeight = n * rowH;
     const keys = [];
     rows.forEach((r, i) => { for (const k of r) keys.push({ key: k.key, rect: { x: offX + k.x * unit, y: keysTop + i * rowH, w: k.w * unit, h: rowH } }); });
-    return { dp, keysTop, keysHeight, height: Math.ceil(keysTop + keysHeight + foot * dp - 0.01), rowH: n ? rowH : 0, unit, split: false, keys };
+    return { dp, keysTop, keysHeight, height: Math.ceil(keysTop + keysHeight + foot * dp - 0.01), rowH: n ? rowH : 0, unit, split: false, keys, layout: null, oneHanded: null, area: { left: 0, right: W }, dock: null };
   }
 
   _build() {
@@ -1098,10 +1152,23 @@ export class GhostKbd {
     this._W = W;
     this._cancelTouch();
     this._releaseGhost();
-    const { dp, keysTop, keysHeight, height, rowH, unit, split, keys } = this._frag ? this._layoutFrag(W) : this._layoutBoard(W);
-    const padX = 3 * dp, padY = 6 * dp;
-    this._geo = { width: W, height, dp, keysTop, keysHeight, rowHeight: rowH, keyWidth: unit, split };
+    const { dp, keysTop, keysHeight, height, rowH, unit, split, keys, layout, oneHanded, area, dock } = this._frag ? this._layoutFrag(W) : this._layoutBoard(W);
+    const m = this._metrics();
+    const padX = 3 * dp, padY = m.padY * dp;
+    // layout: the wide screen's ('split' | 'full' | 'left' | 'center' | 'right'), null on a phone. area: where the keys
+    // stand across the board. dock: the empty side of docked or one-handed keys ('left' | 'right'), or null.
+    this._geo = { width: W, height, dp, keysTop, keysHeight, rowHeight: rowH, keyWidth: unit, split, layout, oneHanded, area, dock: dock ? dock.side : null, condensed: m.condensed, labelScale: m.label };
 
+    el.classList.toggle('gk--condensed', m.condensed);
+    // The chevron on the empty side, as wide as that side less the slack a key's own touch keeps there.
+    const slack = DOCK_SLACK_DP * dp, d = this._dock;
+    d.hidden = !dock;
+    if (dock) {
+      const from = dock.side === 'right' ? dock.from + slack : dock.from, to = dock.side === 'right' ? dock.to : dock.to - slack;
+      d.dataset.side = dock.side;
+      d.style.cssText = `left:${from.toFixed(2)}px;width:${Math.max(0, to - from).toFixed(2)}px;top:${keysTop.toFixed(2)}px;height:${keysHeight.toFixed(2)}px;--kb-dock-nudge:${(dock.side === 'right' ? -slack / 2 : slack / 2).toFixed(2)}px`;
+      d.setAttribute('aria-label', `Move the keys to the ${dock.side}`);
+    }
     el.style.setProperty('--kb-dp', dp + 'px');
     el.style.setProperty('--kb-shrink', (Math.max(0, rowH - padY * 2) * 0.13).toFixed(2) + 'px');
     el.style.height = height + 'px';
@@ -1167,7 +1234,7 @@ export class GhostKbd {
       if (key.type === 'char') {
         const text = this._shown(key);
         const isL = this.page === 'letters' && isLetter(text);
-        const px = this._fit(text, (isL ? 23 : chars(text).length > 2 ? 17 : 21) * dp, 400, e.face.w - 4 * dp, 9 * dp);
+        const px = this._fit(text, (isL ? 23 : chars(text).length > 2 ? 17 : 21) * dp * g.labelScale, 400, e.face.w - 4 * dp, 9 * dp);
         legend.style.fontSize = px.toFixed(2) + 'px';
         legend.textContent = text;
         label = text === '⇥' ? 'tab' : text;
@@ -1297,6 +1364,9 @@ export class GhostKbd {
   _keyAt(x, y) {
     const g = this._geo;
     if (!g || y < g.keysTop) return null;
+    // Docked or one-handed: past the keys' own edge and its slack the touch is the empty side's, not the nearest key's.
+    const slack = DOCK_SLACK_DP * g.dp;
+    if (x < g.area.left - slack || x > g.area.right + slack) return null;
     const hit = this._keys.find((e) => x >= e.rect.x && x < e.rect.x + e.rect.w && y >= e.rect.y && y < e.rect.y + e.rect.h);
     if (hit) return this._adapt(hit, x, y);
     // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
@@ -1427,6 +1497,15 @@ export class GhostKbd {
       if (e) { this._user('a11y'); this._tap(e, 'a11y'); }
     });
     on(this._cog, 'click', () => { this._user('cog'); this._emit('settings', {}); });
+    // The empty side of docked or one-handed keys: a tap there moves them across (KeyboardView's onDock).
+    on(this._dock, 'click', () => {
+      const g = this._geo, side = this._dock.dataset.side;
+      if (!this.opts.interactive || !g?.dock) return;
+      const wide = !!g.layout;
+      this._user('dock');
+      this.set(wide ? { wideLayout: side } : { oneHanded: side });
+      this._emit('dock', { side, wide });
+    });
     // The row scrolls sideways with no scrollbar: an item that takes the focus is brought whole into view.
     on(this._strip, 'focusin', (ev) => {
       const strip = this._strip, v = ev.target.closest?.('.gk-strip > *');
@@ -1635,7 +1714,8 @@ export class GhostKbd {
     if (!key.alts.length) return null;
     const g = this._geo, dp = g.dp;
     const choices = key.alts.map((a) => this._display(a));
-    const fx = rect.x + 3 * dp, fy = rect.y + 6 * dp, fw = rect.w - 6 * dp, fh = rect.h - 12 * dp;
+    const padY = this._metrics().padY * dp;
+    const fx = rect.x + 3 * dp, fy = rect.y + padY, fw = rect.w - 6 * dp, fh = rect.h - padY * 2;
     const cellW = fw + 6 * dp, cellH = fh;
     const cols = Math.min(choices.length, 8), lines = Math.ceil(choices.length / cols), pad = 6 * dp;
     const w = cols * cellW + pad * 2, h = lines * cellH + pad * 2;
@@ -1688,7 +1768,7 @@ export class GhostKbd {
     const pop = this._pop;
     if (!p || !this._geo) { if (!pop.hidden) pop.hidden = true; this._popKey = null; return; }
     const dp = this._geo.dp, r = p.rect;
-    const fw = r.w - 6 * dp, fh = r.h - 12 * dp, h = fh * 1.15, w = fw + 4 * dp;
+    const fw = r.w - 6 * dp, fh = r.h - this._metrics().padY * 2 * dp, h = fh * 1.15, w = fw + 4 * dp;
     const text = this._shown(p.key);
     if (this._popKey !== p.key || pop.textContent !== text) {
       this._popKey = p.key;
