@@ -183,7 +183,11 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         @Suppress("NAME_SHADOWING")
         val next = if (pin || leading.isEmpty() || at < 0) next else next.take(at) + leading + next.drop(at)
         val front = if (pin) leading else emptyList()
+        // The strip is filled again whenever what is pinned before it changed, even with nothing to put in it: a chip
+        // that was tapped away as Undo lit up (a pasted clip, a one-time code, in an empty field) must not stay drawn.
+        var refill = false
         if (look(front) != look(pinned)) {
+            refill = true
             pinned = front
             lead.removeAllViews()
             for (item in front) {
@@ -196,7 +200,7 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
             items = emptyList()
         }
         // The same words again (a refresh with nothing new) keeps the row as it is, scroll and all.
-        if (look(next) == look(items)) return
+        if (!refill && look(next) == look(items)) return
         // The same buttons with one lit or dimmed (Undo, after a tap on it) stay where they were scrolled to: the
         // arrows must not slide out from under the thumb that is tapping them.
         val keepScroll = if (next.map { it.id } == items.map { it.id }) scroll.scrollX else 0

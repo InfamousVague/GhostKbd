@@ -214,6 +214,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         (Plugins.isOn(prefs, Plugins.INCOGNITO) && incognitoOn) || profile?.flag("incognito") == true ||
             (currentInputEditorInfo?.let { it.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0 } == true)
 
+    /** A one-time code arrived by text, was typed, or ran out (SmsCodes.kt): the row is drawn again, and once more when the newest stops being fresh. */
+    private val codesFresh = Runnable { scheduleRow() }
+    private val onSmsCode: () -> Unit = {
+        rowHandler.post {
+            scheduleRow()
+            rowHandler.removeCallbacks(codesFresh)
+            rowHandler.postDelayed(codesFresh, SmsCodes.FRESH_MS + 500)
+        }
+    }
+
     private val clipboard by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager }
     private val onClip = android.content.ClipboardManager.OnPrimaryClipChangedListener {
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) { ClipHistory.record(this, clipboard); scheduleRow() }
@@ -281,6 +291,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         Updater.restore(this)
         Updater.backgroundCheck(this)
         clipboard.addPrimaryClipChangedListener(onClip)
+        // One-time codes from texts: Android's receiver is made to match the switch, and a code that arrives redraws the row.
+        SmsCodes.apply(this)
+        SmsCodes.addListener(onSmsCode)
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
         // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
@@ -291,6 +304,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onDestroy() {
         swipeWorker.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
+        SmsCodes.removeListener(onSmsCode)
+        rowHandler.removeCallbacks(codesFresh)
         SoundPacks.release()
         WhisperModel.removeListener(onModel)
         Updater.removeListener(onUpdate)
@@ -1477,7 +1492,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (showingClips) {
             items += RowItem("clips-back", icon = RowIcon.BACK, description = "Back") { showingClips = false; scheduleRow() }
             val clips = ClipHistory.all(this)
-            if (clips.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
+            // One-time codes from texts lead the list for as long as they are held: they are not in the history's file.
+            val codes = codeItems(fresh = false)
+            items += codes
+            if (clips.isEmpty() && codes.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
             for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
             if (clips.isNotEmpty()) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear clipboard history") { ClipHistory.clear(this); scheduleRow() }
             strip.setItems(items)
@@ -1491,6 +1509,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         if (aiRow(items)) { strip.setItems(items); return }
         if (inlineViews.isNotEmpty() && Plugins.isOn(prefs, Plugins.PASSWORDS)) {
+            // A code that has just arrived comes before a password manager's logins: this is the field it is for.
+            items += codeItems(fresh = true)
             inlineViews.forEachIndexed { i, v -> items += RowItem("inline-$i", view = v) }
             strip.setItems(items)
             return
@@ -1679,6 +1699,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 scheduleRow()
             }
         }
+        // A one-time code that arrived by text a moment ago (SmsCodes.kt). Incognito does not hide it: nothing of it
+        // is kept either way, and a sign-in is where incognito is most often on.
+        items += codeItems(fresh = true)
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) {
             ClipHistory.fresh?.takeIf { System.currentTimeMillis() - it.at < 90_000 }?.let { clip ->
                 items += RowItem("fresh-${clip.at}", label = preview(clip.text), icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, bold = true, chip = true) { pasteClip(clip.text) }
@@ -1720,6 +1743,31 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun preview(text: String): String {
         val line = text.replace(Regex("\\s+"), " ").trim()
         return if (line.length > 28) line.take(27) + "…" else line
+    }
+
+    /**
+     * One-time codes from texts as chips: the one that has just arrived, for the row's start ([fresh]), or every
+     * one still held, for the clipboard's list. None with the switch off.
+     */
+    private fun codeItems(fresh: Boolean): List<RowItem> {
+        if (!SmsCodes.wanted(prefs)) return emptyList()
+        val now = android.os.SystemClock.elapsedRealtime()
+        val codes = if (fresh) listOfNotNull(SmsCodes.fresh(now)) else SmsCodes.live(now)
+        return codes.map { code ->
+            RowItem("${if (fresh) "fresh-code" else "code"}-${code.at}", label = code.text, icon = RowIcon.KEY, tint = RowTint.CLIPBOARD, bold = true, chip = true, description = "One-time code from a text message") { pasteCode(code) }
+        }
+    }
+
+    /** Types a one-time code and lets go of it: it is for one use. Pasted, not typed: nothing learns from it. */
+    private fun pasteCode(code: SmsCodes.Code) {
+        finishTyping()
+        editor.insert(code.text, Kind.PASTE)
+        notTyped()
+        autoSpaced = false
+        toolsHeld = true
+        showingClips = false
+        SmsCodes.used(code)
+        scheduleRow()
     }
 
     private fun pasteClip(text: String) {

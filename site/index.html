@@ -366,7 +366,7 @@
         </div>
         <div>
           <h3>Clipboard history, incognito</h3>
-          <p>Your last 25 copies, a tap away, with no timer. Never what a password manager copied, and nothing at all while the incognito switch is on.</p>
+          <p>Your last 25 copies, a tap away, with no timer. Never what a password manager copied, and nothing at all while the incognito switch is on. With a switch you turn on, a sign-in code that arrives by text shows above the keys, a tap to type it.</p>
         </div>
         <div>
           <h3>Emoji and GIFs</h3>
@@ -587,6 +587,12 @@
             <li><strong>Android&rsquo;s own backup.</strong> The app does not yet tell Android to leave its data out of backups. If backup or device transfer is on, Android may copy the app&rsquo;s data, including your AI key, clipboard history and what the keyboard has learned.</li>
           </ul>
           <p>There is no analytics or crash-reporting library in the app. That comes from reading the source, not from an outside audit.</p>
+        </details>
+
+        <details id="faq-texts">
+          <summary>Does it read my text messages?</summary>
+          <p>Not unless you turn on one-time codes in Settings &rsaquo; Row tools, and Android asks you before it allows that. With it on, each text that arrives is looked at once, on the phone, for a sign-in code. Only the code is kept, in memory, for ten minutes or until you use it. The text itself and who sent it are not kept, and nothing of it is sent anywhere.</p>
+          <p>The app cannot read the messages already on your phone and cannot send any: it asks Android only to receive new ones. With the switch off, Android does not hand texts to the app at all. <a href="https://github.com/InfamousVague/GhostKbd/blob/main/docs/sms-codes.md" rel="noopener">How it works, on GitHub.</a></p>
         </details>
 
         <details>

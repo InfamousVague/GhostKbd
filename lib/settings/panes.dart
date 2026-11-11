@@ -1169,6 +1169,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
       children: [
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
+        if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
         _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
@@ -1196,6 +1197,47 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
           children: [SettingRowBox(child: GlacierInput(key: ValueKey('giphy-$own'), defaultValue: own, placeholder: 'Your GIPHY API key (optional)', ariaLabel: 'GIPHY API key', onSubmitted: (text) => store.set('giphy_key', text.trim())))],
         ),
       ]),
+  ];
+}
+
+/// One-time codes from texts (android SmsCodes.kt, docs/sms-codes.md), under the clipboard they show in. The switch
+/// can be on before Android has said yes: the row then says it is waiting, with Android's question a tap away and,
+/// once that has been refused, Android's own page for the app (where a sideloaded app is given "restricted settings").
+List<Widget> _smsCodesRows(SettingsStore store) {
+  final s = store.smsCodes;
+  final on = s['on'] == true;
+  final allowed = s['allowed'] == true;
+  final asked = s['asked'] == true;
+  // Android 17 (API 37) keeps a code written for one app or one website from every other app, and every code from
+  // an app built for Android 17. The page says so rather than seem broken.
+  final android = (s['android'] as num?)?.toInt() ?? 0;
+  final target = (s['target'] as num?)?.toInt() ?? 0;
+  final held = android >= 37 && target >= 37;
+  final String hint;
+  if (!on) {
+    hint = 'A code that arrives by text message shows above the keys, a tap to type it.${allowed ? '' : ' Android will ask to let Ghost Keyboard receive texts.'}';
+  } else if (!allowed) {
+    hint = 'Waiting for Android: it has not allowed text messages yet.';
+  } else if (held) {
+    hint = 'Android 17 holds codes back from this app for three hours, so they cannot show here.';
+  } else {
+    hint = 'A code shows above the keys for three minutes and in the clipboard for ten, or until you use it. Only the code is kept, in memory. Nothing is sent anywhere.${android >= 37 ? ' Android 17 keeps a code written for one app or website to that app or website.' : ''}';
+  }
+  return [
+    SettingRow(
+      label: 'One-time codes from texts',
+      hint: Text(hint),
+      icon: AppIcon(Lucide.messageSquare, size: 18),
+      control: GlacierSwitch(checked: on, onCheckedChange: store.setSmsCodes, ariaLabel: 'One-time codes from texts'),
+    ),
+    if (on && !allowed) SettingRow(label: 'Allow text messages', hint: const Text('Android asks, and you choose.'), icon: AppIcon(LucideMore.shieldCheck, size: 18), onPress: store.askForTexts),
+    if (on && !allowed && asked)
+      SettingRow(
+        label: 'Open Android’s page for Ghost Keyboard',
+        hint: const Text('If Android says the setting is restricted: tap ⋮ at the top of that page, then Allow restricted settings, and come back here. Android does this to apps from outside a store.'),
+        icon: AppIcon(Lucide.externalLink, size: 18),
+        onPress: store.openAppInfo,
+      ),
   ];
 }
 

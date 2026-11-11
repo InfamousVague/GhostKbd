@@ -152,9 +152,10 @@ const SECTIONS = [
       ['Export my typing profile…'],
     ]),
   ]),
-  S('rowtools', 'Row tools', '7 of 8 on', [
+  S('rowtools', 'Row tools', '7 of 8 on', [      // One-time codes from texts is off to start, and not one of the eight
     ['Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.'],
     ['Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.'],
+    ['One-time codes from texts', 'A code that arrives by text message shows above the keys, a tap to type it. Android will ask to let Ghost Keyboard receive texts.'],
     ['Undo and redo', 'Back and forward arrows.'],
     ['Emoji', 'A panel and search; :shortcodes and emoji for the word you type.'],
     ['GIFs', 'Search GIPHY and send one.'],

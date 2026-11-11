@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -34,6 +35,24 @@ class MainActivity : FlutterActivity() {
         "languages" to WhisperModel.LANGUAGES.map { (code, name) -> mapOf("code" to code, "name" to name) },
         "microphone" to (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
     )
+
+    /**
+     * One-time codes from texts (SmsCodes.kt): the switch, whether Android has given the permission, and whether it
+     * has been asked for before (after a refusal Android may not ask again, and the page then points at Android's own
+     * page for the app). `android` and `target` are for the page's note about what Android 17 keeps back.
+     */
+    private fun smsState(): Map<String, Any?> = mapOf(
+        "on" to prefs.smsCodes,
+        "allowed" to SmsCodes.allowed(this),
+        "asked" to prefs.prefs.getBoolean(SMS_ASKED, false),
+        "android" to Build.VERSION.SDK_INT,
+        "target" to applicationInfo.targetSdkVersion,
+    )
+
+    private fun askForTexts() {
+        prefs.prefs.edit().putBoolean(SMS_ASKED, true).apply()
+        requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_SMS)
+    }
 
     private var player: MediaPlayer? = null
 
@@ -148,6 +167,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_SMS) { channel?.invokeMethod("smsCodesChanged", smsState()); return }
         channel?.invokeMethod("dictationChanged", dictationState())
     }
 
@@ -188,6 +208,8 @@ class MainActivity : FlutterActivity() {
                     "setSetting" -> {
                         val key = call.argument<String>("key")
                         val ok = key != null && prefs.set(key, call.argument<Any>("value"))
+                        // The codes' switch by this door too: Android's receiver follows it (never the permission).
+                        if (ok && key == KeyboardPrefs.SMS_CODES) SmsCodes.apply(this@MainActivity)
                         if (ok) result.success(null) else result.error("bad_setting", "Unknown setting or wrong type: $key", null)
                     }
                     "status" -> result.success(status())
@@ -206,6 +228,8 @@ class MainActivity : FlutterActivity() {
                         val id = call.argument<String>("id") ?: ""
                         val on = call.argument<Boolean>("on") == true
                         if (!Plugins.set(prefs, id, on)) { result.error("bad_plugin", "Unknown plugin: $id", null); return@setMethodCallHandler }
+                        // One-time codes from texts are the clipboard plugin's: without it their receiver is off.
+                        if (id == Plugins.CLIPBOARD) SmsCodes.apply(this@MainActivity)
                         // Adding dictation fetches its model and asks for the microphone, in one go.
                         if (id == Plugins.DICTATION && on) {
                             WhisperModel.download(this@MainActivity)
@@ -229,6 +253,21 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "clipboardState" -> result.success(mapOf("count" to ClipHistory.all(this@MainActivity).size))
+                    "smsCodesState" -> result.success(smsState())
+                    "setSmsCodes" -> {
+                        // On: the switch, Android's receiver, and Android's own question where it has not said yes.
+                        val on = call.argument<Boolean>("on") == true
+                        prefs.set(KeyboardPrefs.SMS_CODES, on)
+                        SmsCodes.apply(this@MainActivity)
+                        if (on && !SmsCodes.allowed(this@MainActivity)) askForTexts()
+                        result.success(smsState())
+                    }
+                    "askForTexts" -> { askForTexts(); result.success(null) }
+                    "openAppInfo" -> {
+                        // Android's page for this app: its permissions, and (⋮) "Allow restricted settings".
+                        runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        result.success(null)
+                    }
                     "clearClipboard" -> { ClipHistory.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
                     "sampleSound" -> {
                         val pack = call.argument<String>("pack") ?: prefs.stockSound
@@ -437,6 +476,9 @@ class MainActivity : FlutterActivity() {
         /** An extra naming the settings page to open at. */
         const val EXTRA_OPEN = "open"
         private const val REQUEST_MIC = 41
+        private const val REQUEST_SMS = 42
+        /** Android has been asked for the texts permission at least once. */
+        private const val SMS_ASKED = "sms_asked"
         private const val REQUEST_IMPORT = 42
         private const val REQUEST_EXPORT = 43
         private const val STATE_EXPORT_SAMPLES = "export_samples"

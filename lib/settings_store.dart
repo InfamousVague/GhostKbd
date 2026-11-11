@@ -13,6 +13,7 @@ class SettingsStore extends ChangeNotifier {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
       if (call.method == 'dictationChanged') _setDictation(call.arguments);
+      if (call.method == 'smsCodesChanged') _setSmsCodes(call.arguments);
       if (call.method == 'profileDone' && call.arguments is Map) {
         final r = call.arguments as Map;
         profileError = r['error'] as String?;
@@ -94,6 +95,7 @@ class SettingsStore extends ChangeNotifier {
     'theme_preset': 'ghost',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,
+    'sms_codes': false,
     'ai_provider': 'anthropic',
     'ai_base_url': '',
     'mockingbird_collect': true,
@@ -352,6 +354,7 @@ class SettingsStore extends ChangeNotifier {
     }
     loaded = true;
     notifyListeners();
+    await refreshSmsCodes();
   }
 
   Future<void> refreshStatus() async {
@@ -487,6 +490,42 @@ class SettingsStore extends ChangeNotifier {
     accuracyCount = 0;
     notifyListeners();
   }
+
+  /// One-time codes from texts (android SmsCodes.kt): the switch (`on`), whether Android has given the app text
+  /// messages (`allowed`), whether it has been asked for them before (`asked`), and the Android version (`android`,
+  /// its API level) with the one the app is built for (`target`), for the note about what Android 17 keeps back.
+  Map<String, Object?> smsCodes = const {'on': false, 'allowed': false, 'asked': false, 'android': 0, 'target': 0};
+
+  void _setSmsCodes(Object? raw) {
+    if (raw is! Map) return;
+    smsCodes = raw.map((k, v) => MapEntry('$k', v as Object?));
+    _values['sms_codes'] = smsCodes['on'] == true;
+    notifyListeners();
+  }
+
+  /// Read again each time the app comes back to the front: the answer may have been given on Android's own page.
+  Future<void> refreshSmsCodes() async {
+    try {
+      _setSmsCodes(await _channel.invokeMethod<Object>('smsCodesState'));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// The switch. On, Android asks for text messages where it has not said yes; its answer comes as `smsCodesChanged`.
+  Future<void> setSmsCodes(bool on) async {
+    _values['sms_codes'] = on;
+    smsCodes = {...smsCodes, 'on': on};
+    notifyListeners();
+    try {
+      _setSmsCodes(await _channel.invokeMethod<Object>('setSmsCodes', {'on': on}));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> askForTexts() => _call('askForTexts');
+  Future<void> openAppInfo() => _call('openAppInfo');
 
   /// The clipboard plugin's history: how many it holds, and clearing it.
   int clipCount = 0;

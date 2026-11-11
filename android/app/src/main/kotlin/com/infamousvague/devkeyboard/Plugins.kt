@@ -14,6 +14,8 @@ package com.infamousvague.devkeyboard
  * - `gifs` (Gifs.kt): search GIPHY from the plugin row and send a GIF.
  * - `markdown`, `terminal`, `clipboard`, `incognito`: buttons in the plugin row (DevKeyboardService.refreshRow);
  *   markdown and terminal show in the apps they suit (AppContext.kt) unless set to everywhere.
+ *   The clipboard plugin also has "One-time codes from texts" (SmsCodes.kt, OtpCodes.kt; docs/sms-codes.md), a switch
+ *   of its own that is off to start: a sign-in code from a text message as a chip in the row, held in memory only.
  * - `undo` (EditHistory.kt, FieldEditor.kt, ConnectionPort.kt): Undo and Redo arrows in the row. Every edit the keyboard
  *   makes goes through FieldEditor, which keeps a history of them for the field in hand and plays it back; where it has
  *   nothing of its own it asks the app to undo.
