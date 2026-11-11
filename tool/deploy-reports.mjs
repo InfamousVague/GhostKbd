@@ -168,9 +168,13 @@ if (printOnly) {
 const { BOX_ENV_KEYS, boxSshOptions, openBox, tarball } = await import(pathToFileURL(join(glyph, 'tauri/scripts/lib/box.mjs')).href);
 const { loadEnv } = await import(pathToFileURL(join(glyph, 'scripts/lib/env.mjs')).href);
 const env = loadEnv(BOX_ENV_KEYS);
-const box = openBox(env, boxSshOptions({ connectTimeout: 20, knownHosts: join(homedir(), '.ssh', 'known_hosts') }));
+const sshOptions = boxSshOptions({ connectTimeout: 20, knownHosts: join(homedir(), '.ssh', 'known_hosts') });
+const box = openBox(env, sshOptions);
+// A connection the step before left open (--keep-connection) is a login already spent. The box counts logins, so
+// this says which it was: the first run against the box printed "logged in" for the install that only rode the look's.
+const riding = spawnSync('ssh', [...sshOptions, '-O', 'check', box.target], { stdio: 'ignore' }).status === 0;
 box.logIn();
-console.log(`  logged in at ${new Date().toISOString().slice(11, 19)} UTC`);
+console.log(riding ? '  on the connection already open (no new login)' : `  logged in at ${new Date().toISOString().slice(11, 19)} UTC`);
 const ship = () => {
   const dir = mkdtempSync(join(tmpdir(), 'ghostkbd-reports-'));
   try {

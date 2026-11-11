@@ -26,9 +26,26 @@ by default): [docs/reports.md](../../docs/reports.md) says what one holds. This 
 
 No access log line is written for that path (`log_skip`; `skip_log` before Caddy 2.8).
 
-The reports are in `/var/lib/ghostkbd-reports/`. Where the collector is not up, the keyboard's reports are refused by
-the site (404), and it keeps what is waiting and tries again later; nothing is lost but the days past the fortnight
-it waits.
+It has been there since 2026-11-11, 02:21 UTC (Matt: "Yes login to the box and run the collector"; Caddy 2.11.4,
+python 3.12.3, one login for the look, the install and the checks). What was checked that day, from outside: a report
+was kept (204) and its line on the box was byte for byte what `clean` leaves of it; junk was refused (400), a GET
+(405), 200 KB (413); the keyboard's own "Send it now" on the emulator said it was sent and emptied what was waiting.
+Both test lines were deleted again, so the first line there is a person's.
+
+**What the web server writes when the collector is down** was looked at by stopping it for a few seconds: the route
+answers 502, and Caddy's journal got no line. `log_skip` cannot take the credit, since it covers the access log
+only. Caddy's journal on the box held no `http.log.error` line from any site in the seven days before, so this box
+does not write handler errors at all as it is set up; the likely reason (not proved here) is the `handle_errors` in
+libre.academy's block, since with an error route on a server Caddy writes handler errors at debug level. Were that
+to change, a report that arrives while the collector is down would leave an error line with the sender's address
+and the time in Caddy's journal, though never the report. The collector restarts itself after five seconds; if it
+is ever down for longer, look for such lines (`journalctl -u caddy | grep devkeyboard/report`) and say so.
+
+The reports are in `/var/lib/ghostkbd-reports/` (under `/var/lib/private`, which only root and the service can
+enter). Where the collector is not up the keyboard is answered 502, and where the route is not written 404: either
+way it keeps what is waiting and tries again later, and nothing is lost but the days past the fortnight it waits.
+
+To add them up, on the box: `python3 /opt/ghostkbd-reports/summarize.py /var/lib/ghostkbd-reports`.
 
 ## Keeping them
 
