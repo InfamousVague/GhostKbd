@@ -143,24 +143,30 @@ and the numbers.
 **Settings › Trainer** (Android; the row under Setup, at the top of Settings): a story is shown, a part at a time, and
 typed with the keyboard. A run is timed and scored against what was meant: words a minute, the share of taps that hit
 their key, the words missed, backspaces, what autocorrect mended and what it spoiled, the keys and letter pairs that
-go wrong. After each run every key's touch area takes one small step toward where the taps meant for it landed, in
-Adaptive keys' own model, which changes nothing that can be seen. With **Try different layouts** switched on (it is
-off unless turned on, and read as a run starts) some runs are typed on shorter or taller keys, and a height takes over
-only after eight runs or more say so; the setting itself is never touched unless the person takes the suggestion.
-After five runs there is a profile (where the taps land, speed, mistakes, the height the runs point to) that can be
-applied to everyday typing, and a practice run made of the person's own mistakes. Its pages draw the keyboard simply,
-twice: tinted by where the mistakes happen, and with a ring where each key's taps land and an arrow for how far its
-touch area has moved. A story is not the person's writing:
-a run teaches nothing to next-word prediction or Mockingbird and counts nothing for stats or reports.
+go wrong. The first run is typed on the keyboard as it is. Each run after it is typed on a new **fix**, every key's
+touch area a small step nearer to where the taps meant for it land, and is an A/B test of that fix: the keyboard
+reads every tap twice, as the fix reads it and as the keyboard as it is would have, so the two are compared on the
+same taps. A fix is worn only by the run that tests it; switching everyday typing to one is offered only once it is
+**proven** better (three runs or more, a lead chance would give less than once in a hundred tries, and one that
+holds from run to run), and is the person's own tap. With **Try different layouts** switched on (it is off unless
+turned on, and read as a run starts) some runs are typed on shorter or taller keys, in pairs with the person's own,
+and a height is suggested only once it too is proven; the setting itself is never touched unless the person takes
+the suggestion. After five runs there is a profile (where the taps land, speed, mistakes, the test as it stands, the
+height the runs proved), and a practice run made of the person's own mistakes. Its pages draw the keyboard simply,
+twice: tinted by where the mistakes happen, and with a ring where each key's taps land and an arrow for where the fix
+has its touch area; and the runs that tested a fix as two lines, with it and without. A story is not the person's
+writing: a run teaches nothing to next-word prediction or Mockingbird and counts nothing for stats or reports.
 [docs/trainer.md](docs/trainer.md) has all of it.
 
-- `TrainerText.kt`, `TrainerRun.kt`, `TrainerAims.kt`, `LayoutTrials.kt`, `TrainerBook.kt`, `TrainerStories.kt` (no
-  Android in them): what was typed against what was meant, a run scored, the step, the layout trials, what is kept.
-- `Trainer.kt`, `TrainerKeys.kt`, `TrainerChannel.kt`: a run in hand, the ear on the keyboard's keys, and the
-  screen's channel. `lib/trainer/` is the pages, and `trainer_board.dart` the pictures of the keyboard on them;
-  `assets/trainer/stories.txt` the fifty-four story parts, written for it.
-- `tool/trainer_sim.sh` (kotlinc and java, no emulator): a simulated thumb with a steady lean types the stories with
-  the steps and without, to show the touch areas adapting does what it is meant to.
+- `TrainerText.kt`, `TrainerRun.kt`, `TrainerAims.kt`, `TrainerFix.kt`, `LayoutTrials.kt`, `TrainerBook.kt`,
+  `TrainerStories.kt` (no Android in them): what was typed against what was meant, a run scored and read both ways,
+  the step from one fix to the next, the test of the fixes and what is proof, the layout trials, what is kept.
+- `Trainer.kt`, `TrainerKeys.kt`, `TrainerChannel.kt`: a run in hand and the fix it wears, the ear on the keyboard's
+  keys, and the screen's channel. `lib/trainer/` is the pages, `trainer_fix.dart` the test as they read it, and
+  `trainer_board.dart` the pictures on them; `assets/trainer/stories.txt` the fifty-four story parts, written for it.
+- `tool/trainer_sim.sh` (kotlinc and java, no emulator): a simulated thumb with a steady lean types the stories on
+  the fixes and without, to show they do what they are meant to; and a thousand thumbs of each kind, with a lean
+  and with none, to show how often the test says "proven", and to whom.
 
 ## Anonymous typing reports (off by default)
 

@@ -9,8 +9,13 @@ package com.infamousvague.devkeyboard
  * words that came out right were typed.
  */
 
-/** A tap on a key: the [key] it was read as (a letter key's lower-case letter), and where it landed about that key's middle, in fractions of the key (0.5 is its edge; right and down are positive). */
-class KeyTap(val key: Char, val fx: Float, val fy: Float)
+/**
+ * A tap on a key: the [key] it was read as (a letter key's lower-case letter), and where it landed about that key's
+ * middle, in fractions of the key (0.5 is its edge; right and down are positive). [asIs] is the key the keyboard as
+ * it is in everyday typing would have read the same touch as: another key only in a run that is typed on a fix
+ * ([FixTrial]), and only for a touch the fix and the keyboard read differently.
+ */
+class KeyTap(val key: Char, val fx: Float, val fy: Float, val asIs: Char = key)
 
 /** What the keyboard was asked to do in a step of a run. SEEN is the text found changed with no key pressed: a word tapped in the row, or a stroke read. */
 enum class KeyKind { CHAR, SPACE, ENTER, BACKSPACE, DELETE_WORD, SWIPE, SEEN }
@@ -142,6 +147,15 @@ class RunResult(
     val perPair: Map<String, PairStat>,
     val slipPairs: Map<String, Int>,
     val tries: List<WordTry>,
+    /**
+     * The same taps as the keyboard as it is would have read them ([KeyTap.asIs]): how many of [taps] it would have
+     * put on their key, where [hits] is what the keys the run was typed on did. [won] are the taps only the run's
+     * keys read right, and [lost] the taps only the keyboard as it is would have. In a run typed on no fix the two
+     * readings are one: [asIs] is [hits], and nothing is won or lost.
+     */
+    val asIs: Int = hits,
+    val won: Int = 0,
+    val lost: Int = 0,
 ) {
     /** How much of the story was typed, right or wrong: a run counts from [TrainerScore.COUNTED] of it. */
     val typedShare: Float get() = if (words == 0) 0f else (words - skipped.size).toFloat() / words
@@ -351,10 +365,14 @@ object TrainerScore {
         val slipPairs = HashMap<String, Int>()
         var taps = 0; var hits = 0; var slips = 0; var wrongKeys = 0; var extraTaps = 0; var omitted = 0; var swaps = 0
         var spacesMissed = 0
+        var asIs = 0; var won = 0; var lost = 0
 
         fun measure(want: Char, tap: KeyTap) {
             val stat = perKey.getOrPut(want) { KeyStat() }
             stat.taps++; taps++
+            // The same touch read both ways: by the keys the run was typed on, and by the keyboard as it is.
+            if (tap.asIs == want) asIs++
+            if (tap.key == want && tap.asIs != want) won++ else if (tap.key != want && tap.asIs == want) lost++
             if (tap.key == want) {
                 stat.hits++; hits++
                 if (kotlin.math.abs(tap.fx) <= FAR && kotlin.math.abs(tap.fy) <= FAR) { stat.aimed++; stat.sumX += tap.fx; stat.sumY += tap.fy }
@@ -510,6 +528,7 @@ object TrainerScore {
             swiped = swiped, picked = picked, spacesMissed = spacesMissed, straySpaces = straySpaces,
             taps = taps, hits = hits, slips = slips, wrongKeys = wrongKeys, extraTaps = extraTaps, omitted = omitted, swaps = swaps,
             perKey = perKey, perPair = perPair, slipPairs = slipPairs, tries = tries,
+            asIs = asIs, won = won, lost = lost,
         )
     }
 }

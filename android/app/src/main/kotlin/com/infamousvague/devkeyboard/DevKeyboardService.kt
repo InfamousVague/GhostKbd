@@ -527,7 +527,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.bottomSpace = prefs.bottomSpace
         view.deleteSwipe = prefs.deleteSwipe
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
-        view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE) || Trainer.adapts(currentInputEditorInfo?.packageName, packageName)) AdaptiveKeys.get(this, language.spec.id) else null
+        view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this, language.spec.id) else null
+        // A trainer run that tests a fix has the keys listen where the fix has them, in the trainer's own field and
+        // for that run only (Trainer.fixFor). The fix is worn, like a trial layout: the model is never written.
+        view.fix = Trainer.fixFor(currentInputEditorInfo?.packageName, packageName)
         view.adaptiveMap = Plugins.isOn(prefs, Plugins.ADAPTIVE) && prefs.adaptiveMap
         view.backlight = if (!prefs.backlight || isPassword(currentInputEditorInfo)) null else view.backlight?.takeIf {
             it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode &&

@@ -31,7 +31,8 @@ class TrainerStore extends ChangeNotifier {
 
   /// Everything the trainer shows that is not a run in hand (Trainer.state): whether Ghost Keyboard is `selected`,
   /// the `next` story part, the `trials` switch, `runs` and `history`, `mistakes`, `pairs` and `keys`, the `profile`
-  /// once there is one, and the `layouts` trials. Empty until the keyboard has answered (and off Android).
+  /// once there is one, the `layouts` trials, and the test of the fixes (`fix`, trainer_fix.dart). Empty until the
+  /// keyboard has answered (and off Android).
   Map<String, Object?> state = const {};
   bool loaded = false;
 
@@ -48,7 +49,7 @@ class TrainerStore extends ChangeNotifier {
   /// A run was dropped because the app was left while it was on; cleared by the next run.
   bool dropped = false;
 
-  /// What applying the profile said, a line each.
+  /// What switching to a fix or a key height said, a line each.
   List<String> said = const [];
 
   static Map<String, Object?> _strings(Map raw) => raw.map((k, v) => MapEntry('$k', v as Object?));
@@ -123,8 +124,9 @@ class TrainerStore extends ChangeNotifier {
     await _ask('leave');
   }
 
-  /// Puts the profile to use in everyday typing: with [aims] where the taps land, with [height] the key height the runs point to.
-  Future<void> apply({bool aims = false, bool height = false}) async => _take(await _ask('apply', {'aims': aims, 'height': height}));
+  /// Puts what the runs proved to use in everyday typing: with [fix] the fix in hand, with [height] the key height the
+  /// trials proved better. The keyboard does neither unless it is proven.
+  Future<void> apply({bool fix = false, bool height = false}) async => _take(await _ask('apply', {'fix': fix, 'height': height}));
 
   /// Opens every layout to trial again.
   Future<void> again() async => _take(await _ask('again'));
@@ -159,7 +161,7 @@ class TrainerStore extends ChangeNotifier {
 
   String get summary {
     final runs = number('runs');
-    if (!loaded || runs == 0) return 'Type a story; the keys learn your thumbs';
+    if (!loaded || runs == 0) return 'Type a story; each run tests a fix for your thumbs';
     final best = number('best');
     return '${runs == 1 ? '1 run' : '$runs runs'}${best > 0 ? ' · $best words a minute at best' : ''}';
   }

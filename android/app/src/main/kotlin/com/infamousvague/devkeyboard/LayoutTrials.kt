@@ -3,22 +3,26 @@ package com.infamousvague.devkeyboard
 /**
  * The typing trainer's layout trials (docs/trainer.md; Matt, 2026-11-11: "try different layouts like more condensed
  * or less condensed", and "we should only do the condensed vs expanded views and shifting the UI majorly if the
- * setting is enabled when we start the trainer"). Plain Kotlin with no Android in it.
+ * setting is enabled when we start the trainer"; then "a b test the accuracy and don't suggest switching until its
+ * proven we got a better result"). Plain Kotlin with no Android in it.
  *
  * Only with the trainer's "Try different layouts" switch on, as it stood when a run started, may a run be typed on
  * keys of another height than the person's own. This says which, and what the runs so far add up to.
  *
  * The heights stand in a line, [HEIGHTS], most condensed first. One of them is [home]: the best found so far, which
- * starts as the person's [own] setting. A trial holds home against one neighbour (a step more condensed, or a step
- * less), run about: home, the neighbour, home, the neighbour. It ends when:
- * - the neighbour has scored higher in three of every four pairs or more, and its usual (median) score is [MARGIN]
- *   (six in a hundred) better: it becomes home, one step and no further;
- * - it has lost that clearly, or [MAX_PAIRS] pairs have not settled it: it is let go, and home stays.
- * Never before [MIN_PAIRS] pairs (eight runs), so one noisy run decides nothing. Then the other neighbour is tried, and when
- * neither does better the trials are [settled].
+ * starts as the person's [own] setting. A trial is an A/B test of home against one neighbour (a step more condensed,
+ * or a step less), run about: home, the neighbour, home, the neighbour, each pair of runs typed one after the other
+ * so that a good day counts for both. It ends when:
+ * - the neighbour is **proven** better: over [MIN_PAIRS] pairs or more its lead, pair by pair, is so steady that
+ *   chance would give one like it less than once in two hundred tries were it no better (a paired t test on the
+ *   scores' ratios, [PROVEN]). It becomes home, one step and no further;
+ * - its scores are not ahead at all once [MIN_PAIRS] pairs are in, or [MAX_PAIRS] pairs have not proven it: it is
+ *   let go, and home stays.
+ * One good run decides nothing, and neither do three. Then the other neighbour is tried, and when neither is proven
+ * better the trials are [settled].
  *
  * Nothing here changes the person's setting. A trial layout is worn by the keyboard only for the run that asked for
- * it (Trainer.kt), and [suggestion] is an offer.
+ * it (Trainer.kt), and [suggestion] is an offer, made only of a height that was proven.
  */
 class LayoutTrials {
     /** The person's own key height as it last was, and the best height found from there. */
@@ -41,11 +45,17 @@ class LayoutTrials {
     /** Every height's latest scores (at most [KEPT]), for what the profile says of them. */
     val scores = LinkedHashMap<String, ArrayList<Float>>()
 
-    /** A height taking over from another. */
-    class Move(val from: String, val to: String)
+    /** A height taking over from another, proven over [pairs] pairs of runs of which it scored higher in [wins]. */
+    class Move(val from: String, val to: String, val pairs: Int = 0, val wins: Int = 0)
 
-    /** The height the runs point to in place of the person's own, with what they measured on each. */
-    class Suggestion(val height: String, val score: Float, val runs: Int, val ownScore: Float, val ownRuns: Int)
+    /** The height the runs proved better than the person's own, with what they measured on each, and the pairs of runs that proved the last step to it. */
+    class Suggestion(val height: String, val score: Float, val runs: Int, val ownScore: Float, val ownRuns: Int, val pairs: Int = 0, val wins: Int = 0)
+
+    /** The pairs of runs that proved [home] better than the height before it, and how many of them it scored higher in. 0 while home is where the trials began. */
+    var provenPairs = 0
+        private set
+    var provenWins = 0
+        private set
 
     /**
      * The person's own height, told before each run. Where they have changed it by hand the trials start again from
@@ -57,6 +67,7 @@ class LayoutTrials {
         own = h
         if (h == home) return
         home = h
+        provenPairs = 0; provenWins = 0
         clearTrial()
         rejected.clear()
     }
@@ -97,21 +108,20 @@ class LayoutTrials {
         val c = candidate ?: return null
         val pairs = minOf(homeScores.size, candidateScores.size)
         if (pairs < MIN_PAIRS) return null
-        var wins = 0
-        var losses = 0
-        for (i in 0 until pairs) { if (candidateScores[i] > homeScores[i]) wins++ else if (candidateScores[i] < homeScores[i]) losses++ }
-        val h = median(homeScores.take(pairs))
-        val n = median(candidateScores.take(pairs))
-        if (wins * 4 >= pairs * 3 && n >= h * (1f + MARGIN)) {
+        // The neighbour's lead in each pair of runs, as the log of the two scores' ratio: 0 is level.
+        val lead = FloatArray(pairs) { kotlin.math.ln(candidateScores[it] / homeScores[it]) }
+        if (Proof.steady(lead, PROVEN)) {
             val from = home
             home = c
+            provenPairs = pairs
+            provenWins = lead.count { it > 0f }
             clearTrial()
             rejected.clear()
             // Home was just beaten by this one: it is not tried again from here.
             rejected += from
-            return Move(from, c)
+            return Move(from, c, provenPairs, provenWins)
         }
-        if ((losses * 4 >= pairs * 3 && n <= h * (1f - MARGIN)) || pairs >= MAX_PAIRS) {
+        if (lead.average() <= 0.0 || pairs >= MAX_PAIRS) {
             rejected += c
             clearTrial()
         }
@@ -122,24 +132,30 @@ class LayoutTrials {
     fun again() { rejected.clear(); clearTrial() }
 
     /** The trials as they were kept (TrainerCodec): heights this keyboard does not have are dropped. */
-    fun restore(own: String, home: String, candidate: String?, rejected: Collection<String>, homeScores: List<Float>, candidateScores: List<Float>, scores: Map<String, List<Float>>) {
+    fun restore(own: String, home: String, candidate: String?, rejected: Collection<String>, homeScores: List<Float>, candidateScores: List<Float>, scores: Map<String, List<Float>>, provenPairs: Int = 0, provenWins: Int = 0) {
         this.own = own.takeIf { it in HEIGHTS } ?: "normal"
         this.home = home.takeIf { it in HEIGHTS } ?: this.own
-        this.candidate = candidate?.takeIf { it in HEIGHTS && it != this.home }
-        this.rejected.clear(); this.rejected += rejected.filter { it in HEIGHTS }
-        this.homeScores.clear(); this.homeScores += homeScores
+        this.provenPairs = if (this.home == this.own) 0 else provenPairs.coerceAtLeast(0)
+        this.provenWins = provenWins.coerceIn(0, this.provenPairs)
+        // A home that is not the person's own and was never proven (an earlier version moved on less) is no home:
+        // the trials begin again from their own keys, with every height's scores as they were.
+        val unproven = this.home != this.own && this.provenPairs < MIN_PAIRS
+        if (unproven) { this.home = this.own; this.provenPairs = 0; this.provenWins = 0 }
+        this.candidate = candidate?.takeIf { it in HEIGHTS && it != this.home && !unproven }
+        this.rejected.clear(); if (!unproven) this.rejected += rejected.filter { it in HEIGHTS }
+        this.homeScores.clear(); if (!unproven) this.homeScores += homeScores
         this.candidateScores.clear(); if (this.candidate != null) this.candidateScores += candidateScores
         this.scores.clear()
         for ((height, list) in scores) if (height in HEIGHTS) this.scores[height] = ArrayList(list.takeLast(KEPT))
     }
 
-    /** The height the runs have moved to, where that is not the person's own, with the usual score on each. */
+    /** The height the runs proved better, where that is not the person's own, with the usual score on each. Home only ever moves on proof ([decide]), so there is nothing to suggest until then. */
     fun suggestion(): Suggestion? {
         if (home == own) return null
         val there = scores[home].orEmpty()
         val here = scores[own].orEmpty()
-        if (there.size < MIN_PAIRS) return null
-        return Suggestion(home, median(there), there.size, if (here.isEmpty()) Float.NaN else median(here), here.size)
+        if (there.size < MIN_PAIRS || provenPairs < MIN_PAIRS) return null
+        return Suggestion(home, median(there), there.size, if (here.isEmpty()) Float.NaN else median(here), here.size, provenPairs, provenWins)
     }
 
     companion object {
@@ -148,16 +164,18 @@ class LayoutTrials {
         val LABELS = mapOf("condensed" to "Condensed", "short" to "Short", "normal" to "Normal", "tall" to "Tall")
 
         /**
-         * A trial is decided on no fewer pairs of runs than this, and given up as no better after [MAX_PAIRS]. A
-         * height takes over only where its usual score is [MARGIN] better, and is let go early only where it is that
-         * much worse. The three were set on simulated people whose runs scatter by a twentieth of their score
-         * (tool/trainer_sim.sh): where no height is better, five in six are left on their own; where one is a tenth
-         * better, nine in ten are moved to it, in about seventeen runs. TrainerAdaptationTest holds each build near it.
+         * A trial is decided on no fewer pairs of runs than this, and given up as not proven after [MAX_PAIRS].
+         * [PROVEN] is how steady a lead has to be, by how many pairs it stands on: Student's t at one in two hundred,
+         * one-sided. A trial is looked at after every pair from [MIN_PAIRS] on, and looking more often finds more by
+         * chance, which is why the level is that strict: on simulated people whose runs scatter by a twentieth of
+         * their score (tool/trainer_sim.sh), where no height is better 96 in 100 are left on their own (the rule
+         * before this one left 84), and where one is a tenth better 85 in 100 are moved to it, in about twenty-two
+         * runs. TrainerAdaptationTest holds each build near it.
          */
         const val MIN_PAIRS = 4
-        const val MAX_PAIRS = 6
-        const val MARGIN = 0.06f
-        const val KEPT = 12
+        const val MAX_PAIRS = 10
+        const val KEPT = 20
+        private val PROVEN = Proof.ONE_IN_200
 
         fun median(values: List<Float>): Float {
             if (values.isEmpty()) return Float.NaN

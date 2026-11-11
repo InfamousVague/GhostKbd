@@ -20,7 +20,45 @@ object TrainerMaps {
     fun line(r: RunLine): Map<String, Any?> = mapOf(
         "at" to r.at, "title" to r.title, "practice" to r.practice, "height" to r.height, "heightLabel" to label(r.height), "trial" to r.trial,
         "ms" to r.ms, "wpm" to Math.round(r.wpm), "accuracy" to percent(r.accuracy), "words" to r.words, "right" to r.right, "firstTry" to r.firstTry,
+        // The fix the run was typed on and tested (0: none), and what the keyboard as it is would have made of the same taps (-1: nothing was tested).
+        "fix" to r.fix, "asIs" to if (r.fix > 0) percent(r.asIs) else -1,
     )
+
+    /** A share to a tenth of a percent, for two readings of the same taps that a whole percent would call level; -1 where there is none. */
+    private fun share(part: Int, of: Int): Double = if (of <= 0) -1.0 else Math.round(part * 1000.0 / of) / 10.0
+
+    /** One run that tested a fix, as the screen says it. */
+    fun fixRun(r: FixTrial.FixRun): Map<String, Any?> = mapOf(
+        "number" to r.number, "taps" to r.taps, "asIs" to r.asIs, "fixed" to r.fixed, "won" to r.won, "lost" to r.lost,
+        "asIsShare" to share(r.asIs, r.taps), "fixedShare" to share(r.fixed, r.taps),
+    )
+
+    /**
+     * The test of the fixes as it stands ([FixTrial]): which fix is in hand and whether a run has tested it, how many
+     * keys it has listening somewhere else than the keyboard as it is ([differs]), the runs that tested a fix and
+     * what they add up to, and the verdict: `none`, `testing`, `proven` or `worse`. [verdict] is given where it is
+     * not the trial's own now (a run that proved its fix worse has already had it dropped). `hold` is what keeps a
+     * fix that is being tested from proven ([FixTrial.Hold]). [next] is whether a story run started now would be
+     * typed on a fix and test it. `oneIn` is how often chance alone would split the taps
+     * the two read differently this far the fix's way, as "1 in N" (0: more often than one time in two, or nothing
+     * to split).
+     */
+    fun fix(t: FixTrial?, adaptive: Boolean, differs: Int, verdict: FixTrial.Verdict? = null, next: Boolean = false): Map<String, Any?> {
+        val s = t?.sum ?: FixTrial.Sum(0, 0, 0, 0, 0, 0, 0, 0)
+        val odds = if (s.won <= s.lost) 0.0 else Proof.chance(s.won, s.won + s.lost)
+        return mapOf(
+            "number" to (t?.number ?: 0), "tested" to (t?.tested ?: true), "taken" to (t?.taken ?: 0), "dropped" to (t?.dropped ?: 0),
+            // The fix the runs tested: the one the verdict speaks of, and the one a switch takes.
+            "last" to (t?.testedNumber ?: 0),
+            "adaptive" to adaptive, "differs" to differs, "next" to next,
+            "verdict" to (verdict ?: t?.verdict ?: FixTrial.Verdict.NONE).name.lowercase(), "hold" to t?.hold?.name?.lowercase(),
+            "runs" to s.runs, "taps" to s.taps, "asIs" to s.asIs, "fixed" to s.fixed, "won" to s.won, "lost" to s.lost, "ahead" to s.ahead, "behind" to s.behind,
+            "asIsShare" to share(s.asIs, s.taps), "fixedShare" to share(s.fixed, s.taps),
+            "oneIn" to if (odds <= 0.0 || odds > 0.5) 0 else Math.min(1_000_000.0, Math.floor(1.0 / odds)).toInt(),
+            "needs" to FixTrial.MIN_RUNS, "bar" to FixTrial.ONE_IN, "kept" to FixTrial.KEPT,
+            "tests" to t?.runs.orEmpty().map(::fixRun),
+        )
+    }
 
     fun mistake(m: TrainerMistake): Map<String, Any?> = mapOf("word" to m.word, "typed" to m.typed, "missed" to m.missed, "seen" to m.seen, "last" to m.last, "streak" to m.streak)
     fun pair(p: WeakPair): Map<String, Any?> = mapOf("pair" to p.pair, "missed" to p.missed, "n" to p.n, "trend" to p.trend)
@@ -30,16 +68,33 @@ object TrainerMaps {
     private fun misses(list: List<WordMiss>): List<Map<String, Any?>> = list.take(MAX_LISTED).map { mapOf("meant" to it.meant, "typed" to it.typed) }
 
     fun suggestion(s: LayoutTrials.Suggestion?): Map<String, Any?>? = s?.let {
-        mapOf("height" to it.height, "label" to label(it.height), "score" to round1(it.score), "runs" to it.runs, "ownScore" to round1(it.ownScore), "ownRuns" to it.ownRuns)
+        mapOf(
+            "height" to it.height, "label" to label(it.height), "score" to round1(it.score), "runs" to it.runs, "ownScore" to round1(it.ownScore), "ownRuns" to it.ownRuns,
+            "pairs" to it.pairs, "wins" to it.wins,
+        )
     }
 
-    /** The layout trials as they stand: where home is, what is being tried, and each height's usual score so far. */
-    fun layouts(t: LayoutTrials): Map<String, Any?> = mapOf(
-        "own" to t.own, "ownLabel" to label(t.own), "home" to t.home, "homeLabel" to label(t.home),
-        "candidate" to t.candidate, "candidateLabel" to t.candidate?.let(::label), "settled" to t.settled,
-        "scores" to LayoutTrials.HEIGHTS.filter { !t.scores[it].isNullOrEmpty() }.map { h -> mapOf("height" to h, "label" to label(h), "runs" to t.scores.getValue(h).size, "score" to round1(LayoutTrials.median(t.scores.getValue(h)))) },
-        "suggestion" to suggestion(t.suggestion()),
-    )
+    /**
+     * The layout trials as they stand: where home is, what is being tried and how its pairs of runs stand so far,
+     * and each height's usual score. [runs] are the book's: each height's taps on their key over its trial runs is
+     * said beside its score.
+     */
+    fun layouts(t: LayoutTrials, runs: List<RunLine> = emptyList()): Map<String, Any?> {
+        val pairs = minOf(t.homeScores.size, t.candidateScores.size)
+        return mapOf(
+            "own" to t.own, "ownLabel" to label(t.own), "home" to t.home, "homeLabel" to label(t.home),
+            "candidate" to t.candidate, "candidateLabel" to t.candidate?.let(::label), "settled" to t.settled,
+            "pairs" to pairs, "wins" to (0 until pairs).count { t.candidateScores[it] > t.homeScores[it] }, "minPairs" to LayoutTrials.MIN_PAIRS, "maxPairs" to LayoutTrials.MAX_PAIRS,
+            "scores" to LayoutTrials.HEIGHTS.filter { !t.scores[it].isNullOrEmpty() }.map { h ->
+                val on = runs.filter { it.trial && !it.practice && it.height == h && !it.accuracy.isNaN() }.takeLast(LayoutTrials.KEPT)
+                mapOf(
+                    "height" to h, "label" to label(h), "runs" to t.scores.getValue(h).size, "score" to round1(LayoutTrials.median(t.scores.getValue(h))),
+                    "accuracy" to if (on.isEmpty()) -1 else percent(on.map { it.accuracy }.average().toFloat()),
+                )
+            },
+            "suggestion" to suggestion(t.suggestion()),
+        )
+    }
 
     fun profile(p: TrainerProfile, file: String): Map<String, Any?> = mapOf(
         "runs" to p.runs, "wpmFirst" to Math.round(p.wpmFirst), "wpmNow" to Math.round(p.wpmNow), "wpmBest" to Math.round(p.wpmBest),
@@ -50,10 +105,11 @@ object TrainerMaps {
     )
 
     /**
-     * A run as its results page shows it. [nudged] are the keys whose touch areas the run moved, each with where its
-     * nudge now stands; [taught] is how many of its mistakes went to "Your corrections".
+     * A run as its results page shows it. [nudged] are the keys the fix it was typed on has listening somewhere else
+     * than the keyboard as it is, each with where (none: it was typed on the keyboard as it is); [taught] is how many
+     * of its mistakes went to "Your corrections".
      */
-    fun result(r: RunResult, nudged: Map<Char, TrainerAims.Aim>, taught: Int): Map<String, Any?> {
+    fun result(r: RunResult, nudged: Map<Char, Pair<Float, Float>>, taught: Int): Map<String, Any?> {
         // The keys and pairs this run went wrong on most: enough taps to say, and at least one wrong.
         val keys = r.perKey.entries.filter { it.value.missed > 0 }.sortedWith(compareBy({ -it.value.missed }, { it.key })).take(5).map { (key, stat) ->
             val toward = r.slipPairs.entries.filter { it.key.length == 3 && it.key[2] == key }.maxByOrNull { it.value }?.key?.get(0)
@@ -69,7 +125,7 @@ object TrainerMaps {
             "swiped" to r.swiped, "picked" to r.picked, "spacesMissed" to r.spacesMissed, "straySpaces" to r.straySpaces,
             "taps" to r.taps, "hits" to r.hits, "slips" to r.slips, "wrongKeys" to r.wrongKeys, "extraTaps" to r.extraTaps, "omitted" to r.omitted, "swaps" to r.swaps,
             "weakKeys" to keys, "weakPairs" to pairs,
-            "nudged" to nudged.entries.sortedBy { it.key }.map { mapOf("key" to it.key.toString(), "dx" to round2(it.value.dx), "dy" to round2(it.value.dy)) },
+            "nudged" to nudged.entries.sortedBy { it.key }.map { mapOf("key" to it.key.toString(), "dx" to round2(it.value.first), "dy" to round2(it.value.second)) },
             "taught" to taught,
         )
     }

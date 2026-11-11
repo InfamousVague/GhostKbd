@@ -56,12 +56,15 @@ class TrainerKeys(
         } catch (t: Throwable) { Log.w(TAG, "the trainer missed a key", t) }
     }
 
-    /** Where the finger that typed [text] landed, about the middle of the key it was read as, in fractions of that key. */
+    /**
+     * Where the finger that typed [text] landed, about the middle of the key it was read as, in fractions of that
+     * key; and, in a run typed on a fix, the key the keyboard as it is would have read the same touch as.
+     */
     private fun tapOf(text: String): KeyTap? {
         if (text.length != 1) return null
         val t = view()?.peekTyped() ?: return null
         if (t.c.lowercaseChar() != text[0].lowercaseChar() || t.rect.width() <= 0f || t.rect.height() <= 0f) return null
-        return KeyTap(t.c.lowercaseChar(), (t.x - t.rect.centerX()) / t.rect.width(), (t.y - t.rect.centerY()) / t.rect.height())
+        return KeyTap(t.c.lowercaseChar(), (t.x - t.rect.centerX()) / t.rect.width(), (t.y - t.rect.centerY()) / t.rect.height(), t.asIs.lowercaseChar())
     }
 
     override fun onText(text: String, caretBack: Int) {

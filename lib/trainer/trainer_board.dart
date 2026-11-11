@@ -2,7 +2,8 @@
 /// the mistakes happen and what has shifted where using a simplified keyboard display"): the keyboard drawn simply,
 /// its letter keys only, in two ways. Tinted by how often each key is missed, with an arrow from a key to the one hit
 /// in its place; and with a ring where the taps meant for each key land and an arrow for how far its touch area has
-/// moved. And the runs as two lines: the share of taps on their key, and of words right first time.
+/// moved. And the runs as two lines: the share of taps on their key, and of words right first time; and the runs that
+/// tested a fix as two more, the same taps read by the fix and by the keyboard as it is ([FixFigure]).
 ///
 /// The keyboard measures all of it (Android's TrainerMaps.board); these only draw what they are told.
 library;
@@ -14,6 +15,7 @@ import 'package:glacier/glacier.dart';
 
 import '../settings/kit/settings_kit.dart';
 import '../settings/kit/settings_type.dart';
+import 'trainer_fix.dart';
 
 double _num(Object? v) => v is num && v.isFinite ? v.toDouble() : 0;
 int _whole(Object? v) => v is num && v.isFinite ? v.toInt() : 0;
@@ -64,7 +66,8 @@ class BoardKey {
   final double landY;
   final int landed;
 
-  /// The nudge its touch area has now, in fractions of the key; [moved] where the trainer moved it.
+  /// Where it listens, from its middle, in fractions of the key: in the fix the picture is of, or on the keyboard as
+  /// it is where no fix has moved it. [moved] where the fix has it somewhere else than the keyboard as it is.
   final double shiftX;
   final double shiftY;
   final bool moved;
@@ -149,7 +152,8 @@ class TrainerBoardData {
   int get taps => keys.fold(0, (n, k) => n + k.taps);
   int get missed => keys.fold(0, (n, k) => n + k.missed);
 
-  /// The keys whose touch area is off its middle now, the keys the trainer moved, and the keys with a landing place.
+  /// The keys whose touch area is off its middle, the keys a fix has somewhere else than the keyboard as it is, and
+  /// the keys with a landing place.
   int get shifted => keys.where((k) => k.shifted).length;
   int get moved => keys.where((k) => k.moved).length;
   int get landed => keys.where((k) => k.landed > 0).length;
@@ -192,21 +196,23 @@ class TrainerBoardData {
     return 'Missed most: ${said.join(', ')}.';
   }
 
-  /// What has shifted where, in a line. With [run], the picture is one run's: it says what that run moved.
+  /// What has shifted where, in a line: the keys the fix has listening somewhere else than the keyboard as it is,
+  /// and the keys the keyboard has off their middles already. With [run], the picture is of the fix one run was
+  /// typed on.
   String areasSaid({bool run = false}) {
-    final off = keys.where((k) => k.shifted).toList()..sort((a, b) => b.shift.compareTo(a.shift));
-    if (run) {
-      final now = keys.where((k) => k.moved).length;
-      final before = off.where((k) => !k.moved).length;
-      final earlier = before == 0 ? '' : '; ${_areas(before)} moved before it';
-      if (now == 0) return 'This run moved no touch area$earlier.';
-      return '${now == 1 ? 'This run moved 1 key’s touch area a step toward where its taps land' : 'This run moved $now keys’ touch areas a step toward where their taps land'}$earlier.';
+    final fix = keys.where((k) => k.moved).toList()..sort((a, b) => b.shift.compareTo(a.shift));
+    final own = keys.where((k) => k.shifted && !k.moved).length;
+    String areas(int n) => n == 1 ? '1 key’s touch area' : '$n keys’ touch areas';
+    if (fix.isEmpty) {
+      final has = own == 0 ? '' : ' It has ${areas(own)} off the middle.';
+      if (run) return 'This run was typed on your keyboard as it is.$has';
+      if (own > 0) return 'No fix moves a touch area from where your keyboard has it.$has';
+      return landed == 0 ? 'No key has enough taps yet to say where they land.' : 'No fix has moved a touch area far enough to be in use yet.';
     }
-    if (off.isEmpty) return landed == 0 ? 'No key has enough taps yet to say where they land.' : 'No touch area has moved far enough to be in use yet.';
-    return '${off.length == 1 ? '1 key’s touch area has moved' : '${off.length} keys’ touch areas have moved'}. Furthest: ${off.first.key}, ${offsetSaid(off.first.shiftX, off.first.shiftY)}.';
+    final furthest = fix.first.shifted ? ' Furthest: ${fix.first.key}, ${offsetSaid(fix.first.shiftX, fix.first.shiftY)}.' : '';
+    final more = own == 0 ? '' : ' Your keyboard as it is has ${own == 1 ? '1 more' : '$own more'} off the middle.';
+    return '${run ? 'The fix this run was typed on moves' : 'The fix moves'} ${areas(fix.length)} toward where the taps land.$furthest$more';
   }
-
-  static String _areas(int n) => n == 1 ? '1 had' : '$n had';
 }
 
 /// Which of the keyboard's two pictures: where the mistakes happen, or where the taps land and what has shifted.
@@ -264,7 +270,8 @@ void _text(Canvas canvas, String text, TextStyle style, Offset middle) {
   p.dispose();
 }
 
-/// An arrow from [from] to [to]. One too short for a shaft is all head, pointing the same way, so its way still reads.
+/// An arrow from [from] to [to]. One too short for a shaft is all head, pointing the same way; the head is narrower
+/// than it is long, so that its way still reads (a head as wide as long points three ways at once).
 void _arrow(Canvas canvas, Offset from, Offset to, Color color, {double width = 2, double head = 5}) {
   final d = to - from;
   final length = d.distance;
@@ -279,8 +286,8 @@ void _arrow(Canvas canvas, Offset from, Offset to, Color color, {double width = 
       ..strokeWidth = width
       ..strokeCap = StrokeCap.round);
   }
-  final a = base + across * (head * 0.58);
-  final b = base - across * (head * 0.58);
+  final a = base + across * (head * 0.4);
+  final b = base - across * (head * 0.4);
   canvas.drawPath(
     Path()
       ..moveTo(tip.dx, tip.dy)
@@ -360,7 +367,8 @@ class _BoardPainter extends CustomPainter {
 
     for (final k in board.keys) {
       final r = box(k);
-      final lit = k.shifted && (!run || k.moved);
+      // Lit: the fix has this key somewhere the keyboard as it is does not. Grey: the keyboard has it there already.
+      final lit = k.shifted && k.moved;
       final strength = (k.shift / board.maxShift).clamp(0.0, 1.0);
       canvas.drawRRect(RRect.fromRectAndRadius(r, round), Paint()..color = lit ? Color.lerp(look.key, look.hue, 0.1 + 0.26 * strength)! : look.key);
       _text(canvas, k.key, look.small.copyWith(fontSize: math.min(10.0, unit * 0.3), color: k.shifted || k.landed > 0 ? look.ink2 : look.ink4), r.topLeft + Offset(math.min(8.0, unit * 0.24), math.min(8.5, h * 0.22)));
@@ -371,7 +379,8 @@ class _BoardPainter extends CustomPainter {
         return Offset(p.dx.clamp(room.left, room.right), p.dy.clamp(room.top, room.bottom));
       }
 
-      if (!k.shifted) canvas.drawCircle(r.center, run && k.moved ? 2.2 : 1.3, Paint()..color = run && k.moved ? look.hue : look.ink4);
+      // A key the fix has back at its middle, where the keyboard as it is has it off it, is a dot in the fix's colour.
+      if (!k.shifted) canvas.drawCircle(r.center, k.moved ? 2.2 : 1.3, Paint()..color = k.moved ? look.hue : look.ink4);
       if (k.landed > 0) {
         canvas.drawCircle(at(k.landX, k.landY), math.min(3.4, unit * 0.1), Paint()
           ..color = look.ink2
@@ -435,7 +444,7 @@ class BoardFigure extends StatelessWidget {
   final TrainerBoardData board;
   final BoardView view;
 
-  /// The picture is one run's own: a key is tinted from its second tap, and only what that run moved is lit.
+  /// The picture is one run's own: a key is tinted from its second tap, and the fix drawn is the one it was typed on.
   final bool run;
 
   /// How many taps a key needs before it is tinted: fewer say little over many runs, and a run has few to give.
@@ -473,9 +482,9 @@ class BoardFigure extends StatelessWidget {
             ),
             run ? 'where this run’s taps landed' : 'where your taps land'
           ),
-          (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.hue)), run ? 'a touch area this run moved' : 'how far the touch area has moved'),
-          if (run && board.keys.any((k) => k.shifted && !k.moved))
-            (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.ink3)), 'moved before this run'),
+          (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.hue)), run ? 'where the fix it was typed on has the key' : 'where the fix has the key'),
+          if (board.keys.any((k) => k.shifted && !k.moved))
+            (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.ink3)), 'your keyboard as it is'),
         ],
     };
     return Column(
@@ -484,7 +493,7 @@ class BoardFigure extends StatelessWidget {
       children: [
         Semantics(
           image: true,
-          label: view == BoardView.misses ? 'The keyboard, each key tinted by how often it is missed. $said' : 'The keyboard, with where the taps land and how far each touch area has moved. $said',
+          label: view == BoardView.misses ? 'The keyboard, each key tinted by how often it is missed. $said' : 'The keyboard, with where the taps land and where the fix has each key listening. $said',
           child: ExcludeSemantics(
             child: LayoutBuilder(
               builder: (context, box) => CustomPaint(
@@ -611,4 +620,57 @@ class _LinesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LinesPainter old) => true;
+}
+
+/// The runs that tested a fix as two lines, oldest first: the share of each run's taps on their key as the fix read
+/// them, and as the keyboard as it is would have read the very same taps. The gap between the two is the fix's lead;
+/// under each run is the fix it tested.
+class FixFigure extends StatelessWidget {
+  const FixFigure({super.key, required this.fix});
+  final FixData fix;
+
+  /// What the picture shows, in a line: what a screen reader is told of it.
+  String get said => fix.tests.isEmpty
+      ? 'No run has tested a fix yet.'
+      : 'Taps on their key in each run that tested a fix, oldest first. Over ${fix.tests.length == 1 ? 'the 1 run' : 'the ${fix.tests.length} runs'}: ${shareSaid(_one(fix.fixedShare))} with the fix, ${shareSaid(_one(fix.asIsShare))} as your keyboard is.';
+
+  /// To a tenth of a percent, as the keyboard's own totals are said.
+  static double? _one(double? v) => v == null ? null : (v * 10).round() / 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final look = _Look(t);
+    final tests = fix.tests;
+    if (tests.isEmpty) return const SizedBox.shrink();
+    final asIs = <double?>[for (final r in tests) r.asIsShare];
+    final fixed = <double?>[for (final r in tests) r.fixedShare];
+    final foot = RunLines.footOf([...asIs, ...fixed]);
+    final small = pageText(t, 10, color: t.color('app-ink-3'));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(
+          image: true,
+          label: said,
+          child: ExcludeSemantics(
+            child: CustomPaint(size: const Size(double.infinity, 58), painter: _LinesPainter(series: [(asIs, look.ink3), (fixed, look.hue)], foot: foot, look: look)),
+          ),
+        ),
+        ExcludeSemantics(
+          child: Row(children: [
+            for (var i = 0; i < tests.length; i++) Expanded(child: Text(i == 0 ? 'fix ${tests[i].number}' : '${tests[i].number}', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: small)),
+          ]),
+        ),
+        SizedBox(height: t.space(2)),
+        ExcludeSemantics(
+          child: _Legend(items: [
+            (_Mark(width: 12, draw: (canvas, size) => canvas.drawCircle(size.center(Offset.zero), 3.4, Paint()..color = look.hue)), 'with the fix ${shareSaid(_one(fix.fixedShare))}'),
+            (_Mark(width: 12, draw: (canvas, size) => canvas.drawCircle(size.center(Offset.zero), 3.4, Paint()..color = look.ink3)), 'your keyboard as it is ${shareSaid(_one(fix.asIsShare))}'),
+          ]),
+        ),
+      ],
+    );
+  }
 }

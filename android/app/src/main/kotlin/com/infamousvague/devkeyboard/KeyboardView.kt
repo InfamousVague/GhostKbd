@@ -170,10 +170,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         set(value) { if (field != value) { field = value; invalidate() } }
 
     /**
-     * The letter key a finger last typed, with where it aimed (after touch correction): what the adaptive keys
-     * plugin learns from. Set just before the key's text is typed, so the service can read it as it arrives.
+     * The typing trainer's fix, while a run that tests it is on in the trainer's own field (Trainer.fixFor): where
+     * each letter key listens for that run, read in place of [adaptive]'s nudges. Null at every other time. While it
+     * is set each letter's touch is read a second time, as the keyboard as it is would have read it ([Typed.asIs]):
+     * the run's result holds the two readings against each other on the very same touches.
      */
-    class Typed(val c: Char, val rect: RectF, val x: Float, val y: Float)
+    var fix: ((Char) -> Pair<Float, Float>)? = null
+
+    /**
+     * The letter key a finger last typed, with where it aimed (after touch correction): what the adaptive keys
+     * plugin learns from. Set just before the key's text is typed, so the service can read it as it arrives. [asIs]
+     * is the letter the keyboard as it is would have read the touch as: another letter only while a trainer run is
+     * typed on a [fix], and only for a touch the two read differently.
+     */
+    class Typed(val c: Char, val rect: RectF, val x: Float, val y: Float, val asIs: Char = c)
     private var lastTyped: Typed? = null
 
     /** The letter just typed by a finger, once: null for anything typed another way (a popup, the row, a swipe). */
@@ -724,7 +734,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             if (k.type != KeyType.CHAR || k.text.length != 1 || !k.text[0].isLetter()) continue
             if (keyW == 0f) keyW = r.width()
             val c = k.text[0]
-            val (ox, oy) = model?.offset(c) ?: (0f to 0f)
+            // Where the key listens now: a trainer run's fix while one is worn, else the plugin's nudge.
+            val (ox, oy) = fix?.invoke(c) ?: model?.offset(c) ?: (0f to 0f)
             out[c] = (r.centerX() + ox * r.width()) to (r.centerY() + oy * r.height())
         }
         return if (out.isEmpty() || keyW <= 0f) null else Triple(out, keyW, space)
@@ -1176,6 +1187,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         /** Where the touch was read as aiming, after correction (keyAt's x and y). */
         var aimX = downX
         var aimY = downY
+        /** The key the keyboard as it is would have read the touch as, while a trainer run is typed on a fix ([fix]); null otherwise. */
+        var asIs: Key? = null
         var lastX = downX
         var lastY = downY
         var panel: Panel? = null
@@ -1240,7 +1253,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             (if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX) to (rawY - lift).coerceAtLeast(keysTop + 1f)
         }
         lastAim = x to y
-        keyRects.firstOrNull { it.second.contains(x, y) }?.let { return adapt(it, x, y) }
+        lastAsIs = null
+        keyRects.firstOrNull { it.second.contains(x, y) }?.let { hit ->
+            val plugin = adaptive?.let { model -> { c: Char -> model.offset(c) } }
+            val worn = fix ?: return adapt(hit, x, y, plugin)
+            // A trainer run typed on a fix: the fix reads the touch, and the keyboard as it is reads it too.
+            lastAsIs = adapt(hit, x, y, plugin).first
+            return adapt(hit, x, y, worn)
+        }
         // Below the last row or past its ends: the nearest key, so the edges never swallow a touch.
         return keyRects.minByOrNull { (_, r) ->
             val dx = if (x < r.left) r.left - x else if (x > r.right) x - r.right else 0f
@@ -1274,16 +1294,21 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** keyAt's corrected point for the last touch, for [Touch.aimX]. */
     private var lastAim: Pair<Float, Float> = 0f to 0f
 
+    /** keyAt's second reading of the last touch, for [Touch.asIs]: the key the keyboard as it is would have read it as, while a [fix] is worn. */
+    private var lastAsIs: Key? = null
+
     /**
-     * The adaptive keys plugin: of the letter under the touch and its neighbours, the one whose learned aim is nearest
-     * (in fractions of a key). With nothing learned every aim is the key's middle, which picks the key under the touch.
+     * The adaptive keys plugin, and a trainer run's fix: of the letter under the touch and its neighbours, the one
+     * that listens nearest (in fractions of a key), each listening [offset] from its middle. With nothing learned
+     * every key listens at its middle, which is the key under the touch but for a touch in a key's corner, where
+     * the next row's key half a key along is nearer. Null: the key under the touch, as with no plugin.
      */
-    private fun adapt(hit: Pair<Key, RectF>, x: Float, y: Float): Pair<Key, RectF> {
-        val model = adaptive ?: return hit
+    private fun adapt(hit: Pair<Key, RectF>, x: Float, y: Float, offset: ((Char) -> Pair<Float, Float>)?): Pair<Key, RectF> {
+        if (offset == null) return hit
         if (page != Page.LETTERS || hit.first.type != KeyType.CHAR || hit.first.text.length != 1 || !hit.first.text[0].isLetter()) return hit
         val w = hit.second.width(); val h = hit.second.height()
         fun cost(r: RectF, c: Char): Float {
-            val (ox, oy) = model.offset(c)
+            val (ox, oy) = offset(c)
             val cx = r.centerX() + ox * r.width(); val cy = r.centerY() + oy * r.height()
             val dx = (x - cx) / r.width(); val dy = (y - cy) / r.height()
             return dx * dx + dy * dy
@@ -1318,7 +1343,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 }
                 val (key, rect) = keyAt(x, y) ?: return true
                 downAt = event.eventTime
-                press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second })
+                press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second; it.asIs = lastAsIs })
             }
             MotionEvent.ACTION_MOVE -> {
                 val t = touch ?: return true
@@ -1502,7 +1527,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             t.longPressed -> Unit
             else -> when (t.key.type) {
                 KeyType.CHAR -> {
-                    lastTyped = if (t.key === t.firstKey && t.key.text.length == 1) Typed(t.key.text[0], RectF(t.rect), t.aimX, t.aimY) else null
+                    lastTyped = if (t.key === t.firstKey && t.key.text.length == 1) {
+                        val asIs = t.asIs?.takeIf { it.type == KeyType.CHAR && it.text.length == 1 }?.text?.get(0)
+                        Typed(t.key.text[0], RectF(t.rect), t.aimX, t.aimY, asIs ?: t.key.text[0])
+                    } else null
                     commit(display(t.key.text))
                     // A character key that names a page goes there after typing: the developer page's comma.
                     t.key.page?.let { showPage(it) }

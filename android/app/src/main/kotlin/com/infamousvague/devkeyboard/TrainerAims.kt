@@ -4,16 +4,17 @@ package com.infamousvague.devkeyboard
  * How the typing trainer moves the keys' touch areas (docs/trainer.md; Matt, 2026-11-11: "I want the keyboard to
  * slowly adapt each run to shift the touch areas"). Plain Kotlin with no Android in it.
  *
- * There is one model of where a key listens, [AdaptiveKeys]: a nudge for each letter key, in fractions of the key,
- * used by KeyboardView.adapt. Everyday typing moves a nudge only by slips, since it cannot know what a clean tap was
+ * Where a key listens is a nudge: how far from its middle, in fractions of the key, which KeyboardView.adapt reads
+ * touches by. Everyday typing ([AdaptiveKeys]) moves a nudge only by slips, since it cannot know what a clean tap was
  * meant for. A trainer run knows what every tap was meant for, so it can measure the thing itself: where the taps
  * meant for a key land about its middle ([Measure]). The best place for a key to listen is that mean (a tap is then
- * read as whichever key's taps it is most like), so after each run the trainer moves the key's nudge one [step]
- * toward it. It writes the result into the same model ([AdaptiveKeys.trained]); it keeps no model of its own.
+ * read as whichever key's taps it is most like), so each fix the trainer makes has the key one [step] nearer to it
+ * than the last ([next]).
  *
- * The step is small and bounded, never a jump: at most [STEP] of a key a run, less while the measurement stands on few
- * taps, nothing until it stands on [MIN_SAMPLES], and never past [MAX_SHIFT] from the key's middle. Like every nudge
- * it then drifts back as Adaptive keys has all nudges drift.
+ * The step is small and bounded, never a jump: at most [STEP] of a key a fix, less while the measurement stands on few
+ * taps, nothing until it stands on [MIN_SAMPLES], and never past [MAX_SHIFT] from the key's middle. A fix is the
+ * trainer's own until it is proven and taken ([FixTrial]); only then is it Adaptive keys' to use, and like every
+ * nudge there it drifts back as Adaptive keys has all nudges drift.
  */
 object TrainerAims {
     /** A key needs this many taps before it has a nudge: Adaptive keys' own rule ([AdaptiveKeys.MIN_SAMPLES]; TrainerTest holds the two together). */
@@ -25,7 +26,7 @@ object TrainerAims {
     /** A nudge under this is none: Adaptive keys' own rule ([AdaptiveKeys.MIN_SHIFT]). */
     const val MIN_SHIFT = 0.02f
 
-    /** The most one run moves a key's nudge, of a key: under two points of a 44-point key. Eight runs to cross the whole of [MAX_SHIFT]. */
+    /** The most one fix moves a key from where the last had it, of a key: under two points of a 44-point key. Eight fixes to cross the whole of [MAX_SHIFT]. */
     const val STEP = 0.04f
 
     /** A measurement is gone by in proportion to its taps: one on this many is trusted halfway. */
@@ -51,7 +52,7 @@ object TrainerAims {
     }
 
     /**
-     * Where a nudge at ([dx], [dy]) goes after a run, given where the key's taps have landed ([meanX], [meanY], on
+     * Where a key at ([dx], [dy]) goes in the next fix, given where its taps have landed ([meanX], [meanY], on
      * [samples] taps): a step toward that mean, no longer than [STEP], shorter while the taps are few, and none at
      * all under [MIN_SAMPLES].
      */
@@ -68,30 +69,38 @@ object TrainerAims {
     }
 
     /**
-     * A run's steps, for every key the run has taps for ([touched]: the key, and how many): where each nudge goes
-     * from where it stands now ([now]), given what the trainer has measured of that key over every run ([measured]).
-     * [seen] is how many touches Adaptive keys' model has counted for the key before this run: a key the model would
-     * still not use a nudge for (under [MIN_SAMPLES] touches, this run's among them) is only counted, so that when
-     * its nudge is first used it is one step from the middle and no more. Only the keys that move are in the answer.
+     * The next fix: where each key listens in it, given where the last one had it ([from]) and what the trainer has
+     * measured of each key over every run ([measured]). Every key whose measure stands on [MIN_SAMPLES] taps or more
+     * takes one [step]; a key with fewer stays where it was, so that when it is first moved it is one step from where
+     * it stood and no more. Only the keys that move are in the answer.
      */
-    fun steps(touched: Map<Char, Int>, measured: Map<Char, Measure>, seen: (Char) -> Int, now: (Char) -> Aim): Map<Char, Aim> {
+    fun next(measured: Map<Char, Measure>, from: (Char) -> Aim): Map<Char, Aim> {
         val out = LinkedHashMap<Char, Aim>()
-        for (key in touched.keys.sorted()) {
-            val m = measured[key] ?: continue
-            if (seen(key) + touched.getValue(key) < MIN_SAMPLES) continue
-            val from = now(key)
-            val to = step(from.dx, from.dy, m.x, m.y, m.n)
-            if (kotlin.math.abs(to.dx - from.dx) >= MOVED || kotlin.math.abs(to.dy - from.dy) >= MOVED) out[key] = to
+        for (key in measured.keys.sorted()) {
+            val m = measured.getValue(key)
+            val was = from(key)
+            val to = step(was.dx, was.dy, m.x, m.y, m.n)
+            if (kotlin.math.abs(to.dx - was.dx) >= MOVED || kotlin.math.abs(to.dy - was.dy) >= MOVED) out[key] = to
         }
         return out
     }
+
+    /**
+     * Where a key at ([dx], [dy]) listens once it is in use, by Adaptive keys' own rules ([AdaptiveKeys.offset]): at
+     * its middle while it stands under [MIN_SHIFT] of a key off it both ways, and never past [MAX_SHIFT]. A fix is
+     * worn by these rules, so that what a run tested is what everyday typing does once it is taken.
+     */
+    fun inUse(dx: Float, dy: Float): Pair<Float, Float> =
+        if (dx.isNaN() || dy.isNaN() || (kotlin.math.abs(dx) < MIN_SHIFT && kotlin.math.abs(dy) < MIN_SHIFT)) 0f to 0f
+        else dx.coerceIn(-MAX_SHIFT, MAX_SHIFT) to dy.coerceIn(-MAX_SHIFT, MAX_SHIFT)
 
     /** A step smaller than this (of a key) is none. */
     private const val MOVED = 0.0005f
 
     /**
-     * A nudge at ([dx], [dy]) with what the trainer gave it ([givenX], [givenY]) taken back out: as much of it as is
-     * still there, and never past the key's middle (the nudge has drifted since, and everyday slips have moved it too).
+     * A nudge of Adaptive keys' at ([dx], [dy]) with what the trainer gave it ([givenX], [givenY]) taken back out: as
+     * much of it as is still there, and never past the key's middle (the nudge has drifted since, and everyday slips
+     * have moved it too).
      */
     fun takeBack(dx: Float, dy: Float, givenX: Float, givenY: Float): Aim {
         fun one(now: Float, given: Float): Float {

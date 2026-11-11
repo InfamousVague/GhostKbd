@@ -12,7 +12,8 @@ import org.junit.Test
  * The typing trainer's own reckoning (Matt, 2026-11-11: "a typeracer style thing where we type stories out and it
  * tracks everything like wpm and missed words"), with no phone under it: what was typed held against what was meant
  * ([TrainerText]), a run scored ([TrainerScore]), a key's nudge stepped ([TrainerAims]), layouts tried
- * ([LayoutTrials]), and what is kept between runs ([TrainerBook], [TrainerCodec]).
+ * ([LayoutTrials]), and what is kept between runs ([TrainerBook], [TrainerCodec]). The test of the fixes has a file of
+ * its own: TrainerFixTest.
  */
 class TrainerTest {
     companion object {
@@ -28,10 +29,13 @@ class TrainerTest {
         var text = ""
         var at = 10_000L
 
-        /** A letter key: [c] typed by a tap read as [key], landing [fx], [fy] of a key from that key's middle. */
-        fun tap(c: Char, key: Char = c.lowercaseChar(), fx: Float = 0f, fy: Float = 0f): Typist {
+        /**
+         * A letter key: [c] typed by a tap read as [key], landing [fx], [fy] of a key from that key's middle. [asIs]
+         * is the key the keyboard as it is would have read the same touch as, in a run typed on a fix.
+         */
+        fun tap(c: Char, key: Char = c.lowercaseChar(), fx: Float = 0f, fy: Float = 0f, asIs: Char = key): Typist {
             at += gap; text += c
-            run.key(at, KeyKind.CHAR, text, KeyTap(key, fx, fy))
+            run.key(at, KeyKind.CHAR, text, KeyTap(key, fx, fy, asIs))
             return this
         }
 
@@ -392,14 +396,47 @@ class TrainerTest {
         val t = LayoutTrials()
         t.anchor("normal")
         var runs = 0
-        // Worse on short, level on tall: neither takes over.
-        while (!t.settled && runs < 60) { val h = t.next(); t.record(h, when (h) { "short" -> 36f; "tall" -> 42f + (runs % 3 - 1) * 0.2f; else -> 42f + (runs % 2) * 0.2f }); runs++ }
+        var tall = 0
+        // Worse on short. Ahead on tall on the whole, but never steadily: up a twentieth, down a thirtieth, turn about.
+        val leads = floatArrayOf(1.05f, 0.97f, 1.04f, 0.98f)
+        while (!t.settled && runs < 60) { val h = t.next(); t.record(h, when (h) { "short" -> 36f; "tall" -> 42f * leads[tall++ % leads.size]; else -> 42f }); runs++ }
         assertTrue(t.settled); assertEquals("normal", t.home); assertNull(t.suggestion())
         assertEquals(setOf("short", "tall"), t.rejected.toSet())
-        assertEquals("four pairs to let the worse one go, six to give up on the level one", 8 + 12, runs)
+        assertEquals("four pairs to let go the one that was not ahead, ten to give up on the one that was never proven", 8 + 20, runs)
         assertEquals("settled, every run is on the person's own", "normal", t.next())
         // Asked to, it tries them again.
         t.again(); assertFalse(t.settled)
+    }
+
+    @Test fun aLayoutTakesOverOnlyOnProof() {
+        // Ahead in three pairs of four, by a lot in one: the rule before this one moved on that. It is not proof.
+        val t = LayoutTrials()
+        t.anchor("normal")
+        val short = floatArrayOf(52f, 44f, 39f, 45f, 43f, 40f, 44f, 42f, 41f, 43f)
+        var i = 0
+        var move: LayoutTrials.Move? = null
+        repeat(8) { val h = t.next(); move = move ?: t.record(h, if (h == "short") short[i++] else 40f) }
+        assertNull(move); assertEquals("normal", t.home); assertNull(t.suggestion())
+        assertEquals("still being tried", "short", t.candidate)
+        // The rest of its runs leave it ahead on the whole and unproven: let go after ten pairs, and nothing is suggested.
+        repeat(12) { val h = t.next(); t.record(h, if (h == "short") short[i++] else 40f) }
+        assertEquals("normal", t.home); assertTrue("short" in t.rejected); assertNull(t.suggestion())
+        // A lead that is steady is proof at four pairs, and says how it was proven.
+        val u = LayoutTrials()
+        u.anchor("normal")
+        var proven: LayoutTrials.Move? = null
+        for (score in listOf(44.5f, 45f, 44f, 45.5f)) { u.record(u.next(), 40f); proven = u.record(u.next(), score) }
+        assertEquals("short", proven!!.to); assertEquals(4, proven.pairs); assertEquals(4, proven.wins)
+        u.suggestion()!!.let { assertEquals("short", it.height); assertEquals(4, it.pairs); assertEquals(4, it.wins) }
+        // A home an earlier version moved to on less is no home: the trials begin again from the person's own keys.
+        val old = LayoutTrials()
+        old.restore("normal", "short", "condensed", listOf("normal"), listOf(44f), listOf(40f), mapOf("short" to listOf(44f, 45f, 46f, 47f), "normal" to listOf(40f, 41f, 40f, 42f)))
+        assertEquals("normal", old.home); assertNull(old.candidate); assertTrue(old.rejected.isEmpty()); assertNull(old.suggestion())
+        assertEquals("the scores are kept", 4, old.scores.getValue("short").size)
+        // One that was proven comes back as it went.
+        val kept = LayoutTrials()
+        kept.restore("normal", "short", null, listOf("normal"), emptyList(), emptyList(), mapOf("short" to listOf(44f, 45f, 46f, 47f), "normal" to listOf(40f, 41f, 40f, 42f)), 5, 4)
+        assertEquals("short", kept.home); kept.suggestion()!!.let { assertEquals(5, it.pairs); assertEquals(4, it.wins) }
     }
 
     @Test fun theTrialsFollowThePersonsOwnSetting() {
@@ -535,10 +572,30 @@ class TrainerTest {
         book.given.getOrPut("qwerty") { HashMap() }['o'] = floatArrayOf(0.08f, -0.04f)
         book.layouts.anchor("short")
         book.layouts.record(book.layouts.next(), 40f); book.layouts.record(book.layouts.next(), 44f)
+        // A run typed on a fix, and the fix trial as it then stood.
+        book.add(RunLine(1_700_000_900_000L, "story-9", "A story", false, "normal", false, 60_000L, 44f, 0.96f, 45, 44, 40, 3, 2, 0, fix = 2, asIs = 0.925f), run(), "qwerty")
+        val measured = mapOf('e' to TrainerAims.Measure(60, 0.25f, 0.2f, 60))
+        book.fixes.getOrPut("qwerty") { FixTrial() }.let { f ->
+            f.begin(false, { 0f to 0f }, board.keys, measured); f.record(FixTrial.FixRun(1, 170, 157, 160, 4, 1))
+            f.begin(false, { 0f to 0f }, board.keys, measured); f.record(FixTrial.FixRun(2, 172, 159, 165, 8, 2))
+            f.begin(false, { 0f to 0f }, board.keys, measured)
+        }
         val text = TrainerCodec.write(book)
         val back = TrainerCodec.read(text)!!
         assertEquals(text, TrainerCodec.write(back))
-        assertTrue(back.trials); assertEquals(3, back.runs.size); assertTrue(back.runs[1].accuracy.isNaN()); near(42f, back.runs[2].wpm)
+        assertTrue(back.trials); assertEquals(4, back.runs.size); assertTrue(back.runs[1].accuracy.isNaN()); near(42f, back.runs[2].wpm)
+        assertEquals(0, back.runs[0].fix); assertTrue(back.runs[0].asIs.isNaN()); assertEquals(2, back.runs[3].fix); near(0.925f, back.runs[3].asIs)
+        back.fixes.getValue("qwerty").let { f ->
+            assertEquals(3, f.number); assertFalse("the third fix was made and not yet tested", f.tested); assertFalse(f.adaptive)
+            assertEquals("the second is the one the runs tested", 2, f.testedNumber); near(TrainerAims.STEP * 2, kotlin.math.hypot(f.testedAt.getValue('e').dx, f.testedAt.getValue('e').dy), 0.002f)
+            assertEquals(2, f.runs.size); assertEquals(8, f.runs[1].won); assertEquals(2, f.runs[1].lost); assertEquals(159, f.runs[1].asIs); assertEquals(165, f.runs[1].fixed)
+            near(TrainerAims.STEP * 3, kotlin.math.hypot(f.at.getValue('e').dx, f.at.getValue('e').dy), 0.002f)
+        }
+        // A run an earlier version kept, with no fix and no second reading, is read as typed on the keyboard as it was.
+        val older = JSONObject(text)
+        older.remove("fixes")
+        older.getJSONArray("runs").let { runs -> for (i in 0 until runs.length()) { val r = runs.getJSONArray(i); r.remove(16); r.remove(15) } }
+        TrainerCodec.read(older.toString())!!.let { assertEquals(4, it.runs.size); assertEquals(0, it.runs[3].fix); assertTrue(it.runs[3].asIs.isNaN()); assertTrue(it.fixes.isEmpty()) }
         assertEquals(book.read, back.read)
         assertEquals("becuase", back.mistakes().first { it.word == "because" }.typed)
         near(0.08f, back.given.getValue("qwerty").getValue('o')[0])

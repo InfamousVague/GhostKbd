@@ -22,6 +22,7 @@ import '../settings/kit/settings_type.dart';
 import '../settings/settings_screen.dart';
 import '../settings_store.dart';
 import 'trainer_board.dart';
+import 'trainer_fix.dart';
 import 'trainer_store.dart';
 
 /// The trainer's colour on Settings' list and on its own pages (settings_css.dart).
@@ -48,6 +49,34 @@ String _when(Object? at) {
 }
 
 String _count(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
+
+/// A share to a tenth of a percent, as the keyboard's own totals are said.
+double? _tenth(double? share) => share == null ? null : (share * 10).round() / 10;
+
+/// What every page says under the test of the fixes: how a run tests one, and what proof is.
+const _testSaid =
+    'The first run is typed on your keyboard as it is. Each run after it is typed on a new fix: the keys’ touch areas a small step nearer to where your taps land. '
+    'The keyboard reads every tap of that run twice, as the fix reads it and as your keyboard as it is would have, so the two are compared on the very same taps. '
+    'A fix is proven on three runs or more, where its lead on the taps read differently is more than chance gives once in a hundred tries and holds from run to run. '
+    'Your everyday typing changes only if a fix is proven and you switch to it.';
+
+/// The test of the fixes as rows (Matt, 2026-11-11: "a b test the accuracy and don't suggest switching until its
+/// proven we got a better result"): the fix in hand and where it stands, the runs that tested one as two lines, both
+/// readings added up, and the switch, which is there only where the keyboard says the fix is proven.
+List<Widget> _fixRows(TrainerStore trainer, FixData fix, {required int storyRuns, required Future<void> Function() onSwitch}) => [
+      SettingRow(key: const ValueKey('trainer-fix'), label: fix.title, value: Text(fix.status), hint: Text(fix.standing(storyRuns: storyRuns))),
+      if (fix.tests.isNotEmpty) SettingRowBox(child: FixFigure(key: const ValueKey('trainer-fix-lines'), fix: fix)),
+      if (fix.runs > 0) ...[
+        SettingRow(label: 'With the fix', value: Text('${shareSaid(_tenth(fix.fixedShare))} of taps on their key')),
+        SettingRow(
+          label: 'Your keyboard as it is',
+          value: Text(shareSaid(_tenth(fix.asIsShare))),
+          hint: Text('The same ${_count(fix.taps, 'tap', 'taps')} of ${_count(fix.runs, 'run', 'runs')}, read both ways.'),
+        ),
+      ],
+      if (fix.proven) SettingRow(key: const ValueKey('trainer-switch'), label: 'Switch everyday typing to fix ${fix.last}', hint: Text(fix.switchSaid), onPress: onSwitch),
+      for (final line in trainer.said) SettingRow(label: line),
+    ];
 
 /// A page of the trainer: the ground, the bar with the way back and the title, and its cards scrolling under it.
 class _Page extends StatelessWidget {
@@ -224,6 +253,13 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
 
   void _closeResults() => setState(() => _results = false);
 
+  /// Everyday typing is switched to the fix in hand, which the keyboard does only where it is proven. Switching may
+  /// add Adaptive keys and move its nudges: Settings reads them again.
+  Future<void> _switch() async {
+    await trainer.apply(fix: true);
+    await store.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -269,6 +305,7 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
     final ready = trainer.state['profile'] is Map;
     final canStart = selected && latin && next != null;
     final board = TrainerBoardData.of(trainer.state['board']);
+    final fix = FixData.of(trainer.state['fix']);
     // The story runs the charts draw, oldest first: a practice run of one's own mistakes is no measure of speed.
     final story = history.where((r) => r['practice'] != true).take(12).toList().reversed.toList();
     return [
@@ -276,8 +313,8 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
         glyph: AppIcon(Lucide.graduationCap, size: 24),
         title: runs == 0 ? 'Type a story' : (best > 0 ? '$best words a minute' : _count(runs, 'run', 'runs')),
         meta: Text(runs == 0
-            ? 'Each run times you, counts what went wrong, and moves each key’s touch area a little toward where your thumb lands.'
-            : 'Your best of ${_count(runs, 'run', 'runs')}. Each one moves the keys’ touch areas a little toward where your thumbs land.'),
+            ? 'The first run times you and measures where your taps land. Each run after it tests a fix against your keyboard as it is.'
+            : 'Your best of ${_count(runs, 'run', 'runs')}. Each run after the first tests a new fix against your keyboard as it is.'),
         status: PaneHeroStatus(runs == 0 ? 'No runs yet' : (ready ? 'Your profile is ready' : '${_count(profileAt - runs, 'more run', 'more runs')} to your profile')),
       ),
       if (trainer.loaded && !selected)
@@ -296,8 +333,8 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
         title: 'Next',
         footer: Text(
           trials
-              ? 'With “Try different layouts” on, some runs are typed on shorter or taller keys than your own ($ownHeight), to find the height you type best on. It is read as each run starts, your own keys are back the moment a run ends or you leave, and nothing is changed unless you take what the trials suggest.'
-              : 'With “Try different layouts” off, the keyboard looks exactly as you set it. A run still moves the keys’ touch areas, which changes nothing you can see.',
+              ? 'With “Try different layouts” on, some runs are typed on shorter or taller keys than your own ($ownHeight), to find the height you type best on. It is read as each run starts, your own keys are back the moment a run ends or you leave, and a height is suggested only once it is proven better.'
+              : 'With “Try different layouts” off, the keyboard looks exactly as you set it. A fix moves where the keys listen, which changes nothing you can see.',
         ),
         children: [
           SettingRow(
@@ -314,6 +351,14 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
             SettingRow(label: 'Practise my mistakes', hint: const Text('A short run of the words and letter pairs you miss.'), onPress: selected && latin ? () => _start(practice: true) : null),
         ],
       ),
+      // The test of the fixes: which one the next run tests, both readings of the runs so far, and the switch once
+      // one is proven.
+      if (trainer.loaded && selected && latin)
+        PaneSection(
+          title: 'The test',
+          footer: const Text(_testSaid),
+          children: _fixRows(trainer, fix, storyRuns: runs, onSwitch: _switch),
+        ),
       // The keyboard's two pictures, once a run has taps to draw (Matt, 2026-11-11: "Show inforgraphics on the trainer
       // with charts and stuff to show where the mistakes happen and what has shifted where using a simplified keyboard
       // display").
@@ -326,8 +371,8 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
         PaneSection(
           title: 'What has shifted',
           footer: Text(
-            '${board.lean == null ? '' : '${board.lean} '}A ring is where the taps meant for a key land, about its middle. An arrow is how far that key’s touch area has moved toward them: a small step a run, and never more than a third of a key. '
-            'Both are drawn one and a half times their size so that small ones show. The keys look the same as ever; only where each one listens moves.',
+            '${board.lean == null ? '' : '${board.lean} '}A ring is where the taps meant for a key land, about its middle. An arrow in the trainer’s colour is where the fix being tested has that key’s touch area: a small step further a fix, and never more than a third of a key. '
+            'A grey arrow is a touch area your keyboard already has off its middle. Both are drawn one and a half times their size so that small ones show. The keys look the same as ever; only where each one listens moves, and in everyday typing only once you switch.',
           ),
           children: [SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-map-areas'), board: board, view: BoardView.areas))],
         ),
@@ -360,9 +405,9 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
       PaneSection(
         footer: const Text(
           'Everything the trainer keeps is in a file of its own on this phone. A story is not your writing: a run teaches nothing to next-word suggestions or Mockingbird, counts nothing for typing stats, and puts nothing in an anonymous report. '
-          'What a run hands on: each key’s nudge takes a small step in Adaptive keys’ model, and a word you mistype is remembered under Your corrections where that is on.',
+          'What a run hands on: a word you mistype is remembered under Your corrections where that is on. A fix is the trainer’s own, worn only by the run that tests it, until it is proven and you switch to it.',
         ),
-        children: [SettingRow(label: 'Forget what the trainer learned', hint: const Text('Its runs, your mistakes, your profile, and the steps it gave the keys.'), onPress: !trainer.loaded || (trainer.list('history').isEmpty && !trials) ? null : trainer.forget)],
+        children: [SettingRow(label: 'Forget what the trainer learned', hint: const Text('Its runs, your mistakes, your profile, its fixes, and what a fix you switched to gave the keys.'), onPress: !trainer.loaded || (trainer.list('history').isEmpty && !trials) ? null : trainer.forget)],
       ),
     ];
   }
@@ -389,9 +434,12 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
     final profileAt = _int(r['profileAt']);
     final layouts = r['layouts'] is Map ? r['layouts'] as Map : const {};
     final moved = r['moved'] is Map ? r['moved'] as Map : null;
-    // The run's own picture of the keyboard: where it went wrong, and the touch areas as they stand after it.
+    // The run's own picture of the keyboard: where it went wrong, and where the keys listened while it was typed.
     final board = TrainerBoardData.of(r['board']);
     final wrong = board != null && board.missed > 0;
+    // The test this run was: the fix it was typed on, and what the two readings of its taps came to.
+    final fix = FixData.of(r['fix']);
+    final test = fix.run;
     String fixes(List<Map<Object?, Object?>> list) => list.map((f) => '${f['typed']} → ${f['made']}').join(', ');
     return [
       PaneHero(
@@ -416,6 +464,32 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
           _Button(id: 'trainer-done', label: 'Done', large: true, onPress: _closeResults),
         ],
       ),
+      if (!practice)
+        PaneSection(
+          key: const ValueKey('trainer-test'),
+          title: 'The test',
+          footer: const Text(_testSaid),
+          children: [
+            if (test != null) ...[
+              SettingRow(label: 'With fix ${fix.worn}', value: Text('${test.fixed} of ${test.taps} taps · ${shareSaid(_tenth(test.fixedShare))}')),
+              SettingRow(label: 'Your keyboard as it is', value: Text('${test.asIs} of ${test.taps} · ${shareSaid(_tenth(test.asIsShare))}'), hint: Text(test.said)),
+            ] else
+              SettingRow(
+                label: fix.worn > 0 ? 'Fix ${fix.worn}' : 'Typed on your keyboard as it is',
+                value: fix.worn > 0 ? const Text('Not tested') : null,
+                hint: Text(fix.worn > 0
+                    ? 'This run was typed on it, and was not counted. The next run tests it again.'
+                    : (runs <= 1 && counted
+                        ? 'The first run measures where your taps land. The next run tests the first fix, where they land far enough from a key’s middle to make one.'
+                        : 'No fix was tested: there was none in use for this run.')),
+              ),
+            if (test != null || fix.verdict == 'worse' || fix.runs > 0)
+              SettingRow(key: const ValueKey('trainer-fix'), label: 'So far', value: Text(fix.status), hint: Text(fix.standing(storyRuns: runs))),
+            if (fix.tests.length >= 2) SettingRowBox(child: FixFigure(key: const ValueKey('trainer-fix-lines'), fix: fix)),
+            if (fix.proven) SettingRow(key: const ValueKey('trainer-switch'), label: 'Switch everyday typing to fix ${fix.last}', hint: Text(fix.switchSaid), onPress: _switch),
+            for (final line in trainer.said) SettingRow(label: line),
+          ],
+        ),
       PaneSection(
         title: 'Words',
         footer: const Text('Speed counts only the words that came out right, at five characters a word. Right first time: no backspace and no fix.'),
@@ -451,12 +525,16 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
         ),
       PaneSection(
         title: 'What the keyboard took from it',
-        footer: const Text('A touch area moves at most a twenty-fifth of a key in a run, toward where the taps meant for that key have landed, and never more than a third of a key in all. Nothing you can see changes.'),
+        footer: const Text(
+          'A fix has a touch area at most a twenty-fifth of a key further than the fix before it, toward where the taps meant for that key have landed, and never more than a third of a key in all. It is worn only by the run that tests it: nothing you can see changes, and your everyday typing is as it was.',
+        ),
         children: [
           SettingRow(
             label: 'Touch areas',
-            value: Text(!counted ? 'Not counted' : (nudged.isEmpty ? 'None moved' : _count(nudged.length, 'key moved', 'keys moved'))),
-            hint: nudged.isEmpty ? null : Text(nudged.map((n) => '${n['key']}').join(' ')),
+            value: Text(!counted ? 'Not counted' : (nudged.isEmpty ? 'As your keyboard has them' : '${_count(nudged.length, 'key', 'keys')} moved in fix ${fix.worn}')),
+            hint: Text(!counted
+                ? 'Nothing was measured from this run.'
+                : '${nudged.isEmpty ? '' : '${nudged.map((n) => '${n['key']}').join(' ')}. '}Where this run’s taps landed is measured for the next fix.'),
           ),
           if (counted && board != null && (board.shifted > 0 || board.landed > 0)) SettingRowBox(child: BoardFigure(key: const ValueKey('trainer-run-areas'), board: board, view: BoardView.areas, run: true)),
           if (taught > 0) SettingRow(label: 'Your corrections', value: Text(_count(taught, 'mistake remembered', 'mistakes remembered'))),
@@ -465,8 +543,9 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
               label: 'Layout',
               value: Text(r['changed'] == true ? '${r['heightLabel']} keys, a trial' : 'Your own keys, in a trial'),
               hint: Text([
-                for (final s in _maps(layouts['scores'])) '${s['label']} ${s['score']} over ${_count(_int(s['runs']), 'run', 'runs')}',
-              ].join(', ') + (moved == null ? '' : '. ${moved['to']} has done better than ${moved['from']}: the trials go on from there')),
+                    for (final s in _maps(layouts['scores'])) '${s['label']} ${s['score']} over ${_count(_int(s['runs']), 'run', 'runs')}',
+                  ].join(', ') +
+                  (moved == null ? '. ${_layoutStanding(layouts)}.' : '. ${moved['to']} is proven better than ${moved['from']}, over ${_count(_int(moved['pairs']), 'pair', 'pairs')} of runs: the trials go on from there.')),
             ),
           if (r['changed'] == true) const SettingRow(label: 'Your own keys are back', value: Text('As you set them')),
         ],
@@ -610,6 +689,18 @@ class _TrainerRunState extends State<TrainerRun> {
                 Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, t.space(2)),
                   child: Text('Trying ${run['heightLabel']} keys for this run. Your own (${run['ownHeightLabel']}) are back when it ends.', key: const ValueKey('trainer-trial'), style: quiet),
+                ),
+              // Which fix this run is typed on and tests; the first run is typed on the keyboard as it is.
+              if (run['practice'] != true && (_int(run['fix']) > 0 || trainer.number('runs') == 0))
+                Padding(
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, t.space(2)),
+                  child: Text(
+                    _int(run['fix']) > 0
+                        ? 'Testing fix ${run['fix']}: ${_count(_int(run['fixKeys']), 'key’s touch area', 'keys’ touch areas')} moved. Every tap is read both ways.'
+                        : 'The first run: typed on your keyboard as it is, to measure where your taps land.',
+                    key: const ValueKey('trainer-testing'),
+                    style: quiet,
+                  ),
                 ),
               Expanded(
                 child: GestureDetector(
@@ -783,12 +874,20 @@ class _HistoryPage extends StatelessWidget {
           final history = trainer.list('history');
           return _Page(title: 'History', children: [
             PaneSection(
-              footer: const Text('The latest runs, newest first. Speed is words a minute; the percentage is the share of taps that hit the key they were meant for.'),
+              footer: const Text(
+                'The latest runs, newest first. Speed is words a minute; the percentage is the share of taps that hit the key they were meant for. A run that tested a fix says which, and what your keyboard as it is would have made of the same taps.',
+              ),
               children: [
                 for (final r in history)
                   SettingRow(
                     label: '${r['title']}',
-                    hint: Text([_when(r['at']), if (r['practice'] == true) 'practice', if (r['trial'] == true) '${r['heightLabel']} keys, a trial', '${r['right']} of ${r['words']} words'].join(' · ')),
+                    hint: Text([
+                      _when(r['at']),
+                      if (r['practice'] == true) 'practice',
+                      if (r['trial'] == true) '${r['heightLabel']} keys, a trial',
+                      '${r['right']} of ${r['words']} words',
+                      if (_int(r['fix']) > 0) 'fix ${r['fix']}${r['asIs'] != null && _int(r['asIs']) >= 0 ? ', ${_percent(r['asIs'])} as it is' : ''}',
+                    ].join(' · ')),
                     value: Text('${r['wpm']} · ${_percent(r['accuracy'])}'),
                   ),
               ],
@@ -873,6 +972,17 @@ class _MistakesPage extends StatelessWidget {
       );
 }
 
+/// Where the trial of a key height stands, in a line with no full stop: how its pairs of runs have gone so far.
+String _layoutStanding(Map<Object?, Object?> layouts) {
+  final candidate = layouts['candidateLabel'];
+  if (candidate == null) return layouts['settled'] == true ? 'No height was proven better than your own' : 'Nothing is being tried against your own keys now';
+  final pairs = _int(layouts['pairs']);
+  final least = _int(layouts['minPairs']);
+  if (pairs == 0) return '$candidate is being tried against ${layouts['homeLabel']}, a pair of runs at a time';
+  final soFar = '$candidate scored higher in ${layouts['wins']} of ${_count(pairs, 'pair', 'pairs')} of runs so far';
+  return pairs < least ? '$soFar; nothing is decided before $least' : '$soFar, which is not proof yet';
+}
+
 /// A lean as the profile's rows say it: "14% right, 6% low" of a key.
 String _lean(Object? dx, Object? dy) {
   final x = ((dx as num?) ?? 0) * 100;
@@ -896,9 +1006,9 @@ class _ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<_ProfilePage> {
   bool _file = false;
 
-  Future<void> _apply({bool aims = false, bool height = false}) async {
-    await widget.trainer.apply(aims: aims, height: height);
-    // Applying may add Adaptive keys, move its nudges, and change the key height: Settings reads them again.
+  Future<void> _apply({bool fix = false, bool height = false}) async {
+    await widget.trainer.apply(fix: fix, height: height);
+    // Switching may add Adaptive keys, move its nudges, and change the key height: Settings reads them again.
     await widget.store.load();
   }
 
@@ -914,7 +1024,7 @@ class _ProfilePageState extends State<_ProfilePage> {
           final suggestion = p['suggestion'] is Map ? p['suggestion'] as Map : null;
           final layouts = trainer.map('layouts') ?? const {};
           final scores = _maps(layouts['scores']);
-          final adaptive = trainer.flag('adaptive');
+          final fix = FixData.of(trainer.state['fix']);
           final board = TrainerBoardData.of(trainer.state['board']);
           return _Page(title: 'Your profile', children: [
             PaneHero(glyph: AppIcon(Lucide.circleUser, size: 24), title: '${p['wpmNow']} words a minute', meta: Text('${p['report']}'), status: PaneHeroStatus('From ${_count(_int(p['runs']), 'run', 'runs')}')),
@@ -941,40 +1051,42 @@ class _ProfilePageState extends State<_ProfilePage> {
               title: 'Key height',
               footer: Text(scores.isEmpty
                   ? 'Turn on “Try different layouts” on the trainer’s first page to have runs compare key heights. Nothing is tried without it.'
-                  : 'A height takes over only after four pairs of runs or more, when it scored higher in three of every four and its usual score is six in a hundred better. Scores are words a minute times accuracy.'),
+                  : 'A height is tried against your own in pairs of runs, turn about, and is suggested only once it is proven better: over four pairs or more, a lead steadier from pair to pair than chance gives once in two hundred tries. Scores are words a minute times accuracy; the percentage is the taps on their key.'),
               children: [
                 if (scores.isEmpty) SettingRow(label: 'Not tried', value: Text('${layouts['ownLabel'] ?? 'Your own'} keys')),
-                for (final s in scores) SettingRow(label: '${s['label']}${s['height'] == layouts['own'] ? ' (yours)' : ''}', value: Text('${s['score']} over ${_count(_int(s['runs']), 'run', 'runs')}')),
+                for (final s in scores)
+                  SettingRow(
+                    label: '${s['label']}${s['height'] == layouts['own'] ? ' (yours)' : ''}',
+                    value: Text('${s['score']}${s['accuracy'] != null && _int(s['accuracy']) >= 0 ? ' · ${_percent(s['accuracy'])}' : ''} over ${_count(_int(s['runs']), 'run', 'runs')}'),
+                  ),
+                if (scores.isNotEmpty && layouts['candidate'] != null)
+                  SettingRow(key: const ValueKey('trainer-height-trial'), label: 'Trying ${layouts['candidateLabel']}', value: const Text('Not proven yet'), hint: Text('${_layoutStanding(layouts)}.')),
                 if (suggestion != null)
                   SettingRow(
+                    key: const ValueKey('trainer-height'),
                     label: 'Use ${suggestion['label']} keys',
-                    hint: Text('Your runs did better on them: ${suggestion['score']} against ${suggestion['ownScore']} on your own.'),
+                    hint: Text(
+                      'Proven better${_int(suggestion['pairs']) > 0 ? ' over ${_count(_int(suggestion['pairs']), 'pair', 'pairs')} of runs, of which it scored higher in ${suggestion['wins']}' : ''}: ${suggestion['score']} against ${suggestion['ownScore']} on your own.',
+                    ),
                     onPress: () => _apply(height: true),
                   ),
-                if (suggestion == null && layouts['settled'] == true) const SettingRow(label: 'Your own height did as well as any', value: Text('Settled')),
+                if (suggestion == null && layouts['settled'] == true) const SettingRow(label: 'No height was proven better than your own', value: Text('Settled')),
                 if (scores.isNotEmpty && layouts['settled'] == true) SettingRow(label: 'Try the layouts again', onPress: trainer.again),
               ],
             ),
             PaneSection(
               title: 'Everyday typing',
-              footer: const Text(
-                'Each run has already moved the keys’ touch areas a small step in Adaptive keys’ model. Applying blends in where your taps were measured to land, by a typing profile’s own rules, so the keys listen there now and not some runs from now. Like any nudge they drift back as your aim comes right.',
-              ),
+              footer: const Text(_testSaid),
               children: [
-                SettingRow(
-                  label: 'Apply to everyday typing',
-                  hint: Text(adaptive ? 'Blends where your taps land into Adaptive keys.' : 'Adds Adaptive keys, which is not added, and blends in where your taps land.'),
-                  onPress: () => _apply(aims: true),
-                ),
-                for (final line in trainer.said) SettingRow(label: line),
-                SettingRow(label: _file ? 'Hide the typing profile' : 'See it as a typing profile', hint: const Text('The same open file Settings imports and exports.'), onPress: () => setState(() => _file = !_file)),
+                ..._fixRows(trainer, fix, storyRuns: _int(p['runs']), onSwitch: () => _apply(fix: true)),
+                SettingRow(label: _file ? 'Hide the typing profile' : 'See it as a typing profile', hint: const Text('Where your taps were measured to land, as the open file Settings imports and exports.'), onPress: () => setState(() => _file = !_file)),
                 if (_file) SettingRowBox(child: Text('${p['file']}', style: const TextStyle(fontFamily: 'monospace', fontSize: 11, height: 1.35))),
               ],
             ),
             PaneSection(children: [
               SettingRow(
                 label: 'Forget what the trainer learned',
-                hint: const Text('Its runs, your mistakes, this profile, and the steps it gave the keys.'),
+                hint: const Text('Its runs, your mistakes, this profile, its fixes, and what a fix you switched to gave the keys.'),
                 onPress: () {
                   trainer.forget();
                   Navigator.of(context).maybePop();

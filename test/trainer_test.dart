@@ -1,9 +1,11 @@
 // The typing trainer's pages (lib/trainer/), over a mocked `dev_keyboard/trainer` channel that answers as Android's
 // Trainer.kt does: the first page and its switch, which is off unless turned on; that a run is refused where Ghost
 // Keyboard is not the keyboard in use; a run from its first key to its results; a trial layout said and never set
-// from here; the profile, and what applying it asks for; that an iPhone has no Trainer at all; and that on Android its
-// row stands at the top of Settings, in one card with Setup. And the pictures of the keyboard (trainer_board.dart, with
-// tests of its own in trainer_board_test.dart): that each page that has one draws it from what the keyboard sent.
+// from here; the test of the fixes (a run after the first is typed on one and says so, its results set the two readings
+// of its taps side by side, and switching is offered only where the keyboard says a fix is proven); the profile; that
+// an iPhone has no Trainer at all; and that on Android its row stands at the top of Settings, in one card with Setup.
+// And the pictures of the keyboard (trainer_board.dart, with tests of its own in trainer_board_test.dart): that each
+// page that has one draws it from what the keyboard sent.
 // Run with `flutter test`.
 
 import 'package:dev_keyboard/market/market_cards.dart';
@@ -26,6 +28,19 @@ const _settings = MethodChannel('dev_keyboard/settings');
 
 const _story = 'The old keeper lived alone at the end of the land.';
 
+/// The test of the fixes as Android's TrainerMaps.fix sends it: fix [number] in hand, and [tests] runs that each
+/// tested one, 170 taps a run, the fix reading [won] taps right that the keyboard as it is read wrong and [lost] the
+/// other way in each.
+Map<String, Object?> _fix({int number = 0, int? last, bool tested = true, int tests = 0, int won = 9, int lost = 1, String verdict = 'none', String? hold, int taken = 0, int dropped = 0, bool adaptive = false, int differs = 0, int oneIn = 0}) => {
+      'number': number, 'last': last ?? (tests > 0 ? number : 0), 'tested': tested, 'taken': taken, 'dropped': dropped, 'adaptive': adaptive, 'differs': differs, 'verdict': verdict, 'hold': hold,
+      'runs': tests, 'taps': 170 * tests, 'asIs': (160 - won) * tests, 'fixed': (160 - lost) * tests, 'won': won * tests, 'lost': lost * tests, 'ahead': won > lost ? tests : 0, 'behind': lost > won ? tests : 0,
+      'asIsShare': tests == 0 ? -1.0 : ((160 - won) * 1000 / 170).round() / 10, 'fixedShare': tests == 0 ? -1.0 : ((160 - lost) * 1000 / 170).round() / 10,
+      'oneIn': oneIn, 'needs': 3, 'bar': 100, 'kept': 8,
+      'tests': [
+        for (var i = 0; i < tests; i++) {'number': number - tests + 1 + i, 'taps': 170, 'asIs': 160 - won, 'fixed': 160 - lost, 'won': won, 'lost': lost},
+      ],
+    };
+
 /// The keyboard's side: what it would answer, and every call it was sent.
 class _Native {
   Map<String, Object?> state = {
@@ -35,21 +50,24 @@ class _Native {
     'history': <Object?>[], 'mistakes': <Object?>[], 'pairs': <Object?>[], 'keys': <Object?>[], 'profile': null,
     'layouts': {'own': 'normal', 'ownLabel': 'Normal', 'home': 'normal', 'homeLabel': 'Normal', 'candidate': null, 'settled': false, 'scores': <Object?>[], 'suggestion': null},
     'adaptive': false, 'nudged': 0, 'learnMistakes': true, 'running': false,
+    'fix': _fix(),
   };
 
   /// What `start` answers: a run, or why not.
   Map<String, Object?> run = {
     'ok': true, 'title': 'The lighthouse cat', 'part': 1, 'parts': 6, 'text': _story, 'words': 11, 'practice': false,
     'height': 'normal', 'heightLabel': 'Normal', 'trial': false, 'changed': false, 'ownHeightLabel': 'Normal',
+    'fix': 0, 'fixKeys': 0,
   };
 
+  /// The first run's: typed on the keyboard as it is, so it tested nothing and no key was moved for it.
   Map<String, Object?> result = {
     'counted': true, 'ms': 64000, 'wpm': 43, 'gross': 47, 'accuracy': 95, 'words': 11, 'right': 10, 'firstTry': 8, 'typed': 11,
     'missed': [{'meant': 'keeper', 'typed': 'keeepr'}], 'skipped': <Object?>[], 'extraWords': 0, 'keys': 60, 'backspaces': 3,
     'mended': [{'typed': 'teh', 'made': 'the', 'meant': 'the'}], 'spoiled': [{'typed': 'land', 'made': 'lane', 'meant': 'land'}], 'misfixed': <Object?>[], 'left': <Object?>[], 'undone': 0,
     'swiped': 0, 'picked': 0, 'spacesMissed': 0, 'straySpaces': 0, 'taps': 40, 'hits': 38, 'slips': 2, 'wrongKeys': 0, 'extraTaps': 0, 'omitted': 0, 'swaps': 1,
     'weakKeys': [{'key': 'o', 'missed': 2, 'n': 5, 'toward': 'p'}], 'weakPairs': [{'pair': 'ol', 'missed': 1, 'n': 2}],
-    'nudged': [{'key': 'e', 'dx': 0.03, 'dy': 0.02}, {'key': 'o', 'dx': 0.04, 'dy': 0.0}], 'taught': 1,
+    'nudged': <Object?>[], 'taught': 1, 'fix': {..._fix(), 'worn': 0, 'run': null},
     'title': 'The lighthouse cat', 'part': 1, 'parts': 6, 'practice': false, 'height': 'normal', 'heightLabel': 'Normal', 'trial': false, 'changed': false, 'moved': null,
     'layouts': {'scores': <Object?>[]}, 'runs': 1, 'profileAt': 5,
   };
@@ -72,7 +90,13 @@ class _Native {
         state = {...state, 'runs': result['runs']};
         return result;
       case 'apply':
-        return {...state, 'said': ['Adaptive keys added', '9 key aims blended in']};
+        // Taking a fix makes it the keyboard as it is: nothing has tested one against it yet.
+        if (args['fix'] == true) {
+          final was = state['fix'] as Map;
+          state = {...state, 'adaptive': true, 'fix': _fix(number: was['number'] as int, taken: was['number'] as int, adaptive: true)};
+          return {...state, 'said': ['Adaptive keys added', 'Everyday typing reads your taps by fix ${was['number']} now']};
+        }
+        return {...state, 'said': ['Key height set to Short']};
       case 'forget':
         state = {...state, 'runs': 0, 'history': <Object?>[], 'profile': null, 'trials': false};
         return state;
@@ -168,15 +192,26 @@ void main() {
 
     // What a run never teaches, in the page's own words.
     final promise = tester.widgetList<PaneSection>(find.byType(PaneSection)).map((s) => s.footer).whereType<Text>().map((t) => t.data!).firstWhere((t) => t.contains('A story is not your writing'));
-    for (final phrase in ['in a file of its own on this phone', 'next-word suggestions', 'Mockingbird', 'typing stats', 'anonymous report', 'Adaptive keys', 'Your corrections']) {
+    for (final phrase in ['in a file of its own on this phone', 'next-word suggestions', 'Mockingbird', 'typing stats', 'anonymous report', 'Your corrections', 'worn only by the run that tests it', 'until it is proven and you switch to it']) {
       expect(promise, contains(phrase));
     }
+
+    // The test of the fixes: nothing to test before the first run, what a run tests and what proof is said under it,
+    // and no switch to tap.
+    expect(_value(tester, 'No fix yet'), 'Nothing to test');
+    expect(_hint(tester, 'No fix yet'), 'The first run is typed on your keyboard as it is, and measures where your taps land. Each run after it tests a fix.');
+    final test = tester.widget<PaneSection>(find.byWidgetPredicate((w) => w is PaneSection && w.title == 'The test'));
+    for (final phrase in ['Each run after it is typed on a new fix', 'reads every tap of that run twice', 'compared on the very same taps', 'proven on three runs or more', 'changes only if a fix is proven and you switch to it']) {
+      expect((test.footer as Text).data, contains(phrase));
+    }
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+    expect(find.byType(FixFigure), findsNothing);
 
     // Turned on, the keyboard is told at once, and the page says what the switch does and that nothing is set.
     await _press(tester, find.byType(GlacierSwitch));
     expect(native.of('setTrials').single.arguments, {'on': true});
     final on = tester.widget<PaneSection>(find.byWidgetPredicate((w) => w is PaneSection && w.title == 'Next'));
-    for (final phrase in ['shorter or taller keys than your own (Normal)', 'read as each run starts', 'your own keys are back the moment a run ends or you leave', 'nothing is changed unless you take what the trials suggest']) {
+    for (final phrase in ['shorter or taller keys than your own (Normal)', 'read as each run starts', 'your own keys are back the moment a run ends or you leave', 'a height is suggested only once it is proven better']) {
       expect((on.footer as Text).data, contains(phrase));
     }
     await _close(tester);
@@ -211,6 +246,8 @@ void main() {
     expect(find.text('The lighthouse cat · 1 of 6'), findsOneWidget);
     expect(tester.widget<StoryText>(find.byType(StoryText)).text, _story);
     expect(find.byKey(const ValueKey('trainer-trial')), findsNothing);
+    // The first run tests nothing, and says what it is for.
+    expect(tester.widget<Text>(find.byKey(const ValueKey('trainer-testing'))).data, 'The first run: typed on your keyboard as it is, to measure where your taps land.');
 
     // The field: it asks keyboards not to learn from it, keeps autocorrect, and its cursor cannot be moved.
     final field = tester.widget<EditableText>(find.byType(EditableText));
@@ -253,7 +290,11 @@ void main() {
     expect(_value(tester, 'The o key'), '2 of 5 missed');
     expect(_hint(tester, 'The o key'), 'Mostly p in its place.');
     expect(_value(tester, 'o then l'), '1 of 2 missed');
-    expect(_value(tester, 'Touch areas'), '2 keys moved');
+    // The first run measured, on the keyboard as it is: no fix was tested, and nothing is offered.
+    expect(_hint(tester, 'Typed on your keyboard as it is'), startsWith('The first run measures where your taps land. The next run tests the first fix'));
+    expect(_value(tester, 'Touch areas'), 'As your keyboard has them');
+    expect(_hint(tester, 'Touch areas'), 'Where this run’s taps landed is measured for the next fix.');
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
     expect(_value(tester, 'Your corrections'), '1 mistake remembered');
     expect(_value(tester, 'Your profile'), '4 more runs to go');
     // No trial was on, so nothing is said of layouts.
@@ -275,7 +316,10 @@ void main() {
       ..result = {
         ..._Native().result,
         'height': 'short', 'heightLabel': 'Short', 'trial': true, 'changed': true,
-        'layouts': {'scores': [{'height': 'short', 'label': 'Short', 'runs': 1, 'score': 41.2}, {'height': 'normal', 'label': 'Normal', 'runs': 1, 'score': 39.5}]},
+        'layouts': {
+          'candidate': 'short', 'candidateLabel': 'Short', 'homeLabel': 'Normal', 'pairs': 1, 'wins': 1, 'minPairs': 4, 'maxPairs': 10,
+          'scores': [{'height': 'short', 'label': 'Short', 'runs': 1, 'score': 41.2, 'accuracy': 96}, {'height': 'normal', 'label': 'Normal', 'runs': 1, 'score': 39.5, 'accuracy': 94}],
+        },
       };
     await _open(tester, native);
     await _press(tester, find.byKey(const ValueKey('trainer-start')));
@@ -285,7 +329,8 @@ void main() {
     await _press(tester, find.text('Finish'));
     expect(native.of('finish'), hasLength(1));
     expect(_value(tester, 'Layout'), 'Short keys, a trial');
-    expect(_hint(tester, 'Layout'), 'Short 41.2 over 1 run, Normal 39.5 over 1 run');
+    // One pair of runs decides nothing, and the page says so.
+    expect(_hint(tester, 'Layout'), 'Short 41.2 over 1 run, Normal 39.5 over 1 run. Short scored higher in 1 of 1 pair of runs so far; nothing is decided before 4.');
     expect(_value(tester, 'Your own keys are back'), 'As you set them');
     // Nothing in any of it changed a setting.
     expect(native.sent.where((m) => m == 'apply'), isEmpty);
@@ -319,10 +364,11 @@ void main() {
     expect(native.of('leave').length, before + 1);
   });
 
-  testWidgets('after five runs the profile says where the taps land, and applying it is the person’s own tap', (tester) async {
+  testWidgets('after five runs the profile says where the taps land, and switching to what was proven is the person’s own tap', (tester) async {
     final native = _Native()
       ..state.addAll({
         'runs': 6, 'best': 47, 'canPractise': true, 'adaptive': false,
+        'fix': _fix(number: 5, tests: 4, verdict: 'proven', differs: 14, oneIn: 250000),
         'history': [
           for (var i = 0; i < 6; i++) {'at': 1762862400000 + i * 60000, 'title': 'The lighthouse cat', 'practice': false, 'height': 'normal', 'heightLabel': 'Normal', 'trial': false, 'ms': 60000, 'wpm': 47 - i, 'accuracy': 95, 'words': 45, 'right': 44},
         ],
@@ -334,13 +380,14 @@ void main() {
           'lean': 'Your taps land a little to the right of a key’s middle and below it.', 'report': 'Over 6 runs: 44 words a minute (39 at first), 95% of taps on their key.',
           'keys': [{'key': 'e', 'dx': 0.05, 'dy': 0.12, 'samples': 130}, {'key': 'o', 'dx': 0.14, 'dy': 0.06, 'samples': 84}],
           'slips': [{'pressed': 'p', 'meant': 'o', 'count': 9}], 'mistakes': <Object?>[], 'pairs': <Object?>[],
-          'suggestion': {'height': 'short', 'label': 'Short', 'score': 44.1, 'runs': 4, 'ownScore': 40.6, 'ownRuns': 4},
+          'suggestion': {'height': 'short', 'label': 'Short', 'score': 44.1, 'runs': 5, 'ownScore': 40.6, 'ownRuns': 5, 'pairs': 5, 'wins': 5},
           'file': '{\n  "format": "ghost-typing-profile"\n}',
         },
         'layouts': {
-          'own': 'normal', 'ownLabel': 'Normal', 'home': 'short', 'homeLabel': 'Short', 'candidate': 'condensed', 'settled': false,
-          'scores': [{'height': 'short', 'label': 'Short', 'runs': 4, 'score': 44.1}, {'height': 'normal', 'label': 'Normal', 'runs': 4, 'score': 40.6}],
-          'suggestion': {'height': 'short', 'label': 'Short', 'score': 44.1, 'runs': 4, 'ownScore': 40.6, 'ownRuns': 4},
+          'own': 'normal', 'ownLabel': 'Normal', 'home': 'short', 'homeLabel': 'Short', 'candidate': 'condensed', 'candidateLabel': 'Condensed', 'settled': false,
+          'pairs': 2, 'wins': 1, 'minPairs': 4, 'maxPairs': 10,
+          'scores': [{'height': 'short', 'label': 'Short', 'runs': 5, 'score': 44.1, 'accuracy': 96}, {'height': 'normal', 'label': 'Normal', 'runs': 5, 'score': 40.6}],
+          'suggestion': {'height': 'short', 'label': 'Short', 'score': 44.1, 'runs': 5, 'ownScore': 40.6, 'ownRuns': 5, 'pairs': 5, 'wins': 5},
         },
       });
     await _open(tester, native);
@@ -369,17 +416,34 @@ void main() {
     expect(_value(tester, 'The o key'), '14% right, 6% low');
     expect(_value(tester, 'The e key'), '5% right, 12% low');
     expect(_value(tester, 'p for o'), '9 slips');
-    expect(_value(tester, 'Normal (yours)'), '40.6 over 4 runs');
-    expect(_hint(tester, 'Use Short keys'), 'Your runs did better on them: 44.1 against 40.6 on your own.');
+    // Each height's usual score, with its taps on their key where the keyboard said them; the one still being tried
+    // is not proven, and the one that was says how.
+    expect(_value(tester, 'Normal (yours)'), '40.6 over 5 runs');
+    expect(_value(tester, 'Short'), '44.1 · 96% over 5 runs');
+    expect(_value(tester, 'Trying Condensed'), 'Not proven yet');
+    expect(_hint(tester, 'Trying Condensed'), 'Condensed scored higher in 1 of 2 pairs of runs so far; nothing is decided before 4.');
+    expect(_hint(tester, 'Use Short keys'), 'Proven better over 5 pairs of runs, of which it scored higher in 5: 44.1 against 40.6 on your own.');
 
-    // Applying is two taps of the person's own, each asking for just the one thing; nothing was applied before them.
+    // The fix: proven, with both readings of the runs that tested one, and the switch.
+    expect(_value(tester, 'Fix 5'), 'Proven better');
+    expect(_hint(tester, 'Fix 5'), 'Over 4 runs the fix read 36 taps right that your keyboard as it is read wrong, and 4 the other way. Chance would split them that far less than once in 250,000 tries, and it led steadily from run to run.');
+    expect(_value(tester, 'With the fix'), '93.5% of taps on their key');
+    expect(_value(tester, 'Your keyboard as it is'), '88.8%');
+    expect(_hint(tester, 'Your keyboard as it is'), 'The same 680 taps of 4 runs, read both ways.');
+    expect(tester.widget<FixFigure>(find.byKey(const ValueKey('trainer-fix-lines'))).fix.tests, hasLength(4));
+
+    // Switching is two taps of the person's own, each asking for just the one thing; nothing was switched before them.
     expect(native.of('apply'), isEmpty);
-    expect(_hint(tester, 'Apply to everyday typing'), 'Adds Adaptive keys, which is not added, and blends in where your taps land.');
-    await _press(tester, find.text('Apply to everyday typing'));
-    expect(native.of('apply').single.arguments, {'aims': true, 'height': false});
-    expect(find.text('9 key aims blended in'), findsOneWidget);
+    expect(_hint(tester, 'Switch everyday typing to fix 5'), 'Adds Adaptive keys, which is not added, with each touch area where fix 5 has it. Like any nudge there they drift back as your aim comes right.');
+    await _press(tester, find.byKey(const ValueKey('trainer-switch')));
+    expect(native.of('apply').single.arguments, {'fix': true, 'height': false});
+    expect(find.text('Everyday typing reads your taps by fix 5 now'), findsOneWidget);
+    // Taken, it is the keyboard as it is: there is nothing left to switch to until a later fix is proven against it.
+    expect(_value(tester, 'Fix 5'), 'In everyday typing');
+    expect(_hint(tester, 'Fix 5'), 'Everyday typing reads your taps by fix 5. The next run tests a new fix against it.');
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
     await _press(tester, find.text('Use Short keys'));
-    expect(native.of('apply').last.arguments, {'aims': false, 'height': true});
+    expect(native.of('apply').last.arguments, {'fix': false, 'height': true});
 
     // It is a typing profile, and can be seen as one.
     await _press(tester, find.text('See it as a typing profile'));
@@ -393,6 +457,135 @@ void main() {
     await _close(tester);
   });
 
+  testWidgets('a run after the first is typed on a fix and says so, and its results set the two readings side by side', (tester) async {
+    // Two runs in, fix 2 in hand and tested once; the run about to start is typed on fix 3.
+    final native = _Native()
+      ..state.addAll({'runs': 2, 'best': 44, 'fix': _fix(number: 2, tests: 1, won: 4, verdict: 'testing', hold: 'runs', differs: 9)})
+      ..run = {..._Native().run, 'fix': 3, 'fixKeys': 12}
+      ..result = {
+        ..._Native().result,
+        'runs': 3, 'taps': 40, 'hits': 38, 'accuracy': 95,
+        'nudged': [for (final k in 'aehnorst'.split('')) {'key': k, 'dx': 0.06, 'dy': 0.03}],
+        'fix': {
+          ..._fix(number: 3, tests: 2, won: 4, verdict: 'testing', hold: 'runs', differs: 8),
+          'worn': 3, 'run': {'number': 3, 'taps': 40, 'asIs': 36, 'fixed': 38, 'won': 3, 'lost': 1},
+        },
+      };
+    await _open(tester, native);
+    // The first page: which fix is in hand, where it stands, and no switch while it is not proven.
+    expect(_value(tester, 'Fix 2'), 'Not proven yet');
+    expect(_hint(tester, 'Fix 2'), 'Over 1 run the fix read 4 taps right that your keyboard as it is read wrong, and 1 the other way. A fix is proven on 3 runs or more: 2 more to go.');
+    expect(_value(tester, 'With the fix'), '93.5% of taps on their key');
+    expect(_value(tester, 'Your keyboard as it is'), '91.8%');
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    expect(tester.widget<Text>(find.byKey(const ValueKey('trainer-testing'))).data, 'Testing fix 3: 12 keys’ touch areas moved. Every tap is read both ways.');
+    await _press(tester, find.text('Finish'));
+
+    // The results: the same taps as the fix read them and as the keyboard as it is would have, and where that leaves the test.
+    expect(_value(tester, 'With fix 3'), '38 of 40 taps · 95%');
+    expect(_value(tester, 'Your keyboard as it is'), '36 of 40 · 90%');
+    expect(_hint(tester, 'Your keyboard as it is'), 'The same 40 taps, read both ways: 3 only the fix read right, 1 only your keyboard did.');
+    expect(_value(tester, 'So far'), 'Not proven yet');
+    expect(_hint(tester, 'So far'), 'Over 2 runs the fix read 8 taps right that your keyboard as it is read wrong, and 2 the other way. A fix is proven on 3 runs or more: 1 more to go.');
+    expect(tester.widget<FixFigure>(find.byKey(const ValueKey('trainer-fix-lines'))).fix.tests.map((r) => r.number), [2, 3]);
+    expect(_value(tester, 'Touch areas'), '8 keys moved in fix 3');
+    expect(_hint(tester, 'Touch areas'), 'a e h n o r s t. Where this run’s taps landed is measured for the next fix.');
+    // Not proven: nothing is offered, on the results or anywhere else, and nothing was switched.
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+    expect(find.textContaining('Switch everyday typing'), findsNothing);
+    expect(native.of('apply'), isEmpty);
+    expect(tester.takeException(), isNull);
+    await _close(tester);
+  });
+
+  testWidgets('switching is offered only where the keyboard says a fix is proven, and is the person’s own tap', (tester) async {
+    // Every state that is not proof: ahead but on too few taps, ahead but not steadily, the last run against it,
+    // behind, dropped as worse, and a fix no run has tested yet. None offers the switch.
+    final unproven = <(Map<String, Object?>, String, String)>[
+      (_fix(number: 4, tests: 3, won: 2, lost: 0, verdict: 'testing', hold: 'split'), 'Not proven yet', 'That is too few, or too even, to rule out chance.'),
+      (_fix(number: 4, tests: 3, verdict: 'testing', hold: 'steady', oneIn: 5000), 'Not proven yet', 'It is ahead on the count, but not steadily from run to run, and one good run is not proof.'),
+      (_fix(number: 4, tests: 3, verdict: 'testing', hold: 'last', oneIn: 5000), 'Not proven yet', 'The run just typed went against it.'),
+      (_fix(number: 4, tests: 3, won: 1, lost: 5, verdict: 'testing', hold: 'behind'), 'Not proven yet', 'It has not read more taps right than your keyboard.'),
+      (_fix(number: 4, dropped: 4, verdict: 'none'), 'Dropped', 'Fix 4 read fewer of your taps right than your keyboard as it is, so it was dropped. The next fix starts again from your keyboard.'),
+      (_fix(number: 4, tested: false, differs: 11), 'Next run tests it', 'It moves 11 keys’ touch areas toward where your taps land. The next run is typed on it, and every tap is read both ways: by the fix, and by your keyboard as it is.'),
+      (_fix(number: 0), 'Nothing to test', 'A fix moves each key’s touch area toward where your taps land. There is nothing to test yet: no key’s taps land far enough from where it listens now.'),
+    ];
+    for (final (fix, status, said) in unproven) {
+      final native = _Native()..state.addAll({'runs': 4, 'best': 44, 'fix': fix});
+      await _open(tester, native);
+      final row = tester.widget<SettingRow>(find.byKey(const ValueKey('trainer-fix')));
+      expect((row.value as Text).data, status, reason: '$fix');
+      expect((row.hint as Text).data, endsWith(said), reason: '$fix');
+      expect(find.byKey(const ValueKey('trainer-switch')), findsNothing, reason: '$fix');
+      expect(find.textContaining('Switch everyday typing'), findsNothing);
+      await _close(tester);
+    }
+
+    // Proven: the switch is there, says what it does, and does nothing until it is tapped.
+    final native = _Native()..state.addAll({'runs': 5, 'best': 44, 'adaptive': true, 'fix': _fix(number: 4, tests: 3, verdict: 'proven', adaptive: true, differs: 12, oneIn: 2000000)});
+    await _open(tester, native);
+    expect(_value(tester, 'Fix 4'), 'Proven better');
+    expect(_hint(tester, 'Fix 4'), 'Over 3 runs the fix read 27 taps right that your keyboard as it is read wrong, and 3 the other way. Chance would split them that far less than once in a million tries, and it led steadily from run to run.');
+    expect(_hint(tester, 'Switch everyday typing to fix 4'), 'Moves Adaptive keys’ touch areas to where fix 4 has them. Like any nudge there they drift back as your aim comes right.');
+    expect(native.of('apply'), isEmpty);
+    await _press(tester, find.byKey(const ValueKey('trainer-switch')));
+    expect(native.of('apply').single.arguments, {'fix': true, 'height': false});
+    expect(find.text('Everyday typing reads your taps by fix 4 now'), findsOneWidget);
+    expect(_value(tester, 'Fix 4'), 'In everyday typing');
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+    await _close(tester);
+
+    // A run was started after fix 4 was proven, and left: fix 5 is in hand and no run has typed on it. What is
+    // offered is fix 4, the one the runs tested.
+    final left = _Native()..state.addAll({'runs': 5, 'best': 44, 'fix': _fix(number: 5, last: 4, tested: false, tests: 3, verdict: 'proven', differs: 13, oneIn: 40000)});
+    await _open(tester, left);
+    expect(_value(tester, 'Fix 4'), 'Proven better');
+    expect(_hint(tester, 'Switch everyday typing to fix 4'), startsWith('Adds Adaptive keys, which is not added, with each touch area where fix 4 has it.'));
+    expect(find.textContaining('fix 5'), findsNothing);
+    await _close(tester);
+
+    // A run's results offer it too, the moment the run that proved it ends.
+    final proving = _Native()
+      ..state.addAll({'runs': 3, 'best': 44, 'fix': _fix(number: 3, tests: 2, verdict: 'testing', hold: 'runs', differs: 9)})
+      ..run = {..._Native().run, 'fix': 4, 'fixKeys': 12}
+      ..result = {
+        ..._Native().result,
+        'runs': 4,
+        'fix': {..._fix(number: 4, tests: 3, verdict: 'proven', differs: 12, oneIn: 40000), 'worn': 4, 'run': {'number': 4, 'taps': 170, 'asIs': 151, 'fixed': 159, 'won': 9, 'lost': 1}},
+      };
+    await _open(tester, proving);
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    await _press(tester, find.text('Finish'));
+    expect(_value(tester, 'So far'), 'Proven better');
+    expect(native.of('apply'), hasLength(1));
+    expect(proving.of('apply'), isEmpty);
+    await _press(tester, find.byKey(const ValueKey('trainer-switch')));
+    expect(proving.of('apply').single.arguments, {'fix': true, 'height': false});
+    await _close(tester);
+
+    // A run that proved its fix worse says it was dropped, and offers nothing.
+    final dropping = _Native()
+      ..state.addAll({'runs': 3, 'best': 44, 'fix': _fix(number: 3, tests: 2, won: 1, lost: 6, verdict: 'testing', hold: 'runs')})
+      ..run = {..._Native().run, 'fix': 3, 'fixKeys': 9}
+      ..result = {
+        ..._Native().result,
+        'runs': 4,
+        'fix': {..._fix(number: 3, dropped: 3, verdict: 'worse'), 'worn': 3, 'run': {'number': 3, 'taps': 170, 'asIs': 160, 'fixed': 153, 'won': 1, 'lost': 8}},
+      };
+    await _open(tester, dropping);
+    await _press(tester, find.byKey(const ValueKey('trainer-start')));
+    await _press(tester, find.text('Finish'));
+    expect(_value(tester, 'With fix 3'), '153 of 170 taps · 90%');
+    expect(_value(tester, 'Your keyboard as it is'), '160 of 170 · 94.1%');
+    expect(_value(tester, 'So far'), 'Dropped');
+    expect(_hint(tester, 'So far'), 'Fix 3 read fewer of your taps right than your keyboard as it is, so it was dropped. The next fix starts again from your keyboard.');
+    expect(find.byKey(const ValueKey('trainer-switch')), findsNothing);
+    await _close(tester);
+  });
+
   testWidgets('Settings has a Trainer on Android and none on an iPhone', (tester) async {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(_settings, (call) async => null);
     addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(_settings, null));
@@ -401,7 +594,7 @@ void main() {
     final trainer = android.firstWhere((s) => s.id == 'trainer');
     expect(trainer.label, 'Trainer');
     expect(trainer.screen, isNotNull);
-    expect(trainer.summary!(store), 'Type a story; the keys learn your thumbs');
+    expect(trainer.summary!(store), 'Type a story; each run tests a fix for your thumbs');
     // At the top, in Setup's group and straight after it (Matt, 2026-11-11: "Place the training section at the top
     // next to the setup section"): the two are the first card, and nothing else is in it.
     expect(android.first.id, 'setup');
@@ -446,7 +639,7 @@ void main() {
     expect(shared, isNotEmpty, reason: 'Setup and the Trainer are rows of one card');
     expect(shared.intersection(cards(offline)), isEmpty, reason: 'Offline is not in their card');
     // Its row says what it is for, and opens the trainer's own screen.
-    expect(find.text('Type a story; the keys learn your thumbs'), findsOneWidget);
+    expect(find.text('Type a story; each run tests a fix for your thumbs'), findsOneWidget);
     await _press(tester, row);
     expect(find.byType(TrainerScreen), findsOneWidget);
     await _close(tester);
@@ -504,7 +697,8 @@ void main() {
     expect(misses.said, 'Missed most: r 20% (e in its place).');
     final areas = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-map-areas')));
     expect(areas.view, BoardView.areas);
-    expect(areas.said, '3 keys’ touch areas have moved. Furthest: e, 12% right.');
+    // q and w are the fix's; e is off its middle on the keyboard as it is.
+    expect(areas.said, 'The fix moves 2 keys’ touch areas toward where the taps land. Furthest: w, 8% right. Your keyboard as it is has 1 more off the middle.');
     expect(find.text(misses.said), findsOneWidget);
     expect(find.text(areas.said), findsOneWidget);
     // Which way the taps lean on the whole is said under the second, with what its marks are.
@@ -529,7 +723,7 @@ void main() {
     expect(_value(tester, 'The e key'), '10% right');
     await _press(tester, find.bySemanticsLabel('Back'));
 
-    // A run's results have the run's own two: where it went wrong, and the touch areas with what it moved lit.
+    // A run's results have the run's own two: where it went wrong, and the touch areas of the fix it was typed on.
     await _press(tester, find.byKey(const ValueKey('trainer-start')));
     await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
     await _settle(tester);
@@ -540,24 +734,24 @@ void main() {
     final took = tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-run-areas')));
     expect(took.view, BoardView.areas);
     expect(took.run, isTrue);
-    expect(took.said, 'This run moved 2 keys’ touch areas a step toward where their taps land; 1 had moved before it.');
-    expect(find.text('moved before this run'), findsOneWidget);
+    expect(took.said, 'The fix this run was typed on moves 2 keys’ touch areas toward where the taps land. Furthest: w, 8% right. Your keyboard as it is has 1 more off the middle.');
+    expect(find.text('where the fix it was typed on has the key'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _close(tester);
   });
 
-  testWidgets('a run that was not counted, or sent no keyboard, has no picture of what it moved', (tester) async {
-    // From a keyboard older than the pictures: the results are as they were.
+  testWidgets('a run that was not counted, or sent no keyboard, has no picture of its touch areas', (tester) async {
+    // With no keyboard sent to draw, the results are rows alone.
     final old = _Native();
     await _open(tester, old);
     await _press(tester, find.byKey(const ValueKey('trainer-start')));
     await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
     await _settle(tester);
-    expect(_value(tester, 'Touch areas'), '2 keys moved');
+    expect(_value(tester, 'Touch areas'), 'As your keyboard has them');
     expect(find.byType(BoardFigure), findsNothing);
     await _close(tester);
 
-    // Not counted: nothing moved, so nothing is drawn as moved; where it went wrong is still worth seeing.
+    // Not counted: nothing was measured or tested, so no touch areas are drawn; where it went wrong is still worth seeing.
     final short = _Native();
     short.result
       ..['counted'] = false
@@ -577,6 +771,7 @@ void main() {
     await _tell(tester, 'progress', {'fates': [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'current': 11, 'tail': '', 'done': true, 'wpm': 43, 'ms': 64000});
     await _settle(tester);
     expect(_value(tester, 'Touch areas'), 'Not counted');
+    expect(_hint(tester, 'Touch areas'), 'Nothing was measured from this run.');
     expect(tester.widget<BoardFigure>(find.byKey(const ValueKey('trainer-run-misses'))).said, 'Missed most: o 40% (p in its place).');
     expect(find.byKey(const ValueKey('trainer-run-areas')), findsNothing);
     expect(tester.takeException(), isNull);

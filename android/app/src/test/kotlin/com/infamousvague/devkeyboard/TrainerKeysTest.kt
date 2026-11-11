@@ -133,18 +133,25 @@ class TrainerKeysTest {
         assertNull(Trainer.heightFor("another.app", "own"))
     }
 
-    @Test fun aTrialLayoutIsWornOnlyByItsRunInThisAppsOwnField() {
-        assertNull(Trainer.heightFor("own", "own")); assertFalse(Trainer.adapts("own", "own"))
-        Trainer.hold(Trainer.Session("s-1", "A story", 1, 1, "the cat.", practice = false, height = "short", trial = true, ownHeight = "normal", layout = "qwerty"))
-        assertEquals("short", Trainer.heightFor("own", "own")); assertTrue(Trainer.adapts("own", "own"))
-        assertNull("never in another app", Trainer.heightFor("com.whatsapp", "own")); assertFalse(Trainer.adapts("com.whatsapp", "own")); assertNull(Trainer.heightFor(null, "own"))
-        // A trial run on the person's own height wears nothing.
+    @Test fun aTrialLayoutAndAFixAreWornOnlyByTheirRunInThisAppsOwnField() {
+        assertNull(Trainer.heightFor("own", "own")); assertNull(Trainer.fixFor("own", "own"))
+        val fix = mapOf('e' to (0.08f to -0.04f), 'o' to (0f to 0f))
+        Trainer.hold(Trainer.Session("s-1", "A story", 1, 1, "the cat.", practice = false, height = "short", trial = true, ownHeight = "normal", layout = "qwerty", fix = fix, fixNumber = 3, differs = setOf('e')))
+        assertEquals("short", Trainer.heightFor("own", "own"))
+        Trainer.fixFor("own", "own")!!.let { worn ->
+            assertEquals(0.08f to -0.04f, worn('e')); assertEquals("a capital is its key", 0.08f to -0.04f, worn('E'))
+            assertEquals(0f to 0f, worn('o')); assertEquals("a key the fix does not name listens at its middle", 0f to 0f, worn('q'))
+        }
+        assertNull("never in another app", Trainer.heightFor("com.whatsapp", "own")); assertNull(Trainer.fixFor("com.whatsapp", "own"))
+        assertNull(Trainer.heightFor(null, "own")); assertNull(Trainer.fixFor(null, "own"))
+        // A trial run on the person's own height wears nothing, and a run typed on no fix has the keys as they are.
         Trainer.hold(Trainer.Session("s-2", "A story", 1, 1, "the cat.", practice = false, height = "normal", trial = true, ownHeight = "normal", layout = "qwerty"))
-        assertNull(Trainer.heightFor("own", "own"))
+        assertNull(Trainer.heightFor("own", "own")); assertNull(Trainer.fixFor("own", "own"))
+        Trainer.hold(Trainer.Session("s-3", "A story", 1, 1, "the cat.", practice = false, height = "normal", trial = false, ownHeight = "normal", layout = "qwerty", fix = fix, fixNumber = 3, differs = setOf('e')))
         // The run dropped: the keyboard is told, and nothing is worn.
         applied = 0
         Trainer.leave(told = true)
-        assertEquals(1, applied); assertNull(Trainer.session); assertNull(Trainer.heightFor("own", "own"))
+        assertEquals(1, applied); assertNull(Trainer.session); assertNull(Trainer.heightFor("own", "own")); assertNull(Trainer.fixFor("own", "own"))
         Trainer.leave(told = true)
         assertEquals("nothing to drop, nothing to tell", 1, applied)
         assertTrue(keys.listed("the")); assertFalse(keys.listed("teh"))
@@ -157,15 +164,21 @@ class TrainerKeysTest {
         // learned word, or opens a connection. Comments aside: they say what is not done.
         val dir = listOf("android/app/src/main/kotlin/com/infamousvague/devkeyboard", "src/main/kotlin/com/infamousvague/devkeyboard", "../app/src/main/kotlin/com/infamousvague/devkeyboard").map(::File).first { it.exists() }
         val sources = dir.listFiles()!!.filter { it.name.startsWith("Trainer") || it.name == "LayoutTrials.kt" }
-        assertEquals("every file of the trainer's", 11, sources.size)
+        assertEquals("every file of the trainer's", 12, sources.size)
         val never = listOf("NextWords", "NextWordLearner", "Mockingbird", "TypingStats", "AccuracyLog", "Reports", "ReportTally", "learnedWords", ".learn(word", "prefs.learn(", "Net.", "NetPath", "openConnection", "URL(", "Socket(")
         for (file in sources) {
             val code = file.readText().replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "").lines().joinToString("\n") { it.substringBefore("//") }
             for (word in never) assertFalse("${file.name} has to do with $word", code.contains(word))
         }
-        // What it does hand on, it hands on in one place each: the key model's step and the corrections' lesson.
+        // What it does hand on, it hands on in one place each: a fix the person took, into the key model, and the
+        // corrections' lesson. The model is written nowhere else: a run only ever wears a fix.
         val wiring = File(dir, "Trainer.kt").readText()
         assertTrue(wiring.contains("model.trained(") && wiring.contains("memory.learn(t.typed, t.meant)") && wiring.contains("prefs.learnMistakes"))
+        val applying = wiring.substring(wiring.indexOf("fun apply("), wiring.indexOf("fun again("))
+        assertTrue("a fix is taken only where it is proven", applying.contains("FixTrial.Verdict.PROVEN"))
+        // Outside taking a fix, the model is written only to take back what was given, when everything is forgotten.
+        assertEquals(1, Regex("model\\.trained\\(").findAll(wiring.replace(applying, "")).count())
+        assertTrue(wiring.substring(wiring.indexOf("fun forget(")).contains("model.trained(key, 0, back.dx, back.dy)"))
         for (file in sources.filter { it.name != "Trainer.kt" }) assertFalse(file.name, file.readText().let { it.contains("Mistakes.get(") || it.contains("AdaptiveKeys.get(") })
     }
 
@@ -181,12 +194,32 @@ class TrainerKeysTest {
         }
         val t = TrainerTest.Typist("because of their friend.", gap = 300L).type("becuase").space(fix = "because").tap('p', fx = -0.4f).tap('f').space().type("their").space().type("friend").mark('.')
         val r = t.score()
-        plain(TrainerMaps.result(r, mapOf('o' to TrainerAims.Aim(0.04f, -0.01f)), 1), "result")
+        plain(TrainerMaps.result(r, mapOf('o' to (0.04f to -0.01f)), 1), "result")
         plain(TrainerMaps.progress(t.run.progress(t.at)), "progress")
         val book = TrainerBook()
         repeat(6) { book.add(RunLine(1L + it, "s-$it", "A story", false, "normal", it % 2 == 0, r.ms, r.wpm, if (it == 0) Float.NaN else r.accuracy, r.words, r.right, r.firstTry, r.backspaces, r.mended.size, r.spoiled.size), r, "qwerty") }
         book.layouts.anchor("normal"); repeat(8) { book.layouts.record(book.layouts.next(), 40f + it) }
-        plain(book.runs.map(TrainerMaps::line), "history"); plain(TrainerMaps.layouts(book.layouts), "layouts")
+        plain(book.runs.map(TrainerMaps::line), "history"); plain(TrainerMaps.layouts(book.layouts, book.runs), "layouts")
+        // The test of the fixes: none yet, one in hand, and one with runs behind it.
+        plain(TrainerMaps.fix(null, false, 0), "fix")
+        val fixes = FixTrial()
+        fixes.begin(false, { 0f to 0f }, Layouts.QWERTY.positions.keys, mapOf('e' to TrainerAims.Measure(60, 0.25f, 0.2f, 60)))
+        for (run in listOf(FixTrial.FixRun(1, 170, 157, 165, 9, 1), FixTrial.FixRun(1, 172, 158, 167, 10, 1), FixTrial.FixRun(1, 168, 155, 166, 12, 1))) fixes.record(run)
+        val told = TrainerMaps.fix(fixes, false, 1)
+        plain(told, "fix"); plain(TrainerMaps.fixRun(fixes.runs.last()), "fixRun")
+        assertEquals("the fix the runs tested is the one a switch takes", 1, told["last"]); assertEquals(0, TrainerMaps.fix(null, false, 0)["last"])
+        assertEquals("proven", told["verdict"]); assertEquals(3, told["runs"]); assertEquals(31, told["won"]); assertEquals(3, told["lost"]); assertEquals(1, told["differs"])
+        assertEquals("of 510 taps, to a tenth of a percent", 92.2, told["asIsShare"]); assertEquals(97.6, told["fixedShare"])
+        assertTrue("chance gives a split like 31 to 3 far less than once in a hundred", (told["oneIn"] as Int) > 100_000)
+        assertEquals("none", TrainerMaps.fix(null, false, 0)["verdict"]); assertEquals(0, TrainerMaps.fix(null, false, 0)["oneIn"])
+        assertEquals(false, told["next"]); assertEquals(true, TrainerMaps.fix(null, false, 0, next = true)["next"]); assertNull(told["hold"])
+        assertEquals("what keeps a fix from proven is said", "runs", TrainerMaps.fix(FixTrial().also { it.begin(false, { 0f to 0f }, Layouts.QWERTY.positions.keys, mapOf('e' to TrainerAims.Measure(60, 0.25f, 0.2f, 60))); it.record(FixTrial.FixRun(1, 170, 157, 165, 9, 1)) }, false, 1)["hold"])
+        assertEquals("a verdict the run left, where the trial has since moved on", "worse", TrainerMaps.fix(fixes, false, 1, FixTrial.Verdict.WORSE)["verdict"])
+        // A run's line says which fix it tested and what the keyboard as it is would have made of its taps; one that tested nothing says neither.
+        assertEquals(0, TrainerMaps.line(book.runs[1])["fix"]); assertEquals(-1, TrainerMaps.line(book.runs[1])["asIs"])
+        TrainerMaps.line(RunLine(9L, "s-9", "A story", false, "normal", false, r.ms, r.wpm, 0.96f, r.words, r.right, r.firstTry, 0, 0, 0, fix = 4, asIs = 0.915f)).let { assertEquals(4, it["fix"]); assertEquals(92, it["asIs"]); assertEquals(96, it["accuracy"]) }
+        // Each height's taps on their key are said beside its score.
+        (TrainerMaps.layouts(book.layouts, book.runs)["scores"] as List<*>).filterIsInstance<Map<*, *>>().let { rows -> assertTrue(rows.isNotEmpty()); assertTrue(rows.all { it["accuracy"] is Int }) }
         plain(book.mistakes().map(TrainerMaps::mistake) + book.weakPairs().map(TrainerMaps::pair) + book.weakKeys("qwerty").map(TrainerMaps::key), "mistakes")
         val p = book.profile("qwerty", Layouts.QWERTY.positions)!!
         plain(TrainerMaps.profile(p, TrainerCodec.profile(p, "now")), "profile")

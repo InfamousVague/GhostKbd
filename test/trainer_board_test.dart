@@ -134,21 +134,22 @@ void main() {
       expect(TrainerBoardData.of(qwerty(over: {'a': {'taps': 400, 'missed': 1}}))!.missesSaid(floor: 10), 'Missed most: a under 1%.');
     });
 
-    test('what has shifted: how many keys, and the one furthest off', () {
+    test('what has shifted: the keys the fix moves, the one furthest off, and what the keyboard has off its middle already', () {
+      // e and r are the fix's; z is the keyboard's own (an everyday slip, or a fix that was taken).
       final board = TrainerBoardData.of(measured)!;
-      expect(board.areasSaid(), '3 keys’ touch areas have moved. Furthest: e, 12% right and 6% low.');
+      expect(board.areasSaid(), 'The fix moves 2 keys’ touch areas toward where the taps land. Furthest: e, 12% right and 6% low. Your keyboard as it is has 1 more off the middle.');
       expect(TrainerBoardData.of(qwerty())!.areasSaid(), 'No key has enough taps yet to say where they land.');
-      expect(TrainerBoardData.of(qwerty(over: {'a': {'landed': 20, 'landX': 0.01}}))!.areasSaid(), 'No touch area has moved far enough to be in use yet.');
-      expect(TrainerBoardData.of(qwerty(over: {'a': {'shiftX': -0.05}}))!.areasSaid(), '1 key’s touch area has moved. Furthest: a, 5% left.');
+      expect(TrainerBoardData.of(qwerty(over: {'a': {'landed': 20, 'landX': 0.01}}))!.areasSaid(), 'No fix has moved a touch area far enough to be in use yet.');
+      expect(TrainerBoardData.of(qwerty(over: {'a': {'shiftX': -0.05}}))!.areasSaid(), 'No fix moves a touch area from where your keyboard has it. It has 1 key’s touch area off the middle.');
+      expect(TrainerBoardData.of(qwerty(over: {'a': {'shiftX': -0.05, 'moved': true}}))!.areasSaid(), 'The fix moves 1 key’s touch area toward where the taps land. Furthest: a, 5% left.');
+      // A key the fix has back at its middle, where the keyboard has it off it, is one the fix moves.
+      expect(TrainerBoardData.of(qwerty(over: {'a': {'moved': true}}))!.areasSaid(), 'The fix moves 1 key’s touch area toward where the taps land.');
     });
 
-    test('a run’s own picture says what that run moved', () {
-      // z had moved before it (an everyday slip, or an earlier run).
-      expect(TrainerBoardData.of(measured)!.areasSaid(run: true), 'This run moved 2 keys’ touch areas a step toward where their taps land; 1 had moved before it.');
-      expect(TrainerBoardData.of(qwerty())!.areasSaid(run: true), 'This run moved no touch area.');
-      expect(TrainerBoardData.of(qwerty(over: {'a': {'shiftX': 0.05}, 'b': {'shiftY': 0.05}}))!.areasSaid(run: true), 'This run moved no touch area; 2 had moved before it.');
-      // Moved, and not yet far enough off to be in use: it is counted all the same.
-      expect(TrainerBoardData.of(qwerty(over: {'a': {'moved': true}}))!.areasSaid(run: true), 'This run moved 1 key’s touch area a step toward where its taps land.');
+    test('a run’s own picture says which keys the fix it was typed on moves', () {
+      expect(TrainerBoardData.of(measured)!.areasSaid(run: true), 'The fix this run was typed on moves 2 keys’ touch areas toward where the taps land. Furthest: e, 12% right and 6% low. Your keyboard as it is has 1 more off the middle.');
+      expect(TrainerBoardData.of(qwerty())!.areasSaid(run: true), 'This run was typed on your keyboard as it is.');
+      expect(TrainerBoardData.of(qwerty(over: {'a': {'shiftX': 0.05}, 'b': {'shiftY': 0.05}}))!.areasSaid(run: true), 'This run was typed on your keyboard as it is. It has 2 keys’ touch areas off the middle.');
     });
 
     test('an offset in words', () {
@@ -236,17 +237,21 @@ void main() {
       expect(find.text('Missed most: r 15% (e in its place), o 8% (p in its place), e 5%.'), findsOneWidget);
       expect(find.bySemanticsLabel(RegExp(r'^The keyboard, each key tinted by how often it is missed\. Missed most: r 15%')), findsOneWidget);
 
+      // What the fix moves is told from what the keyboard has off its middle already (z here).
       await show(tester, BoardFigure(board: board, view: BoardView.areas));
       expect(find.text('where your taps land'), findsOneWidget);
-      expect(find.text('how far the touch area has moved'), findsOneWidget);
-      expect(find.text('moved before this run'), findsNothing);
-      expect(find.bySemanticsLabel(RegExp(r'^The keyboard, with where the taps land and how far each touch area has moved\. 3 keys’ touch areas have moved')), findsOneWidget);
+      expect(find.text('where the fix has the key'), findsOneWidget);
+      expect(find.text('your keyboard as it is'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(r'^The keyboard, with where the taps land and where the fix has each key listening\. The fix moves 2 keys’ touch areas')), findsOneWidget);
+      // With nothing of the keyboard's own off its middle there is no mark for it.
+      await show(tester, BoardFigure(board: TrainerBoardData.of(qwerty(over: {'e': {'shiftX': 0.1, 'moved': true}}))!, view: BoardView.areas));
+      expect(find.text('your keyboard as it is'), findsNothing);
 
-      // A run's own: what it moved is told from what had moved before it (z here).
+      // A run's own: the fix it was typed on.
       await show(tester, BoardFigure(board: board, view: BoardView.areas, run: true));
       expect(find.text('where this run’s taps landed'), findsOneWidget);
-      expect(find.text('a touch area this run moved'), findsOneWidget);
-      expect(find.text('moved before this run'), findsOneWidget);
+      expect(find.text('where the fix it was typed on has the key'), findsOneWidget);
+      expect(find.text('your keyboard as it is'), findsOneWidget);
     });
 
     testWidgets('a layout with eleven keys to a row is drawn to its own width', (tester) async {

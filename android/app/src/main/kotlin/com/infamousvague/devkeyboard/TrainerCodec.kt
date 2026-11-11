@@ -26,7 +26,7 @@ object TrainerCodec {
         val runs = JSONArray()
         for (r in book.runs) {
             runs.put(JSONArray().put(r.at).put(r.story).put(r.title).put(if (r.practice) 1 else 0).put(r.height).put(if (r.trial) 1 else 0).put(r.ms)
-                .put(num(r.wpm)).put(num(r.accuracy)).put(r.words).put(r.right).put(r.firstTry).put(r.backspaces).put(r.mended).put(r.spoiled))
+                .put(num(r.wpm)).put(num(r.accuracy)).put(r.words).put(r.right).put(r.firstTry).put(r.backspaces).put(r.mended).put(r.spoiled).put(r.fix).put(num(r.asIs)))
         }
         o.put("runs", runs)
         o.put("read", JSONArray(book.read))
@@ -47,6 +47,18 @@ object TrainerCodec {
             given.put(layout, k)
         }
         o.put("given", given)
+        val fixes = JSONObject()
+        for ((layout, t) in book.fixes) {
+            val at = JSONObject()
+            for ((c, a) in t.at.toSortedMap()) at.put(c.toString(), JSONArray().put(num(a.dx)).put(num(a.dy)))
+            val tests = JSONArray()
+            for (r in t.runs) tests.put(JSONArray().put(r.number).put(r.taps).put(r.asIs).put(r.fixed).put(r.won).put(r.lost))
+            val last = JSONObject()
+            for ((c, a) in t.testedAt.toSortedMap()) last.put(c.toString(), JSONArray().put(num(a.dx)).put(num(a.dy)))
+            fixes.put(layout, JSONObject().put("n", t.number).put("tested", t.tested).put("adaptive", t.adaptive).put("taken", t.taken).put("dropped", t.dropped).put("at", at).put("runs", tests)
+                .put("last", t.testedNumber).put("lastAt", last))
+        }
+        o.put("fixes", fixes)
         fun tallies(map: Map<String, Tally>) = JSONObject().apply { for ((k, t) in map.toSortedMap()) put(k, JSONArray().put(t.n).put(t.missed).put(num(t.recentN)).put(num(t.recentMissed))) }
         o.put("keys", tallies(book.keys.mapKeys { it.key.toString() }))
         o.put("pairs", tallies(book.pairs))
@@ -60,7 +72,8 @@ object TrainerCodec {
         val t = book.layouts
         fun floats(list: List<Float>) = JSONArray().apply { for (v in list) put(num(v)) }
         o.put("layouts", JSONObject().put("own", t.own).put("home", t.home).put("candidate", t.candidate ?: JSONObject.NULL).put("rejected", JSONArray(t.rejected.toList()))
-            .put("h", floats(t.homeScores)).put("c", floats(t.candidateScores)).put("scores", JSONObject().apply { for ((h, list) in t.scores) put(h, floats(list)) }))
+            .put("h", floats(t.homeScores)).put("c", floats(t.candidateScores)).put("scores", JSONObject().apply { for ((h, list) in t.scores) put(h, floats(list)) })
+            .put("proven", JSONArray().put(t.provenPairs).put(t.provenWins)))
         return o.toString()
     }
 
@@ -77,9 +90,12 @@ object TrainerCodec {
                     val r = runs.optJSONArray(i) ?: continue
                     if (r.length() < 15) continue
                     val accuracy = r.optDouble(8, -1.0).toFloat()
+                    // A run an earlier version kept has no fix and no second reading: it was typed on the keyboard as it was.
+                    val asIs = r.optDouble(16, -1.0).toFloat()
                     book.runs += RunLine(
                         r.optLong(0), r.optString(1), r.optString(2), r.optInt(3) == 1, r.optString(4), r.optInt(5) == 1, r.optLong(6), r.optDouble(7, 0.0).toFloat(),
                         if (accuracy < 0f) Float.NaN else accuracy, r.optInt(9), r.optInt(10), r.optInt(11), r.optInt(12), r.optInt(13), r.optInt(14),
+                        r.optInt(15, 0).coerceAtLeast(0), if (asIs < 0f) Float.NaN else asIs.coerceAtMost(1f),
                     )
                 }
             }
@@ -113,6 +129,30 @@ object TrainerCodec {
                     }
                 }
             }
+            o.optJSONObject("fixes")?.let { fixes ->
+                for (layout in fixes.keys()) {
+                    val f = fixes.optJSONObject(layout) ?: continue
+                    fun places(name: String): Map<Char, TrainerAims.Aim> {
+                        val out = HashMap<Char, TrainerAims.Aim>()
+                        f.optJSONObject(name)?.let { keys ->
+                            for (k in keys.keys()) {
+                                val a = keys.optJSONArray(k) ?: continue
+                                if (k.length == 1 && a.length() >= 2) out[k[0]] = TrainerAims.Aim(a.optDouble(0, 0.0).toFloat(), a.optDouble(1, 0.0).toFloat())
+                            }
+                        }
+                        return out
+                    }
+                    val at = places("at")
+                    val tests = ArrayList<FixTrial.FixRun>()
+                    f.optJSONArray("runs")?.let { runs ->
+                        for (i in 0 until runs.length()) {
+                            val r = runs.optJSONArray(i) ?: continue
+                            if (r.length() >= 6) tests += FixTrial.FixRun(r.optInt(0), r.optInt(1), r.optInt(2), r.optInt(3), r.optInt(4), r.optInt(5))
+                        }
+                    }
+                    book.fixes[layout] = FixTrial().also { it.restore(f.optInt("n"), f.optBoolean("tested", true), f.optBoolean("adaptive", false), f.optInt("taken"), f.optInt("dropped"), at, tests, f.optInt("last"), places("lastAt")) }
+                }
+            }
             fun tally(a: JSONArray) = Tally(a.optInt(0).coerceAtLeast(0), a.optInt(1).coerceAtLeast(0), a.optDouble(2, 0.0).toFloat().coerceAtLeast(0f), a.optDouble(3, 0.0).toFloat().coerceAtLeast(0f))
             o.optJSONObject("keys")?.let { keys -> for (k in keys.keys()) keys.optJSONArray(k)?.let { if (k.length == 1 && it.length() >= 4) book.keys[k[0]] = tally(it) } }
             o.optJSONObject("pairs")?.let { pairs -> for (k in pairs.keys()) pairs.optJSONArray(k)?.let { if (k.length == 2 && it.length() >= 4) book.pairs[k] = tally(it) } }
@@ -130,7 +170,11 @@ object TrainerCodec {
                 val scores = LinkedHashMap<String, List<Float>>()
                 t.optJSONObject("scores")?.let { s -> for (h in s.keys()) scores[h] = floats(s.optJSONArray(h)) }
                 val rejected = t.optJSONArray("rejected")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
-                book.layouts.restore(t.optString("own", "normal"), t.optString("home", "normal"), if (t.isNull("candidate")) null else t.optString("candidate"), rejected, floats(t.optJSONArray("h")), floats(t.optJSONArray("c")), scores)
+                val proven = t.optJSONArray("proven")
+                book.layouts.restore(
+                    t.optString("own", "normal"), t.optString("home", "normal"), if (t.isNull("candidate")) null else t.optString("candidate"), rejected, floats(t.optJSONArray("h")), floats(t.optJSONArray("c")), scores,
+                    proven?.optInt(0) ?: 0, proven?.optInt(1) ?: 0,
+                )
             }
             book
         }.getOrNull()

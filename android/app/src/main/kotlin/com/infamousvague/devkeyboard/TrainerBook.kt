@@ -9,10 +9,15 @@ package com.infamousvague.devkeyboard
  * writing. Nothing here is sent anywhere, and "Forget what the trainer learned" deletes all of it.
  */
 
-/** One counted run, as the history shows it. */
+/**
+ * One counted run, as the history shows it. [fix] is the fix it was typed on and tested (0: none, it was typed on the
+ * keyboard as it is), and [asIs] the share of its taps the keyboard as it is would have put on their key, where
+ * [accuracy] is what the keys it was typed on did (NaN where the run tested nothing).
+ */
 class RunLine(
     val at: Long, val story: String, val title: String, val practice: Boolean, val height: String, val trial: Boolean,
     val ms: Long, val wpm: Float, val accuracy: Float, val words: Int, val right: Int, val firstTry: Int, val backspaces: Int, val mended: Int, val spoiled: Int,
+    val fix: Int = 0, val asIs: Float = Float.NaN,
 )
 
 /**
@@ -101,8 +106,11 @@ class TrainerBook {
     /** By layout, each slip between two neighbouring keys as "pressed>meant", and how often. */
     val slips = HashMap<String, HashMap<String, Int>>()
 
-    /** By layout, how far the trainer has moved each key's nudge in Adaptive keys' model, across and down: what "Forget" takes back. */
+    /** By layout, how far the trainer has moved each key's nudge in Adaptive keys' model, across and down: what "Forget" takes back. Only a fix the person took moves one. */
     val given = HashMap<String, HashMap<Char, FloatArray>>()
+
+    /** By layout, the fix in hand and the runs that tested it ([FixTrial]). */
+    val fixes = HashMap<String, FixTrial>()
 
     val keys = HashMap<Char, Tally>()
     val pairs = HashMap<String, Tally>()
@@ -227,7 +235,7 @@ class TrainerBook {
     /** Everything the trainer has kept, gone; the switch goes back to off. */
     fun forget() {
         trials = false
-        runs.clear(); read.clear(); aims.clear(); slips.clear(); given.clear(); keys.clear(); pairs.clear(); words.clear()
+        runs.clear(); read.clear(); aims.clear(); slips.clear(); given.clear(); fixes.clear(); keys.clear(); pairs.clear(); words.clear()
         layouts.restore("normal", "normal", null, emptyList(), emptyList(), emptyList(), emptyMap())
     }
 
@@ -235,8 +243,8 @@ class TrainerBook {
         /**
          * The profile is drawn up after this many stories. Five parts are about 215 words and 840 letter taps: the
          * sixteen letters that take nine taps in ten then each stand on the fifteen Adaptive keys asks before it uses
-         * a nudge, five steps of [TrainerAims.STEP] have had room to cover a lean of a fifth of a key, and a trend
-         * read off the first three runs and the last three is not one run's doing (docs/trainer.md).
+         * a nudge, four runs have each tested a fix ([FixTrial]), and a trend read off the first three runs and the
+         * last three is not one run's doing (docs/trainer.md).
          */
         const val PROFILE_RUNS = 5
         const val MAX_RUNS = 300

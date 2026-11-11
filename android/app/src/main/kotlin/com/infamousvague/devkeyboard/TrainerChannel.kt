@@ -38,7 +38,7 @@ object TrainerChannel {
                     "finish" -> result.success(Trainer.finish(app))
                     "leave" -> { Trainer.leave(told = true); result.success(null) }
                     "apply" -> {
-                        val lines = Trainer.apply(app, call.argument<Boolean>("aims") == true, call.argument<Boolean>("height") == true)
+                        val lines = Trainer.apply(app, call.argument<Boolean>("fix") == true, call.argument<Boolean>("height") == true)
                         result.success(Trainer.state(app) + mapOf("said" to lines))
                     }
                     "again" -> { Trainer.again(app); result.success(Trainer.state(app)) }
