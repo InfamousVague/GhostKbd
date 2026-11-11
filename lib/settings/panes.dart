@@ -75,7 +75,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       if (!isIOS)
         SettingsSection(id: statsPageId, label: 'Stats', icon: _icon(LucideMore.chartColumn), hue: 'mint', group: 'start', summary: statsPageSummary, page: statsPage),
       // One switch for every connection the app can make, on the list itself: the row's own switch turns it on and off.
-      SettingsSection(
+      // Not on iOS: its keyboard has its own rule for the network (Allow Full Access, and the AI consent), not this list.
+      if (!isIOS) SettingsSection(
         id: 'offline',
         label: 'Offline',
         icon: _icon(Lucide.wifiOff),
