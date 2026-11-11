@@ -56,7 +56,9 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 
 - **One-time codes from texts** (`OtpCodes.kt`, `SmsCodes.kt`; Settings › Row tools, off unless turned on;
   [docs/sms-codes.md](docs/sms-codes.md)): a sign-in code that arrives by text message is a chip at the start of the
-  row above the keys and the first thing in the clipboard's list, a tap to type it. The text is read once, on the
+  row above the keys and the first thing in the clipboard's list, a tap to type it. The chip is a code's own
+  (`CodeChip.kt`), not the clipboard's: blue, a text message on it, the digits in their groups, and an outline that
+  runs down with the time it has left. The text is read once, on the
   phone, and let go; only the code is held, in memory, for ten minutes or until it is used. The app asks Android for
   `RECEIVE_SMS` only, when the switch is turned on, and its receiver is disabled in Android itself while the switch
   is off. `tool/otp_check.sh` runs the finder against its table of texts.

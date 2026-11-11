@@ -1747,14 +1747,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /**
      * One-time codes from texts as chips: the one that has just arrived, for the row's start ([fresh]), or every
-     * one still held, for the clipboard's list. None with the switch off.
+     * one still held, for the clipboard's list. None with the switch off. A chip of its own (CodeChip.kt), not the
+     * clipboard's: its own colour, a text message on it, and the time it has left there running round its edge.
      */
     private fun codeItems(fresh: Boolean): List<RowItem> {
         if (!SmsCodes.wanted(prefs)) return emptyList()
         val now = android.os.SystemClock.elapsedRealtime()
         val codes = if (fresh) listOfNotNull(SmsCodes.fresh(now)) else SmsCodes.live(now)
         return codes.map { code ->
-            RowItem("${if (fresh) "fresh-code" else "code"}-${code.at}", label = code.text, icon = RowIcon.KEY, tint = RowTint.CLIPBOARD, bold = true, chip = true, description = "One-time code from a text message") { pasteCode(code) }
+            RowItem(
+                "${if (fresh) "fresh-code" else "code"}-${code.at}", label = code.text, tint = RowTint.CODE, chip = true,
+                code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS),
+                description = "One-time code ${CodeLook.spoken(code.text)}, from a text message",
+            ) { pasteCode(code) }
         }
     }
 

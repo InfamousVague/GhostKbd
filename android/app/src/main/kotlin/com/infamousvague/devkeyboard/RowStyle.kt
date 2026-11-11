@@ -18,7 +18,8 @@ import android.view.View
 /**
  * The plugin row's colours (Matt, 2026-11-09: "add colors and more iconography"). One hue for each kind of thing, so a
  * glance says what a chip is: the AI's violet, the clipboard's amber, emoji's yellow, GIFs' pink, Ghost.md's teal, a
- * result's green, a failure's red. Each has a shade for light keyboards and one for dark, picked from the theme.
+ * result's green, a failure's red, and a one-time code's blue (CodeChip.kt; 2026-11-11: "a special chip not just the
+ * normal clipboard"). Each has a shade for light keyboards and one for dark, picked from the theme.
  */
 enum class RowTint(private val light: Int, private val dark: Int) {
     AI(0xFF6A4FD8.toInt(), 0xFFB9A6FF.toInt()),
@@ -27,6 +28,7 @@ enum class RowTint(private val light: Int, private val dark: Int) {
     GIFS(0xFFC2185B.toInt(), 0xFFF790B8.toInt()),
     GHOST(0xFF00897B.toInt(), 0xFF5ED6C8.toInt()),
     DONE(0xFF2E7D32.toInt(), 0xFF8BD18F.toInt()),
+    CODE(0xFF1565C0.toInt(), 0xFF8AB4F8.toInt()),
     ERROR(0xFFC62828.toInt(), 0xFFFF9C9C.toInt());
 
     fun ink(theme: KeyboardTheme) = if (theme.dark) dark else light

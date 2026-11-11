@@ -38,7 +38,7 @@ class SmsCodesSourceTest {
     }
 
     @Test fun `a code is kept in memory and nowhere else`() {
-        for (name in listOf("SmsCodes.kt", "OtpCodes.kt")) {
+        for (name in listOf("SmsCodes.kt", "OtpCodes.kt", "CodeChip.kt")) {
             val source = code(name)
             for (kept in listOf("getSharedPreferences", "openFileOutput", "File(", "filesDir", "cacheDir", "noBackupFilesDir", "SQLite", ".edit()", "Log.", "println", "ClipboardManager", "ClipData", "Net.open", "URL(", "HttpURLConnection", "Socket")) {
                 assertFalse("$name: $kept", source.contains(kept))
@@ -48,6 +48,25 @@ class SmsCodesSourceTest {
         assertFalse(code("OtpCodes.kt").contains("import android"))
         // The off-by-default setting is the only thing of it in the settings file.
         assertEquals(false, Regex("SMS_CODES to (true|false)").find(code("KeyboardPrefs.kt"))!!.groupValues[1].toBoolean())
+    }
+
+    @Test fun `a code's chip is its own, not the clipboard's`() {
+        val service = code("DevKeyboardService.kt")
+        val chips = service.substringAfter("private fun codeItems(fresh: Boolean): List<RowItem> {").substringBefore("\n    }")
+        assertTrue(chips, chips.contains("tint = RowTint.CODE"))
+        // In the row it is drawn for as long as it leads the row, in the clipboard's list for as long as it is held.
+        assertTrue(chips, chips.contains("code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS)"))
+        for (clipboards in listOf("RowTint.CLIPBOARD", "RowIcon.CLIPBOARD", "icon =")) assertFalse(clipboards, chips.contains(clipboards))
+        // The row draws such an item as a CodeChip, and nothing else is drawn as one.
+        val row = code("PluginRow.kt")
+        assertTrue(row.contains("if (item.code != null) {\n            return CodeChip(context, item.label ?: \"\", item.code, theme)"))
+        val makers = kotlin.listFiles()!!.filter { it.extension == "kt" && code(it.name).contains(Regex("\\bRowCode\\(")) }.map { it.name }.sorted()
+        assertEquals(listOf("CodeChip.kt", "DevKeyboardService.kt"), makers)
+        // Its colour is one no other chip has.
+        val tints = Regex("^    ([A-Z]+)\\((0x[0-9A-F]+)\\.toInt\\(\\), (0x[0-9A-F]+)\\.toInt\\(\\)\\)", RegexOption.MULTILINE).findAll(code("RowStyle.kt")).map { it.groupValues[1] to (it.groupValues[2] to it.groupValues[3]) }.toMap()
+        assertTrue("CODE" in tints && "CLIPBOARD" in tints)
+        assertEquals(tints.size, tints.values.map { it.first }.toSet().size)
+        assertEquals(tints.size, tints.values.map { it.second }.toSet().size)
     }
 
     @Test fun `a code goes only into the field it is tapped into`() {

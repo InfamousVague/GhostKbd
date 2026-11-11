@@ -41,6 +41,8 @@ enum class RowIcon {
  * - [description]: what a reader says for an icon with no words (TalkBack).
  * - [dim]: drawn faint: something that cannot be used as things stand (a network chip while Offline is on, which
  *   still says why when tapped; Undo with nothing to undo, which has no [onTap] and so takes no tap).
+ * - [code]: a one-time code from a text message, drawn as a CodeChip: a chip of its own, the [label] as the code in
+ *   its groups, with the time it has left running round its edge.
  */
 class RowItem(
     val id: String,
@@ -55,6 +57,7 @@ class RowItem(
     val busy: Boolean = false,
     val description: String? = null,
     val dim: Boolean = false,
+    val code: RowCode? = null,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -256,6 +259,14 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
             return ThinkingView(context, item.label ?: "Thinking…", theme).apply {
                 isClickable = item.onTap != null
                 setOnClickListener { tap(item) }
+            }
+        }
+        if (item.code != null) {
+            return CodeChip(context, item.label ?: "", item.code, theme).apply {
+                contentDescription = item.description
+                setOnClickListener { tap(item) }
+                isClickable = item.onTap != null
+                if (item.dim) alpha = DIM
             }
         }
         if (item.icon != null && item.label == null) {

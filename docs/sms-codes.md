@@ -1,6 +1,7 @@
 # One-time codes from text messages
 
 Matt, 2026-11-11: "add a feature that can read one time passcodes from text messages and show them in the clipboard".
+And the same day, of how it looked: "make the code show up as a special chip not just the normal clipboard".
 
 A sign-in sends a text: "Your verification code is 482913". With this on, the code is a chip at the start of the row
 above the keys the moment the text arrives, and a tap types it. It is also the first thing in the clipboard's list
@@ -17,9 +18,28 @@ Android only.
 - The text is read once for a code (`OtpCodes.find`) and let go. **The text, who sent it and when are kept
   nowhere**: not in a file, not in a log, not in memory after that one look.
 - A code that is found is held by `SmsCodes`, **in memory only**, for ten minutes (`KEEP_MS`) or until it is typed,
-  three at most. For the first three minutes (`FRESH_MS`) it leads the row as a chip with a key on it; for all ten
-  it is in the clipboard's list. Typed, it is let go at once: a one-time code is for one use.
+  three at most. For the first three minutes (`FRESH_MS`) it leads the row as a chip of its own
+  ([The chip](#the-chip)); for all ten it is in the clipboard's list, drawn the same way. Typed, it is let go at
+  once: a one-time code is for one use.
 - A text with no code in it changes nothing and leaves nothing.
+
+## The chip
+
+A code is not something copied, and its chip does not look like one (`CodeChip.kt`). The clipboard's chips are amber
+with a clipboard on them; a code's is:
+
+- **its own blue** (`RowTint.CODE`), a colour no other chip in the row has;
+- **a text message** on it, a speech bubble with three dots, where the others have a tool's icon;
+- **the code in the groups it is read in**: six digits as two threes (`482 913`), eight as two fours, nine as three
+  threes, every digit the same width. Any other length, and any code with a letter in it, is left whole. This is
+  only how it is drawn (`CodeLook.groups`): what a tap types is the code as it came, with no space in it;
+- **an outline that runs down** as the time it is offered for passes, starting whole and opening from the top the
+  way a clock's hand goes round: three minutes at the row's start, ten in the clipboard's list. When the outline is
+  gone, so is the chip.
+
+As it arrives it settles into place and a light passes over the digits twice (`CodeLook.ARRIVAL_MS`). With Android's
+animations off it does neither; the outline still moves, once a second, as a clock does. A screen reader says "One-time
+code 4 8 2 9 1 3, from a text message": a digit at a time, not a number in the hundreds of thousands.
 
 ## What it never does
 
@@ -109,6 +129,7 @@ no word for what the number is.
 | --- | --- |
 | `OtpCodes.kt` | the finder |
 | `SmsCodes.kt` | the holder (`SmsCodes`), the switch's effect on Android (`apply`), the receiver (`SmsCodeReceiver`) |
+| `CodeChip.kt` | how a code is drawn: `CodeChip` (the view), `CodeLook` (its groups, how much of its edge is left), `RowCode` |
 | `DevKeyboardService.kt` | `codeItems` (the chips), `pasteCode`, the listener that redraws the row |
 | `MainActivity.kt` | `smsCodesState`, `setSmsCodes`, `askForTexts`, `openAppInfo` for the settings app |
 | `lib/settings/panes.dart` | `_smsCodesRows`: the switch and what it says of Android |
@@ -117,13 +138,18 @@ no word for what the number is.
 ## Checks
 
 - `OtpCodesTest` (the table; how long a code is held; that using it lets it go), `SmsCodesSourceTest` (the promises
-  above against the sources), `test/sms_codes_settings_test.dart` (the row in each state).
+  above against the sources, and that the chip is a code's own and not the clipboard's), `CodeLookTest` (the groups,
+  the outline's share), `test/sms_codes_settings_test.dart` (the row in each state).
 - On the emulator (Android 16), 2026-11-11: the switch, Android's question refused and then allowed, a text sent
   with `adb emu sms send` showing as a chip with the keyboard open and after it was opened, the chip typing its
   code and going, a second code in the clipboard's list, an ordinary text showing nothing, and the switch off
   taking the receiver out of Android's list (`cmd package query-receivers`).
+- The chip, on the emulator, 2026-11-11, on a dark and a light keyboard, condensed rows and normal ones: a text
+  arriving with the keyboard open (the chip at the row's start, the light over its digits), the outline opening from
+  the top a few seconds on, six digits as two threes, eight as two fours, a four-digit PIN whole, the same chips in
+  the clipboard's list, and a tap typing `482913` with no space in it and the chip going.
 - Not checked: a phone with a SIM and a real service's text; Android 15's restricted-settings refusal on a
-  sideloaded install; Android 17.
+  sideloaded install; Android 17; the chip where the screen reads right to left, or with a screen reader on.
 
 ## Sources
 
