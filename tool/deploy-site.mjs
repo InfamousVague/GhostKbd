@@ -43,6 +43,13 @@ const printOnly = args.includes('--print');
 const fail = (message) => { console.error(`x ${message}`); process.exit(1); };
 
 if (!existsSync(join(SITE_DIR, 'index.html'))) fail('No site/index.html to ship.');
+// The settings search's rows for the languages and the connections are made from the keyboard's sources
+// (tool/site_search_rows.py). A page whose made rows are behind the app is not shipped: on 2026-11-11 the site
+// still said six languages, and the app had had 38 since the day before.
+{
+  const made = spawnSync('python3', [join(ROOT, 'tool', 'site_search_rows.py'), '--check'], { encoding: 'utf8' });
+  if (made.status !== 0) fail(`${(made.stderr || made.stdout || 'tool/site_search_rows.py --check failed').trim()}`);
+}
 
 const at = args.indexOf('--glyph');
 const glyph = [at >= 0 ? args[at + 1] : null, process.env.GLYPH_ROOT, join(ROOT, '..', 'glyph'), join(homedir(), 'Development/Apps/glyph')]
