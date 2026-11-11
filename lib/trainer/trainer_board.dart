@@ -218,6 +218,17 @@ class TrainerBoardData {
 /// Which of the keyboard's two pictures: where the mistakes happen, or where the taps land and what has shifted.
 enum BoardView { misses, areas }
 
+/// What has shifted where, from everyday typing (the Stats page): the arrows there are the adaptive keys plugin's
+/// own nudges, not a trainer's fix. [adaptive] says whether that plugin is on.
+String everydayAreasSaid(TrainerBoardData board, {required bool adaptive}) {
+  final off = board.keys.where((k) => k.shifted).toList()..sort((a, b) => b.shift.compareTo(a.shift));
+  if (board.landed == 0 && off.isEmpty) return 'No key has enough taps yet to say where they land.';
+  if (!adaptive) return 'Adaptive keys is off: every key listens at its middle. The rings are where your taps land.';
+  if (off.isEmpty) return 'Adaptive keys has not moved a touch area far enough to be in use yet.';
+  final areas = off.length == 1 ? '1 key’s touch area' : '${off.length} keys’ touch areas';
+  return 'Adaptive keys has $areas off the middle. Furthest: ${off.first.key}, ${offsetSaid(off.first.shiftX, off.first.shiftY)}.';
+}
+
 /// How much larger than life an offset is drawn in [BoardView.areas], so that a small one shows.
 const boardOffsetScale = 1.5;
 
@@ -439,10 +450,15 @@ class _Legend extends StatelessWidget {
 
 /// The keyboard drawn simply in one of its two [view]s, its legend under it, and what it shows said in a line.
 class BoardFigure extends StatelessWidget {
-  const BoardFigure({super.key, required this.board, required this.view, this.run = false});
+  const BoardFigure({super.key, required this.board, required this.view, this.run = false, this.everyday = false, this.adaptive = true});
 
   final TrainerBoardData board;
   final BoardView view;
+
+  /// The picture is of everyday typing (the Stats page), not the trainer's runs: its arrows are the adaptive keys
+  /// plugin's nudges, and [adaptive] says whether that plugin is on.
+  final bool everyday;
+  final bool adaptive;
 
   /// The picture is one run's own: a key is tinted from its second tap, and the fix drawn is the one it was typed on.
   final bool run;
@@ -451,7 +467,7 @@ class BoardFigure extends StatelessWidget {
   int get floor => run ? 2 : 10;
 
   /// What the picture shows, in a line: under it for everyone, and what a screen reader is told of it.
-  String get said => view == BoardView.misses ? board.missesSaid(floor: floor) : board.areasSaid(run: run);
+  String get said => view == BoardView.misses ? board.missesSaid(floor: floor) : (everyday ? everydayAreasSaid(board, adaptive: adaptive) : board.areasSaid(run: run));
 
   @override
   Widget build(BuildContext context) {
@@ -482,8 +498,9 @@ class BoardFigure extends StatelessWidget {
             ),
             run ? 'where this run’s taps landed' : 'where your taps land'
           ),
-          (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.hue)), run ? 'where the fix it was typed on has the key' : 'where the fix has the key'),
-          if (board.keys.any((k) => k.shifted && !k.moved))
+          if (!everyday || board.keys.any((k) => k.shifted))
+            (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.hue)), everyday ? 'where Adaptive keys has the key listening' : (run ? 'where the fix it was typed on has the key' : 'where the fix has the key')),
+          if (!everyday && board.keys.any((k) => k.shifted && !k.moved))
             (_Mark(width: 18, draw: (canvas, size) => _arrow(canvas, Offset(1, size.height / 2), Offset(size.width - 1, size.height / 2), look.ink3)), 'your keyboard as it is'),
         ],
     };
@@ -493,7 +510,7 @@ class BoardFigure extends StatelessWidget {
       children: [
         Semantics(
           image: true,
-          label: view == BoardView.misses ? 'The keyboard, each key tinted by how often it is missed. $said' : 'The keyboard, with where the taps land and where the fix has each key listening. $said',
+          label: view == BoardView.misses ? 'The keyboard, each key tinted by how often it is missed. $said' : (everyday ? 'The keyboard, with where your taps land on each key and where its touch area is. $said' : 'The keyboard, with where the taps land and where the fix has each key listening. $said'),
           child: ExcludeSemantics(
             child: LayoutBuilder(
               builder: (context, box) => CustomPaint(

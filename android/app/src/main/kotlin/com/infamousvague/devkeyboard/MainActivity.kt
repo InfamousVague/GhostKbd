@@ -350,6 +350,12 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "statsState" -> result.success(TypingStats.state(this@MainActivity))
+                    // The Stats page (lib/stats/stats_screen.dart): the counts and the keyboard's pictures at once, then
+                    // the words put right most often, which wait on their own thread.
+                    "statsPage" -> {
+                        val page = statsPage()
+                        background(result) { page + mapOf("misspelled" to if (prefs.learnMistakes) Mistakes.get(this@MainActivity).most(8) else emptyList<Map<String, Any>>()) }
+                    }
                     "accuracyState" -> result.success(mapOf("count" to AccuracyLog.count(this@MainActivity)))
                     "accuracyExport" -> background(result) { AccuracyLog.export(this@MainActivity) ?: throw IllegalStateException("Nothing recorded yet") }
                     "accuracyClear" -> { AccuracyLog.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
@@ -408,6 +414,33 @@ class MainActivity : FlutterActivity() {
     }
 
     /** Settings › Adaptive keys: how many letters have learned aims, and how many mistakes it remembers, over every layout. */
+    /**
+     * What the Stats page draws beside the counts (Matt, 2026-11-11: "a stats page that shows the missed keys and key
+     * shifting"): the keyboard of the layout in use as the trainer's pictures have it ([TrainerMaps.board]), from
+     * everyday typing. How often each key was meant and missed and the key hit in its place (TypingStats.slip),
+     * where the taps that stood land (TypingStats.landed), and the nudge the adaptive keys plugin has each key's
+     * touch area at now: none with the plugin off.
+     */
+    private fun statsPage(): Map<String, Any?> {
+        val layout = prefs.layout
+        val spec = Layouts.spec(layout)
+        val places = spec?.positions.orEmpty()
+        val adaptive = Plugins.isOn(prefs, Plugins.ADAPTIVE)
+        val model = if (adaptive) AdaptiveKeys.get(this, layout) else null
+        val shift: (Char) -> Pair<Float, Float> = { c -> model?.offset(c) ?: (0f to 0f) }
+        val board = TrainerMaps.board(
+            places = places,
+            taps = { c -> TypingStats.tapsOf(this, layout, c) },
+            landing = { c -> TypingStats.landingOf(this, layout, c) },
+            shift = shift,
+            moved = places.keys.filter { shift(it) != (0f to 0f) }.toSet(),
+            slips = TypingStats.slipsOf(this, layout),
+        )
+        return TypingStats.state(this) + mapOf(
+            "board" to board, "adaptive" to adaptive, "counting" to prefs.typingStats, "learning" to prefs.learnMistakes, "layout" to (spec?.label ?: layout),
+        )
+    }
+
     private fun adaptiveState(): Map<String, Any> {
         val models = AdaptiveKeys.all(this)
         val mistakes = models.flatMap { it.mistakes }

@@ -104,6 +104,16 @@ class MistakeMemory {
         return if (best.count - next >= LEAD) best.word else null
     }
 
+    /**
+     * The words put right most often, for the Stats page: what was typed, what it was meant to be, and how often
+     * (faded, as everything here is), the most first, [n] at most. Only a word's commonest meaning, and never a
+     * word that was more often meant as it was typed.
+     */
+    fun most(n: Int): List<Triple<String, String, Float>> = typed.entries.mapNotNull { (wrong, row) ->
+        val best = row.maxByOrNull { it.count } ?: return@mapNotNull null
+        if (best.word == wrong) null else Triple(wrong, best.word, best.count)
+    }.sortedWith(compareBy({ -it.third }, { it.first })).take(n)
+
     /** Every settled meaning ([meant]) by what was typed. */
     fun settled(): Map<String, String> {
         val out = HashMap<String, String>()

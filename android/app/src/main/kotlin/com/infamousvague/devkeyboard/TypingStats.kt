@@ -16,6 +16,12 @@ import kotlin.math.roundToInt
  * private storage for [KEEP_DAYS] days and never sent anywhere. Nothing is counted in a password field, while
  * incognito, or with Settings › Typing › Typing stats switched off (the service decides; see its `statsOn`).
  *
+ * For the Stats page's pictures of the keyboard (Matt, 2026-11-11: "a stats page that shows the missed keys and key
+ * shifting"; docs/stats.md) two more things are counted, for each layout typed on, and kept until the stats are
+ * reset: which letter key was hit where its neighbour was meant ([slip]: "pressed>meant" and how often), and where
+ * the taps that stood land about each key's middle ([landed]: two sums and a count for each key). Which key for
+ * which, and where the thumb falls: still never a letter in its order, never a word.
+ *
  * Every call comes from the main thread: the keyboard's callbacks and the settings channel.
  */
 object TypingStats {
@@ -30,6 +36,8 @@ object TypingStats {
 
     private var days: java.util.TreeMap<String, Day>? = null
     private val letters = IntArray(26)
+    /** The Stats page's two pictures: slips between keys, and where taps land (KeyTallies.kt). */
+    private val keys = KeyTallies()
     private var lastAt = 0L
     private var inWord = false
     /** The last thing counted was a typed character: a backspace now is a slip; another straight after is not. */
@@ -48,6 +56,7 @@ object TypingStats {
                 }
             }
             o.optJSONArray("letters")?.let { a -> for (i in 0 until minOf(26, a.length())) letters[i] = a.optInt(i) }
+            keys.read(o.optJSONObject("slips"), o.optJSONObject("landed"))
         }
         days = map
         return map
@@ -102,6 +111,37 @@ object TypingStats {
         lastTyped = false
         changed(context)
     }
+
+    /**
+     * On [layout], [pressed] was hit where its neighbour [meant] was meant: taken back and typed again as the
+     * neighbour, or swapped for it by autocorrect. The pair is counted, and nothing else of the moment.
+     */
+    fun slip(context: Context, layout: String, pressed: Char, meant: Char) {
+        load(context)
+        keys.slip(layout, pressed, meant)
+        changed(context)
+    }
+
+    /**
+     * A tap on [key] of [layout] stood (its word was finished with it in): it landed [dx] across and [dy] down from
+     * the key's middle, in fractions of the key. Only the running sums are kept.
+     */
+    fun landed(context: Context, layout: String, key: Char, dx: Float, dy: Float) {
+        load(context)
+        keys.landed(layout, key, dx, dy)
+    }
+
+    /** A word's taps were counted ([landed], once for each): one change to write down, however many letters it had. */
+    fun landedWord(context: Context) = changed(context)
+
+    /** The slips counted on [layout]: "pressed>meant" and how often. */
+    fun slipsOf(context: Context, layout: String): Map<String, Int> { load(context); return keys.slipsOf(layout) }
+
+    /** Where the taps on [key] of [layout] land about its middle, and on how many taps; null with none counted. */
+    fun landingOf(context: Context, layout: String, key: Char): Triple<Float, Float, Int>? { load(context); return keys.landingOf(layout, key) }
+
+    /** How often [key] of [layout] was meant, and how many of those taps missed it (landed on a neighbour). */
+    fun tapsOf(context: Context, layout: String, key: Char): Pair<Int, Int> { load(context); return keys.tapsOf(layout, key) }
 
     /** An autocorrection was undone: it was wrong. */
     fun undone(context: Context) { today(context).undone++; changed(context) }
@@ -158,12 +198,15 @@ object TypingStats {
         for ((key, day) in map) d.put(key, JSONArray().put(day.chars).put(day.words).put(day.ms).put(day.slips).put(day.corrections).put(day.swipes).put(day.undone).put(day.swipesChanged).put(day.swipesDeleted))
         val l = JSONArray()
         letters.forEach { l.put(it) }
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("stats", JSONObject().put("days", d).put("letters", l).toString()).apply()
+        val (s, where) = keys.write()
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString("stats", JSONObject().put("days", d).put("letters", l).put("slips", s).put("landed", where).toString()).apply()
     }
 
     fun reset(context: Context) {
         days = java.util.TreeMap()
         letters.fill(0)
+        keys.clear()
         lastAt = 0L; inWord = false; lastTyped = false; unsaved = 0
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().remove("stats").apply()
     }
@@ -189,8 +232,17 @@ object TypingStats {
         val week = (6 downTo 0).map { back ->
             val date = now.minusDays(back.toLong())
             val d = map[date.toString()] ?: Day()
-            mapOf("day" to date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()), "words" to d.words, "wpm" to wpm(d.chars, d.ms))
+            mapOf("day" to date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()), "words" to d.words, "wpm" to wpm(d.chars, d.ms),
+                "accuracy" to accuracy(d), "minutes" to (d.ms / 60_000.0).roundToInt())
         }
+        // The Stats page's own: the days in a row with typing up to today (or yesterday, before today's first word),
+        // the fastest and the fullest day kept, and every letter's share of the keys pressed.
+        var streak = 0
+        var back = if ((map[now.toString()]?.chars ?: 0) > 0) 0L else 1L
+        while ((map[now.minusDays(back).toString()]?.chars ?: 0) > 0) { streak++; back++ }
+        val fastest = map.entries.filter { wpm(it.value.chars, it.value.ms) > 0 && it.value.words >= 20 }.maxByOrNull { wpm(it.value.chars, it.value.ms) }
+        val fullest = map.entries.filter { it.value.words > 0 }.maxByOrNull { it.value.words }
+        fun dayName(key: String) = runCatching { LocalDate.parse(key).let { "${it.dayOfMonth} ${it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())}" } }.getOrDefault(key)
         val all = Day()
         for (d in map.values) { all.chars += d.chars; all.words += d.words; all.ms += d.ms; all.slips += d.slips; all.corrections += d.corrections; all.swipes += d.swipes
             all.undone += d.undone; all.swipesChanged += d.swipesChanged; all.swipesDeleted += d.swipesDeleted }
@@ -208,8 +260,15 @@ object TypingStats {
                 "words" to all.words, "wpm" to wpm(all.chars, all.ms), "accuracy" to accuracy(all), "days" to map.values.count { it.chars > 0 },
                 "minutes" to (all.ms / 60_000.0).roundToInt(),
                 "corrections" to all.corrections, "correctionsKept" to kept(all), "swipes" to all.swipes, "swipesFirst" to swipesFirst(all),
+                "slips" to all.slips, "undone" to all.undone, "chars" to all.chars,
             ),
             "topKeys" to top,
+            "streak" to streak,
+            "fastest" to (fastest?.let { mapOf("day" to dayName(it.key), "wpm" to wpm(it.value.chars, it.value.ms)) } ?: emptyMap<String, Any>()),
+            "fullest" to (fullest?.let { mapOf("day" to dayName(it.key), "words" to it.value.words) } ?: emptyMap<String, Any>()),
+            "pressed" to pressed,
+            "letters" to (if (pressed < 50) emptyList() else letters.indices.sortedByDescending { letters[it] }.take(8)
+                .map { mapOf("key" to ('a' + it).toString(), "count" to letters[it], "share" to (1000.0 * letters[it] / pressed).roundToInt() / 10.0) }),
         )
     }
 }

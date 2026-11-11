@@ -596,10 +596,10 @@ void main() {
     expect(trainer.screen, isNotNull);
     expect(trainer.summary!(store), 'Type a story; each run tests a fix for your thumbs');
     // At the top, in Setup's group and straight after it (Matt, 2026-11-11: "Place the training section at the top
-    // next to the setup section"): the two are the first card, and nothing else is in it.
+    // next to the setup section"). The Stats page he asked for the same day is the card's third row, under it.
     expect(android.first.id, 'setup');
     expect(android.indexOf(trainer), 1);
-    expect(android.where((s) => s.group == android.first.group).map((s) => s.id), ['setup', 'trainer']);
+    expect(android.where((s) => s.group == android.first.group).map((s) => s.id), ['setup', 'trainer', statsPageId]);
 
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     try {

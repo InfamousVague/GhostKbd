@@ -17,6 +17,7 @@ import '../onboarding/onboarding.dart';
 import '../platform.dart';
 import '../plugins/catalogue.dart';
 import '../settings_store.dart';
+import '../stats/stats_page.dart';
 import '../trainer/trainer_screen.dart';
 import '../trainer/trainer_store.dart';
 import 'kit/settings_kit.dart';
@@ -49,6 +50,9 @@ SettingRow _choice(SettingsStore store, String key, String label, Map<String, St
       ),
     );
 
+/// The Stats page's id among the sections ('stats' is Typing's own part: the counting's settings).
+const statsPageId = 'your-stats';
+
 /// Every section, in the list's order; an added plugin's page joins after the Market.
 List<SettingsSection> settingsSections(SettingsStore store) => [
       SettingsSection(
@@ -65,6 +69,11 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       // the runs; the iPhone's is another port, and has Setup alone up there.
       if (!isIOS)
         SettingsSection(id: 'trainer', label: 'Trainer', icon: _icon(Lucide.graduationCap), hue: trainerHue, group: 'start', summary: (s) => TrainerStore.shared.summaryOr(s.refreshAdaptive), page: (context, store) => const [], screen: (context) => TrainerScreen(store: store)),
+      // The Stats page (lib/stats/stats_page.dart): everyday typing in pictures, in the top card with Setup and the
+      // trainer (Matt, 2026-11-11: "make a stats page that shows the missed keys and key shifting as well as other
+      // stats"). Its counting, the accuracy record and the anonymous reports stay under Typing › Typing stats.
+      if (!isIOS)
+        SettingsSection(id: statsPageId, label: 'Stats', icon: _icon(LucideMore.chartColumn), hue: 'mint', group: 'start', summary: statsPageSummary, page: statsPage),
       // One switch for every connection the app can make, on the list itself: the row's own switch turns it on and off.
       SettingsSection(
         id: 'offline',
@@ -1463,6 +1472,14 @@ List<Widget> _statsPart(BuildContext context, SettingsStore store) {
         status: PaneHeroStatus(on ? 'Counting' : 'Off'),
       ),
     ),
+    PaneSection(children: [
+      SettingRow(
+        label: 'Your stats in pictures',
+        hint: const Text('Speed, missed keys, shifted keys, the words you put right most.'),
+        icon: AppIcon(LucideMore.chartColumn, size: 18),
+        onPress: () => pushSettings(context, (_) => SectionPage(section: settingsSections(store).firstWhere((s) => s.id == statsPageId), store: store)),
+      ),
+    ]),
     PaneSection(
       title: 'Today',
       footer: const Text('Accuracy is how much of what you typed stood: a backspace straight after a key, or an autocorrect fix, is a slip.'),

@@ -712,7 +712,32 @@ class SettingsStore extends ChangeNotifier {
     await refreshAccuracy();
     await refreshReport();
   }
-  Future<void> resetStats() => _statsCall('statsReset');
+  Future<void> resetStats() async {
+    await _statsCall('statsReset');
+    await refreshStatsPage();
+  }
+
+  /// The Stats page (lib/stats/stats_page.dart; MainActivity's `statsPage`): everything [stats] has, and `streak`,
+  /// `fastest` and `fullest` (a day and its number), `letters` (key, count, share) of `pressed`, the keyboard's
+  /// pictures from everyday typing (`board`, as the trainer's), whether the adaptive keys plugin is on (`adaptive`),
+  /// the `layout` they were counted on, and `misspelled` (typed, meant, count: the words put right most often).
+  Map<String, Object?> statsPage = const {};
+
+  Future<void> refreshStatsPage() async {
+    try {
+      final r = await _channel.invokeMethod<Object>('statsPage');
+      if (r is! Map) return;
+      final next = r.map((k, v) => MapEntry('$k', v as Object?));
+      // The page asks every couple of seconds while it is open: only a change redraws it.
+      if ('$next' == '$statsPage') return;
+      statsPage = next;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
+  }
 
   Future<void> _statsCall(String method) async {
     try {

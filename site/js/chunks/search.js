@@ -65,6 +65,18 @@ const SECTIONS = [
     ['2. Switch to Ghost Keyboard', 'Make it the keyboard you type with.'],
     ['Watch the walkthrough again'],
   ]),
+  // The Stats page (lib/stats/stats_page.dart), as it stands before anything is typed: its cards and their footnotes.
+  S('your-stats', 'Stats', 'Speed, missed keys, shifted keys, misspelled words', [
+    ['Last 7 days', 'Words typed each day, and how fast.'],
+    ['Missed keys', 'A key counts as missed when you took the letter back and typed its neighbour, or autocorrect swapped it for its neighbour. Counted on the QWERTY keys.'],
+    ['Key shifting', 'Adaptive keys moves a key’s touch area, slowly, toward where your taps land, and lets it drift back as your aim comes right. The keys you see never move.'],
+    ['Most misspelled words', 'The words you put right most often, by typing over them or picking another above the keys. They are the ones the keyboard already remembers from your corrections (Typing, Autocorrect, Your corrections), kept on this phone. Older ones fade.'],
+    ['Busiest keys', 'Shown once fifty letters have been counted.'],
+    ['Last 30 days'],
+    ['Speed'], ['Accuracy'], ['Words'], ['Time typing'],
+    ['Count my typing'],
+    ['Reset stats'],
+  ]),
   S('typing', 'Typing', 'Autocorrect, swipe, adaptive keys', [
     ['Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'],
     ['Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'],
@@ -87,6 +99,7 @@ const SECTIONS = [
       ['Forget what it learned'],
     ]),
     S('stats', 'Typing stats', 'Nothing typed today', [
+      ['Your stats in pictures', 'Speed, missed keys, shifted keys, the words you put right most.'],
       ['Today', 'Accuracy is how much of what you typed stood: a backspace straight after a key, or an autocorrect fix, is a slip.'],
       ['Speed'], ['Accuracy'], ['Words'], ['Fixed by autocorrect'], ['Words swiped'],
       ['Last 7 days', 'Words typed each day.'],

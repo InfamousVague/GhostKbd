@@ -150,6 +150,13 @@ class Mistakes private constructor(private val context: Context) {
         }.get(5, TimeUnit.SECONDS)
     }
 
+    /** For the Stats page: the words put right most often ([MistakeMemory.most]), as typed, meant and a whole count. Empty where none is kept. */
+    fun most(n: Int): List<Map<String, Any>> = runCatching {
+        worker.submit<List<Map<String, Any>>> {
+            memory.most(n).map { (typed, meant, count) -> mapOf("typed" to typed, "meant" to meant, "count" to count.toDouble().let { Math.round(it).toInt().coerceAtLeast(1) }) }
+        }.get(2, TimeUnit.SECONDS)
+    }.getOrDefault(emptyList())
+
     /** For Settings: how many mistakes are remembered (`typed`, `swiped`), how many of those are gone by (`settled`), and Mockingbird's (`repairs`). */
     fun state(): Map<String, Any> = runCatching {
         worker.submit<Map<String, Any>> {

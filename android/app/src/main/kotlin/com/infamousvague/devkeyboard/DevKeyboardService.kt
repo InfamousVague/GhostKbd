@@ -2068,10 +2068,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         return a.lowercaseChar() != b.lowercaseChar() && kotlin.math.abs(ra.centerX() - rb.centerX()) < ra.width() * 1.6f && kotlin.math.abs(ra.centerY() - rb.centerY()) < ra.height() * 1.6f
     }
 
-    /** A touch on [pressed] meant for [meant]: measured against [meant]'s key, and placed on the heatmap. */
+    /**
+     * A touch on [pressed] meant for [meant]. Typing stats count the pair where they are on (which key for which,
+     * never the word: the Stats page's picture of missed keys); the adaptive keys plugin, where it is on, measures
+     * the touch against [meant]'s key and places it on the heatmap.
+     */
     private fun learnMistake(t: KeyboardView.Typed, meant: Char) {
         // A touch in the middle of the key it typed was aimed there: taken back, it is a change of mind, not a slip.
         if (kotlin.math.abs(t.x - t.rect.centerX()) < t.rect.width() * 0.2f && kotlin.math.abs(t.y - t.rect.centerY()) < t.rect.height() * 0.2f) return
+        stats { TypingStats.slip(this, language.spec.id, t.c, meant) }
+        if (!adaptiveOn()) return
         val r = keyboard?.letterRect(meant) ?: return
         val (fx, fy) = keyboard?.keysFraction(t.x, t.y) ?: return
         AdaptiveKeys.get(this, language.spec.id).mistake(t.c, meant, (t.x - r.centerX()) / r.width(), (t.y - r.centerY()) / r.height(), fx, fy)
@@ -2093,7 +2099,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // A joiner inside a word (the apostrophe of don't) is part of it, with no touch to go by.
         if (text.length == 1 && text[0] in joiners && wordTouches.isNotEmpty()) { wordTouches += null; takenTouch = null; return }
         if (text.length != 1 || !text[0].isLetter()) { endWord(); return }
-        if (adaptiveOn()) takenTouch?.let { (t, at) ->
+        if (adaptiveOn() || statsOn()) takenTouch?.let { (t, at) ->
             if (System.currentTimeMillis() - at < 3000 && neighbours(t.c, text[0])) learnMistake(t, text[0])
         }
         takenTouch = null
@@ -2123,7 +2129,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** Autocorrect swapped [word] for [fixed]: where a letter became its neighbour, that touch was meant for it. */
     private fun adaptiveCorrected(word: String, fixed: String) {
-        if (!adaptiveOn() || word.length != fixed.length || wordTouches.size != word.length) return
+        if ((!adaptiveOn() && !statsOn()) || word.length != fixed.length || wordTouches.size != word.length) return
         val swaps = word.indices.filter { !word[it].equals(fixed[it], ignoreCase = true) }
         if (swaps.isEmpty() || swaps.size > 2) return
         for (i in swaps) {
@@ -2137,10 +2143,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The word is over: every touch left standing was right, and teaches its own key where it is aimed at. */
     private fun endWord() {
         if (wordTouches.isEmpty()) return
-        if (adaptiveOn()) {
-            val model = AdaptiveKeys.get(this, language.spec.id)
-            for (t in wordTouches) t?.let { model.hit(it.c, (it.x - it.rect.centerX()) / it.rect.width(), (it.y - it.rect.centerY()) / it.rect.height()) }
-            model.save()
+        // Typing stats keep where the taps that stood land about each key (two sums and a count a key: the Stats
+        // page's picture of where the thumbs fall), whether or not the adaptive keys plugin is learning from them.
+        val counting = statsOn()
+        val model = if (adaptiveOn()) AdaptiveKeys.get(this, language.spec.id) else null
+        if (model != null || counting) {
+            for (t in wordTouches) t?.let {
+                val dx = (it.x - it.rect.centerX()) / it.rect.width()
+                val dy = (it.y - it.rect.centerY()) / it.rect.height()
+                model?.hit(it.c, dx, dy)
+                if (counting) runCatching { TypingStats.landed(this, language.spec.id, it.c, dx, dy) }
+            }
+            model?.save()
+            if (counting) runCatching { TypingStats.landedWord(this) }
         }
         wordTouches.clear()
         takenTouch = null
