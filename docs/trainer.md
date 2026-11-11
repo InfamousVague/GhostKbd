@@ -39,10 +39,10 @@ What a run comes to (`RunResult`, `TrainerScore`):
 | --- | --- |
 | Words a minute | the characters of the words that **came out right**, a word being five characters, over the time from first key to last. A wrong word earns nothing, so leaning on autocorrect that fails does not look fast |
 | Accuracy | the share of letter taps that hit the key they were meant for, before autocorrect: taps taken back with backspace count as what they were |
-| Words right, right first time | a word is right when it is the story's exactly, capital and full stop included. First time: no backspace in it and no fix |
+| Words right, right first time | a word is right when it is the story's exactly, capital and full stop included. First time: no backspace in it and no fix. A word drawn as a stroke or taken whole from the row is right first time where it arrived as the story's word, and not where it had to be taken away or swapped for its other reading |
 | Missed words | what was meant and what stood there in the end; words skipped; two words run together (a space missed) |
 | Backspaces | every one |
-| Autocorrect | **mended** (a wrong word changed to the story's), **spoiled** (a right word changed to another), changed to another wrong word, and typed wrong and let stand |
+| Autocorrect | **mended** (a wrong word changed to the story's), **spoiled** (a right word changed to another), changed to another wrong word, and typed wrong and let stand. Only words the taps spelled: a stroke read as the wrong word is a missed word, not autocorrect's doing |
 | Where it went wrong | the keys missed most, with the neighbour hit in their place, and the letter pairs whose second letter went wrong or that were swapped |
 | Also | words drawn as a stroke, words taken from the row above the keys (neither says anything of the taps) |
 
@@ -279,7 +279,8 @@ Two things hold it. The trainer's field asks keyboards not to learn from it (And
 too), and it is one of this app's own fields, which none of those ever learn from. And nothing of the trainer's own
 code calls any of them (`TrainerKeysTest` reads the sources for it). On the emulator, eleven runs and a practice run
 left `next_words.tsv`, `typing_stats.xml`, Mockingbird's samples, the accuracy record (switched on) and every setting
-byte for byte as they were.
+byte for byte as they were; so did two more runs with words drawn as strokes, a word taken from the row, a stroke
+taken back with backspace and drawn again, and a stroke swapped for its other reading and back.
 
 What a run does hand on, and nothing else: each key's nudge takes its step in Adaptive keys' model, and its
 mistakes go to "Your corrections" as above.
@@ -336,12 +337,17 @@ the row (`panes.dart`), and `main.dart` opens a section's own screen when asked 
   is not the keyboard in use; a run to its results; a trial said and never set from the screen; the profile and what
   applying asks for; no Trainer on an iPhone.
 - `tool/trainer_sim.sh`: the tables above. `JAVA_OPTS="-Druns=16 -Dseeds=40 -Dlean=0.3,0.1" tool/trainer_sim.sh`.
-- On the emulator (2026-11-10, `emulator-5584`, taps at real key positions): twelve runs typed to their results; with
+- On the emulator (2026-11-10, `emulator-5584`, taps at real key positions): fifteen runs typed to their results (eleven stories, a practice run, one more story on the last build but one, and the two with strokes below); with
   the switch off two runs' keyboards were the same pixel for pixel but for the last key's backlight; with it on a run
   on Condensed keys was followed by one on Short, said on its page; left part-way, and with the app killed part-way,
   the next field had the Condensed keys again and the key height setting had never changed; the profile appeared after
   the fifth run; a practice run, applying the profile, taking a suggested height, a run refused with another
-  keyboard in use, and forgetting were each done once. Nothing here has run on a phone in a hand.
+  keyboard in use, and forgetting were each done once. Two more runs had words that no tap spelled: "in" drawn as a
+  stroke and "squeezed" taken from the row after six letters (49 of 49 words right, 172 of 172 taps on their key,
+  "Words swiped 1", "Words from the row 1"); then "on" drawn and read right, "to" drawn as "it", taken back with
+  backspace and drawn again, and "if" swapped in the row for "of" and back (46 of 46 words right, right first time
+  44 of 46, one backspace, "Words swiped 3", autocorrect charged with nothing). Nothing here has run on a phone in a
+  hand.
 
 ## Not built
 

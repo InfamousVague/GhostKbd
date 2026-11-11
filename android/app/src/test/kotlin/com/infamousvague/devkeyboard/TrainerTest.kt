@@ -223,6 +223,40 @@ class TrainerTest {
         assertEquals("only the letters fingers tapped", 7, r.taps); assertEquals(7, r.hits)
         assertEquals(listOf("world", "here"), r.tries.map { it.meant })
         assertTrue(r.tries.all { it.right })
+        // Each of the four stood right the first time it stood, however it was entered.
+        assertEquals(4, r.firstTry)
+    }
+
+    @Test fun aStrokeReadRightIsRightFirstTimeAndOneThatHadToBeDoneAgainIsNot() {
+        val story = "cats sit here."
+        fun Typist.rest() = space().type("sit").space().type("here").mark('.').score()
+        // Read right.
+        Typist(story).swipe("cats").rest().let { assertEquals(3, it.right); assertEquals(3, it.firstTry); assertEquals(1, it.swiped) }
+        // Read wrong, and left: one word missed, and a stroke's misreading is no spelling for the memory of mistakes.
+        Typist(story).swipe("cast").rest().let {
+            assertEquals(2, it.right); assertEquals(2, it.firstTry); assertEquals(1, it.swiped)
+            assertEquals(listOf("cats" to "cast"), it.missed.map { m -> m.meant to m.typed })
+            assertEquals(listOf("sit", "here"), it.tries.map { t -> t.meant })
+            assertTrue("autocorrect had no hand in it", it.left.isEmpty() && it.misfixed.isEmpty())
+        }
+        // Read wrong, and its other reading tapped in the row: right in the end, not the first time.
+        Typist(story).swipe("cast").also { it.at += 200; it.text = it.text.dropLast(4) + "cats"; it.run.seen(it.at, it.text) }.rest().let {
+            assertEquals(3, it.right); assertEquals(2, it.firstTry); assertEquals(1, it.swiped)
+        }
+        // Read wrong, taken away by backspace (which takes a stroke's word whole), and drawn again.
+        Typist(story).swipe("cast").also { it.at += 200; it.text = it.text.dropLast(4); it.run.key(it.at, KeyKind.BACKSPACE, it.text) }.swipe("cats").rest().let {
+            assertEquals(3, it.right); assertEquals(2, it.firstTry); assertEquals(1, it.swiped); assertEquals(1, it.backspaces)
+        }
+        // Taken away and typed with taps instead: the taps are a right try at its spelling, and still not a first time.
+        Typist(story).swipe("cast").also { it.at += 200; it.text = it.text.dropLast(4); it.run.key(it.at, KeyKind.BACKSPACE, it.text) }.type("cats").rest().let {
+            assertEquals(3, it.right); assertEquals(2, it.firstTry); assertEquals(0, it.swiped)
+            assertEquals(listOf("cats true", "sit true", "here true"), it.tries.map { t -> "${t.meant} ${t.right}" })
+            assertEquals(11, it.taps); assertEquals(11, it.hits)
+        }
+        // A typed word deleted whole (the delete-word key) and typed again is not a first time either.
+        Typist(story).type("cats").also { it.at += 200; it.text = ""; it.run.key(it.at, KeyKind.DELETE_WORD, it.text) }.type("cats").rest().let {
+            assertEquals(3, it.right); assertEquals(2, it.firstTry)
+        }
     }
 
     @Test fun aLetterTypedStraightAfterAStrokeEndsItAndStartsTheNextWord() {

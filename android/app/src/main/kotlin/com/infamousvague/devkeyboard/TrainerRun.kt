@@ -215,6 +215,10 @@ object TrainerScore {
         var keys = 0
         var backspaces = 0
         var strokes = 0
+        // Words (by their place in what was typed) that stood at the cursor and were taken away or swapped whole: a
+        // stroke read wrong and deleted, its other reading tapped in the row. Whatever stands there next is not a
+        // first try.
+        val again = HashSet<Int>()
 
         fun end(slot: Int, raw: String, out: String, picked: Boolean = false, arrived: Boolean = false) {
             endings += Ending(slot, raw, out, picked, arrived, open.swiped || (arrived && strokes > 0), open.taps.toList(), open.times.toList(), open.gone.toList())
@@ -268,16 +272,16 @@ object TrainerScore {
                 if (i >= 0) {
                     val tap = open.taps.removeAt(i)
                     open.times.removeAt(i)
-                    if (tap != null) open.gone += Gone(i, tap)
+                    if (tap != null) open.gone += Gone(i, tap) else again += TrainerText.slotAt(prev, base)
                 }
             } else if (tail.isNotEmpty()) {
                 // The word that was open has ended, been swapped for another, or gone.
                 val rest = if (shared(prev, next) >= base) next.substring(base) else null
                 val cut = rest?.indexOfLast { !TrainerText.isWordChar(it) } ?: -1
                 when {
-                    rest == null || rest.isEmpty() -> reopen(next, step)
+                    rest == null || rest.isEmpty() -> { again += TrainerText.slotAt(prev, base); reopen(next, step) }
                     // Another word in its place, with nothing after it: a stroke's other reading.
-                    cut < 0 -> { val swiped = open.swiped; open.blank(rest.length); open.swiped = swiped }
+                    cut < 0 -> { again += TrainerText.slotAt(prev, base); val swiped = open.swiped; open.blank(rest.length); open.swiped = swiped }
                     else -> {
                         val out = rest.substring(0, cut + 1).trimEnd { !TrainerText.isWordChar(it) }
                         val after = rest.substring(cut + 1)
@@ -454,6 +458,7 @@ object TrainerScore {
         var picked = 0
         val tries = ArrayList<WordTry>()
         val tried = HashSet<Int>()
+        val ended = HashSet<Int>()
         var firstTry = 0
         for (e in endings) {
             if (e.swiped) swiped++ else if (e.picked || e.arrived) picked++
@@ -463,7 +468,8 @@ object TrainerScore {
             // Two words where one was typed: autocorrect parted them, and the pair is what was meant.
             val want = if (e.out.contains(' ') && j + 1 < meant.size) one + " " + TrainerText.core(meant[j + 1]) else one
             if (e.undone) undone++
-            if (!e.picked && !e.arrived && e.raw.isNotEmpty()) {
+            // What autocorrect did with a word the taps spelled (a stroke's reading is not its doing).
+            if (!e.picked && !e.arrived && !e.swiped && e.raw.isNotEmpty()) {
                 if (e.out != e.raw) {
                     val fix = Fix(e.raw, e.out, want)
                     when {
@@ -473,10 +479,18 @@ object TrainerScore {
                     }
                 } else if (!e.raw.equals(want, ignoreCase = true)) left += WordMiss(want, e.raw)
             }
+            // Right first time: the first word to end in a story word's place, where nothing there was taken back.
+            val first = ended.add(j) && e.slot !in again
+            // A word no tap spelled (a stroke's, one taken whole from the row) was right first time where it arrived
+            // as the story's word. It says nothing of spelling, so it is no try for what is remembered of mistakes.
+            if (e.raw.isEmpty() || e.swiped) {
+                if (first && e.out.equals(one, ignoreCase = true)) firstTry++
+                continue
+            }
             // The first try at each story word, for what is remembered of mistakes: a word as the taps spelled it.
-            if (e.raw.isEmpty() || e.swiped || !tried.add(j)) continue
+            if (!tried.add(j)) continue
             val right = if (e.picked) one.startsWith(e.raw, ignoreCase = true) else e.raw.equals(one, ignoreCase = true)
-            if (right && e.gone.isEmpty()) firstTry++
+            if (right && first && e.gone.isEmpty()) firstTry++
             val form = if (right || e.picked) "" else e.raw.lowercase()
             tries += WordTry(one.lowercase(), form, right, held.fates[j] == TrainerText.Fate.RIGHT)
         }
