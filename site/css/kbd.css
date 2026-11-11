@@ -187,7 +187,8 @@
 .gk-k-shift .gk-ico { width: calc(23 * var(--kb-dp)); height: calc(23 * var(--kb-dp)); }
 .gk-k-delete .gk-ico { width: calc(24 * var(--kb-dp)); height: calc(24 * var(--kb-dp)); }
 .gk-k-enter .gk-ico,
-.gk-k-mic .gk-ico { width: calc(22 * var(--kb-dp)); height: calc(22 * var(--kb-dp)); }
+.gk-k-mic .gk-ico,
+.gk-k-emoji .gk-ico { width: calc(22 * var(--kb-dp)); height: calc(22 * var(--kb-dp)); }
 
 /* Caps lock: the filled arrow, underlined. */
 .gk-k-shift.is-locked .gk-legend::after {

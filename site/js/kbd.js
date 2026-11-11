@@ -1,7 +1,8 @@
 // Ghost Keyboard, drawn in HTML: the real keyboard's layout, colours, popups and backlight, as one component.
 //
 // Read from the Android sources, and kept in their terms so the two can be compared side by side:
-//   Layouts.kt        the rows of each page, the { } key beside space, long-press choices, hints
+//   Layouts.kt        the rows of each page, the { } key beside space and the emoji key after it, long-press
+//                     choices, hints
 //   KeyboardView.kt   metrics (60dp rows, 3dp/6dp key padding, 6dp radius), the key preview, the long-press panel,
 //                     the pill keys, the Retro keycaps, shift, the space-bar cursor, the swipe trail, the heatmap,
 //                     the four key heights (Condensed's 46dp rows and smaller labels), and layoutKeys' layouts: on a
@@ -48,7 +49,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 function K(type, o = {}) {
   const text = o.text ?? '';
   const key = { type, text, label: o.label ?? text, width: o.width ?? 1, hint: o.hint ?? null, alts: o.alts ?? [], page: o.page ?? null, pill: o.pill ?? true };
-  key.functional = type === 'shift' || type === 'delete' || type === 'mode';
+  key.functional = type === 'shift' || type === 'delete' || type === 'mode' || type === 'emoji';
   return key;
 }
 const row = (keys, inset = 0) => ({ keys, inset, units: keys.reduce((n, k) => n + k.width, 0) + inset * 2 });
@@ -81,6 +82,7 @@ const bottomRow = (modeLabel, modePage, second) => row([
   K('enter', { width: 1.5 }),
 ]);
 const numberRow = () => row(DIGITS.map(sym));
+const LEAST_BAR = 3;        // the least the space bar is left with, in key widths, whatever stands beside it
 
 export const Layouts = {
   letters(withNumbers = false) {
@@ -131,6 +133,19 @@ export const Layouts = {
       row([K('mode', { label: '?123', width: 1.5, page: 'symbols' }), ...[...'%©®™✓[]'].map(sym), deleteKey()]),
       bottomRow('ABC', 'letters'),
     ];
+  },
+  /**
+   * The emoji plugin's key (Layouts.withEmoji; the app has had it since 0.12.1): straight after the { } key on the
+   * letters page, a key's width taken from the space bar. Other pages have no { } key and come back as they were;
+   * so do the letters where the bar would be left under LEAST_BAR key widths, the mic key counted.
+   */
+  withEmoji(rows, mic = false) {
+    const last = rows[rows.length - 1];
+    const at = last.keys.findIndex((k) => k.type === 'mode' && k.page === 'dev');
+    const space = last.keys.find((k) => k.type === 'space');
+    if (at < 0 || !space || space.width - 1 - (mic ? 1 : 0) < LEAST_BAR) return rows;
+    const keys = last.keys.flatMap((k, i) => [k.type === 'space' ? { ...k, width: k.width - 1 } : k, ...(i === at ? [K('emoji')] : [])]);
+    return [...rows.slice(0, -1), row(keys, last.inset)];
   },
   /** The dictation plugin's mic key, beside the space bar, which gives it a key's width. */
   withMic(rows) {
@@ -343,6 +358,7 @@ const ICONS = {
   'search': {"box":24,"washAlpha":0.2,"paths":["M21.53 20.47l-4.69-4.69a8.26 8.26 0 10-1.06 1.06l4.69 4.69a.74.74 0 001.06-1.06ZM3.75 10.5a6.75 6.75 0 116.75 6.75A6.76 6.76 0 013.75 10.5Z"],"wash":["M18 10.5A7.5 7.5 0 1110.5 3 7.5 7.5 0 0118 10.5Z"],"rotate":0},
   'key': {"box":24,"washAlpha":0.2,"paths":["M20.3 3.7A7.5 7.5 0 007.87 11.32L2.69 16.5a1.49 1.49 0 00-.44 1.06v2.69a1.5 1.5 0 001.5 1.5h3A.75.75 0 007.5 21V19.5H9a.75.75 0 00.75-.75v-1.5h1.5a.75.75 0 00.53-.22l.9-.9A7.47 7.47 0 0015 16.5h.01A7.5 7.5 0 0020.3 3.7ZM21 9.2c-.1 3.19-2.79 5.8-5.99 5.8H15a5.97 5.97 0 01-2.22-.42.75.75 0 00-.83.15l-1.01 1.02H9a.75.75 0 00-.75.75V18H6.75a.75.75 0 00-.75.75v1.5H3.75V17.56l5.52-5.51a.75.75 0 00.15-.83A5.97 5.97 0 019 8.99c0-3.2 2.61-5.88 5.8-5.99A6 6 0 0121 9.2ZM18 7.13A1.13 1.13 0 1116.88 6 1.13 1.13 0 0118 7.13Z"],"wash":["M21.75 9.22c-.12 3.62-3.12 6.53-6.74 6.53a6.72 6.72 0 01-2.53-.48h0L11.25 16.5H9v2.25H6.75V21h-3A.75.75 0 013 20.25V17.56a.75.75 0 01.22-.53l5.51-5.51h0A6.72 6.72 0 018.25 8.99c0-3.62 2.91-6.62 6.53-6.74a6.75 6.75 0 016.97 6.97Z"],"rotate":0},
   'gif': {"box":24,"washAlpha":0.2,"paths":["M20.25 3.75H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5h16.5a1.5 1.5 0 001.5-1.5V5.25a1.5 1.5 0 00-1.5-1.5Zm0 1.5v9.63l-2.44-2.44a1.5 1.5 0 00-2.13 0l-1.87 1.87-4.13-4.12a1.5 1.5 0 00-2.12 0L3.75 14V5.25ZM3.75 16.13l4.88-4.88 7.5 7.5H3.75Zm16.5 2.62h-2l-3.38-3.37 1.88-1.88 3.5 3.5v1.75ZM13.5 9.38a1.13 1.13 0 111.13 1.12A1.13 1.13 0 0113.5 9.38Z"],"wash":["M21 5.25V16.69l-3.72-3.72a.75.75 0 00-1.06 0l-2.41 2.41L9.16 10.72a.75.75 0 00-1.07 0L3 15.81V5.25a.75.75 0 01.75-.75h16.5a.75.75 0 01.75.75Z"],"rotate":0},
+  'emoji': {"box":256,"washAlpha":0.2,"paths":["M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216ZM80,108a12,12,0,1,1,12,12A12,12,0,0,1,80,108Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,176,108Zm-1.08,48c-10.29,17.79-27.39,28-46.92,28s-36.63-10.2-46.92-28a8,8,0,1,1,13.84-8c7.47,12.91,19.21,20,33.08,20s25.61-7.1,33.08-20a8,8,0,1,1,13.84,8Z"],"wash":["M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z"]},
   'mic': {"box":256,"washAlpha":0.2,"paths":["M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"],"wash":["M168,64v64a40,40,0,0,1-40,40h0a40,40,0,0,1-40-40V64a40,40,0,0,1,40-40h0A40,40,0,0,1,168,64Z"],"rotate":0},
   'delete': {"box":256,"washAlpha":0.2,"paths":["M216,40H68.53a16.08,16.08,0,0,0-13.72,7.77L9.14,123.88a8,8,0,0,0,0,8.24l45.67,76.11A16.08,16.08,0,0,0,68.53,216H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM61.67,204.12,68.53,200h0ZM216,200H68.53l-43.2-72,43.2-72H216ZM106.34,146.34,124.69,128l-18.35-18.34a8,8,0,0,1,11.32-11.32L136,116.69l18.34-18.35a8,8,0,0,1,11.32,11.32L147.31,128l18.35,18.34a8,8,0,0,1-11.32,11.32L136,139.31l-18.34,18.35a8,8,0,0,1-11.32-11.32Z"],"wash":["M224,56V200a8,8,0,0,1-8,8H68.53a8,8,0,0,1-6.86-3.88L16,128,61.67,51.88A8,8,0,0,1,68.53,48H216A8,8,0,0,1,224,56Z"],"rotate":0},
   'shift': {"box":256,"washAlpha":0.2,"paths":["M229.66,114.34l-96-96a8,8,0,0,0-11.32,0l-96,96A8,8,0,0,0,32,128H72v80a16,16,0,0,0,16,16h80a16,16,0,0,0,16-16V128h40a8,8,0,0,0,5.66-13.66ZM176,112a8,8,0,0,0-8,8v88H88V120a8,8,0,0,0-8-8H51.31L128,35.31,204.69,112Z"],"wash":["M224,120H176v88a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V120H32l96-96Z"],"rotate":0},
@@ -353,7 +369,7 @@ const ICONS = {
   'caret-down': {"box":256,"washAlpha":0.2,"paths":["M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"],"wash":["M160,48V208L80,128Z"],"rotate":270},
 };
 
-/** One of the keyboard's icons as inline SVG: settings, hide, back, forward, search, key, gif, mic, delete, shift, enter, caret-left/up/down/right. */
+/** One of the keyboard's icons as inline SVG: settings, hide, back, forward, search, key, gif, emoji, mic, delete, shift, enter, caret-left/up/down/right. */
 export function icon(name, { size = null, filled = false, cls = '' } = {}) {
   const g = ICONS[name];
   if (!g) return '';
@@ -627,7 +643,7 @@ const isLetter = (s) => s.length === 1 && s.toLowerCase() !== s.toUpperCase();
 const lightId = (key) => `${key.type.toUpperCase()}|${key.text}|${key.label}`;
 const typeOfChar = (c) => (c === ' ' ? 'space' : c === '\n' ? 'enter' : c === '\b' ? 'delete' : 'char');
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-const ARIA = { space: 'space', delete: 'backspace', enter: 'enter', shift: 'shift', mic: 'dictate' };
+const ARIA = { space: 'space', delete: 'backspace', enter: 'enter', shift: 'shift', mic: 'dictate', emoji: 'emoji' };
 const PAGE_NAMES = { letters: 'letters', symbols: 'numbers and symbols', more: 'more symbols', dev: 'developer keys' };
 let measureCtx = null;
 
@@ -636,8 +652,9 @@ const DEFAULTS = {
   borders: false, hints: true, preview: true, mic: false, split: false, swipe: false, autoCaps: true, doubleSpacePeriod: true,
   spaceCursor: true, keyHeight: 'normal', longPressMs: 300, enter: 'newline', touchAction: 'pan-y', scale: null,
   volume: 0.35, motion: 'auto', label: 'Ghost Keyboard', fragment: null, cog: true, bare: false, hardKeys: 'all',
-  wideLayout: null, oneHanded: 'off',
+  wideLayout: null, oneHanded: 'off', emojiKey: true,
 };
+// emojiKey: the emoji key after { } on the letters page, as the app has it; false is the bottom row without it.
 // keyHeight: 'condensed' | 'short' | 'normal' | 'tall' (KEY_HEIGHTS).
 // wideLayout: what a board on a wide screen does (WIDE_LAYOUTS: 'split' | 'full' | 'left' | 'center' | 'right'); null
 //   leaves it to `split`, the older way to ask for 'split'. A board is on a wide screen when it is SPLIT_MIN dp across:
@@ -650,7 +667,7 @@ const DEFAULTS = {
 
 const UNIT_DP = (412 - 3) / 10;          // a key's width on a phone, in dp: what a fragment's keys keep
 const HEADROOM = { preview: 52, panel: 58 };
-const KEY_TYPES = { space: 'space', enter: 'enter', delete: 'delete', backspace: 'delete', shift: 'shift', mic: 'mic' };
+const KEY_TYPES = { space: 'space', enter: 'enter', delete: 'delete', backspace: 'delete', shift: 'shift', mic: 'mic', emoji: 'emoji' };
 
 /**
  * A fragment spec made regular, or null for the whole board.
@@ -786,7 +803,8 @@ export class GhostKbd {
   /**
    * Listens for 'key', 'down', 'input', 'page', 'shift', 'row', 'settings', 'picker', 'arrow', 'cursor', 'swipe', 'mic',
    * 'user', 'theme', 'layout', 'visible', 'motion' ({paused}: the page's pause went on or off), 'dock' ({side, wide}:
-   * the chevron beside docked or one-handed keys was tapped, and the keys went across). Returns the unsubscribe.
+   * the chevron beside docked or one-handed keys was tapped, and the keys went across), 'emoji' (the emoji key was
+   * tapped: the phone opens its emoji panel). Returns the unsubscribe.
    */
   on(type, fn) {
     if (!this._subs.has(type)) this._subs.set(type, new Set());
@@ -988,7 +1006,8 @@ export class GhostKbd {
 
   _rows(page = this.page) {
     const rows = Layouts.page(page, this.opts.numberRow);
-    return this.opts.mic ? Layouts.withMic(rows) : rows;
+    const keyed = this.opts.emojiKey ? Layouts.withEmoji(rows, !!this.opts.mic) : rows;
+    return this.opts.mic ? Layouts.withMic(keyed) : keyed;
   }
 
   /**
@@ -1062,6 +1081,7 @@ export class GhostKbd {
     const order = [this._frag.page, ...PAGES.filter((p) => p !== this._frag.page)];
     const all = (p) => Layouts.page(p, this.opts.numberRow).flatMap((r) => r.keys);
     if (name === 'mic') return K('mic');
+    if (name === 'emoji') return K('emoji');
     const type = KEY_TYPES[name];
     const lower = isLetter(name) ? name.toLowerCase() : name;
     for (const p of order) {
@@ -1183,7 +1203,7 @@ export class GhostKbd {
       b.type = 'button';
       b.tabIndex = -1;
       b.className = `gk-key gk-k-${key.type}` + (key.functional ? ' gk-fn' : '') +
-        (key.type === 'enter' || key.type === 'space' || (key.type === 'mode' && key.pill) ? ' gk-pill' : '');
+        (key.type === 'enter' || key.type === 'space' || key.type === 'emoji' || (key.type === 'mode' && key.pill) ? ' gk-pill' : '');
       b.style.cssText = `left:${rect.x.toFixed(2)}px;top:${(rect.y - keysTop).toFixed(2)}px;width:${rect.w.toFixed(2)}px;height:${rect.h.toFixed(2)}px`;
       b.innerHTML = `<span class="gk-face"><span class="gk-cap"><span class="gk-legend"></span>${key.hint ? `<span class="gk-hint">${esc(key.hint)}</span>` : ''}</span></span>`;
       e.legend = b.querySelector('.gk-legend');
@@ -1246,7 +1266,7 @@ export class GhostKbd {
         el.classList.toggle('is-on', this.shift !== 'off');
         el.classList.toggle('is-locked', this.shift === 'locked');
         el.setAttribute('aria-pressed', String(this.shift !== 'off'));
-      } else if (key.type === 'delete' || key.type === 'enter' || key.type === 'mic') {
+      } else if (key.type === 'delete' || key.type === 'enter' || key.type === 'mic' || key.type === 'emoji') {
         if (!legend.firstChild) legend.innerHTML = icon(key.type);
       }
       el.setAttribute('aria-label', label);
@@ -1663,6 +1683,7 @@ export class GhostKbd {
       case 'shift': this._tapShift(); this._keyEvent('shift', '', e, x, y, source); break;
       case 'mode': this._keyEvent('mode', key.label, e, x, y, source); this.setPage(key.page || 'letters'); break;
       case 'mic': this._keyEvent('mic', '', e, x, y, source); this._emit('mic', {}); break;
+      case 'emoji': this._keyEvent('emoji', '', e, x, y, source); this._emit('emoji', {}); break;
       case 'delete': if (source !== 'pointer') this._apply('delete', '\b', e, x, y, source); break;
     }
   }
