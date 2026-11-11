@@ -52,6 +52,23 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   answers reads slowly is not recorded. The history has no Android in it and is checked off the device:
   `tool/undo-selfcheck.sh`, or `cd android && ./gradlew :app:testDebugUnitTest --tests '*FieldEditorTest*'`.
 
+## 0.15.0
+
+- **One-time codes from texts** (`OtpCodes.kt`, `SmsCodes.kt`; Settings › Row tools, off unless turned on;
+  [docs/sms-codes.md](docs/sms-codes.md)): a sign-in code that arrives by text message is a chip at the start of the
+  row above the keys and the first thing in the clipboard's list, a tap to type it. The text is read once, on the
+  phone, and let go; only the code is held, in memory, for ten minutes or until it is used. The app asks Android for
+  `RECEIVE_SMS` only, when the switch is turned on, and its receiver is disabled in Android itself while the switch
+  is off. `tool/otp_check.sh` runs the finder against its table of texts.
+- **Stats** (`lib/stats/stats_page.dart`, `KeyTallies.kt`; Settings › Stats; [docs/stats.md](docs/stats.md)): everyday
+  typing in pictures. Speed and accuracy as dials, six tiles, the week as bars with the speed over them, the keyboard
+  twice (the keys missed with the key hit in their place; where the taps land and how far Adaptive keys has shifted
+  a touch area), the words put right most often, and the busiest keys. Typing stats now also count which key was
+  hit for which and where taps land: counts only, never a word.
+- **The website's look & feel key** (`site/js/chunks/look.js`, `site/js/kbd.js`): a whole keyboard on a small screen,
+  stepping through the key heights and the foldable and one-handed layouts with the themes.
+- A chip tapped away in the row as Undo lit up could stay drawn (`PluginRow.setItems`).
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
