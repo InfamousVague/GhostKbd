@@ -50,6 +50,13 @@ class SmsCodesSourceTest {
         assertEquals(false, Regex("SMS_CODES to (true|false)").find(code("KeyboardPrefs.kt"))!!.groupValues[1].toBoolean())
     }
 
+    @Test fun `the app is built for Android 16, whatever Flutter builds it`() {
+        // Built for Android 17, the app would be given ordinary code texts three hours late there. The number is
+        // written out so that a newer Flutter, with a newer default, cannot raise it by itself.
+        val gradle = File(main, "../../build.gradle.kts").readText().lines().joinToString("\n") { it.substringBefore("//") }
+        assertEquals(listOf("36"), Regex("targetSdk\\s*=\\s*(\\S+)").findAll(gradle).map { it.groupValues[1] }.toList())
+    }
+
     @Test fun `a code's chip is its own, not the clipboard's`() {
         val service = code("DevKeyboardService.kt")
         val chips = service.substringAfter("private fun codeItems(fresh: Boolean): List<RowItem> {").substringBefore("\n    }")

@@ -29,7 +29,9 @@ android {
     defaultConfig {
         applicationId = "com.infamousvague.devkeyboard"
         minSdk = 26
-        targetSdk = flutter.targetSdkVersion
+        // Written out, not flutter.targetSdkVersion: a newer Flutter must not raise it by itself. Built for Android 17
+        // (37), the app would be given one-time-code texts three hours late there (docs/sms-codes.md).
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         // arm64 only: the phones this is for, and whisper.cpp built once rather than four times.

@@ -79,8 +79,10 @@ Checked in November 2026 against Android's own pages (links at the foot).
     read (SMS Retriever: it ends in an eleven-character jumble) is held back from **every** other app. Those codes
     do not show here on Android 17. The app or site they were written for fills them in by itself;
   - an ordinary text ("Your code is 123456") is held back the same way from apps **built for Android 17**
-    (`targetSdk` 37 or higher). This app is built for Android 16 (`targetSdk` 36, Flutter's default today), so it
-    still receives them.
+    (`targetSdk` 37 or higher). This app is built for Android 16: `targetSdk` 36, written out in
+    `android/app/build.gradle.kts` since 2026-11-11 so that a newer Flutter cannot raise it by itself (it was
+    Flutter's default until then, and the build service took each new Flutter the day it came out). So it still
+    receives them.
 - **Before raising `targetSdk` to 37**: on Android 17 this feature would then receive nothing in time. The row
   already says so if it happens (`_smsCodesRows` reads the phone's version and the build's target). The way forward
   then is Google's SMS User Consent API (Android asks about each text, and it needs a Play services library), or to
