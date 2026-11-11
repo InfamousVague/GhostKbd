@@ -309,7 +309,7 @@ class ReportRules(private val common: (String) -> Boolean, private val known: (S
  */
 object Reports {
     const val FILE = "typing_report.json"
-    const val ENDPOINT = "https://attack.fm/devkeyboard/report"
+    const val ENDPOINT = "https://ghostkbd.com/report"
     /** A report is worth sending once it has seen this many words. */
     const val MIN_WORDS = 100L
     private const val TAG = "GhostKeyboard"

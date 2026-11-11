@@ -118,7 +118,7 @@ public enum AiClient {
         var h: [String: String] = [:]
         if !s.key.isEmpty { h["Authorization"] = "Bearer \(s.key)" }
         // OpenRouter asks apps to say who they are.
-        if s.provider.id == "openrouter" { h["X-Title"] = "Ghost Keyboard"; h["HTTP-Referer"] = "https://attack.fm/devkeyboard/" }
+        if s.provider.id == "openrouter" { h["X-Title"] = "Ghost Keyboard"; h["HTTP-Referer"] = "https://ghostkbd.com/" }
         return h
     }
 

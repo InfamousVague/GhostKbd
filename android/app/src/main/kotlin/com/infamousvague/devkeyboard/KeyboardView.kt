@@ -36,6 +36,8 @@ interface KeyboardListener {
     fun onHideKeyboard()
     /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
     fun onMic()
+    /** The emoji key beside the space bar was tapped. */
+    fun onEmoji() {}
     /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
     /** Cursor control: a slide left from backspace takes the word before the cursor. */
@@ -67,6 +69,7 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onOpenSettings() = guard("onOpenSettings") { inner.onOpenSettings() }
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
     override fun onMic() = guard("onMic") { inner.onMic() }
+    override fun onEmoji() = guard("onEmoji") { inner.onEmoji() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
@@ -111,6 +114,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** The dictation plugin is added and its model is here: the mic key stands beside the space bar. */
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+
+    /** The emoji plugin is added: its key stands between { } and the space bar on the letters page, where the bar has the room ([Layouts.withEmoji]). */
+    var emojiKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+
+    /** Whether the letters page has the emoji key as things stand (the plugin, the layout, the globe, the mic). Where it has not, the row keeps its emoji button. */
+    var showsEmojiKey = false
+        private set
 
     var dictation = DictationPhase.OFF
         set(value) { field = value; if (value == DictationPhase.OFF) level = 0f; invalidate() }
@@ -374,13 +385,17 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     private fun rebuild() {
+        val letters by lazy { Layouts.letters(spec, numberRow, extras, globe) }
         val base = when (page) {
-            Page.LETTERS -> Layouts.letters(spec, numberRow, extras, globe)
+            Page.LETTERS -> letters
             Page.SYMBOLS -> Layouts.symbols(spec)
             Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
         }
-        rows = if (micKey) Layouts.withMic(base) else base
+        // The emoji key is the letters page's, and whether it has one is asked of that page whichever is showing.
+        showsEmojiKey = emojiKey && Layouts.hasEmojiKey(Layouts.withEmoji(letters, micKey))
+        val keyed = if (emojiKey) Layouts.withEmoji(base, micKey) else base
+        rows = if (micKey) Layouts.withMic(keyed) else keyed
         layoutKeys()
     }
 
@@ -758,6 +773,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             when (key.type) {
                 KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.SPACE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
+                // The emoji key is a pill of the same grey as ?123 and the space bar beside it.
+                KeyType.EMOJI -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.MODE -> if (key.pill) {
                     fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill)
                 } else if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
@@ -790,6 +807,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             KeyType.SPACE -> drawSpaceLabel(canvas, f)
             KeyType.GLOBE -> drawGlobe(canvas, cx, cy)
             KeyType.MIC -> drawMic(canvas, cx, cy, theme.text)
+            // In the keys' own colour, not the row's yellow: one of the board's keys.
+            KeyType.EMOJI -> drawPackIcon(canvas, RowIcon.EMOJI, cx, cy, dp(22f), theme.text)
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
@@ -1493,6 +1512,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)
                 KeyType.MIC -> listener.onMic()
+                KeyType.EMOJI -> listener.onEmoji()
                 KeyType.GLOBE -> nextLayout()?.let { listener.onLayout(it) }
                 KeyType.DELETE -> Unit
             }

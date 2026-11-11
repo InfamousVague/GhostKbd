@@ -3,8 +3,8 @@ package com.infamousvague.devkeyboard
 import java.util.Locale
 import kotlin.math.abs
 
-/** What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them). */
-enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE }
+/** What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them); EMOJI opens the emoji plugin's panel. */
+enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE, EMOJI }
 
 /** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
 enum class Page { LETTERS, SYMBOLS, MORE, DEV }
@@ -26,8 +26,8 @@ data class Key(
     val page: Page? = null,
     val pill: Boolean = true,
 ) {
-    /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123 and the like. */
-    val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE
+    /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123, its emoji key and the like. */
+    val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE || type == KeyType.EMOJI
 }
 
 /** A row of keys, [inset] key units of space before and after it (Gboard's middle letter row sits half a key in). */
@@ -89,6 +89,32 @@ object Layouts {
         val keys = last.keys.flatMap { if (it.type == KeyType.SPACE) listOf(Key(KeyType.MIC), it.copy(width = it.width - 1f)) else listOf(it) }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }
+
+    /** The least the space bar is left with, in key widths, whatever stands beside it. */
+    const val LEAST_BAR = 3f
+
+    /**
+     * The emoji plugin's key (Matt, 2026-11-11: "Move the emoji button to the left of the spacebar and to the right of
+     * the code toggle, make it the gray color"): straight after the { } key on the letters page, before the globe
+     * and the mic, with a key's width taken from the space bar. Other pages have no { } key and come back as they
+     * were. So do the letters where the bar would be left under [LEAST_BAR] key widths, [mic] counted too (a board
+     * ten across with both the globe and the mic key): there the emoji button stays in the row above the keys.
+     * [hasEmojiKey] says which it was.
+     */
+    fun withEmoji(rows: List<KeyRow>, mic: Boolean): List<KeyRow> {
+        val last = rows.last()
+        val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
+        val space = last.keys.firstOrNull { it.type == KeyType.SPACE }
+        if (at < 0 || space == null || space.width - 1f - (if (mic) 1f else 0f) < LEAST_BAR) return rows
+        val keys = ArrayList<Key>(last.keys.size + 1)
+        last.keys.forEachIndexed { i, key ->
+            keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
+            if (i == at) keys += Key(KeyType.EMOJI)
+        }
+        return rows.dropLast(1) + KeyRow(keys, last.inset)
+    }
+
+    fun hasEmojiKey(rows: List<KeyRow>): Boolean = rows.last().keys.any { it.type == KeyType.EMOJI }
 
     private val accents = mapOf(
         "a" to listOf("à", "á", "â", "ä", "æ", "ã", "å", "ā"),

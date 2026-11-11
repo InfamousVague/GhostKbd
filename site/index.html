@@ -8,13 +8,13 @@
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0A0B0C" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#E8EAF0" media="(prefers-color-scheme: light)">
-<link rel="canonical" href="https://attack.fm/devkeyboard/">
+<link rel="canonical" href="https://ghostkbd.com/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ghost Keyboard">
-<meta property="og:url" content="https://attack.fm/devkeyboard/">
+<meta property="og:url" content="https://ghostkbd.com/">
 <meta property="og:title" content="Ghost Keyboard: the Android keyboard that writes as you">
 <meta property="og:description" content="Type &lt;&lt;what you want&gt;&gt; in any app and it is written in place, in your voice, with your own AI model and key. Terminal keys, adaptive touch areas, an open typing profile. Free, no account, no ads.">
-<meta property="og:image" content="https://attack.fm/devkeyboard/og.png">
+<meta property="og:image" content="https://ghostkbd.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Android keyboard that writes as you. Three keycaps: two less-than signs, ghostwriter, two greater-than signs.">
@@ -507,7 +507,7 @@
           <li id="n6">The Gboard figure is as reported by Android Authority in August 2026; Google does not publish it. A longer-duration setting was seen in a Gboard beta and is not confirmed shipped. Sources: <a href="https://androidauthority.com/gboard-clipboard-duration-slider-apk-teardown-3698099" rel="noopener">Android Authority, Gboard clipboard duration</a>; <a href="https://support.microsoft.com/en-us/topic/how-does-the-clipboard-work-with-microsoft-swiftkey-keyboard-322f9977-dab7-4edb-a7aa-e1c0611cf7eb" rel="noopener">Microsoft, how the SwiftKey clipboard works</a>.</li>
           <li id="n7">Google says federated learning sends what it learns, not your text, and can be turned off. SwiftKey works with no account. In Ghost Keyboard the touch model and learned words are not sent anywhere by the app (Android&rsquo;s own backup, if it is on, may copy the app&rsquo;s data); Mockingbird&rsquo;s writing samples go to your AI provider when it trains (note 3). Sources: <a href="https://support.google.com/gboard/answer/12373137" rel="noopener">Google, Gboard help: federated learning</a>; <a href="https://support.microsoft.com/en-US/SwiftKey-Keyboard/account" rel="noopener">Microsoft, SwiftKey and your account</a>.</li>
           <li id="n8">Play listings read 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
-          <li id="n9">Gboard: its Play data-safety declaration, which also says nothing is shared with other companies. SwiftKey: its Play data-safety declaration lists optional location and device IDs for advertising or marketing as collected, not shared; the usage statistics and crash reports are from a Microsoft support page. Ghost Keyboard: from a search of its source, not an audit; it does contact attack.fm for updates and whichever services you turn on. Sources: <a href="https://play.google.com/store/apps/datasafety?id=com.google.android.inputmethod.latin" rel="noopener">Gboard data safety</a>; <a href="https://play.google.com/store/apps/datasafety?id=com.touchtype.swiftkey" rel="noopener">SwiftKey data safety</a>; <a href="https://support.microsoft.com/en-us/topic/50260e0e-9ed8-4f2c-99b8-9b025fba4b7d" rel="noopener">Microsoft, SwiftKey and your data</a>.</li>
+          <li id="n9">Gboard: its Play data-safety declaration, which also says nothing is shared with other companies. SwiftKey: its Play data-safety declaration lists optional location and device IDs for advertising or marketing as collected, not shared; the usage statistics and crash reports are from a Microsoft support page. Ghost Keyboard: from a search of its source, not an audit; it does contact ghostkbd.com for updates and whichever services you turn on. Sources: <a href="https://play.google.com/store/apps/datasafety?id=com.google.android.inputmethod.latin" rel="noopener">Gboard data safety</a>; <a href="https://play.google.com/store/apps/datasafety?id=com.touchtype.swiftkey" rel="noopener">SwiftKey data safety</a>; <a href="https://support.microsoft.com/en-us/topic/50260e0e-9ed8-4f2c-99b8-9b025fba4b7d" rel="noopener">Microsoft, SwiftKey and your data</a>.</li>
           <li id="n10">Ghost Keyboard completes and corrects the word you are typing only; the row is quiet after a space. The Gboard and SwiftKey cells are well-known behaviour of those products, not separately sourced. Source: <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
           <li id="n11">Ghost Keyboard: English, Spanish, French, German, Italian and Portuguese. We did not count Gboard&rsquo;s languages. Source: <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/what-languages-are-currently-supported-for-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, languages in SwiftKey</a>.</li>
           <li id="n12">Ghost Keyboard is Android only and updates itself. Install counts as shown on Google Play, 2026-11-09. Sources: <a href="https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin" rel="noopener">Gboard on Google Play</a>; <a href="https://play.google.com/store/apps/details?id=com.touchtype.swiftkey" rel="noopener">SwiftKey on Google Play</a>.</li>
@@ -581,8 +581,8 @@
             <li><strong>Mockingbird.</strong> A selection of your writing samples goes to your AI provider when it trains your style profile, and again when it retrains by itself, about once a day at most. No request has to be typed for that.</li>
             <li><strong>In my voice and Rewrite.</strong> The text you chose goes to your AI provider; In my voice sends your style profile and a few similar samples with it.</li>
             <li><strong>GIFs.</strong> Your search goes to GIPHY.</li>
-            <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from attack.fm or huggingface.co.</li>
-            <li><strong>Updates.</strong> The app asks attack.fm for the current version when it opens and up to twice a day.</li>
+            <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from ghostkbd.com or huggingface.co.</li>
+            <li><strong>Updates.</strong> The app asks ghostkbd.com for the current version when it opens and up to twice a day.</li>
             <li><strong>Ghost.md online.</strong> If you have signed in to Ghost.md and no note on the phone matches a request, its keywords go to ghostmarkdown.com.</li>
             <li><strong>Android&rsquo;s own backup.</strong> The app does not yet tell Android to leave its data out of backups. If backup or device transfer is on, Android may copy the app&rsquo;s data, including your AI key, clipboard history and what the keyboard has learned.</li>
           </ul>
@@ -629,7 +629,7 @@
           <li><strong>Turn it on.</strong> Open Ghost Keyboard and tap the first step, which opens your phone&rsquo;s keyboard list.</li>
           <li><strong>Switch to it.</strong> Tap the second step and choose Ghost Keyboard. That is all.</li>
         </ol>
-        <p class="muted release"><strong style="color: var(--ink); font-weight: 600">It keeps itself up to date.</strong> The app checks attack.fm when it opens and up to twice a day, and installs an update only if the file matches the published size and SHA-256 and is signed with the same certificate as the copy you have.</p>
+        <p class="muted release"><strong style="color: var(--ink); font-weight: 600">It keeps itself up to date.</strong> The app checks ghostkbd.com when it opens and up to twice a day, and installs an update only if the file matches the published size and SHA-256 and is signed with the same certificate as the copy you have.</p>
         <dl class="facts release" data-apk-show hidden>
           <dt>Version</dt><dd data-apk="version"></dd>
           <dt>Size</dt><dd data-apk="size"></dd>

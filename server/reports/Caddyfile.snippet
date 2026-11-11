@@ -1,17 +1,16 @@
-# Inside the attack.fm site block, before the file server that serves /devkeyboard/:
-# the one path the keyboard posts reports to, passed to the collector on this machine.
-# Nothing of the request is logged: no address, no agent, no time.
-@kbdreport {
-	method POST
-	path /devkeyboard/report
-}
-handle @kbdreport {
-	request_body {
-		max_size 100KB
+# What tool/deploy-reports.mjs --caddy writes straight after the opening line of attack.fm's block (and only that).
+# It is the address 0.12.0 posts to. From 0.12.1 the keyboard posts to https://ghostkbd.com/report, the same four
+# lines under `handle /report` in ghostkbd.com's own block, which tool/deploy-site.mjs --caddy writes.
+#
+# Here:
+# the one path the keyboard posts reports to, passed to the collector on this machine. No access log line is written
+# for it (log_skip is skip_log before Caddy 2.8), so nothing of who asked is kept by the web server either.
+	# ghostkbd-reports: begin (tool/deploy-reports.mjs writes these lines; server/reports/README.md)
+	handle /devkeyboard/report {
+		request_body {
+			max_size 100KB
+		}
+		log_skip
+		reverse_proxy 127.0.0.1:8377
 	}
-	log_skip
-	reverse_proxy 127.0.0.1:8377 {
-		header_up -X-Forwarded-For
-		header_up -X-Real-IP
-	}
-}
+	# ghostkbd-reports: end

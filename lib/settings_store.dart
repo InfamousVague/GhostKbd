@@ -418,7 +418,7 @@ class SettingsStore extends ChangeNotifier {
   /// The anonymous typing report that is waiting (Reports.kt): `waiting`, the report exactly as it would be sent (or
   /// empty), the `words`, `mistakes` and `strokes` in it, whether there are `enough` words for it to go by itself,
   /// the day one was `lastSent`, and the `server` it goes to.
-  Map<String, Object?> report = const {'waiting': '', 'words': 0, 'mistakes': 0, 'strokes': 0, 'enough': false, 'lastSent': '', 'server': 'attack.fm'};
+  Map<String, Object?> report = const {'waiting': '', 'words': 0, 'mistakes': 0, 'strokes': 0, 'enough': false, 'lastSent': '', 'server': 'ghostkbd.com'};
 
   /// What the last "Send it now" said.
   String reportSaid = '';

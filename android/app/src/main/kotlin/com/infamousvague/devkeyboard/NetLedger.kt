@@ -108,7 +108,7 @@ enum class NetPath(
         trigger = "Typing >> with “Fill as soon as I type >>” on, tapping Fill, or pressing enter on a <<request>>.",
         sends = "Your key and model, the request, up to 1,500 characters before it and 400 after, the name of the app you are typing in, today’s date and your style profile. " +
             "Each behind its own switch, and never more than: matching past messages (6,000 characters), Ghost.md notes (9,000, and their titles), commit messages (9,000, each with its date and repository) and recent clipboard (2,500). " +
-            "With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, attack.fm/devkeyboard.",
+            "With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com.",
     ),
     REWRITE(
         NetFeature.AI, "rewrite", "Rewrite", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("rewrite"),
@@ -171,22 +171,22 @@ enum class NetPath(
         sends = "Which pictures are asked for.",
     ),
     MODEL(
-        NetFeature.MODELS, "model", "Speech model download", listOf("attack.fm", "huggingface.co", "*.huggingface.co", "*.hf.co"), plugins = listOf("dictation"),
+        NetFeature.MODELS, "model", "Speech model download", listOf("ghostkbd.com", "huggingface.co", "*.huggingface.co", "*.hf.co"), plugins = listOf("dictation"),
         trigger = "Adding Dictation, and choosing a speech model that isn’t on the phone.",
         sends = "The model file’s name, and where to carry on from when part of it is already here.",
     ),
     UPDATE_CHECK(
-        NetFeature.UPDATES, "update-check", "Update check", listOf("attack.fm"),
+        NetFeature.UPDATES, "update-check", "Update check", listOf("ghostkbd.com"),
         trigger = "Opening the app with “Install updates by itself” on; the keyboard, at most every 12 hours, even with that switch off; and tapping Check for updates.",
         sends = "The request and the time it was made. No version and no id.",
     ),
     UPDATE_DOWNLOAD(
-        NetFeature.UPDATES, "update-download", "Update download", listOf("attack.fm"),
+        NetFeature.UPDATES, "update-download", "Update download", listOf("ghostkbd.com"),
         trigger = "A newer version found with “Install updates by itself” on, or tapping Update now.",
         sends = "The request alone.",
     ),
     REPORT(
-        NetFeature.REPORTS, "report", "Typing report", listOf("attack.fm"),
+        NetFeature.REPORTS, "report", "Typing report", listOf("ghostkbd.com"),
         trigger = "Only with “Share anonymous typing reports” on (it is off unless you turn it on): at most once a day as the keyboard hides, once 100 words have been typed; and tapping Send now.",
         sends = "How often things happened (words typed and swiped, fixes made and undone, words put right, swipe readings changed); where taps land on their keys, as a grid of counts with no letters; " +
             "up to 60 words you mistyped with the word you meant, and up to 12 swipe strokes with the word they were, only ever from the few thousand commonest words of the app’s own word lists; your layout, languages and key size; " +

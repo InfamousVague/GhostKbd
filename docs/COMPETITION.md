@@ -261,7 +261,7 @@ Every line below was checked in the source on 2026-11-09.
 | Look | Five theme presets plus one made from a colour; six backlight effects; seven stock sounds; haptics | `catalogue.dart`, `Backlight.kt`, `SoundPacks.kt` |
 | Wide screens | Splits in two at 600dp and wider; one on/off switch, fixed gap | `KeyboardView.kt` |
 | Typing profile | `ghost-typing-profile` v1, open JSON with a published schema; import and export; samples left out of an export unless asked | `docs/typing-profile.md`, `TypingProfile.kt` |
-| Updates | Checks attack.fm on opening the app and at most twice a day from the keyboard; installs only a file matching apk.json's size and SHA-256, the package, a newer version and the installed signing certificate; an "Automatic updates" switch | `Updater.kt` |
+| Updates | Checks ghostkbd.com on opening the app and at most twice a day from the keyboard; installs only a file matching apk.json's size and SHA-256, the package, a newer version and the installed signing certificate; an "Automatic updates" switch | `Updater.kt` |
 | Permissions | INTERNET, RECORD_AUDIO, VIBRATE, REQUEST_INSTALL_PACKAGES | `AndroidManifest.xml` |
 | Analytics | No analytics or crash-reporting library found in the Kotlin sources, `pubspec.yaml` or Gradle files (a search, not an audit) | search of the tree |
 
@@ -272,9 +272,9 @@ Every line below was checked in the source on 2026-11-09.
 3. Mockingbird's card says samples leave the phone "once, to train". Retraining sends them again (at most daily if
    "Retrain by itself" is on), and Ghostwriter sends the samples that match a request when "My past messages" is on.
 4. The plugin `hosts` lists are incomplete as a ledger. Ghostwriter's omits `api.github.com`,
-   `ghostmarkdown.com` and a custom server; the update check to `attack.fm` belongs to no plugin; OpenRouter
+   `ghostmarkdown.com` and a custom server; the update check to `ghostkbd.com` belongs to no plugin; OpenRouter
    requests carry an app title and referer header.
-5. Turning "Automatic updates" off stops the install, not the check: the keyboard still asks attack.fm so the cog
+5. Turning "Automatic updates" off stops the install, not the check: the keyboard still asks ghostkbd.com so the cog
    can show a badge.
 6. AI keys and the GitHub token are plain strings in the app's private SharedPreferences (`KeyboardPrefs.kt`), and
    the manifest sets no `android:allowBackup` or data-extraction rules, so Android's default of allowing backup
@@ -305,7 +305,7 @@ the vendor.
 | Ads | None | None | "Contains ads" on Play | None | None |
 | Open source | **No**: source public, no licence | No | No | No | HeliBoard GPL-3.0; FUTO source-available |
 | Internet permission | Yes | Yes | Yes | Yes | HeliBoard: none |
-| Where you get it | **APK from attack.fm only** | Play, preinstalled, iOS | Play, App Store | Preinstalled on Galaxy | F-Droid, GitHub; FUTO also on Play |
+| Where you get it | **APK from ghostkbd.com only** | Play, preinstalled, iOS | Play, App Store | Preinstalled on Galaxy | F-Droid, GitHub; FUTO also on Play |
 
 ## 5. Positioning
 
@@ -402,10 +402,10 @@ up" section on the site.
   Keep "now" to trust, the site, verification and the start of prediction.
 - **Privacy wording can backfire.** "No Ghost server between you and your AI" is true. "Nothing leaves your phone"
   is false: Ghostwriter sends the request, surrounding text and whatever sources are switched on to the provider;
-  Mockingbird sends samples to train; GIPHY sees searches; updates and models come from attack.fm and
+  Mockingbird sends samples to train; GIPHY sees searches; updates and models come from ghostkbd.com and
   huggingface.co; Ghost.md online signs in to ghostmarkdown.com. Bring-your-own-key moves trust to the provider; it
   does not remove it.
-- **"No telemetry" rests on a search, not an audit.** The update check still tells attack.fm an address and a
+- **"No telemetry" rests on a search, not an audit.** The update check still tells ghostkbd.com an address and a
   version. Disclose it.
 - **Keys in plain preferences** (section 3, item 6) would be a damaging finding if someone else reports it first.
 - **The self-updater is a high-value target.** The hash and certificate checks limit a compromised server; they do
@@ -456,7 +456,7 @@ Give the site a "last checked 2026-11-09" line and regenerate it per release fro
 - Your typing profile is an open JSON file with a published schema, to export and import.
 - Splits in two on an unfolded foldable or a tablet. Themes, six backlight effects, key sounds.
 - No account. No ads. Free. If you use AI you pay your provider directly.
-- Updates come from attack.fm; each download is checked for size, SHA-256 and the signing certificate of the app
+- Updates come from ghostkbd.com; each download is checked for size, SHA-256 and the signing certificate of the app
   you installed before it is installed.
 - Source is public on GitHub.
 - About rivals, each with its link and date: Google's help page lists specific phones for Writing tools and Pixel 11
@@ -473,7 +473,7 @@ prediction, the "what was sent" receipt, a Play listing) do not appear on the si
 
 ### It must say (the honest limits)
 
-Android only. Installed from attack.fm, not Google Play. No next-word prediction yet. Six autocorrect languages. No
+Android only. Installed from ghostkbd.com, not Google Play. No next-word prediction yet. Six autocorrect languages. No
 one-handed or floating mode. No stickers, Emoji Kitchen, handwriting or in-keyboard translation. AI needs your own
 provider key.
 
@@ -486,7 +486,7 @@ provider key.
 - "Gboard has no Tab key", "Gboard is Gemini only" as Google's statement, FUTO's swipe as weak, the Wispr screenshot
   story, Reddit vote counts, the Android Authority poll percentages, CleverType's yearly price, forum insults.
 - "Samples leave the phone once", "never more than a third of a key", or "automatic updates off means no contact
-  with attack.fm", until section 3 is fixed.
+  with ghostkbd.com", until section 3 is fixed.
 - Any competitor's or AI provider's logo. Names in text only.
 
 ## Sources opened for the website, 2026-11-09

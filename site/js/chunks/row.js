@@ -13,7 +13,7 @@
 
 import { GhostKbd } from '../kbd.js';
 
-const CLIP = 'attack.fm';                      // what was "just copied": short, so the row's chips are whole on a key's face
+const CLIP = 'ghostkbd.com';                   // what was "just copied": short, so the row's chips are whole on a key's face
 const TYPED = 'Get it fro', PICK = 'from', STILL = 'Get it from ';
 
 // What the row offers for a word, worked out ahead with the app's own Autocorrect.suggest over its English list
@@ -133,7 +133,8 @@ export function mount(root) {
       // On the phone the row scrolls; on a key's face a chip cut off by the arrows reads as a mistake. Where there is
       // no room for both chips whole (a phone's narrow key), the fresh copy alone is shown.
       const dp = kbd.geometry?.dp || 1;
-      if (!fresh || strip.clientWidth >= 196 * dp) items.push({ id: 'clips', label: 'Clipboard', chip: true, onTap: () => show(true) });
+      // 226: what the two chips take with CLIP as it is (measured: 224dp). It was 196 while the copy was three letters shorter.
+      if (!fresh || strip.clientWidth >= 226 * dp) items.push({ id: 'clips', label: 'Clipboard', chip: true, onTap: () => show(true) });
     }
     // A row button that had the focus is gone with the old row (a visitor's own tap or key press changed it): the
     // focus goes to the line, so it is never dropped to the page.

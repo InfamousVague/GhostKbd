@@ -54,7 +54,8 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 
 ## Releases and auto-update
 
-Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
+Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
+box; copies up to 0.12.0 look under https://attack.fm/devkeyboard/, which the box serves from the same folder). On opening the app,
 and from the keyboard twice a day, `Updater.kt` reads `apk.json`, downloads the APK, checks its size, SHA-256,
 package, version and signing certificate, and installs it with Android's `PackageInstaller` — silently on Android 12+
 once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › About shows
@@ -99,8 +100,10 @@ about how well any of them is corrected.
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
 words; a tap types one with a space and offers the next three. The tools scroll in after the words, the first one
-peeking in at the row's end: undo and redo, the clipboard, emoji and GIFs first, and on a row wide enough for them
-and three words (a foldable's inner screen, a tablet) pinned at its start instead. There is no settings cog in the
+peeking in at the row's end: undo and redo, the clipboard and GIFs first, and on a row wide enough for them
+and three words (a foldable's inner screen, a tablet) pinned at its start instead. Emoji is a key of its own, grey,
+between the { } key and the space bar (it is in the row instead on a board that has both the globe and the mic key,
+where the bar has no width left to give). There is no settings cog in the
 row: hold the { } key or the comma. While a word is typed, its completions are ranked by
 the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
 forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the
@@ -138,7 +141,7 @@ and the numbers.
 ## Anonymous typing reports (off by default)
 
 Settings › Typing › Typing stats › **Share anonymous typing reports**: off unless the person turns it on. On, the
-keyboard sends attack.fm a report at most once a day: counts of what happened, where taps land on their keys as a grid
+keyboard sends ghostkbd.com a report at most once a day: counts of what happened, where taps land on their keys as a grid
 of counts, and common words that were mistyped or misread with what was meant: only ever the few thousand commonest
 words of its own word lists. No account, no id, no time of day, never a word of the person's own or a rarer one,
 nothing from where the keyboard does not learn; and Settings shows the report exactly as it would go. [docs/reports.md](docs/reports.md) has every field.
