@@ -70,6 +70,11 @@ class RowItem(
  * them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay there while
  * words are suggested; on a narrow row they are the first of the tools instead, straight after the words. There is no
  * settings button: a long press on the { } key or the comma opens Settings, as it always has.
+ *
+ * The row's first tool keeps a little off the screen's edge ([EDGE_DP]; Matt, 2026-11-11: "We need a small bit of
+ * padding to the left of the toolbar the undo button is right against the edge of the phone screen"): the pinned
+ * tools by their own padding, and a strip that opens with a tool or a chip by the strip's, which scrolls away with
+ * it. Suggested words span the row in thirds, edge to edge, as before.
  */
 @SuppressLint("ViewConstructor")
 class PluginRow(context: Context, private val onHide: () -> Unit, private val onArrow: (Int) -> Unit = {}) : LinearLayout(context) {
@@ -80,7 +85,7 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         set(value) { if (field != value) { field = value; hide.visibility = if (value) VISIBLE else GONE; again() } }
 
     /** The everyday tools while they are pinned at the row's start ([setItems]). */
-    private val lead = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = GONE }
+    private val lead = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = GONE; setPadding(dp(EDGE_DP), 0, 0, 0) }
     private val hide = IconButton(context, RowIcon.HIDE).apply { setOnClickListener { onHide() }; visibility = GONE }
 
     /**
@@ -198,7 +203,11 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         items = next
         strip.removeAllViews()
         val wideCount = next.count { it.wide }.coerceAtLeast(3)
-        val room = shared() - front.size * dp(LEAD_DP)
+        // Off the screen's edge: the pinned tools carry the padding themselves; a strip that opens with a tool or a
+        // chip carries it at its start. Either way the words beside or after them have that much less to share.
+        val edge = if (front.isNotEmpty() || next.firstOrNull()?.wide == false) dp(EDGE_DP) else 0
+        strip.setPadding(if (front.isEmpty()) edge else 0, 0, 0, 0)
+        val room = shared() - front.size * dp(LEAD_DP) - edge
         // Too narrow to read (the arrow keys take part of the row): three across, and the rest scroll.
         // Next-word prediction's three words are followed by the tools: they give up a little width, so the first
         // tool peeks in at the row's end and says there is more to scroll to.
@@ -299,6 +308,8 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         /** The room one pinned everyday tool takes, and the least a suggested word needs beside them, in dp. */
         const val LEAD_DP = 40f
         const val WORD_DP = 92f
+        /** What the row's first tool keeps between itself and the screen's edge, in dp. */
+        const val EDGE_DP = 6f
     }
 
     private fun restyle() {
