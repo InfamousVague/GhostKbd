@@ -65,10 +65,11 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          # Named, so a new stable cannot change a build on the day it comes out. 3.50.0 (2026-11-11) refused to
-          # build until Android's Gradle plugin was raised past 9.1.0, and each Flutter brings its own Android
-          # defaults. 3.47.9 built 0.14.0. Raise it on purpose, with the app tried on the new one first.
-          flutter-version: 3.47.9
+          # Named, so a new stable cannot change a build on the day it comes out: 3.50.0 (2026-11-11) refused to
+          # build until Android's Gradle plugin and Kotlin were raised (android/settings.gradle.kts), and each
+          # Flutter brings its own Android defaults. 3.47.9 built 0.14.0 and 0.15.0. Raise it on purpose, with the
+          # app tried on the new one first (README, "Moving to a new Flutter"); check.yml names the same one.
+          flutter-version: 3.50.0
           cache: true
 
       - uses: actions/setup-node@v4

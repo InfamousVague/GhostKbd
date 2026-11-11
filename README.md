@@ -241,7 +241,7 @@ and its certificate pinned there — **back that folder up**: without it no inst
 
 ## Build and run
 
-Needs Flutter 3.41+ (Dart 3.11) and the Android SDK — the same toolchain as Ghost.md.
+Needs Flutter 3.50 (3.47 still builds it) and the Android SDK.
 
 ```sh
 flutter pub get
@@ -249,3 +249,30 @@ flutter run            # or: flutter build apk
 ```
 
 Then open **Dev Keyboard**, tap **Turn on**, enable it in the system list, come back and tap **Switch**.
+
+The build service names its Flutter: `flutter-version` in `.github/workflows/release.yml` and `check.yml`, 3.50.0
+since 2026-11-11. A release is built by the Flutter the app was tried on, not by whichever came out that morning.
+Android's Gradle plugin (9.3.1), Kotlin (2.4.20) and Gradle (9.5.0) are the versions that Flutter makes a new
+project with (`android/settings.gradle.kts`, `android/gradle/wrapper/gradle-wrapper.properties`).
+
+### Moving to a new Flutter
+
+A new Flutter refuses Android build versions it has stopped supporting, from the day it comes out: 3.50.0 refused
+the Gradle plugin 9.1.0 and Kotlin 2.4.0 that 3.47 had made this project with, without a warning from 3.47 first.
+
+1. Read what the new one asks for, at its tag in `github.com/flutter/flutter`. In
+   `packages/flutter_tools/gradle/src/main/kotlin/DependencyVersionChecker.kt`, below an `error…Version` it refuses
+   to build and below a `warn…Version` it says it soon will. In
+   `packages/flutter_tools/lib/src/android/gradle_utils.dart`, the `template…Version`s are what it makes a new
+   project with, and `compileSdkVersion`, `targetSdkVersion` and `ndkVersion` are its Android defaults. Then the
+   release's list at `docs.flutter.dev/release/breaking-changes`.
+2. Raise the three versions to the template's, together. `targetSdk` stays written out in
+   `android/app/build.gradle.kts`: read [docs/sms-codes.md](docs/sms-codes.md) before raising it.
+3. Push that to a branch of its own, with the new `flutter-version` in both workflows, and run Check on it:
+   `gh workflow run check.yml --ref <branch>`. Check makes a debug build only. A release-mode build
+   (`flutter build apk --release --target-platform android-arm64`) is what tries R8 and the release's packaging.
+4. Run the app that build made on a device before the branch goes to `main`. A machine whose own Flutter is older
+   can still do that: have the branch's Check keep its APK (`actions/upload-artifact`), fetch it with
+   `gh run download`, and sign it again with the machine's debug key
+   (`apksigner sign --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey`), so that it installs over a
+   local debug build and keeps its data.
