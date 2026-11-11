@@ -233,10 +233,10 @@ class TrainerBook {
 
     companion object {
         /**
-         * The profile is drawn up after this many stories. Five parts are about 250 words and 1,100 letter taps: every
-         * letter but the rare ones (j, q, x, z) then stands on more taps than the fifteen Adaptive keys asks before
-         * it uses a nudge, five steps of [TrainerAims.STEP] have had room to cover a lean of a fifth of a key, and a
-         * trend read off the first three runs and the last three is not one run's doing.
+         * The profile is drawn up after this many stories. Five parts are about 215 words and 840 letter taps: the
+         * sixteen letters that take nine taps in ten then each stand on the fifteen Adaptive keys asks before it uses
+         * a nudge, five steps of [TrainerAims.STEP] have had room to cover a lean of a fifth of a key, and a trend
+         * read off the first three runs and the last three is not one run's doing (docs/trainer.md).
          */
         const val PROFILE_RUNS = 5
         const val MAX_RUNS = 300
@@ -271,9 +271,9 @@ class TrainerBook {
             val across = if (kotlin.math.abs(x) < LEVEL) null else amount(x) + (if (x > 0) "to the right of" else "to the left of")
             val down = if (kotlin.math.abs(y) < LEVEL) null else amount(y) + (if (y > 0) "below" else "above")
             val all = when {
-                across != null && down != null -> "Your taps land $across a key's middle and $down it."
-                across != null -> "Your taps land $across a key's middle."
-                down != null -> "Your taps land $down a key's middle."
+                across != null && down != null -> "Your taps land $across a key’s middle and $down it."
+                across != null -> "Your taps land $across a key’s middle."
+                down != null -> "Your taps land $down a key’s middle."
                 else -> "Your taps land in the middle of the keys."
             }
             // The row whose taps sit furthest off, where it is clearly further than the rest.

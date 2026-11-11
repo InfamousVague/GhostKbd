@@ -138,6 +138,27 @@ and the numbers.
 - `tool/typing_bench.sh` types held-out sentences through the keyboard's own code with a simulated thumb, to compare
   one version with another; `tool/accuracy-replay.sh` does the same with a record of real typing.
 
+## The typing trainer
+
+**Settings › Trainer** (Android): a story is shown, a part at a time, and typed with the keyboard. A run is timed and
+scored against what was meant: words a minute, the share of taps that hit their key, the words missed, backspaces,
+what autocorrect mended and what it spoiled, the keys and letter pairs that go wrong. After each run every key's
+touch area takes one small step toward where the taps meant for it landed, in Adaptive keys' own model, which changes
+nothing that can be seen. With **Try different layouts** switched on (it is off unless turned on, and read as a run
+starts) some runs are typed on shorter or taller keys, and a height takes over only after eight runs or more say so;
+the setting itself is never touched unless the person takes the suggestion. After five runs there is a profile (where
+the taps land, speed, mistakes, the height the runs point to) that can be applied to everyday typing, and a practice
+run made of the person's own mistakes. A story is not the person's writing: a run teaches nothing to next-word
+prediction or Mockingbird and counts nothing for stats or reports. [docs/trainer.md](docs/trainer.md) has all of it.
+
+- `TrainerText.kt`, `TrainerRun.kt`, `TrainerAims.kt`, `LayoutTrials.kt`, `TrainerBook.kt`, `TrainerStories.kt` (no
+  Android in them): what was typed against what was meant, a run scored, the step, the layout trials, what is kept.
+- `Trainer.kt`, `TrainerKeys.kt`, `TrainerChannel.kt`: a run in hand, the ear on the keyboard's keys, and the
+  screen's channel. `lib/trainer/` is the pages; `assets/trainer/stories.txt` the fifty-four story parts, written
+  for it.
+- `tool/trainer_sim.sh` (kotlinc and java, no emulator): a simulated thumb with a steady lean types the stories with
+  the steps and without, to show the touch areas adapting does what it is meant to.
+
 ## Anonymous typing reports (off by default)
 
 Settings › Typing › Typing stats › **Share anonymous typing reports**: off unless the person turns it on. On, the

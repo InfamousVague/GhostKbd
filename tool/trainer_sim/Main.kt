@@ -1,12 +1,14 @@
 // The typing trainer's simulated thumb (tool/trainer_sim.sh): the app's own autocorrect, run scoring and aim steps,
-// typed at by a thumb with a steady lean, with the trainer moving the keys' touch areas and without. The numbers in
-// docs/trainer.md are this file's. android/app/src/test/.../TrainerSim.kt is the thumb; TrainerAdaptationTest holds
+// typed at by a thumb with a steady lean, with the trainer moving the keys' touch areas and without; and the layout
+// trials tried on simulated people for whom one key height is better, or none. The numbers in docs/trainer.md are
+// this file's. android/app/src/test/.../TrainerSim.kt is the thumb; TrainerAdaptationTest holds
 // the result to its direction on every build.
 //
 // Usage: Main <repo root>   (-Druns=12 -Dseeds=20 -Dlean=0.24,0.18 -Dscatter=0.20,0.15)
 
 import com.infamousvague.devkeyboard.Autocorrect
 import com.infamousvague.devkeyboard.LanguageState
+import com.infamousvague.devkeyboard.LayoutTrials
 import com.infamousvague.devkeyboard.TrainerAims
 import com.infamousvague.devkeyboard.TrainerSim
 import com.infamousvague.devkeyboard.TrainerStories
@@ -56,8 +58,38 @@ fun main(args: Array<String>) {
         println("  keys with a nudge at the end: %.1f; the furthest any nudge went: %.2f of a key (bound %.2f, step %.2f a run)".format(nudged, far, TrainerAims.MAX_SHIFT, TrainerAims.STEP))
     }
 
+    /**
+     * The layout trials on [people] simulated people who all start on Normal keys: a person's score on a height is
+     * [worth] of it, give or take [noise] of it a run. How many end with which height as home, and after how many runs
+     * the trials had settled (or [most] runs, where they had not).
+     */
+    fun layouts(title: String, people: Int, noise: Float, most: Int, worth: (String) -> Float) {
+        val homes = HashMap<String, Int>()
+        var runs = 0L
+        var settled = 0
+        for (person in 1..people) {
+            val random = Random(person * 104_729L)
+            val trials = LayoutTrials()
+            trials.anchor("normal")
+            var n = 0
+            while (n < most && !trials.settled) { val h = trials.next(); trials.record(h, worth(h) * (1f + noise * random.nextGaussian().toFloat())); n++ }
+            runs += n
+            if (trials.settled) settled++
+            homes[trials.home] = (homes[trials.home] ?: 0) + 1
+        }
+        println("\n$title: $people people, runs scattering by ${(noise * 100).toInt()} in a hundred of their score")
+        println("  home at the end: " + LayoutTrials.HEIGHTS.joinToString(", ") { "$it %.1f%%".format(100f * (homes[it] ?: 0) / people) })
+        println("  runs until the trials settled: %.1f on average (%.1f%% settled within $most)".format(runs.toFloat() / people, 100f * settled / people))
+    }
+
     table("A thumb that lands right and low", pair("lean", "0.24,0.18"))
     table("A thumb that lands left and high", listOf(-0.2f, -0.15f))
     table("A thumb with a small lean", listOf(0.1f, 0.06f))
     table("A thumb with no lean", listOf(0f, 0f))
+
+    for (noise in listOf(0.05f, 0.07f)) {
+        layouts("Layout trials where no height is better", 2000, noise, 80) { 40f }
+        layouts("Layout trials where Short is a tenth better than Normal", 2000, noise, 80) { mapOf("condensed" to 39f, "short" to 44f, "normal" to 40f, "tall" to 38f).getValue(it) }
+        layouts("Layout trials where Short is six in a hundred better", 2000, noise, 80) { mapOf("condensed" to 39.5f, "short" to 42.4f, "normal" to 40f, "tall" to 39f).getValue(it) }
+    }
 }

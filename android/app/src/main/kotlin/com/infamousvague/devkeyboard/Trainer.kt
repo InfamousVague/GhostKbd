@@ -35,7 +35,7 @@ import java.util.concurrent.Executors
  * field. A run that ends, a screen that is left and an app that dies each leave the person's setting as it was,
  * because it was never changed.
  *
- * Every call is on the main thread but for [state]'s first, which reads the file.
+ * Every call is on the main thread but for [load], which reads the file.
  */
 object Trainer {
     const val FILE = "trainer.json"
@@ -59,6 +59,12 @@ object Trainer {
 
     @Volatile var session: Session? = null
         private set
+
+    /**
+     * A line for the system log: which keys a run is on and what it came to, never a word that was typed (the log is
+     * no place for anyone's words). It must not cost a run anything, with no phone under it least of all.
+     */
+    private fun note(message: String) { runCatching { Log.i(TAG, "trainer: $message") } }
 
     /** A run put in hand, or taken out of it, with no phone under it: TrainerKeysTest's way in. */
     internal fun hold(s: Session?) { session = s }
@@ -87,8 +93,11 @@ object Trainer {
     @Synchronized private fun book(context: Context): TrainerBook =
         book ?: (runCatching { File(context.noBackupFilesDir, FILE).takeIf { it.exists() }?.readText()?.let(TrainerCodec::read) }.getOrNull() ?: TrainerBook()).also { book = it }
 
-    /** Whether the trainer's file has been read: until then [state] is asked for off the main thread. */
+    /** Whether the trainer's file has been read: until then [load] is asked for off the main thread. */
     val loaded: Boolean @Synchronized get() = book != null
+
+    /** Reads the trainer's file and its stories, where they have not been: the one part of this that may wait on a disk. */
+    fun load(context: Context) { book(context); stories(context) }
 
     @Synchronized private fun stories(context: Context): List<Story> =
         stories ?: runCatching { context.assets.open("trainer/stories.txt").bufferedReader().use { TrainerStories.parse(it.readText()) } }
@@ -152,6 +161,7 @@ object Trainer {
         )
         session = s
         keys?.get()?.changed()
+        note("a run on $height keys (own $own, trial $trial, practice $practice)")
         return mapOf(
             "ok" to true, "title" to s.title, "part" to s.part, "parts" to s.parts, "text" to s.text, "words" to TrainerText.words(s.text).size, "practice" to practice,
             "height" to height, "heightLabel" to TrainerMaps.label(height), "trial" to trial, "changed" to (s.wear != null), "ownHeightLabel" to TrainerMaps.label(own),
@@ -166,6 +176,7 @@ object Trainer {
         if (session == null) return
         session = null
         keys?.get()?.changed()
+        note("the run was dropped")
         if (!told) runCatching { onLeft?.invoke() }
     }
 
@@ -209,8 +220,16 @@ object Trainer {
             taught = runCatching { teach(context, prefs, result) }.getOrDefault(0)
             save(context)
         }
+        note("the run ended, counted $counted, ${Math.round(result.wpm)} words a minute, ${result.hits} of ${result.taps} taps on their key, ${nudged.size} keys moved, ${taught} mistakes taught")
+        // Why a run was not counted: too little of the story typed, over too soon to have been typed, or far too long.
+        val why = when {
+            counted -> null
+            result.typedShare < TrainerScore.COUNTED -> "short"
+            result.ms < TrainerScore.MIN_MS -> "quick"
+            else -> "long"
+        }
         return TrainerMaps.result(result, nudged, taught) + mapOf(
-            "counted" to counted, "title" to s.title, "part" to s.part, "parts" to s.parts, "practice" to s.practice,
+            "counted" to counted, "why" to why, "title" to s.title, "part" to s.part, "parts" to s.parts, "practice" to s.practice,
             "height" to s.height, "heightLabel" to TrainerMaps.label(s.height), "trial" to s.trial, "changed" to (s.wear != null),
             "moved" to move?.let { mapOf("from" to TrainerMaps.label(it.from), "to" to TrainerMaps.label(it.to)) },
             "layouts" to TrainerMaps.layouts(book.layouts), "runs" to book.storyRuns, "profileAt" to TrainerBook.PROFILE_RUNS,

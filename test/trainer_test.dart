@@ -208,7 +208,7 @@ void main() {
     expect(find.byKey(const ValueKey('trainer-trial')), findsNothing);
 
     // The field: it asks keyboards not to learn from it, keeps autocorrect, and its cursor cannot be moved.
-    final field = tester.widget<EditableText>(find.byKey(const ValueKey('trainer-field')));
+    final field = tester.widget<EditableText>(find.byType(EditableText));
     expect(field.enableIMEPersonalizedLearning, isFalse);
     expect(field.autocorrect, isTrue);
     expect(field.enableSuggestions, isTrue);
@@ -217,7 +217,7 @@ void main() {
     expect(field.textInputAction, TextInputAction.done);
 
     // Typing tells the keyboard to look at the field again (a word tapped in its row is no key press).
-    await tester.enterText(find.byKey(const ValueKey('trainer-field')), 'The old kee');
+    await tester.enterText(find.byType(EditableText), 'The old kee');
     await tester.pump();
     expect(native.of('look'), isNotEmpty);
 

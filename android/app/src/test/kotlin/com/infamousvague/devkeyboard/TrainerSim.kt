@@ -22,7 +22,10 @@ object TrainerSim {
     const val H = 136f
     val board: Map<Char, Pair<Float, Int>> = Layouts.QWERTY.positions
     private val rows: List<List<Char>> = (0..2).map { r -> board.filter { it.value.second == r }.keys.sortedBy { board.getValue(it).first } }
-    private val space = floatArrayOf(2.5f * W, 3f * H, 7.5f * W, 4f * H)
+    /** The space bar, four keys wide between the emoji key and the full stop (Layouts.withEmoji), in key widths. */
+    const val BAR_LEFT = 3.5f
+    const val BAR_RIGHT = 7.5f
+    private val space = floatArrayOf(BAR_LEFT * W, 3f * H, BAR_RIGHT * W, 4f * H)
 
     /** The middle of [c]'s key, across in key widths and down in rows. */
     fun middle(c: Char): Pair<Float, Float> = board.getValue(c).let { (it.first + 0.5f) to (it.second + 0.5f) }
@@ -54,7 +57,7 @@ object TrainerSim {
      * one whose nudged middle is nearest.
      */
     fun read(x: Float, y: Float, aims: Aims?): Char {
-        if (y >= 3f) return if (x >= 2.5f && x < 7.5f) ' ' else 0.toChar()
+        if (y >= 3f) return if (x >= BAR_LEFT && x < BAR_RIGHT) ' ' else 0.toChar()
         val row = rows[kotlin.math.floor(y.toDouble()).toInt().coerceIn(0, 2)]
         val hit = row.firstOrNull { x >= board.getValue(it).first && x < board.getValue(it).first + 1f }
             ?: return row.minByOrNull { kotlin.math.abs(x - middle(it).first) }!!
@@ -122,7 +125,7 @@ object TrainerSim {
         var letters = 0
         for (c in story) {
             when {
-                c == ' ' -> touch(5f, 3.5f, false)
+                c == ' ' -> touch((BAR_LEFT + BAR_RIGHT) / 2f, 3.5f, false)
                 c.lowercaseChar() in board -> { letters++; val (mx, my) = middle(c.lowercaseChar()); touch(mx, my, c.isUpperCase()) }
                 // A full stop or a comma: its key is not a letter's, and the thumb is given it.
                 else -> end(c.toString())

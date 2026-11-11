@@ -10,6 +10,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 import java.lang.reflect.Proxy
 
 /**
@@ -41,6 +42,7 @@ class TrainerKeysTest {
         override fun onOpenSettings() { asked += "settings" }
         override fun onHideKeyboard() { asked += "hide" }
         override fun onMic() { asked += "mic" }
+        override fun onEmoji() { asked += "emoji" }
         override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) { asked += "swipe" }
         override fun onDeleteWord() { text = text.trimEnd().substringBeforeLast(' ', "").let { if (it.isEmpty()) "" else "$it " } }
         override fun onCursorLine(lines: Int) { asked += "line $lines" }
@@ -77,11 +79,12 @@ class TrainerKeysTest {
     @Test fun withNoRunOnEveryKeyGoesStraightOnAndTheFieldIsNeverRead() {
         type("hi"); keys.onSpace(); keys.onDelete(); keys.onEnter(); keys.onDeleteWord()
         keys.onSwipe(emptyList(), emptyMap(), 1f)
-        // And the calls it has no part in, which a class that only stood in the way would swallow.
-        keys.onCursor(2); keys.onShiftChanged(); keys.onShowPicker(); keys.onOpenSettings(); keys.onHideKeyboard(); keys.onMic(); keys.onCursorLine(-1); keys.onDock("left", true); keys.onLayout("azerty")
+        // And the calls it has no part in, which a class that only stood in the way would swallow: the ones the
+        // keyboard's listener gives a body of its own (a stroke, the emoji key, a layout) most of all.
+        keys.onCursor(2); keys.onShiftChanged(); keys.onShowPicker(); keys.onOpenSettings(); keys.onHideKeyboard(); keys.onMic(); keys.onEmoji(); keys.onCursorLine(-1); keys.onDock("left", true); keys.onLayout("azerty")
         keys.onKeyFeedback(Key(KeyType.SPACE, " "), true)
         assertEquals("", service.text)
-        assertEquals(listOf("enter", "swipe", "cursor 2", "shift", "picker", "settings", "hide", "mic", "line -1", "dock left", "layout azerty", "feedback"), service.asked)
+        assertEquals(listOf("enter", "swipe", "cursor 2", "shift", "picker", "settings", "hide", "mic", "emoji", "line -1", "dock left", "layout azerty", "feedback"), service.asked)
         assertEquals("the field is not looked at when no run is on", 0, reads)
         keys.look()
         assertEquals(0, reads)
@@ -145,6 +148,25 @@ class TrainerKeysTest {
         Trainer.leave(told = true)
         assertEquals("nothing to drop, nothing to tell", 1, applied)
         assertTrue(keys.listed("the")); assertFalse(keys.listed("teh"))
+    }
+
+    @Test fun theTrainerHasNoHandOnWhatAStoryMustNeverTeach() {
+        // A story is not the person's writing. The trainer's field asks keyboards not to learn from it, and is one of
+        // this app's own, which next-word prediction, Mockingbird, typing stats, the accuracy record and anonymous
+        // reports never learn from. This holds the other half: nothing of the trainer's own calls any of them, keeps a
+        // learned word, or opens a connection. Comments aside: they say what is not done.
+        val dir = listOf("android/app/src/main/kotlin/com/infamousvague/devkeyboard", "src/main/kotlin/com/infamousvague/devkeyboard", "../app/src/main/kotlin/com/infamousvague/devkeyboard").map(::File).first { it.exists() }
+        val sources = dir.listFiles()!!.filter { it.name.startsWith("Trainer") || it.name == "LayoutTrials.kt" }
+        assertEquals("every file of the trainer's", 11, sources.size)
+        val never = listOf("NextWords", "NextWordLearner", "Mockingbird", "TypingStats", "AccuracyLog", "Reports", "ReportTally", "learnedWords", ".learn(word", "prefs.learn(", "Net.", "NetPath", "openConnection", "URL(", "Socket(")
+        for (file in sources) {
+            val code = file.readText().replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "").lines().joinToString("\n") { it.substringBefore("//") }
+            for (word in never) assertFalse("${file.name} has to do with $word", code.contains(word))
+        }
+        // What it does hand on, it hands on in one place each: the key model's step and the corrections' lesson.
+        val wiring = File(dir, "Trainer.kt").readText()
+        assertTrue(wiring.contains("model.trained(") && wiring.contains("memory.learn(t.typed, t.meant)") && wiring.contains("prefs.learnMistakes"))
+        for (file in sources.filter { it.name != "Trainer.kt" }) assertFalse(file.name, file.readText().let { it.contains("Mistakes.get(") || it.contains("AdaptiveKeys.get(") })
     }
 
     @Test fun whatTheScreenIsToldCrossesAChannel() {

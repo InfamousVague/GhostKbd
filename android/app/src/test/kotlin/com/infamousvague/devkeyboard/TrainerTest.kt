@@ -452,7 +452,7 @@ class TrainerTest {
         for (c in "etaoinshr") book.aims.getValue("qwerty").getOrPut(c) { TrainerAims.Measure() }.let { it.n = 0; it.total = 0; it.add(60, 60 * 0.07, 60 * 0.24) }
         val p = book.profile("qwerty", board)!!
         assertEquals(5, p.runs); near(39f, p.wpmFirst); near((40f + 41f + 45f) / 3, p.wpmNow); near(45f, p.wpmBest)
-        assertEquals("Your taps land a little to the right of a key's middle and well below it.", p.lean)
+        assertEquals("Your taps land a little to the right of a key’s middle and well below it.", p.lean)
         assertEquals(9, p.keys.size); p.keys.first { it.key == 'e' }.let { near(0.07f, it.dx); near(0.24f, it.dy); assertEquals(60, it.samples) }
         assertEquals(listOf("of", "because"), p.mistakes.map { it.word })
         assertEquals(listOf("p o 6"), p.slips.map { "${it.pressed} ${it.meant} ${it.count}" })
@@ -474,9 +474,9 @@ class TrainerTest {
     @Test fun whereTheTapsLeanIsSaidInWords() {
         fun of(x: Float, y: Float, top: Float = y) = TrainerBook.lean("qwertyuiopasdfghjklzxcvbnm".associate { it to TrainerAims.Measure(40, x, if (board.getValue(it).second == 0) top else y, 40) }, board)
         assertEquals("Your taps land in the middle of the keys.", of(0.01f, -0.02f))
-        assertEquals("Your taps land to the left of a key's middle.", of(-0.15f, 0f))
-        assertEquals("Your taps land a little above a key's middle.", of(0f, -0.06f))
-        assertEquals("Your taps land a little below a key's middle. Most on the top row, well low.", of(0f, 0.02f, top = 0.22f))
+        assertEquals("Your taps land to the left of a key’s middle.", of(-0.15f, 0f))
+        assertEquals("Your taps land a little above a key’s middle.", of(0f, -0.06f))
+        assertEquals("Your taps land a little below a key’s middle. Most on the top row, well low.", of(0f, 0.02f, top = 0.22f))
         assertEquals("Not enough taps yet to say where they land.", TrainerBook.lean(emptyMap(), board))
     }
 

@@ -26,10 +26,11 @@ object TrainerChannel {
         channel.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
-                    // The first asking reads the trainer's file, off this thread; every one after is answered at once.
+                    // The first asking reads the trainer's file, off this thread; the answer itself is made on this one,
+                    // where the keyboard's settings and its key model are read.
                     "state" -> if (Trainer.loaded) result.success(Trainer.state(app)) else Thread {
-                        val state = runCatching { Trainer.state(app) }
-                        activity.runOnUiThread { state.onSuccess { result.success(it) }.onFailure { result.error("trainer", it.message, null) } }
+                        runCatching { Trainer.load(app) }
+                        activity.runOnUiThread { runCatching { Trainer.state(app) }.onSuccess { result.success(it) }.onFailure { result.error("trainer", it.message, null) } }
                     }.start()
                     "setTrials" -> { Trainer.setTrials(app, call.argument<Boolean>("on") == true); result.success(Trainer.state(app)) }
                     "start" -> result.success(Trainer.start(app, call.argument<Boolean>("practice") == true))

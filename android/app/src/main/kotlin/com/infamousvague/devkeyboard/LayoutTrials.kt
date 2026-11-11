@@ -150,9 +150,9 @@ class LayoutTrials {
         /**
          * A trial is decided on no fewer pairs of runs than this, and given up as no better after [MAX_PAIRS]. A
          * height takes over only where its usual score is [MARGIN] better, and is let go early only where it is that
-         * much worse. The three were set on a person whose runs scatter by a twentieth of their score (as a real
-         * person's do, give or take): where no height is better, five people in six are left on their own; where one
-         * is a tenth better, nine in ten are moved to it, in about seventeen runs (TrainerAdaptationTest).
+         * much worse. The three were set on simulated people whose runs scatter by a twentieth of their score
+         * (tool/trainer_sim.sh): where no height is better, five in six are left on their own; where one is a tenth
+         * better, nine in ten are moved to it, in about seventeen runs. TrainerAdaptationTest holds each build near it.
          */
         const val MIN_PAIRS = 4
         const val MAX_PAIRS = 6

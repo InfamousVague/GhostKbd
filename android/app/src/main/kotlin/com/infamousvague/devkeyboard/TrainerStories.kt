@@ -4,8 +4,8 @@ package com.infamousvague.devkeyboard
  * The stories the typing trainer has people type (assets/trainer/stories.txt; docs/trainer.md). Plain Kotlin with no
  * Android in it: Trainer.kt hands this the file's text.
  *
- * Every story was written for the trainer, none is anyone else's text, and each is told in parts of about fifty
- * words: a run types one part, and the next run goes on with the story. The file is plain text:
+ * Every story was written for the trainer, none is anyone else's text, and each is told in parts of forty
+ * words or so: a run types one part, and the next run goes on with the story. The file is plain text:
  * ```
  * # The lighthouse cat
  * The first part, on one line.

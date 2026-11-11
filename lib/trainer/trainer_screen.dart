@@ -120,6 +120,31 @@ class _Bar extends StatelessWidget {
   }
 }
 
+/// A button of the trainer's pages, a thing of its own to a screen reader (a lone button's tap would otherwise be
+/// read as the whole page's). [go] fills it with the trainer's colour, read where it is drawn, under the page's hue.
+class _Button extends StatelessWidget {
+  const _Button({required this.id, required this.label, required this.onPress, this.go = false, this.large = false});
+  final String id;
+  final String label;
+  final VoidCallback? onPress;
+  final bool go;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        child: MarketButton(
+          key: ValueKey(id),
+          label: label,
+          icon: go ? Lucide.play : null,
+          look: go ? MarketButtonLook.filled : MarketButtonLook.ring,
+          color: go ? settingsHue(context.tokens) : null,
+          large: large,
+          onPress: onPress,
+        ),
+      );
+}
+
 /// The trainer: its first page, and over it a run while one is on, then that run's results.
 class TrainerScreen extends StatefulWidget {
   const TrainerScreen({super.key, required this.store, this.trainer});
@@ -228,7 +253,6 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
   // --- the first page -------------------------------------------------------------------------------------------------
 
   List<Widget> _homeCards(BuildContext context) {
-    final t = context.tokens;
     final next = trainer.map('next');
     final runs = trainer.number('runs');
     final best = trainer.number('best');
@@ -273,7 +297,7 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
           SettingRow(
             label: next == null ? 'A story' : '${next['title']}',
             hint: next == null ? null : Text('Part ${next['part']} of ${next['parts']} · ${next['words']} words'),
-            control: MarketButton(key: const ValueKey('trainer-start'), label: 'Start', icon: Lucide.play, look: MarketButtonLook.filled, color: settingsHue(t), onPress: canStart ? () => _start() : null),
+            control: _Button(id: 'trainer-start', label: 'Start', go: true, onPress: canStart ? () => _start() : null),
           ),
           SettingRow(
             label: 'Try different layouts',
@@ -340,7 +364,23 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
         glyph: AppIcon(Lucide.gauge, size: 24),
         title: '${_int(r['wpm'])} words a minute',
         meta: Text('${_percent(r['accuracy'])} of taps on their key · ${_clock(_int(r['ms']))} · ${_int(r['right'])} of $words words right'),
-        status: PaneHeroStatus(!counted ? 'Not counted: under four fifths of the story was typed' : (practice ? 'A practice run' : 'Run $runs')),
+        status: PaneHeroStatus(counted
+            ? (practice ? 'A practice run' : 'Run $runs')
+            : switch (r['why']) {
+                'quick' => 'Not counted: it was over in under three seconds',
+                'long' => 'Not counted: it ran to more keys than a story takes',
+                _ => 'Not counted: under four fifths of the story was typed',
+              }),
+      ),
+      // What comes next is the first thing under the numbers: the rest is there to be read, or not.
+      Wrap(
+        spacing: t.space(2),
+        runSpacing: t.space(2),
+        children: [
+          _Button(id: 'trainer-next', label: 'Next story', go: true, large: true, onPress: () => _start()),
+          if (trainer.flag('canPractise')) _Button(id: 'trainer-practise', label: 'Practise my mistakes', large: true, onPress: () => _start(practice: true)),
+          _Button(id: 'trainer-done', label: 'Done', large: true, onPress: _closeResults),
+        ],
       ),
       PaneSection(
         title: 'Words',
@@ -403,15 +443,6 @@ class _TrainerScreenState extends State<TrainerScreen> with WidgetsBindingObserv
             onPress: runs >= profileAt && trainer.state['profile'] is Map ? () => pushSettings(context, (_) => _ProfilePage(trainer: trainer, store: store)) : null,
           ),
         ]),
-      Wrap(
-        spacing: t.space(2),
-        runSpacing: t.space(2),
-        children: [
-          MarketButton(key: const ValueKey('trainer-next'), label: 'Next story', icon: Lucide.play, look: MarketButtonLook.filled, color: settingsHue(t), large: true, onPress: () => _start()),
-          if (trainer.flag('canPractise')) MarketButton(label: 'Practise my mistakes', look: MarketButtonLook.ring, large: true, onPress: () => _start(practice: true)),
-          MarketButton(label: 'Done', look: MarketButtonLook.ring, large: true, onPress: _closeResults),
-        ],
-      ),
     ];
   }
 }
@@ -434,7 +465,14 @@ class _TrainerRunState extends State<TrainerRun> {
   final _field = TextEditingController();
   final _focus = FocusNode();
   final _scroll = ScrollController();
+  final _editable = GlobalKey<EditableTextState>();
   bool _finishing = false;
+
+  /// The keyboard was put away (the back key does that first): a tap on the story or the field brings it back.
+  void _showKeyboard() {
+    _focus.requestFocus();
+    _editable.currentState?.requestKeyboard();
+  }
 
   TrainerStore get trainer => widget.trainer;
 
@@ -538,58 +576,66 @@ class _TrainerRunState extends State<TrainerRun> {
                   child: Text('Trying ${run['heightLabel']} keys for this run. Your own (${run['ownHeightLabel']}) are back when it ends.', key: const ValueKey('trainer-trial'), style: quiet),
                 ),
               Expanded(
-                child: SingleChildScrollView(
-                  controller: _scroll,
-                  padding: EdgeInsets.fromLTRB(gutter, t.space(1), gutter, t.space(3)),
-                  child: StoryText(text: text, fates: fates, current: current, tail: '${p['tail'] ?? ''}'),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showKeyboard,
+                  child: SingleChildScrollView(
+                    controller: _scroll,
+                    padding: EdgeInsets.fromLTRB(gutter, t.space(1), gutter, t.space(3)),
+                    child: StoryText(text: text, fates: fates, current: current, tail: '${p['tail'] ?? ''}'),
+                  ),
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, t.space(2)),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: t.color('app-paper-2'), borderRadius: BorderRadius.circular(t.radius('lg')), border: Border.all(color: t.color('app-rule'), width: t.len('glacier-hairline'))),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: t.space(3), vertical: t.space(2)),
-                    child: Stack(
-                      children: [
-                        if (_field.text.isEmpty) ExcludeSemantics(child: Text('Type the story here', style: pageText(t, t.fontSize('md'), color: t.color('app-ink-4')))),
-                        Semantics(
-                          label: 'Type the story here',
-                          textField: true,
-                          child: EditableText(
-                            key: const ValueKey('trainer-field'),
-                            controller: _field,
-                            focusNode: _focus,
-                            autofocus: true,
-                            style: pageText(t, t.fontSize('md'), color: t.color('app-ink')),
-                            cursorColor: t.color('app-ink'),
-                            backgroundCursorColor: t.color('app-ink-4'),
-                            cursorWidth: 1.5,
-                            minLines: 2,
-                            maxLines: 3,
-                            // One line of text to the keyboard, so its enter key is Done and ends the run; it wraps here.
-                            keyboardType: TextInputType.text,
-                            textInputAction: TextInputAction.done,
-                            textCapitalization: TextCapitalization.sentences,
-                            autocorrect: true,
-                            enableSuggestions: true,
-                            // A story is not the person's writing: the field asks keyboards not to learn from it.
-                            enableIMEPersonalizedLearning: false,
-                            enableInteractiveSelection: false,
-                            spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                            smartDashesType: SmartDashesType.disabled,
-                            smartQuotesType: SmartQuotesType.disabled,
-                            keyboardAppearance: t.isDark ? Brightness.dark : Brightness.light,
-                            onChanged: (_) {
-                              setState(() {});
-                              trainer.look();
-                            },
-                            // Done keeps the keyboard up until the run has been scored.
-                            onEditingComplete: () {},
-                            onSubmitted: (_) => _finish(),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showKeyboard,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, t.space(2)),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: t.color('app-paper-2'), borderRadius: BorderRadius.circular(t.radius('lg')), border: Border.all(color: t.color('app-rule'), width: t.len('glacier-hairline'))),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: t.space(3), vertical: t.space(2)),
+                      child: Stack(
+                        children: [
+                          if (_field.text.isEmpty) ExcludeSemantics(child: Text('Type the story here', style: pageText(t, t.fontSize('md'), color: t.color('app-ink-4')))),
+                          Semantics(
+                            label: 'Type the story here',
+                            textField: true,
+                            child: EditableText(
+                              key: _editable,
+                              controller: _field,
+                              focusNode: _focus,
+                              autofocus: true,
+                              style: pageText(t, t.fontSize('md'), color: t.color('app-ink')),
+                              cursorColor: t.color('app-ink'),
+                              backgroundCursorColor: t.color('app-ink-4'),
+                              cursorWidth: 1.5,
+                              minLines: 2,
+                              maxLines: 3,
+                              // One line of text to the keyboard, so its enter key is Done and ends the run; it wraps here.
+                              keyboardType: TextInputType.text,
+                              textInputAction: TextInputAction.done,
+                              textCapitalization: TextCapitalization.sentences,
+                              autocorrect: true,
+                              enableSuggestions: true,
+                              // A story is not the person's writing: the field asks keyboards not to learn from it.
+                              enableIMEPersonalizedLearning: false,
+                              enableInteractiveSelection: false,
+                              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                              smartDashesType: SmartDashesType.disabled,
+                              smartQuotesType: SmartQuotesType.disabled,
+                              keyboardAppearance: t.isDark ? Brightness.dark : Brightness.light,
+                              onChanged: (_) {
+                                setState(() {});
+                                trainer.look();
+                              },
+                              // Done keeps the keyboard up until the run has been scored.
+                              onEditingComplete: () {},
+                              onSubmitted: (_) => _finish(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -117,6 +117,8 @@ swapped for names and terms no list has, and a list of common misspellings typed
 not a person.** The numbers compare one version of the keyboard with another on the same taps; they say nothing of
 how good either is on real typing, which is what the accuracy record is for (Settings › Typing stats,
 `tool/accuracy-replay.sh`) and, from anyone who turns them on, the anonymous typing reports ([reports.md](reports.md)).
+The typing trainer ([trainer.md](trainer.md)) is the one place where the keyboard knows what was meant: a run
+measures where that person's taps land about each key, and moves the keys' touch areas by it.
 
 Tap typing, 30,000 words (`taps`), 0.10.4's autocorrect beside 0.11.0's on the same taps:
 

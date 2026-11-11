@@ -143,7 +143,20 @@ class TrainerStore extends ChangeNotifier {
   List<Map<Object?, Object?>> list(String key) => [for (final e in (state[key] as List? ?? const [])) if (e is Map) e];
   Map<Object?, Object?>? map(String key) => state[key] is Map ? state[key] as Map : null;
 
-  /// The line under "Trainer" on Settings' list.
+  bool _asked = false;
+
+  /// The line under "Trainer" on Settings' list. The first time it is wanted the keyboard is asked for what the
+  /// trainer has kept, and [redraw] is called once it has answered, so the line is right before the trainer is opened.
+  String summaryOr(void Function() redraw) {
+    if (!loaded && !_asked) {
+      _asked = true;
+      refresh().then((_) {
+        if (loaded) redraw();
+      });
+    }
+    return summary;
+  }
+
   String get summary {
     final runs = number('runs');
     if (!loaded || runs == 0) return 'Type a story; the keys learn your thumbs';

@@ -96,7 +96,8 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
     final section = everySection(settingsSections(store), store).where((s) => s.id == id).firstOrNull;
     if (section == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) pushSettings(context, (_) => SectionPage(section: section, store: store));
+      // A section with a screen of its own (the trainer) opens on it, as it does from the list.
+      if (mounted) pushSettings(context, section.screen ?? (_) => SectionPage(section: section, store: store));
     });
   }
 
