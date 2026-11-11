@@ -318,7 +318,7 @@ const List<PluginManifest> catalogue = [
     category: PluginCategory.typing,
     hue: 'yellow',
     icon: LucideMore.smile,
-    adds: ['An emoji panel and search', ':shortcodes', 'Emoji for the word you type'],
+    adds: ['An emoji key beside the space bar', 'An emoji panel and search', ':shortcodes', 'Emoji for the word you type'],
     hasPage: true,
     ios: false,
     iosWhy: 'The iPhone’s own emoji keyboard is one tap of the globe away.',

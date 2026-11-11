@@ -1163,7 +1163,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
-        _plugin(store, 'emoji', 'Emoji', 'A panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),

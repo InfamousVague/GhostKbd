@@ -100,8 +100,10 @@ about how well any of them is corrected.
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
 words; a tap types one with a space and offers the next three. The tools scroll in after the words, the first one
-peeking in at the row's end: undo and redo, the clipboard, emoji and GIFs first, and on a row wide enough for them
-and three words (a foldable's inner screen, a tablet) pinned at its start instead. There is no settings cog in the
+peeking in at the row's end: undo and redo, the clipboard and GIFs first, and on a row wide enough for them
+and three words (a foldable's inner screen, a tablet) pinned at its start instead. Emoji is a key of its own, grey,
+between the { } key and the space bar (it is in the row instead on a board that has both the globe and the mic key,
+where the bar has no width left to give). There is no settings cog in the
 row: hold the { } key or the comma. While a word is typed, its completions are ranked by
 the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
 forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the

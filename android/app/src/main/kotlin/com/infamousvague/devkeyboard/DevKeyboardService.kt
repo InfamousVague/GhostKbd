@@ -514,6 +514,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
+        view.emojiKey = Plugins.isOn(prefs, Plugins.EMOJI)
         view.configure(profile?.flag("number_row") ?: prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
         view.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, locale)
         view.swipeTyping = swipeAllowed()
@@ -1274,6 +1275,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     // --- dictation (the dictation plugin) ---------------------------------------------------------------------------
 
+    /** The emoji key beside the space bar: the panel the row's button opened. */
+    override fun onEmoji() { if (Plugins.isOn(prefs, Plugins.EMOJI)) openEmoji() }
+
     override fun onMic() {
         val view = keyboard ?: return
         if (dictation.listening) { dictation.stop(); return }
@@ -1566,10 +1570,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || (item.id.startsWith("rewrite") && item.bold)
 
     /**
-     * The tools reached for in every app: undo and redo, the clipboard, emoji, GIFs. They lead the row (Matt,
-     * 2026-11-10: "move things like the back forward clipboard emoji and gif stuff to the front of the list"): pinned
-     * at its start where it is wide enough, else the first of the tools ([PluginRow.setItems]). Icons only, so five of
-     * them take no more room than two words.
+     * The tools reached for in every app: undo and redo, the clipboard, GIFs. They lead the row (Matt, 2026-11-10:
+     * "move things like the back forward clipboard emoji and gif stuff to the front of the list"): pinned at its start
+     * where it is wide enough, else the first of the tools ([PluginRow.setItems]). Icons only, so they take no more
+     * room than two words.
+     *
+     * Emoji was one of them, and is a key beside the space bar now (Matt, 2026-11-11: "Move the emoji button to the
+     * left of the spacebar and to the right of the code toggle"). It is still here on a board whose bar has no room
+     * for that key ([Layouts.withEmoji]), so the plugin is never without its way in.
      */
     private fun everyday(): List<RowItem> {
         val items = ArrayList<RowItem>(5)
@@ -1581,7 +1589,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", dim = !canRedo, onTap = if (canRedo) ({ undoTap(redo = true) }) else null)
         }
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
+        if (Plugins.isOn(prefs, Plugins.EMOJI) && keyboard?.showsEmojiKey != true) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
         // GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
         if (Plugins.isOn(prefs, Plugins.GIFS)) items += if (offlineOn) RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
             else RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }

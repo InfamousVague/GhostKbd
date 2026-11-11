@@ -64,7 +64,7 @@ class RowItem(
  * hands the service its items and the service puts them here in order (DevKeyboardService.refreshRow). A hide button
  * is at its end when the old toolbar setting is on.
  *
- * The everyday tools (undo and redo, the clipboard, emoji, GIFs) lead the row (Matt, 2026-11-10: "the word
+ * The everyday tools (undo and redo, the clipboard, GIFs; emoji too where the board has no room for its key) lead the row (Matt, 2026-11-10: "the word
  * suggestion row is too long move things like the back forward clipboard emoji and gif stuff to the front of the
  * list and remove the settings cog from the toolbar"). Where the row is wide enough for them and three words beside
  * them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay there while
