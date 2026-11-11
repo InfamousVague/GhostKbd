@@ -1,0 +1,67 @@
+# The stories the typing trainer has people type (TrainerStories.kt, docs/trainer.md).
+# Every one was written for Ghost Keyboard; none is anyone else's text. A line starting "# " and a title names a
+# story, and each line under it is one part: what one run types. Only letters, spaces, full stops and commas.
+
+# The lighthouse cat
+The old keeper lived alone at the end of the land, where the road gave up and the rocks began. Every evening he climbed the long stairs and lit the great lamp. Ships far out on the dark water saw it and knew which way was home.
+One night in a hard storm a small grey cat came to his door. She was wet and thin and very loud about it. The keeper gave her milk and a place by the fire. In the morning she was still there, and so the matter was settled.
+The cat learned the house quickly. She slept on the warm stones near the lamp and chased the moths that came to the light. When the keeper climbed the stairs she ran ahead of him, as if the lamp were her work and he only helped.
+Then came a winter when the keeper fell sick. For two days he could not leave his bed. On the second evening the sky went black early and the wind began to rise. No one had climbed the stairs, and the great lamp was dark.
+The cat sat by his bed and called until he woke. She ran to the stairs and back again, over and over. At last he understood. He rose slowly, held the wall with one hand and followed her up, one step and then the next.
+He lit the lamp just as a fishing boat turned toward the rocks. The crew saw the light and pulled hard the other way. They never knew how close it had been. The keeper sat down on the top step, and the cat climbed into his arms.
+
+# The clock that ran backward
+A girl of twelve went to work for the old man who repaired clocks in the narrow street behind the market. His shop held a hundred clocks, and no two of them agreed. He said that was the first thing to learn about time.
+She swept the floor and oiled the small wheels and learned the names of all the parts. At night she dreamed of springs. After a year she could open any watch in the city and find what was wrong before its owner finished talking.
+One clock stood apart on a high shelf, and it ran backward. The old man would not sell it and would not say why. Every morning its hands were a little earlier than the day before, as if it were walking home.
+When the old man was away she took the strange clock down and opened its back. There was nothing wrong inside. Every wheel was clean and true. It ran backward because someone had built it that way, with great care, a long time ago.
+Inside the case she found a few words cut into the metal. They said that this clock was made for a day worth going back to. Under the words was a date from fifty years before, in the spring.
+She closed the case and set the clock back on its shelf. That evening the old man came home and looked at the shelf and then at her. He said nothing. But the next morning he began to teach her how to build one.
+
+# The night train
+The last train left the city a little after midnight, and it was never full. A man who drove it for thirty years said the night train had its own people. They got on quietly and looked out at the dark as if it were a view.
+There was a baker going to work and a nurse going home. There was a student asleep on his books. There was an old woman who rode to the end of the line and back each week, because she liked to be moving while she thought.
+One winter night the train stopped between two stations. The lights went out and the heat with them. Snow lay deep on the track ahead. The driver walked through the cars with a lamp and said that help would be some hours.
+Nobody complained. The baker opened his bag and shared the bread he had made for his own lunch. The nurse found a blanket for the old woman. The student woke up and, having nothing else to give, read aloud from his book.
+It was a book of old stories, and he read well. People moved closer to hear. The snow fell and the windows turned white. For a while the dark train was the warmest room in the whole country.
+Near morning a work crew came and cleared the line. The lights came back and everyone blinked. They rode on to their stations and said goodbye like friends. After that night the baker always saved a loaf for the last train.
+
+# The map with a hole in it
+A boy found an old map inside the wall of a barn. It showed the valley he lived in, every farm and stream drawn with a careful hand. But near the middle someone had cut out a piece the size of a coin.
+He carried the map up the hill and held it against the land. The river matched. The church matched. The hole sat over a small wood on the far side of the valley, a place where nobody ever seemed to go.
+The next morning he packed bread and an apple and set out early. It took half the day to cross the valley. The wood was thick and quiet, and the path into it was so old that grass had almost closed it.
+In the middle of the wood stood a stone house without a roof. Trees grew through the floor. On one wall, under the green, he found a painting of the same valley. In the painting there was no hole at all.
+Where the map was empty the painting showed a garden, with rows of fruit trees and a well. He turned around. The trees growing through the floor were apple trees, very old, and behind the house a ring of stones marked the well.
+He ate his apple by the well and planted the seeds beside the wall. Then he walked home in the long evening light. He never did find out who cut the map. But he kept it, and in time he drew the garden back in.
+
+# The girl who collected sounds
+There was a girl who collected sounds the way other children collected stones. She kept them in her head, in order, and could call any one of them back. The gate. The kettle. Her father laughing in another room.
+Her town stood beside a river with a mill, and the mill wheel was the best sound of all. It was low and slow and it never stopped. People said they did not hear it any more. She heard it every minute and was glad.
+One dry summer the river fell and the wheel stood still. The town went quiet in a way nobody liked. People spoke more softly and slept badly. They had not known how much of their peace was made of that one sound.
+The girl went from house to house and asked everyone to hum the note of the wheel as they remembered it. They felt foolish at first. But each of them knew it exactly, and soon the whole street was humming together.
+They kept it up in the evenings all that summer, on their steps and in their gardens. Strangers passing through thought it was a custom of the place. In a way it was by then. Children born that year grew up thinking it was a song.
+The rain came back in autumn and the wheel began to turn. The first night it ran the whole town came out to listen. Then, without anyone deciding to, they joined in with it just once more to say thank you.
+
+# The slow race
+Two brothers argued all their lives about which of them was faster. When they were boys they raced to the gate. When they were men they raced their horses. Now they were old, and they still could not let it rest.
+So they agreed on one last race, from the bridge to the big tree and back. The whole village came to watch. Someone brought a flag. Someone else brought chairs, guessing that this might take a while.
+They set off side by side with their sticks. After ten steps the older brother stopped to get his breath. The younger one stopped too and pretended to look at a bird. Then they went on again, a little slower than before.
+Half way to the tree they sat down on a wall. A child ran out with water. The brothers shared the cup and talked about the weather, and then about their mother, and then about a dog they once had.
+The crowd waited. The shadows grew long. At last the two old men stood up, took each other by the arm and walked the rest of the way together. They touched the tree at the same moment and turned for home.
+Nobody could say who won, and for once neither of them asked. They crossed the bridge arm in arm while the village cheered. It was the slowest race anyone had ever seen, and people talked about it for years.
+
+# The letter that came late
+A letter was found behind a wall when the old post office was pulled down. It had been lost for sixty years. The name on the front was faded but clear, and the street was still there, so a young clerk decided to deliver it.
+The house at that address was small and blue. An old woman opened the door. When she saw the name on the letter she held the frame of the door with one hand. It was her own name, from before she was married.
+She asked the clerk to come in and sit while she read it. He waited in a kitchen that smelled of bread. She read the letter twice and then looked out of the window for a long time without speaking.
+It was from a friend who had moved across the sea, she said. They had fallen out over something small. The letter said sorry and asked her to write back. She had waited that whole year for it and then stopped waiting.
+The clerk did not know what to say, so he said nothing. The old woman made tea. Then she took out paper and a pen and asked him how one would go about finding a person after sixty years.
+It took the clerk a month of evenings. But he found an address in a town by the sea, and the old woman sent her answer. Three weeks later a reply came. This one he carried to the blue house the same morning it arrived.
+
+# The garden on the roof
+Nothing green grew on that street. It was all brick and wire and the grey backs of shops. So when a woman on the top floor carried a bag of earth up the stairs, her neighbours thought she had lost her mind.
+She planted beans in old paint tins and set them on the flat roof. She carried water up in a bucket every evening. By summer the beans had climbed the chimney, and you could see a little green flag of leaves from the street.
+A boy from the second floor came up to look. She put him to work at once. Soon he had a box of his own with carrots in it. He checked on them so often that she told him they would grow no faster for being watched.
+The next spring there were six boxes, and the spring after that there were twenty. Someone built a bench. Someone else brought a chair and a lamp. People who had lived on the same stairs for years began to greet one another by name.
+In the hot weeks of summer they ate up there in the evenings, at a long table made from a door. There were beans and carrots and small sweet tomatoes. From the street you could hear the talk and the forks.
+The woman grew old and the stairs grew hard for her. So the boy, who was a man by then, carried her up each week in his arms. She sat on the bench among the leaves and told everyone what they were doing wrong.

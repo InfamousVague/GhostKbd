@@ -168,6 +168,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** The letter just typed by a finger, once: null for anything typed another way (a popup, the row, a swipe). */
     fun takeTyped(): Typed? = lastTyped.also { lastTyped = null }
 
+    /** The same letter, left where it is for the service to take: the typing trainer's look at a tap (TrainerKeys.kt). */
+    fun peekTyped(): Typed? = lastTyped
+
     /** The middle of [c]'s key on the letters page now, and its size: to measure a mistake against the key meant. */
     fun letterRect(c: Char): RectF? = if (page != Page.LETTERS) null else keyTyping(c.toString())?.second
 

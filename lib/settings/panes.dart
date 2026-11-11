@@ -17,6 +17,8 @@ import '../onboarding/onboarding.dart';
 import '../platform.dart';
 import '../plugins/catalogue.dart';
 import '../settings_store.dart';
+import '../trainer/trainer_screen.dart';
+import '../trainer/trainer_store.dart';
 import 'kit/settings_kit.dart';
 import 'settings_screen.dart';
 import 'theme_editor.dart';
@@ -70,6 +72,9 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         parts: _offlineParts,
         control: (s) => _switch(s, 'offline', 'Offline'),
       ),
+      // The typing trainer (lib/trainer/): a screen of its own. Android's keyboard measures the runs; the iPhone's is another port.
+      if (!isIOS)
+        SettingsSection(id: 'trainer', label: 'Trainer', icon: _icon(Lucide.graduationCap), hue: trainerHue, group: 'trainer', summary: (s) => TrainerStore.shared.summary, page: (context, store) => const [], screen: (context) => TrainerScreen(store: store)),
       SettingsSection(id: 'typing', label: 'Typing', icon: _icon(LucideMore.type), hue: 'blue', group: 'keyboard', summary: _typingSummary, page: _typingPage, parts: _typingParts),
       SettingsSection(id: 'look', label: 'Look & feel', icon: _icon(LucideMore.keyboard), hue: 'indigo', group: 'keyboard', summary: _lookSummary, page: _lookPage, parts: _lookParts),
       SettingsSection(id: 'ai', label: 'AI', icon: _icon(Lucide.sparkles), hue: 'purple', group: 'keyboard', summary: _aiSummary, page: _aiPage, parts: _aiParts),

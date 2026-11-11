@@ -180,6 +180,21 @@ class AdaptiveKeys private constructor(private val context: Context, val layout:
         dirty = true
     }
 
+    /**
+     * The typing trainer's part (Trainer.kt, TrainerAims.kt): [c] has had [taps] more touches meant for it, and where
+     * the trainer worked out a step for it its nudge now stands at ([dx], [dy]) (null: it stays where it is). The
+     * trainer knows what every tap of a run was meant for, so it steps a nudge toward where the key's taps land, a
+     * little a run; the nudge is this model's all the same, and drifts back like any other.
+     */
+    fun trained(c: Char, taps: Int, dx: Float? = null, dy: Float? = null) {
+        val k = c.lowercaseChar()
+        if (!k.isLetter()) return
+        val a = aims.getOrPut(k) { Aim() }
+        a.n = (a.n + taps.coerceAtLeast(0)).coerceAtMost(100_000)
+        if (dx != null && dy != null && !dx.isNaN() && !dy.isNaN()) { a.dx = dx.coerceIn(-MAX_SHIFT, MAX_SHIFT); a.dy = dy.coerceIn(-MAX_SHIFT, MAX_SHIFT) }
+        dirty = true
+    }
+
     /** Where this layout's letters sit, in key widths across and rows down, for slips that come without a point. */
     private val places: Map<Char, Pair<Float, Int>> get() = Layouts.spec(layout)?.positions.orEmpty()
 

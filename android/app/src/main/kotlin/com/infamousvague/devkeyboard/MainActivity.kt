@@ -179,6 +179,8 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         // The live preview at the foot of Settings: the keyboard's own view, drawn in the app (KeyboardPreview.kt).
         flutterEngine.platformViewsController.registry.registerViewFactory(KeyboardPreviewFactory.VIEW_TYPE, KeyboardPreviewFactory())
+        // The typing trainer's screen has a channel of its own (TrainerChannel.kt).
+        TrainerChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev_keyboard/settings").apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {

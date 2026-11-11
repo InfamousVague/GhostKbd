@@ -306,7 +306,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onCreateInputView(): View {
-        val view = KeyboardView(this, this)
+        // The typing trainer hears the keys on their way here (TrainerKeys.kt): with no run on it only passes them on.
+        val view = KeyboardView(this, TrainerKeys(this, packageName, { keyboard }, { currentInputConnection }, { currentInputEditorInfo }, { autocorrect.isListed(it) }) { applySettings() })
         val strip = PluginRow(this, onHide = { onHideKeyboard() }, onArrow = { code -> arrow(code) })
         val panel = GifPanel(this) { pickGif(it) }
         val emoji = EmojiPanel(this) { commitEmoji(it) }
@@ -514,7 +515,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme
         view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
-        view.configure(profile?.flag("number_row") ?: prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
+        // A trainer run that is trying a layout has the keyboard wear it, in the trainer's own field and for that run
+        // only (Trainer.heightFor); the setting itself is never touched.
+        val keyHeight = Trainer.heightFor(currentInputEditorInfo?.packageName, packageName) ?: prefs.keyHeight
+        view.configure(profile?.flag("number_row") ?: prefs.numberRow, keyHeight, prefs.toolbar && !prefs.hideRow)
         view.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, locale)
         view.swipeTyping = swipeAllowed()
         view.wideLayout = prefs.wideLayout
@@ -522,7 +526,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.bottomSpace = prefs.bottomSpace
         view.deleteSwipe = prefs.deleteSwipe
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
-        view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this, language.spec.id) else null
+        view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE) || Trainer.adapts(currentInputEditorInfo?.packageName, packageName)) AdaptiveKeys.get(this, language.spec.id) else null
         view.adaptiveMap = Plugins.isOn(prefs, Plugins.ADAPTIVE) && prefs.adaptiveMap
         view.backlight = if (!prefs.backlight || isPassword(currentInputEditorInfo)) null else view.backlight?.takeIf {
             it.effect == prefs.backlightEffect && it.colour == prefs.backlightColour && it.strength == Backlight.strengthOf(prefs.backlightStrength) && it.mode == prefs.backlightMode &&
@@ -536,7 +540,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
         val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true)
         view.pluginRow = rowShown
-        row?.let { it.theme = theme; it.condensed = prefs.keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
+        row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
         frame?.working?.theme = theme
         emojiPanel?.theme = theme
