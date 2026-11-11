@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
  * hear about a hundred languages, and either detect which is spoken or are told one.
  *
  * Sizes and SHA-256s are Hugging Face's own for ggerganov/whisper.cpp (its LFS ids, listed by .github/workflows/models.yml);
- * base.en matches Ghost.md's pinned `BASE_EN_Q5_1`. Fetched from Ghost.md's mirror first and Hugging Face second;
+ * base.en matches Ghost.md's pinned `BASE_EN_Q5_1`. Fetched from the box first (ghostkbd.com/models, which are Ghost.md's own files) and Hugging Face second;
  * the hash decides what is kept either way, so the order is about reliability, not trust. Downloads go through
  * [Net] (the ledger's MODEL): Hugging Face sends them on to its CDN, and each hop is checked. With Offline on nothing
  * is fetched; a model already on the phone works as before.
@@ -38,7 +38,7 @@ object WhisperModel {
         Spec("turbo", "Large v3 Turbo, all languages", "ggml-large-v3-turbo-q5_0.bin", 574_041_195L, "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2", true, "Near the best whisper does, in any language. Slow on most phones."),
     )
     val DEFAULT = SPECS.first()
-    val MIRRORS = listOf("https://attack.fm/glyph/models", "https://huggingface.co/ggerganov/whisper.cpp/resolve/main")
+    val MIRRORS = listOf("https://ghostkbd.com/models", "https://huggingface.co/ggerganov/whisper.cpp/resolve/main")
 
     fun spec(id: String?) = SPECS.firstOrNull { it.id == id } ?: DEFAULT
 

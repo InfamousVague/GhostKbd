@@ -1,4 +1,8 @@
-# What tool/deploy-reports.mjs --caddy writes straight after the opening line of attack.fm's block (and only that):
+# What tool/deploy-reports.mjs --caddy writes straight after the opening line of attack.fm's block (and only that).
+# It is the address 0.12.0 posts to. From 0.12.1 the keyboard posts to https://ghostkbd.com/report, the same four
+# lines under `handle /report` in ghostkbd.com's own block, which tool/deploy-site.mjs --caddy writes.
+#
+# Here:
 # the one path the keyboard posts reports to, passed to the collector on this machine. No access log line is written
 # for it (log_skip is skip_log before Caddy 2.8), so nothing of who asked is kept by the web server either.
 	# ghostkbd-reports: begin (tool/deploy-reports.mjs writes these lines; server/reports/README.md)

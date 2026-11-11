@@ -171,7 +171,7 @@ final class AiClientTests: XCTestCase {
         let router = try AiClient.setup(prefs: aiPrefs("openrouter", key: "or-key"))
         let r = AiClient.buildRequest(setup: router, system: "S", user: "U", maxTokens: 50, webSearch: true)
         XCTAssertEqual(r.url?.absoluteString, "https://openrouter.ai/api/v1/chat/completions")
-        XCTAssertEqual(r.value(forHTTPHeaderField: "X-Title"), "Ghost Keyboard"); XCTAssertEqual(r.value(forHTTPHeaderField: "HTTP-Referer"), "https://attack.fm/devkeyboard/")
+        XCTAssertEqual(r.value(forHTTPHeaderField: "X-Title"), "Ghost Keyboard"); XCTAssertEqual(r.value(forHTTPHeaderField: "HTTP-Referer"), "https://ghostkbd.com/")
         XCTAssertEqual(((body(r)["plugins"] as? [[String: Any]])?.first)?["id"] as? String, "web"); XCTAssertEqual(body(r)["model"] as? String, "openrouter/auto")
         XCTAssertNil(body(AiClient.buildRequest(setup: router, system: "S", user: "U", maxTokens: 50))["plugins"])
 

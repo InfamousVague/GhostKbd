@@ -14,6 +14,10 @@
  *
  * It uses Ghost.md's box account and its own deploy code, as tool/deploy-site.mjs does (--glyph <path> or GLYPH_ROOT).
  *
+ * WHICH ADDRESS: since 0.12.1 the keyboard posts to https://ghostkbd.com/report, a route in ghostkbd.com's own block
+ * (tool/deploy-site.mjs --caddy writes it, to this same collector). The route --caddy writes here is the address
+ * 0.12.0 was released with, https://attack.fm/devkeyboard/report: it stays while a 0.12.0 may still be sending.
+ *
  * THE CADDYFILE IS SHARED, AND SO IS attack.fm'S BLOCK (AttackFM's site, Ghost.md's files, this keyboard's releases).
  * --caddy touches only the lines between its own two markers, put straight after the block's opening line: a
  * timestamped backup; every site asked for its page before, and attack.fm for the files that must go on answering;

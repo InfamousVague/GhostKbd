@@ -169,7 +169,7 @@ object AiClient {
     private fun bearer(s: Setup) = buildMap {
         if (s.key.isNotEmpty()) put("Authorization", "Bearer ${s.key}")
         // OpenRouter asks apps to say who they are.
-        if (s.provider.id == "openrouter") { put("X-Title", "Ghost Keyboard"); put("HTTP-Referer", "https://attack.fm/devkeyboard/") }
+        if (s.provider.id == "openrouter") { put("X-Title", "Ghost Keyboard"); put("HTTP-Referer", "https://ghostkbd.com/") }
     }
 
     /** OpenAI with web search: its Responses API, where the search tool lives. */

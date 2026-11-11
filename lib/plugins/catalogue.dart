@@ -173,7 +173,7 @@ const List<PluginManifest> catalogue = [
       PluginPermission(Permission.download, 'Its speech model: 60 MB to start; bigger and multilingual models if you choose them.'),
       PluginPermission(Permission.network, 'Only to download the model.'),
     ],
-    hosts: ['attack.fm', 'huggingface.co', '*.huggingface.co', '*.hf.co'],
+    hosts: ['ghostkbd.com', 'huggingface.co', '*.huggingface.co', '*.hf.co'],
     hasPage: true,
     ios: false,
     iosWhy: 'iOS doesn’t let a keyboard use the microphone. The dictation key under the keyboard still works.',

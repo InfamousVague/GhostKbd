@@ -13,7 +13,7 @@
 
 import { GhostKbd } from '../kbd.js';
 
-const CLIP = 'attack.fm';                      // what was "just copied": short, so the row's chips are whole on a key's face
+const CLIP = 'ghostkbd.com';                   // what was "just copied": short, so the row's chips are whole on a key's face
 const TYPED = 'Get it fro', PICK = 'from', STILL = 'Get it from ';
 
 // What the row offers for a word, worked out ahead with the app's own Autocorrect.suggest over its English list

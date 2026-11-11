@@ -1221,7 +1221,7 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
     'ready' => 'Version $available is downloaded and ready.',
     'installing' => 'Installing version $available…',
     'failed' => error ?? 'The update did not finish.',
-    _ => 'Updates come from attack.fm.',
+    _ => 'Updates come from ghostkbd.com.',
   };
   return [
     PaneHero(
@@ -1239,7 +1239,7 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
           SettingRow(label: needsPermission ? 'Allow installs' : 'Update now', onPress: store.installUpdate, disabledReason: downloaded ? null : store.offlineReason)
         else
           SettingRow(label: 'Check for updates', onPress: busy || phase == 'disabled' ? null : store.checkForUpdate, disabled: busy || phase == 'disabled', disabledReason: store.offlineReason),
-        _toggle(store, 'auto_update', 'Install updates by itself', 'When the app opens and twice a day. Off, the keyboard still asks attack.fm twice a day whether there is a new version, for the Update chip above the keys. Offline stops that too.'),
+        _toggle(store, 'auto_update', 'Install updates by itself', 'When the app opens and twice a day. Off, the keyboard still asks ghostkbd.com twice a day whether there is a new version, for the Update chip above the keys. Offline stops that too.'),
       ],
     ),
     PaneSection(children: [
@@ -1328,7 +1328,7 @@ List<Widget> _reportPart(SettingsStore store) {
   final mistakes = (store.report['mistakes'] as num?)?.toInt() ?? 0;
   final strokes = (store.report['strokes'] as num?)?.toInt() ?? 0;
   final lastSent = '${store.report['lastSent'] ?? ''}';
-  final server = '${store.report['server'] ?? 'attack.fm'}';
+  final server = '${store.report['server'] ?? 'ghostkbd.com'}';
   final enough = store.report['enough'] == true;
   return [
     PaneSection(

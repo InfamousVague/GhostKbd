@@ -20,6 +20,12 @@ import java.util.concurrent.Executors
 /**
  * The app's own updates, from the box: `apk.json` and the APK it names under [BASE], published by tool/release.mjs.
  *
+ * [BASE] is ghostkbd.com since 0.12.1 (Matt, 2026-11-11: "update the lingo and links to go to ghostkbd.com instead of
+ * attack.fm"). Copies up to 0.12.0 look under https://attack.fm/devkeyboard. The box serves both addresses from the
+ * one folder a release is put in, so a release reaches every copy: neither may stop answering while a copy that
+ * knows only that one is still in use (tool/release.mjs asks both after each release; tool/deploy-site.mjs will not
+ * keep a ghostkbd.com block that does not serve them).
+ *
  * What makes it safe to install what was downloaded:
  * - the file is handed on only at exactly the size and SHA-256 that apk.json gives;
  * - it must be this app (same package) at the version code apk.json gives;
@@ -31,12 +37,12 @@ import java.util.concurrent.Executors
  *
  * With Offline on (Settings › Offline) nothing is asked of the box at all: not the check, not the keyboard's
  * twice-daily look, not the download. Both go through [Net] (the ledger's UPDATE_CHECK and UPDATE_DOWNLOAD), to
- * attack.fm only. A release already downloaded and verified can still be installed, since that opens no connection:
+ * ghostkbd.com only. A release already downloaded and verified can still be installed, since that opens no connection:
  * the release found last is written down ([FOUND]), so it is still on offer after the app has been restarted
  * ([restore]), and "Update now" goes by whether the file is there whole ([State.toMap]'s `downloaded`).
  */
 object Updater {
-    const val BASE = "https://attack.fm/devkeyboard"
+    const val BASE = "https://ghostkbd.com"
     private const val ACTION_INSTALLED = "com.infamousvague.devkeyboard.INSTALL_STATUS"
     private const val PREFS = "dev_keyboard_updates"
     private const val CHECKED_AT = "checked_at"

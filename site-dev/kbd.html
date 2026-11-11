@@ -199,7 +199,7 @@ const rows = {
   suggest: () => kbd.setSuggestions(['tonight', 'tomorrow', 'today'], (w) => { field.insert(w + ' '); log(`picked ${w}`); }),
   fix: () => kbd.setRow([{ id: 'keep', label: '“tomorow”', wide: true }, { id: 'fixed', label: 'tomorrow', wide: true, bold: true }]),
   ai: () => kbd.setRow([{ id: 'ai-typing', label: '✦ Typing…', chip: true, fill: true, disabled: true }, { id: 'ai-skip', label: 'Skip', bold: true, chip: true }]),
-  clips: () => kbd.setRow([{ id: 'back', icon: 'back' }, { id: 'c1', label: 'git rebase -i HEAD~3', chip: true }, { id: 'c2', label: '192.168.1.24', chip: true }, { id: 'c3', label: 'https://attack.fm/devkeyboard/', chip: true }, { id: 'clear', label: 'Clear' }]),
+  clips: () => kbd.setRow([{ id: 'back', icon: 'back' }, { id: 'c1', label: 'git rebase -i HEAD~3', chip: true }, { id: 'c2', label: '192.168.1.24', chip: true }, { id: 'c3', label: 'https://ghostkbd.com/', chip: true }, { id: 'clear', label: 'Clear' }]),
   gif: () => kbd.setRow([{ id: 'gif-back', icon: 'back' }, { id: 'gif-query', label: 'Search GIPHY', icon: 'search', chip: true, fill: true }]),
   markdown: () => kbd.setRow(['#', '**', '_', '`', '- [ ]', '[]()', '>', '```'].map((t) => ({ id: 'md-' + t, label: t, chip: true, onTap: () => field.insert(t) }))),
 };

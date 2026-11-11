@@ -26,6 +26,11 @@ by default): [docs/reports.md](../../docs/reports.md) says what one holds. This 
 
 No access log line is written for that path (`log_skip`; `skip_log` before Caddy 2.8).
 
+**Two addresses reach the one collector.** Since 0.12.1 the keyboard posts to `https://ghostkbd.com/report`: that
+route is part of ghostkbd.com's own block, which `node tool/deploy-site.mjs --caddy` writes (the same lines, under
+`handle /report`): run it before a release that posts there goes out, or its reports are refused with a 404 and wait. The route `deploy-reports.mjs --caddy` writes, `https://attack.fm/devkeyboard/report`, is the
+address 0.12.0 was released with: it stays while a 0.12.0 may still be sending, and can go once none is.
+
 It has been there since 2026-11-11, 02:21 UTC (Matt: "Yes login to the box and run the collector"; Caddy 2.11.4,
 python 3.12.3, one login for the look, the install and the checks). What was checked that day, from outside: a report
 was kept (204) and its line on the box was byte for byte what `clean` leaves of it; junk was refused (400), a GET

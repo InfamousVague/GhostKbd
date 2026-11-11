@@ -89,7 +89,8 @@ the switch is off unless turned on and the report is shown before it goes.
 - At most once a day, as the keyboard hides, once the report has seen 100 words; or when "Send it now" is tapped.
   A report the server does not take is kept and tried again no sooner than six hours later. One that has waited a
   fortnight unsent is let go.
-- To `https://attack.fm/devkeyboard/report`, through `Net.open` like every connection the keyboard makes: the
+- To `https://ghostkbd.com/report` (0.12.0 sends to `https://attack.fm/devkeyboard/report`, which goes on taking
+  them), through `Net.open` like every connection the keyboard makes: the
   **Offline** switch stops it, Settings › Offline lists it under "What leaves your phone" with these same words
   (`NetPath.REPORT`), and `tool/net_check.sh` fails the day anything else opens a connection.
 - It is kept in `typing_report.json` in the app's no-backup files until it goes: not in Android's backup.

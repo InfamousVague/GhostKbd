@@ -54,7 +54,8 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 
 ## Releases and auto-update
 
-Installed copies update themselves from **https://attack.fm/devkeyboard/** (Ghost.md's box). On opening the app,
+Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
+box; copies up to 0.12.0 look under https://attack.fm/devkeyboard/, which the box serves from the same folder). On opening the app,
 and from the keyboard twice a day, `Updater.kt` reads `apk.json`, downloads the APK, checks its size, SHA-256,
 package, version and signing certificate, and installs it with Android's `PackageInstaller` — silently on Android 12+
 once the app installed its own previous version, otherwise with Android's one-tap confirm. Settings › About shows
@@ -138,7 +139,7 @@ and the numbers.
 ## Anonymous typing reports (off by default)
 
 Settings › Typing › Typing stats › **Share anonymous typing reports**: off unless the person turns it on. On, the
-keyboard sends attack.fm a report at most once a day: counts of what happened, where taps land on their keys as a grid
+keyboard sends ghostkbd.com a report at most once a day: counts of what happened, where taps land on their keys as a grid
 of counts, and common words that were mistyped or misread with what was meant: only ever the few thousand commonest
 words of its own word lists. No account, no id, no time of day, never a word of the person's own or a rarer one,
 nothing from where the keyboard does not learn; and Settings shows the report exactly as it would go. [docs/reports.md](docs/reports.md) has every field.

@@ -179,7 +179,7 @@ class KeyboardPrefs(context: Context) {
     /**
      * Settings › Typing › Typing stats › Share anonymous typing reports (Reports.kt): off unless the person turns it
      * on. On, counts of what the keyboard did, where taps land on their keys, and word-list words that were mistyped
-     * or misread are sent to attack.fm at most once a day, with no account and no id; off again, what was waiting is
+     * or misread are sent to ghostkbd.com at most once a day, with no account and no id; off again, what was waiting is
      * deleted.
      */
     val shareReports: Boolean get() = bool(SHARE_REPORTS)

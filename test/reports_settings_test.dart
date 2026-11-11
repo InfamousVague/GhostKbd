@@ -40,7 +40,7 @@ void main() {
 
     // The promise, in the page's own words: where it goes, what it is, what it never is.
     final says = (card().footer as Text).data!;
-    for (final phrase in ['Off unless you turn it on', 'attack.fm', 'at most once a day', 'No account, no id and no time of day', 'never a word of your own or a rarer one', 'commonest words', 'password fields', 'incognito', 'Turn this off and it is deleted', 'Offline stops it too', 'exactly as it would go']) {
+    for (final phrase in ['Off unless you turn it on', 'ghostkbd.com', 'at most once a day', 'No account, no id and no time of day', 'never a word of your own or a rarer one', 'commonest words', 'password fields', 'incognito', 'Turn this off and it is deleted', 'Offline stops it too', 'exactly as it would go']) {
       expect(says, contains(phrase));
     }
     // The wording rule (docs/COMPETITION.md, section 9): no promise it cannot keep.
@@ -54,7 +54,7 @@ void main() {
     expect((card().children.whereType<SettingRow>().last.value as Text).data, 'Nothing yet');
 
     // On, with a report waiting: its size, the way to see it, to send it and to discard it.
-    store.report = const {'waiting': '{\n  "v": 1\n}', 'words': 42, 'mistakes': 1, 'strokes': 3, 'enough': false, 'lastSent': '', 'server': 'attack.fm'};
+    store.report = const {'waiting': '{\n  "v": 1\n}', 'words': 42, 'mistakes': 1, 'strokes': 3, 'enough': false, 'lastSent': '', 'server': 'ghostkbd.com'};
     expect(labels(), ['Share anonymous typing reports', 'Waiting to go', 'See the report', 'Send it now', 'Discard what is waiting']);
     final waiting = card().children.whereType<SettingRow>().firstWhere((r) => r.label == 'Waiting to go');
     expect((waiting.value as Text).data, '42 words, 1 mistake, 3 swipes');
@@ -71,7 +71,7 @@ void main() {
     await store.set('offline', false);
 
     // Once one has gone the day is shown, whether or not anything waits.
-    store.report = const {'waiting': '', 'words': 0, 'mistakes': 0, 'strokes': 0, 'enough': false, 'lastSent': '2026-11-10', 'server': 'attack.fm'};
+    store.report = const {'waiting': '', 'words': 0, 'mistakes': 0, 'strokes': 0, 'enough': false, 'lastSent': '2026-11-10', 'server': 'ghostkbd.com'};
     expect(labels(), ['Share anonymous typing reports', 'Waiting to go', 'Last sent']);
 
     // And the search finds the switch.

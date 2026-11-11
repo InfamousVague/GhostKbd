@@ -10,7 +10,12 @@
  *
  * The download and its version are the release's own files (/devkeyboard.apk and /apk.json, served from
  * /opt/attackfm-site/devkeyboard by the block), so a release (tool/release.mjs) updates this site's download with
- * nothing to do here, and https://attack.fm/devkeyboard/ stays what installed keyboards update from.
+ * nothing to do here. INSTALLED KEYBOARDS UPDATE FROM THOSE TWO ADDRESSES since 0.12.1 (Updater.BASE), as copies up to
+ * 0.12.0 do from https://attack.fm/devkeyboard/: a block under which they stop answering is put back, never kept.
+ *
+ * The block carries the keyboard's two other addresses on this name as well (Matt, 2026-11-11: "update the lingo and
+ * links to go to ghostkbd.com instead of attack.fm"): /report, the anonymous typing reports, passed to the collector
+ * on the box (server/reports/), and /models/, the speech models Dictation downloads, read from Ghost.md's folder.
  *
  * It uses Ghost.md's box account and its own deploy code, as tool/release.mjs does (--glyph <path> or GLYPH_ROOT to
  * say where the glyph checkout is). THE CADDYFILE IS SHARED (attack.fm, ghostmarkdown.com, prettycardboard.com and
@@ -29,6 +34,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = join(ROOT, 'site');
 const SITE = '/opt/ghostkbd-site';
 const RELEASE = '/opt/attackfm-site/devkeyboard';
+const MODELS = '/opt/attackfm-site/glyph/models';
+const REPORT_PORT = 8377;
 const DOMAIN = 'ghostkbd.com';
 const args = process.argv.slice(2);
 const withCaddy = args.includes('--caddy');
@@ -48,11 +55,27 @@ if (!glyph && !printOnly) fail('No Ghost.md checkout found for its box code (--g
 const BLOCK = `
 ${DOMAIN} {
 	encode zstd gzip
-	# The release's own files (tool/release.mjs), so a release updates this site's download and version.
+	# The release's own files (tool/release.mjs), so a release updates this site's download and version. Installed
+	# keyboards update from these two addresses since 0.12.1 (Updater.BASE): they must never stop answering.
 	@release path /devkeyboard.apk /apk.json
 	handle @release {
 		root * ${RELEASE}
 		header Cache-Control "no-cache"
+		file_server
+	}
+	# Anonymous typing reports (server/reports/; off unless the person turns them on): the one address the keyboard
+	# posts them to, passed to the collector on this machine. Nothing of who asked goes into an access log.
+	handle /report {
+		request_body {
+			max_size 100KB
+		}
+		log_skip
+		reverse_proxy 127.0.0.1:${REPORT_PORT}
+	}
+	# The speech models Dictation downloads (WhisperModel.MIRRORS): Ghost.md's own files, read where they are.
+	handle /models/* {
+		uri strip_prefix /models
+		root * ${MODELS}
 		file_server
 	}
 	handle {
@@ -100,6 +123,9 @@ probe() {
 BACKUP="$CF.bak-$(date +%Y%m%d-%H%M%S)"
 $SUDO cp -a "$CF" "$BACKUP"
 echo "ok backup $BACKUP"
+# What installed keyboards update from. Where it answered before, it must answer after.
+feeds() { for p in /apk.json /devkeyboard.apk; do curl -s -o /dev/null -w "$p %{http_code}\\n" -I --max-time 10 --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}$p" || true; done; }
+FEEDS=$(feeds)
 BEFORE=$(probe | grep -v -E '^(www[.])?${dom} ' || true)
 echo "before:"; echo "$BEFORE" | sed 's/^/  /'
 restore() { echo "x $1: putting $BACKUP back"; $SUDO cp -a "$BACKUP" "$CF"; $SUDO systemctl reload caddy || true; exit 1; }
@@ -116,6 +142,13 @@ sleep 4
 AFTER=$(probe | grep -v -E '^(www[.])?${dom} ' || true)
 echo "after:"; echo "$AFTER" | sed 's/^/  /'
 [ "$BEFORE" = "$AFTER" ] || restore "a site answers differently after the reload"
+if [ "$FEEDS" = "$(printf '/apk.json 200\\n/devkeyboard.apk 200')" ]; then
+  [ "$(feeds)" = "$FEEDS" ] || restore "https://${DOMAIN}/apk.json or /devkeyboard.apk no longer answers, and installed keyboards update from them"
+  echo "ok /apk.json and /devkeyboard.apk answer as before"
+fi
+report=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve "${DOMAIN}:443:127.0.0.1" -X POST -H 'Content-Type: application/json' -d '{}' "https://${DOMAIN}/report" || true)
+model=$(curl -s -o /dev/null -w '%{http_code}' -I --max-time 10 --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/models/ggml-base.en-q5_1.bin" || true)
+echo "  on the box: /report answers $report to an empty report (400 is the collector saying no; 502, it is not running: tool/deploy-reports.mjs), /models/ggml-base.en-q5_1.bin $model"
 echo "ok ${DOMAIN}'s blocks written and live"
 `;
 
@@ -142,3 +175,6 @@ const info = curl(['-o', '/dev/null', '-w', '%{http_code}', `https://${DOMAIN}/a
 const apk = curl(['-o', '/dev/null', '-w', '%{http_code}', '-r', '0-0', `https://${DOMAIN}/devkeyboard.apk`]).stdout;
 console.log(`  https://${DOMAIN}/ answers ${page || 'nothing yet'}; /apk.json ${info || 'nothing yet'}; /devkeyboard.apk ${apk || 'nothing yet'}`);
 if (page !== '200') console.log('  (a certificate can take a minute, or longer while the domain\'s DNS settles: Caddy keeps trying.)');
+const report = curl(['-o', '/dev/null', '-w', '%{http_code}', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', '{}', `https://${DOMAIN}/report`]).stdout;
+const model = curl(['-o', '/dev/null', '-w', '%{http_code}', '-I', `https://${DOMAIN}/models/ggml-base.en-q5_1.bin`]).stdout;
+console.log(`  /report answers ${report || 'nothing'} to an empty report (400 is the collector saying no); /models/ggml-base.en-q5_1.bin ${model || 'nothing'}`);

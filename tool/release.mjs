@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 /**
- * Builds, checks and publishes a Dev Keyboard release to the box (attack.fm's server, the one Ghost.md deploys to),
+ * Builds, checks and publishes a Dev Keyboard release to the box (the server Ghost.md deploys to),
  * where installed copies find it and update themselves (android/.../Updater.kt).
  *
  *   node tool/release.mjs [--glyph ~/path/to/glyph] [--version 0.2.0] [--no-deploy] [--keep-connection]
  *
- * Served at https://attack.fm/devkeyboard/ from /opt/attackfm-site/devkeyboard:
+ * Put in /opt/attackfm-site/devkeyboard, and served from that one folder at two addresses:
+ *
+ *   https://ghostkbd.com/apk.json and /devkeyboard.apk   what copies from 0.12.1 update from, and the site's download
+ *                                                          (ghostkbd.com's Caddy block: tool/deploy-site.mjs)
+ *   https://attack.fm/devkeyboard/                         what copies up to 0.12.0 update from: it must go on answering
  *
  *   devkeyboard.apk   the release, signed with the release key
  *   apk.json          { version, versionCode, sha256, bytes, url, build }: what an installed app reads
- *   index.html        a download page, for the first install
+ *   index.html        the old address's page: it sends whoever opens attack.fm/devkeyboard/ on to ghostkbd.com
  *
  * THE CREDENTIALS ARE GHOST.MD'S. Nothing is copied here: the box's address, account and password are read from
  * Ghost.md's own .env (tauri/.env: AFM_DEPLOY_HOST, AFM_DEPLOY_USER, AFM_DEPLOY_PASS) by Ghost.md's own loader, and the
@@ -33,7 +37,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const HOST_URL = 'https://attack.fm/devkeyboard';
+const HOST_URL = 'https://ghostkbd.com';
+/** Where copies up to 0.12.0 look for their update: the same folder, under attack.fm's site. */
+const OLD_URL = 'https://attack.fm/devkeyboard';
 const RELEASE = '/opt/attackfm-site/devkeyboard';
 const BACKUPS = '/opt/devkeyboard-releases';
 const PACKAGE = 'com.infamousvague.devkeyboard';
@@ -143,14 +149,18 @@ function pubspecVersion() {
   return { name: match[1], build: Number(match[2] ?? 1) };
 }
 
-// --- the download page --------------------------------------------------------------------------------------------
+// --- the old address's page ---------------------------------------------------------------------------------------
 
+// ghostkbd.com is the keyboard's site and its download (Matt, 2026-11-11: "update the lingo and links to go to
+// ghostkbd.com instead of attack.fm"). This is what https://attack.fm/devkeyboard/ shows since: the way there.
 const page = (info) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ghost Keyboard</title>
+<link rel="canonical" href="${HOST_URL}/">
+<meta http-equiv="refresh" content="0; url=${HOST_URL}/">
 <style>
   :root { color-scheme: light dark; --bg: #f7f8fa; --card: #fff; --text: #16181d; --muted: #5d6470; --accent: #2f6feb; }
   @media (prefers-color-scheme: dark) { :root { --bg: #0f1114; --card: #191c21; --text: #eceef2; --muted: #9aa1ad; --accent: #6b9bff; } }
@@ -160,7 +170,6 @@ const page = (info) => `<!doctype html>
   h1 { font-size: 1.75rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
   p { color: var(--muted); margin: 0 0 1.25rem; }
   a.button { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; padding: .7rem 1.4rem; border-radius: 999px; }
-  ol { color: var(--muted); padding-left: 1.2rem; margin: 1.5rem 0 0; }
   small { display: block; margin-top: 1.25rem; color: var(--muted); }
 </style>
 </head>
@@ -168,14 +177,9 @@ const page = (info) => `<!doctype html>
 <main>
   <div class="card">
     <h1>Ghost Keyboard</h1>
-    <p>A keyboard for people who write code. Version ${info.version}.</p>
-    <a class="button" href="${info.url}">Download for Android</a>
-    <ol>
-      <li>Open the download and tap Install (allow installs from your browser if Android asks).</li>
-      <li>Open Ghost Keyboard and follow its walkthrough.</li>
-      <li>It keeps itself up to date from here on.</li>
-    </ol>
-    <small>${(info.bytes / 1e6).toFixed(1)} MB · SHA-256 ${info.sha256.slice(0, 16)}…</small>
+    <p>Ghost Keyboard has its own site now, ghostkbd.com, and version ${info.version} is there.</p>
+    <a class="button" href="${HOST_URL}/">Go to ghostkbd.com</a>
+    <small>Already installed? It keeps itself up to date, and there is nothing to do.</small>
   </div>
 </main>
 </body>
@@ -271,15 +275,18 @@ $SUDO chmod 755 ${RELEASE}
 rm -rf ${STAGE}
 echo "ok placed in ${RELEASE}"`);
 
-// Is it served? attack.fm's site block serves /opt/attackfm-site; if it answers otherwise, show what the block is.
-const res = await fetch(`${HOST_URL}/apk.json?t=${Date.now()}`, { cache: 'no-store' }).catch((e) => ({ ok: false, status: e.message }));
-const said = res.ok ? await res.json().catch(() => null) : null;
-if (said?.sha256 !== info.sha256) {
-  say(`x ${HOST_URL}/apk.json answered ${res.status}, not this release. attack.fm's Caddy block, for a look:`);
-  box.ssh(`grep -n -A25 '^attack.fm' /etc/caddy/Caddyfile || true`);
-  if (!keepConnection) box.close();
-  process.exit(1);
+// Is it served? Both addresses read the folder it was put in: ghostkbd.com's block for copies from 0.12.1, attack.fm's
+// site for the copies before. Where either answers otherwise, its block is shown.
+for (const [base, block] of [[HOST_URL, 'ghostkbd.com'], [OLD_URL, 'attack.fm']]) {
+  const res = await fetch(`${base}/apk.json?t=${Date.now()}`, { cache: 'no-store' }).catch((e) => ({ ok: false, status: e.message }));
+  const said = res.ok ? await res.json().catch(() => null) : null;
+  if (said?.sha256 !== info.sha256) {
+    say(`x ${base}/apk.json answered ${res.status}, not this release. ${block}'s Caddy block, for a look:`);
+    box.ssh(`grep -n -A25 '^${block}' /etc/caddy/Caddyfile || true`);
+    if (!keepConnection) box.close();
+    process.exit(1);
+  }
 }
 if (!keepConnection) box.close();
 const head = await fetch(`${HOST_URL}/devkeyboard.apk`, { method: 'HEAD' });
-say(`ok live: ${HOST_URL}/ — Dev Keyboard ${info.version}, APK served at ${head.headers.get('content-length')} bytes (${info.bytes} expected)`);
+say(`ok live: ${HOST_URL}/ — Dev Keyboard ${info.version}, APK served at ${head.headers.get('content-length')} bytes (${info.bytes} expected); ${OLD_URL}/ has it too, for copies up to 0.12.0`);
