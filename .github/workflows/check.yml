@@ -1,10 +1,11 @@
-# Every push to main: does it compile? `flutter analyze`, then a debug build (Kotlin, whisper.cpp's C++, Dart), with
-# no secrets and no release. Releases are release.yml's, from the release branch.
+# PROOF ONLY, never for main. The move to Flutter 3.50, tried four ways at once: two Flutters (3.50.0, and 3.47.9
+# which built 0.15.0) against two sets of Android build versions (the ones Flutter 3.50 makes a new project with, and
+# the lowest it accepts). Each way: analyze, Flutter's tests, a debug build, Kotlin's unit tests, a release-mode build
+# signed with this runner's debug key. Nothing is published and no secret is read. Every step writes its result to
+# results.txt and carries on, so one run says everything; the last step fails the job if any of them failed.
 name: Check
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,34 +14,129 @@ concurrency:
 
 jobs:
   check:
+    name: Flutter ${{ matrix.flutter }}, ${{ matrix.stack }} versions
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter: ['3.50.0', '3.47.9']
+        stack: [template, minimum]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-          cache-dependency-path: |
-            android/**/*.gradle*
-            android/gradle/wrapper/gradle-wrapper.properties
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          # Named, so a new stable cannot change a build on the day it comes out. 3.50.0 (2026-11-11) refused to
-          # build until Android's Gradle plugin was raised past 9.1.0, and each Flutter brings its own Android
-          # defaults. 3.47.9 built 0.14.0. Raise it on purpose, with the app tried on the new one first.
-          flutter-version: 3.47.9
-          cache: true
-      - run: flutter pub get
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib
-      - name: Debug build
-        # Downloads that time out are tried again (see release.yml).
+          flutter-version: ${{ matrix.flutter }}
+          cache: false
+
+      - name: The lowest versions Flutter 3.50 accepts, in place of the ones it makes a project with
+        if: matrix.stack == 'minimum'
         run: |
-          for attempt in 1 2 3; do
-            flutter build apk --debug --target-platform android-arm64 && exit 0
-            echo "::warning::Build attempt $attempt failed; trying again"; sleep $((attempt * 60))
-          done
-          exit 1
+          sed -i 's/com.android.application") version "9.3.1"/com.android.application") version "9.1.1"/' android/settings.gradle.kts
+          sed -i 's/org.jetbrains.kotlin.android") version "2.4.20"/org.jetbrains.kotlin.android") version "2.4.10"/' android/settings.gradle.kts
+          sed -i 's/gradle-9.5.0-all.zip/gradle-9.3.1-all.zip/' android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: What is being built
+        run: |
+          flutter --version
+          grep -n ' version "' android/settings.gradle.kts
+          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
+          grep -n 'targetSdk\|compileSdk\|ndkVersion' android/app/build.gradle.kts
+          : > results.txt
+
+      - name: pub get
+        run: |
+          set +e
+          flutter pub get 2>&1 | tee pub-get.log
+          echo "pub get: exit ${PIPESTATUS[0]}" >> results.txt
+
+      - name: Analyze lib, as check.yml does
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib 2>&1 | tee analyze-lib.log
+          echo "analyze lib: exit ${PIPESTATUS[0]}" >> results.txt
+
+      - name: Analyze everything, for the record (what a newer Flutter newly remarks on)
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze-all.log
+          echo "record only, analyze all ended ${PIPESTATUS[0]}; $(grep -c ' • ' analyze-all.log) remarks" >> results.txt
+
+      - name: Flutter's tests
+        run: |
+          set +e
+          flutter test 2>&1 | tee flutter-test.log
+          echo "flutter test: exit ${PIPESTATUS[0]}" >> results.txt
+
+      - name: Debug build
+        run: |
+          set +e
+          flutter build apk --debug --target-platform android-arm64 2>&1 | tee build-debug.log
+          echo "debug build: exit ${PIPESTATUS[0]}" >> results.txt
+
+      - name: Kotlin's unit tests
+        run: |
+          set +e
+          if [ -x android/gradlew ]; then
+            (cd android && ./gradlew --version && ./gradlew :app:testDebugUnitTest) 2>&1 | tee unit-tests.log
+            echo "kotlin unit tests: exit ${PIPESTATUS[0]}" >> results.txt
+          else
+            echo "kotlin unit tests: exit 127 (no android/gradlew: the debug build did not get as far as writing it)" >> results.txt
+          fi
+          python3 - <<'EOF' | tee -a results.txt
+          import glob, xml.etree.ElementTree as ET
+          files = glob.glob('build/app/test-results/testDebugUnitTest/*.xml')
+          total = {'tests': 0, 'failures': 0, 'errors': 0, 'skipped': 0}
+          for name in files:
+              root = ET.parse(name).getroot()
+              for key in total:
+                  total[key] += int(root.get(key, 0))
+          print('kotlin unit tests counted: %d files, %s' % (len(files), ', '.join('%s %d' % item for item in total.items())))
+          EOF
+
+      - name: Release-mode build (this runner's debug key, nothing published)
+        run: |
+          set +e
+          flutter build apk --release --target-platform android-arm64 2>&1 | tee build-release.log
+          echo "release-mode build: exit ${PIPESTATUS[0]}" >> results.txt
+
+      - name: Gather
+        if: always()
+        run: |
+          mkdir -p out
+          cp results.txt *.log out/ 2>/dev/null || true
+          grep -h -i 'warning: flutter support\|will soon be dropped\|is lower than\|not yet supported' *.log | sort | uniq -c > out/flutter-version-warnings.txt || true
+          tag='${{ matrix.flutter }}-${{ matrix.stack }}'
+          [ -f build/app/outputs/flutter-apk/app-release.apk ] && cp build/app/outputs/flutter-apk/app-release.apk "out/app-release-$tag.apk"
+          if [ '${{ matrix.flutter }}' = '3.50.0' ] && [ -f build/app/outputs/flutter-apk/app-debug.apk ]; then
+            cp build/app/outputs/flutter-apk/app-debug.apk "out/app-debug-$tag.apk"
+          fi
+          if [ -d build/app/test-results/testDebugUnitTest ]; then
+            (cd build/app/test-results && tar -czf "$GITHUB_WORKSPACE/out/unit-test-results.tgz" testDebugUnitTest)
+          fi
+          ls -la out
+          {
+            echo "### Flutter ${{ matrix.flutter }}, ${{ matrix.stack }} versions"
+            echo '```'
+            cat results.txt
+            echo '--- version remarks'
+            cat out/flutter-version-warnings.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proof-${{ matrix.flutter }}-${{ matrix.stack }}
+          path: out/
+          retention-days: 5
+
+      - name: Did everything pass?
+        run: |
+          cat results.txt
+          if grep ': exit' results.txt | grep -v ': exit 0$'; then exit 1; fi
