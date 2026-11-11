@@ -164,7 +164,11 @@ final class KeyboardView: UIView {
     /// six points either side. Landscape has far less room.
     private func updateRowHeight() {
         let landscape = (window?.windowScene?.interfaceOrientation.isLandscape ?? false) && traitCollection.userInterfaceIdiom == .phone
-        let stock: CGFloat = traitCollection.userInterfaceIdiom == .phone && Self.screenWidth >= Self.widePhone ? 56 : 54
+        // The keyboard's own width (the screen's, held upright) decides: in a keyboard extension the screen's own
+        // measure is not to be trusted, and an iPhone Air drew its rows two points too close by it.
+        let across = max(bounds.width, window?.bounds.width ?? 0)
+        let wide = landscape ? Self.screenWidth >= Self.widePhone : (across > 0 ? across : Self.screenWidth) >= Self.widePhone
+        let stock: CGFloat = traitCollection.userInterfaceIdiom == .phone && wide ? 56 : 54
         let h: CGFloat
         switch keyHeightSetting { case "short": h = stock - 6; case "tall": h = stock + 6; default: h = stock }
         let next = landscape ? min(h, 40) : h
