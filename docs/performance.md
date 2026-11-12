@@ -2,9 +2,9 @@
 
 How fast the keyboard is, how that is measured, and what the pass of 2026-11-12 found and changed (Matt: "do a
 performance pass on the keyboard to make sure everything is as fast as possible"). Everything below was measured on
-an emulator with a debug build; none of it has been measured on a phone or with a release build. The emulator and a
-debug build are both several times slower than a phone, so the numbers are for holding one build against another,
-not for saying how long anything takes in the hand.
+an emulator, most of it with a debug build; none of it has been measured on a phone. The emulator and a debug build
+are both several times slower than a phone, so the numbers are for holding one build against another, not for
+saying how long anything takes in the hand.
 
 ## How it is measured
 
@@ -105,10 +105,22 @@ Emulator (Android 16, arm64, a Mac that was also doing other things), debug buil
 | Processor time, drawing thread | 950 ms, 910 ms | 1020 ms, 980 ms |
 | Frames drawn | 496, 497 | 492, 498 |
 
+A release-mode build, the kind that ships, cannot time itself, so only what Android counts is known of it. The same
+75 keys, in the same field, on a fresh install with the settings as they come (fewer plugins than the runs above, so
+fewer questions to begin with): 0.16.1 as released against this code built the same way, two runs each.
+
+| | 0.16.1 as released | This code |
+| --- | --- | --- |
+| Processor time, main thread | 490 ms, 440 ms | 340 ms, 350 ms |
+| Processor time, drawing thread | 1240 ms, 1150 ms | 1130 ms, 980 ms |
+| Processor time, the whole process | 1870 ms, 1710 ms | 1580 ms, 1410 ms |
+| Frames drawn (Android's count) | 675, 653 | 590, 589 |
+| The slowest frame in a hundred | 34 ms, 32 ms | 21 ms, 23 ms |
+
 The same 25 steps (autocorrect at a space, backspace after a correction, the double-space full stop, typing after a
-tap moved the cursor into the text, a held backspace, a full stop) left the same text after every step on both
-builds, but for the held backspace: in the same 0.9 s it took one or two more characters, each of its steps no
-longer waiting on the app.
+tap moved the cursor into the text, a held backspace, a full stop) left the same text after every step on the old
+debug build, the new one and the new release-mode build, but for the held backspace: in the same 0.9 s it took one
+or two more characters, each of its steps no longer waiting on the app.
 
 ## What is left, and what was not done
 
@@ -121,5 +133,5 @@ longer waiting on the app.
   thread, once a word, 0.3 s after the word starts: 16 of the 24 waits left in a run of 16 words (`ask.around`).
 - **The capital check as a field is entered**, and the first three times it matters in that field: the other 8
   (`ask.caps`).
-- Not measured: a phone, a release build, swipe typing, dictation, the emoji and GIF panels, how long the keyboard
-  takes to appear from cold.
+- Not measured: a phone, the waits of a release build (it has no timers), swipe typing, dictation, the emoji and GIF
+  panels, how long the keyboard takes to appear from cold.
