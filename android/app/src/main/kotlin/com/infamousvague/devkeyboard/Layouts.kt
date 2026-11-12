@@ -7,7 +7,7 @@ import kotlin.math.abs
  * What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them); MIC starts or
  * ends a dictation (long-press: the full stop it stands in for, and that key's punctuation).
  */
-enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE }
+enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE, EMOJI }
 
 /** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
 enum class Page { LETTERS, SYMBOLS, MORE, DEV }
@@ -95,17 +95,49 @@ object Layouts {
      * The other pages have no { } key and come back as they were, full stop and all: numbers are typed there, and
      * need it. So does a letters page with no full stop before enter to take the place of.
      *
-     * The emoji plugin had a key here too, between { } and the space bar (0.12.1 to 0.15.0). Its button is back in
-     * the row above the keys (Matt, 2026-11-12: "Move the emoji back next to the clipboard icon in the toolbar"), so
-     * nothing stands between the { } key, the globe and the bar.
+     * The letters page is known by its { } key, or by the emoji key that has taken that key's place ([withEmoji]).
      */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
-        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.DEV }) return rows
+        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.DEV || it.type == KeyType.EMOJI }) return rows
         val at = last.keys.indexOfFirst { it.type == KeyType.ENTER } - 1
         val stop = last.keys.getOrNull(at)?.takeIf { it.type == KeyType.CHAR && it.text.isNotEmpty() } ?: return rows
         val mic = Key(KeyType.MIC, hint = stop.text, alts = (listOf(stop.text) + stop.alts).distinct())
         return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = mic }, last.inset)
+    }
+
+    /** The least the space bar is left with, in key widths, whatever stands beside it. */
+    const val LEAST_BAR = 3f
+
+    /**
+     * The emoji plugin's key (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is. And make it the
+     * same as the dictation where it's just the icon no background. And move the code button up to where the emoji
+     * button used to be in the toolbar"): on the letters page it stands in the { } key's place, between ?123 and
+     * the space bar, and is drawn as the mic key is, its icon alone. The { } key is then a button in the row above
+     * the keys (DevKeyboardService.everyday).
+     *
+     * Where there is no row to hold that button ([keepCode]: the row is hidden, or nothing is in it), the { } key
+     * keeps a key on the board, straight after the emoji key, with a key's width taken from the space bar, so the
+     * code keys can still be reached. That is not done where it would leave the bar under [LEAST_BAR] key widths:
+     * there the board keeps its { } key as it was, and has no emoji key.
+     *
+     * Its third time on the board: it was a key between { } and the space bar from 0.12.1 to 0.15.0, and a button in
+     * the row in 0.16. Pages with no { } key come back as they were.
+     */
+    fun withEmoji(rows: List<KeyRow>, keepCode: Boolean): List<KeyRow> {
+        val last = rows.last()
+        val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
+        if (at < 0) return rows
+        val emoji = Key(KeyType.EMOJI, pill = false)
+        if (!keepCode) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = emoji }, last.inset)
+        val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
+        if (space.width - 1f < LEAST_BAR) return rows
+        val keys = ArrayList<Key>(last.keys.size + 1)
+        last.keys.forEach { key ->
+            if (key === last.keys[at]) keys += emoji
+            keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
+        }
+        return rows.dropLast(1) + KeyRow(keys, last.inset)
     }
 
     private val accents = mapOf(

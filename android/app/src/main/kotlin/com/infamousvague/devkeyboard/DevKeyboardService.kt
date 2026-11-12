@@ -101,6 +101,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var takeOpen = false
     private var takeField: FieldKey? = null
 
+    /** The { } button is in the row above the keys, where the emoji button was: the emoji key has the { } key's place on the board ([applySettings]). */
+    private var codeInRow = false
+
     /**
      * The draft of the piece being spoken, as it stands in the field just before the cursor ([onDraft]), with the
      * space that parts it from what came before ([liveLead]); null between pieces. [liveLost]: the draft was no
@@ -614,7 +617,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
-        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
+        // The emoji key stands where the { } key did, and the { } key is a button in the row (everyday), so with
+        // emoji added there is always a row to hold it, unless the row is hidden: then the { } key stays on the
+        // board, beside the emoji key (Layouts.withEmoji).
+        val emojiOn = Plugins.isOn(prefs, Plugins.EMOJI)
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || emojiOn || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
+        codeInRow = emojiOn && rowShown
+        view.emojiKey = emojiOn
+        view.codeKey = emojiOn && !rowShown
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
@@ -1390,6 +1400,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     // --- dictation (the dictation plugin) ---------------------------------------------------------------------------
 
+    /** The emoji key, where the { } key was. */
+    override fun onEmoji() = openEmoji()
+
+    /** Another page of keys is showing: the row's { } button is lit on the code keys, and plain on any other. */
+    override fun onPage() = scheduleRow()
+
+    /** The row's { } button: the code keys, and the letters again. */
+    private fun toggleCode() {
+        val view = keyboard ?: return
+        view.showPage(if (view.page == Page.DEV) Page.LETTERS else Page.DEV)
+    }
+
     override fun onMic() {
         val view = keyboard ?: return
         if (dictation.listening) { dictation.stop(); return }
@@ -1842,19 +1864,26 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || item.id.startsWith("said-") || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
 
     /**
-     * The tools reached for in every app: the clipboard, emoji, undo and redo. They stand at the row's start, before
-     * the suggested words (Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left aligned on the
-     * toolbar before the auto suggest"), on every row but one too narrow for them and two words ([PluginRow.pins]).
-     * Icons only. The clipboard and emoji come first, side by side (Matt, the same day: "Move the emoji back next to
-     * the clipboard icon in the toolbar"), because they are always there; the arrows, which are there only while
-     * each has something to do, come and go after them, so no button moves when one does. (His sentence names the
-     * arrows second: that order would part emoji from the clipboard whenever there is something to undo. My choice,
-     * said to him.) GIFs, which were among them until 0.16.0, lead the tools that follow the words ([gifTool]).
+     * The tools reached for in every app: the clipboard, the { } button, undo and redo. They stand at the row's
+     * start, before the suggested words (Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left
+     * aligned on the toolbar before the auto suggest"), on every row but one too narrow for them and two words
+     * ([PluginRow.pins]). Icons only. The clipboard and the { } button come first, because they are always there;
+     * the arrows, which are there only while each has something to do, come and go after them, so no button moves
+     * when one does. The { } button stands where the emoji button stood until 0.16.2: emoji is a key on the board
+     * now, in the { } key's place (Matt, the same day; [Layouts.withEmoji]). GIFs, which were among them until
+     * 0.16.0, lead the tools that follow the words ([gifTool]).
      */
     private fun everyday(): List<RowItem> {
         val items = ArrayList<RowItem>(4)
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
+        // Where the emoji button was (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is ... And
+        // move the code button up to where the emoji button used to be in the toolbar"): the { } key, as a button.
+        // A tap shows the code keys and another the letters again; it is lit while they are showing; and a hold opens
+        // Settings, as a hold on the key always did.
+        if (codeInRow) {
+            val on = keyboard?.page == Page.DEV
+            items += RowItem("code-$on", icon = RowIcon.BRACES, tint = RowTint.CODE.takeIf { on }, chip = true, description = if (on) "Code keys, showing. Letters" else "Code keys", onLong = { onOpenSettings() }) { toggleCode() }
+        }
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
             // Each is there only while it has something to do (Matt, 2026-11-12: "only show undo and redo when an undo
             // and redo is available"): the keyboard's own last step, or the app's undo where it has none. They were

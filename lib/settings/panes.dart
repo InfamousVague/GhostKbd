@@ -776,7 +776,7 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
       if (!isIOS && store.pluginOn('shortcuts'))
         _part('shortcuts', 'Text shortcuts', Lucide.replace, 'mint', (s) => s.shortcuts.isEmpty ? 'None yet' : (s.shortcuts.length == 1 ? '1 shortcut' : '${s.shortcuts.length} shortcuts'), _shortcutsPart),
       if (!isIOS) _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
-      _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
+      _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } button', _typingMorePart),
     ];
 
 /// What the Next word card says under its rows: which of the languages that are on start with word pairs counted
@@ -999,9 +999,9 @@ List<Widget> _typingMorePart(BuildContext context, SettingsStore store) => [
         _choice(store, 'long_press', 'Long-press delay', const {'fast': 'Fast', 'normal': 'Normal', 'slow': 'Slow'}),
       ]),
       PaneSection(
-        title: 'The { } key',
-        footer: const Text('Pairs leave the cursor inside; long-press a key on the { } page for its compounds (== !== => ->…).'),
-        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Beside space'))],
+        title: 'The { } button',
+        footer: const Text('In the row above the keys, where the emoji button was; with emoji off, or the row hidden, it is a key beside the space bar. Pairs leave the cursor inside; long-press a key on the { } page for its compounds (== !== => ->…).'),
+        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Above the keys'))],
       ),
     ];
 
@@ -1028,8 +1028,8 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
         _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
         _toggle(store, 'key_borders', 'Key borders'),
-        _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
-        _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Long-press { } still opens settings.'),
+        _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Holding the key beside ?123 opens settings either way.'),
+        _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Holding the key beside ?123 still opens settings.'),
       ]),
       PaneSection(
         footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),
@@ -1285,7 +1285,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
-        _plugin(store, 'emoji', 'Emoji', 'A button in the row beside the clipboard, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, where the { } key was, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),

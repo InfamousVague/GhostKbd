@@ -119,6 +119,10 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 
 ## 0.16.2
 
+- **The emoji key and the { } button changed places** (`Layouts.withEmoji`, `KeyType.EMOJI`,
+  `DevKeyboardService.everyday`): emoji is a key between ?123 and the space bar, where the { } key was, with no
+  pill behind its icon; the { } key is a button in the row above the keys, second after the clipboard, lit while
+  the code keys are showing. A hold on either opens Settings, as a hold on the { } key did.
 - **Dictation shows its words as you speak** (`LiveWords.kt`, `Dictation.kt`, `whisper_jni.cpp`'s `nativeDraft`;
   Settings › Dictation › Show words as I speak, on unless switched off; [docs/dictation.md](docs/dictation.md)): the
   phrase being spoken is written down again about once a second and shown in the field as a draft, a second or so
@@ -183,12 +187,14 @@ first of them whole in view at the row's end (`PluginRow.WordRoom`). Whether the
 both arrows were there, so the row keeps its shape as they come and go. A tap on an arrow keeps the row as it was,
 words and all, so the arrow stays under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
 takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
-on") takes its room out of theirs. Emoji was a key between the { } key
-and the space bar from 0.12.1 to 0.15.0 and is a button in the row again, beside the clipboard. With dictation on,
+on") takes its room out of theirs. Emoji is a key on the board, where the { } key was, drawn as the mic key is,
+its icon alone; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
+showing (since 0.16.2: `Layouts.withEmoji`, `DevKeyboardService.everyday`). With emoji off the { } key keeps its
+place on the board, and with the row hidden both are keys there. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop
 keeps its key. There is no settings cog in the
-row: hold the { } key or the comma. While a word is typed, its completions are ranked by
+row: hold the emoji key, the { } button or the comma. While a word is typed, its completions are ranked by
 the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
 forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the
 formats, the sources and the numbers.

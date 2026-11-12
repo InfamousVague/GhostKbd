@@ -36,6 +36,10 @@ interface KeyboardListener {
     fun onHideKeyboard()
     /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
     fun onMic()
+    /** The emoji key, where the { } key was, was tapped. */
+    fun onEmoji() {}
+    /** Another page of keys is showing (letters, ?123, the code keys): the row's { } button says which. */
+    fun onPage() {}
     /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
     /** Cursor control: a slide left from backspace takes the word before the cursor. */
@@ -67,6 +71,8 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onOpenSettings() = guard("onOpenSettings") { inner.onOpenSettings() }
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
     override fun onMic() = guard("onMic") { inner.onMic() }
+    override fun onEmoji() = guard("onEmoji") { inner.onEmoji() }
+    override fun onPage() = guard("onPage") { inner.onPage() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
@@ -112,6 +118,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * The dictation plugin is added, its model is here and the field is one to speak into: on the letters page the
      * mic key stands where the full stop was, next to enter ([Layouts.withMic]).
      */
+    /**
+     * The emoji plugin is added: its key stands in the { } key's place on the letters page ([Layouts.withEmoji]).
+     * [codeKey]: there is no row above the keys to hold the { } button, so the { } key stays on the board beside it.
+     */
+    var emojiKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+    var codeKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
@@ -370,10 +384,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val keyRects = ArrayList<Pair<Key, RectF>>()
 
     fun showPage(next: Page) {
+        val changed = page != next
         page = next
         if (next != Page.LETTERS) { shift = ShiftState.OFF; autoShifted = false }
         rebuild()
         invalidate()
+        if (changed) listener.onPage()
     }
 
     /**
@@ -407,7 +423,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
         }
-        rows = if (micKey) Layouts.withMic(base) else base
+        // The mic first: it knows the letters page by its { } key, which the emoji key then takes the place of.
+        val spoken = if (micKey) Layouts.withMic(base) else base
+        rows = if (emojiKey) Layouts.withEmoji(spoken, codeKey) else spoken
         layoutKeys()
     }
 
@@ -815,6 +833,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             KeyType.GLOBE -> drawGlobe(canvas, cx, cy)
             // The full stop whose place it took is in its corner, as a letter's long-press character is.
             KeyType.MIC -> { drawMic(canvas, cx, cy, theme.text); drawHint(canvas, key, f) }
+            // As the mic key is drawn: the icon alone, in the keys' own colour, with no pill behind it.
+            KeyType.EMOJI -> drawPackIcon(canvas, RowIcon.EMOJI, cx, cy, dp(22f), theme.text)
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
@@ -1387,6 +1407,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             // The mic key holds the full stop it stands in for; not while it is listening, when a touch only ends the take.
             KeyType.MIC -> if (dictation == DictationPhase.OFF) timer.postDelayed(longPress, longPressMs)
             KeyType.MODE -> if (t.key.label == "{ }") timer.postDelayed(longPress, longPressMs)
+            // The emoji key stands where the { } key did, and a hold on it opens Settings as a hold there always has.
+            KeyType.EMOJI -> timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
         invalidate()
@@ -1498,7 +1520,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() }
             }
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
-            KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
+            KeyType.MODE, KeyType.EMOJI -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
             KeyType.SHIFT -> {
                 t.longPressed = true
                 shift = ShiftState.LOCKED; autoShifted = false
@@ -1562,6 +1584,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)
                 KeyType.MIC -> listener.onMic()
+                KeyType.EMOJI -> listener.onEmoji()
                 KeyType.GLOBE -> nextLayout()?.let { listener.onLayout(it) }
                 KeyType.DELETE -> Unit
             }
