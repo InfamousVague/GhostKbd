@@ -262,6 +262,9 @@ fun typeAll(
 
 val SPACE = floatArrayOf(Geo.SPACE_LEFT, Geo.SPACE_TOP, Geo.SPACE_RIGHT, Geo.SPACE_TOP + Geo.H)
 
+/** The tap test asks names for their capitals ([Autocorrect.correct]'s names), unless told -Dnames=false. */
+val NAMES = System.getProperty("names", "true") == "true"
+
 fun taps(root: File) {
     val kb = Keyboard(root)
     val all = Sentences(root)
@@ -291,7 +294,9 @@ fun taps(root: File) {
         println(context.line("${noise.name}: with context"))
         val t0 = System.nanoTime()
         var calls = 0
-        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        // As a message field has it: names are asked for their capitals (-Dnames=false: as before there were any).
+        // Words are scored with capitals aside, so a capital shows here only by what it does to the words after it.
+        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE), NAMES) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1)))
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }

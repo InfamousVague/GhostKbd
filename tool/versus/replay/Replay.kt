@@ -32,6 +32,10 @@
 // mean other keys on it. Without --board the keys are this tree's (for `geometry`, and for `probes` of a
 // measurement made of this tree's build).
 //
+// Names are asked for their capitals (Autocorrect.correct's `names`), as the service is to ask in a field like this
+// one, which capitalises sentences: DevKeyboardService.correctLastWord does not pass it yet, so until it does a
+// phone types as `replay ... --no-names` does, and as every build up to 0.16.3 did.
+//
 // `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
 // @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
 // sentences of a versus run (tool/versus/whatif.py, fixtures.py). Nothing in the app is changed by it.
@@ -271,7 +275,7 @@ class Decoder(root: File) {
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
  */
-class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false) {
+class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false, private val names: Boolean = true) {
     val text = StringBuilder()
     /** The ?123 page is showing, on a build from before 2026-11-12: KeyboardView.tapKeys was null there, and a word was read without its taps. */
     private var offLetters = false
@@ -394,7 +398,8 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             if (prev.isLetterOrDigit() || prev in "@#/._-\\:\$`") return false
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-        val fixed = decoder.ac.correct(word, scorer, tapsFor(word)) ?: return false
+        // The field capitalises sentences and the keyboard's own capitals are on: a name is to have its capital.
+        val fixed = decoder.ac.correct(word, scorer, tapsFor(word), names) ?: return false
         fixes += "$word>$fixed"
         text.setLength(text.length - word.length)
         text.append(fixed).append(separator)
@@ -465,6 +470,7 @@ fun dial(setting: String) {
 
 fun replay(root: File, all: List<String>) {
     val without = "--marks-without-taps" in all
+    val names = "--no-names" !in all
     val args = ArrayList<String>()
     var recorded: File? = null
     var i = 0
@@ -484,7 +490,7 @@ fun replay(root: File, all: List<String>) {
         val tab = line.indexOf('\t')
         if (tab > 0) {
             val id = line.substring(0, tab)
-            val typist = Typist(b, decoder, marksWithoutTaps = without)
+            val typist = Typist(b, decoder, marksWithoutTaps = without, names = names)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {
                 val f = e.split(':')

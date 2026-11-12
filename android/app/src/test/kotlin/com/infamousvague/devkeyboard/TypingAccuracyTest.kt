@@ -138,6 +138,92 @@ class TypingAccuracyTest {
         assertTrue("$slipped", "tomorrow" in slipped)
     }
 
+    // --- names ------------------------------------------------------------------------------------------------------
+
+    @Test fun aNameGetsItsCapitalInTheMiddleOfASentence() {
+        // Left as typed: a person, a day, a month, a country, a city, a language.
+        for ((typed, name) in listOf("tom" to "Tom", "mary" to "Mary", "monday" to "Monday", "january" to "January", "algeria" to "Algeria", "london" to "London", "french" to "French")) {
+            assertEquals(name, ac.correct(typed, null, taps(typed), names = true))
+            assertEquals("$typed, with no taps to go by", name, ac.correct(typed, names = true))
+        }
+        // Mended, it has the name's capital too.
+        assertEquals("Monday", ac.correct("mondya", null, taps("mondya"), names = true))
+        assertEquals("Monday", ac.correct("mondya", names = true))
+        // A name's possessive is the name's.
+        assertEquals("Tom's", ac.correct("tom's", names = true))
+        // Typed with its capital (a sentence's first word, or the shift key) there is nothing to do; all capitals stay.
+        assertNull(ac.correct("Tom", null, taps("Tom"), names = true))
+        assertNull(ac.correct("TOM", names = true))
+        // Every other word is as it was.
+        for (word in listOf("hello", "there", "table", "Hello")) assertNull(word, ac.correct(word, null, taps(word), names = true))
+        assertEquals("the", ac.correct("teh", null, taps("teh"), names = true))
+        assertEquals("I'm", ac.correct("im", null, taps("im"), names = true))
+        assertEquals("in the", ac.correct("inthe", null, taps("inthe"), names = true))
+    }
+
+    @Test fun aWordThatIsOnlySometimesANameIsLeftInLowerCase() {
+        // Each is written without a capital more than once in twenty times where it stands in the middle of a
+        // sentence (tool/capitals.py): a capital wrongly given is a right word spoiled.
+        for (word in listOf("will", "mark", "rose", "may", "bill", "march", "turkey", "polish", "frank", "grace", "hope", "jack", "god")) {
+            assertNull(word, ac.correct(word, null, taps(word), names = true))
+        }
+        // Two letters are as often a slip or a shorthand as a title, and are left too.
+        for (word in listOf("mr", "dr", "st")) assertNull(word, ac.correct(word, null, taps(word), names = true))
+    }
+
+    @Test fun noCapitalUnlessTheFieldWantsThem() {
+        // Not asked for (a field that capitalises nothing, a terminal, capitals turned off), a name is as it always was.
+        for (word in listOf("tom", "monday", "algeria")) {
+            assertNull(word, ac.correct(word, null, taps(word)))
+            assertNull(word, ac.correct(word))
+            assertNull(word, ac.suggest(word, null, taps(word)).fix)
+        }
+        assertEquals("monday", ac.correct("mondya", null, taps("mondya")))
+    }
+
+    @Test fun aNameThePersonKeepsInLowerCaseStaysThere() {
+        val mine = english()
+        assertEquals("Monday", mine.correct("monday", names = true))
+        // Undoing the capital keeps the word, as undoing any fix does: it is not given again, nor as a mend's.
+        mine.setLearned(setOf("monday"))
+        assertNull(mine.correct("monday", null, taps("monday"), names = true))
+        assertNull(mine.suggest("monday", null, taps("monday"), names = true).fix)
+        assertEquals("monday", mine.correct("mondya", null, taps("mondya"), names = true))
+        assertEquals("Tuesday", mine.correct("tuesday", names = true))
+    }
+
+    @Test fun aNameNoListHasIsLeftAsTyped() {
+        // The names are words of the list: one it lacks (the typing bench's unknown words) is never given a capital.
+        for (word in listOf("okafor", "siobhan", "thandiwe", "ghostkbd")) {
+            if (ac.isWord(word)) continue
+            assertNull(word, ac.correct(word, null, taps(word), names = true))
+        }
+    }
+
+    @Test fun theRowShowsANameAsTheSpaceWillLeaveIt() {
+        val row = ac.suggest("tom", null, taps("tom"), names = true)
+        assertEquals("Tom", row.fix)
+        // The name first, then the word as typed, a tap away.
+        assertEquals(listOf("Tom", "tom"), row.words.take(2))
+        // A word being typed is offered with its capital.
+        assertTrue(ac.suggest("mond", null, taps("mond"), names = true).words.contains("Monday"))
+        assertTrue(ac.suggest("mond", null, taps("mond")).words.contains("monday"))
+        // Typed with its capital there is no fix to show.
+        val shifted = ac.suggest("Tom", null, taps("Tom"), names = true)
+        assertNull(shifted.fix)
+        assertEquals("Tom", shifted.words.first())
+    }
+
+    @Test fun aSpellingAnotherLoadedLanguageHasIsNoName() {
+        // "roman" is Roman in English and a novel in French: with both loaded it is left. Monday is nobody else's word.
+        assertEquals("Roman", ac.correct("roman", names = true))
+        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val state = LanguageState.of(listOf("en", "fr"), emptyMap(), "")
+        both.loadNow(state.dictionaries, state.board)
+        assertNull(both.correct("roman", names = true))
+        assertEquals("Monday", both.correct("monday", names = true))
+    }
+
     // --- the person's own mistakes ----------------------------------------------------------------------------------
 
     @Test fun aRememberedMistakeIsMendedTheWayItWasPutRight() {

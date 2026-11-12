@@ -293,15 +293,18 @@ def category(word, original, clean, off, space_trouble, order, first=False):
     return "one key off"
 
 
-def capitals(rec):
-    """(names the field has with their capital, names it has at all): the sentence's words after its first that
-    are written with a capital (Tom, Algeria, Monday; not I), counted where the field has the right letters. The
-    thumb types everything in lower case, so a capital is the keyboard's doing. The word score leaves capitals aside."""
-    def tokens(text):
-        return [w for w in (re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t) for t in text.replace("’", "'").split()) if w]
+def tokens(text):
+    """A text's words as they are written, the marks about them gone."""
+    return [w for w in (re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t) for t in text.replace("’", "'").split()) if w]
+
+
+def names(rec):
+    """The sentence's names the field has the right letters of, each as (the sentence writes it, the field has it):
+    the sentence's words after its first that are written with a capital (Tom, Algeria, Monday; not I). The thumb
+    types everything in lower case, so a capital is the keyboard's doing."""
     want, got = tokens(rec["target"]), tokens(rec["out"])
     lower = [w.lower() for w in got]
-    with_capital = found = 0
+    out = []
     used = 0
     for j, w in enumerate(want):
         if j == 0 or not w[:1].isupper() or w == "I" or w.startswith("I'"):
@@ -312,9 +315,43 @@ def capitals(rec):
         except ValueError:
             continue
         used = k + 1
-        found += 1
-        with_capital += 1 if got[k][:1].isupper() else 0
-    return with_capital, found
+        out.append((w, got[k]))
+    return out
+
+
+def capitals(rec):
+    """(names the field has with their capital, names it has at all): see [names]. The word score leaves capitals aside."""
+    found = names(rec)
+    return sum(1 for _, got in found if got[:1].isupper()), len(found)
+
+
+def capitals_amiss(rec):
+    """The other side of [names]: (words the field has with a capital where the sentence writes none, each as
+    (the sentence writes it, the field has it); how many words the sentence writes in lower case that the field has
+    the right letters of). The two are lined up word for word (the longest runs they share). A word that stands
+    first in the field, or after a full stop the keyboard put in (a second space typed within a second), has the
+    sentence's capital, which is the shift key's doing and not counted."""
+    import difflib
+    want = tokens(rec["target"])
+    raw = rec["out"].replace("’", "'").split()
+    got, opens = [], []
+    start = True
+    for t in raw:
+        w = re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t)
+        if w:
+            got.append(w)
+            opens.append(start)
+        start = t[-1:] in ".?!…"
+    amiss, plain = [], 0
+    blocks = difflib.SequenceMatcher(None, [w.lower() for w in want], [w.lower() for w in got], autojunk=False).get_matching_blocks()
+    for a, b, size in blocks:
+        for j, k in zip(range(a, a + size), range(b, b + size)):
+            if j == 0 or opens[k] or not want[j][:1].islower():
+                continue
+            plain += 1
+            if got[k][:1].isupper():
+                amiss.append((want[j], got[k]))
+    return amiss, plain
 
 
 def at_the_press(rec):

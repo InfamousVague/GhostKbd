@@ -26,6 +26,9 @@ import kotlin.concurrent.thread
  * forms: a right word the list lacks is one slip from a listed one more often than a typo is. With one of them
  * loaded a mend is made on its own only when it is near certain ([best]); a likely one is offered in the row instead.
  *
+ * A name comes out with its capital where the field wants capitals ([proper]: tom is Tom, monday Monday), mended
+ * or left as typed, from English's list of the words all but always written with one (dict/en_capitals.txt).
+ *
  * Where next-word prediction is on, the word before is gone by too ([Scorer], NextWordModel.kt): among the words a
  * prefix could become, the likely next ones rank higher, and between two candidates that would both have been good
  * corrections the likelier one after that word is chosen. Context never causes a correction that would not have been
@@ -45,7 +48,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * in a list themselves and still give way to their accented word (see [load]). [commonest] are each language's
      * commonest few words, for filling next-word prediction's row. [sharedI] says a list other than English's has
      * "i" as one of its commonest words (Polish, Swedish, Italian), and [cautious] that one of the lists is of the
-     * languages added after the first six. Never changed once made.
+     * languages added after the first six. [capitals] are English's words that are all but always written with a
+     * capital, each under its lower case ("tom" to "Tom"; see [proper]). Never changed once made.
      */
     private class Lexicon(
         val key: String,
@@ -64,6 +68,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
+        val capitals: Map<String, String> = emptyMap(),
     ) {
         /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
         val trie: WordTrie = WordTrie(sorted, sortedZipf)
@@ -208,6 +213,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val strict = HashSet<String>()
         val commonest = LinkedHashMap<String, ArrayList<String>>()
         var sharedI = false
+        // English's names (dict/en_capitals.txt: Tom, Monday, Algeria), read before the lists: a spelling another
+        // loaded language also lists is taken out again as that list is read, since there it may be an ordinary
+        // word that has no capital (French "roman", a novel; Spanish "china", a pebble).
+        val caps = HashMap<String, String>()
+        if ("en" in languages) runCatching {
+            open("dict/en_capitals.txt")?.bufferedReader()?.useLines { lines ->
+                lines.forEach { line -> val word = line.trim(); if (word.isNotEmpty() && word[0] != '#') caps[word.lowercase(Locale.ROOT)] = word }
+            }
+        }
         for (lang in languages) {
             if (gone()) return null
             val firsts = commonest.getOrPut(lang) { ArrayList(12) }
@@ -224,6 +238,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                             if (firsts.size < 12) firsts += word
                             if (first && lenient && languages.size > 1) strict += word
                             if (word == "i" && lang != "en" && zipf >= I_WORD) sharedI = true
+                            if (lang != "en" && caps.isNotEmpty()) caps.remove(word)
                         }
                     }
                 }
@@ -287,7 +302,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         return Lexicon(
             key, w, f, c, sorted, FloatArray(sorted.size) { w[sorted[it]] ?: 0f }, plainKeys, plainWords, FloatArray(plainWords.size) { w[plainWords[it]] ?: 0f },
-            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows,
+            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows, caps,
         )
     }
 
@@ -432,9 +447,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * What [typed] should become, or null to leave it. [typed] is letters, their marks and the layout's joiners (an
      * apostrophe, a half-space) only. [scorer] is what is likely at this place in the text, where prediction is on.
      * [taps] are where the fingers landed for it, where the keyboard knows (see [byTaps]): the fix may then be two
-     * words ("thankyou" is "thank you").
+     * words ("thankyou" is "thank you"). [names] says the field wants capitals: then a name comes out with its own
+     * ([proper]), mended ("tmo" is "Tom") or left as typed ("tom" is "Tom"), in the middle of a sentence too.
      */
-    fun correct(typed: String, scorer: Scorer? = null, taps: Taps? = null): String? {
+    fun correct(typed: String, scorer: Scorer? = null, taps: Taps? = null, names: Boolean = false): String? {
         val now = now
         if (now.lexicon.words.isEmpty() || typed.isEmpty() || typed.length > 24) return null
         // An acronym or a deliberate capitalised name of two letters or more is left as typed.
@@ -444,8 +460,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val lower = typed.lowercase(now.board.locale)
         // One of the person's own often-typed words is left alone, unless they have been putting it right by hand.
         if ((kept(lower) && remembered(now, lower) == null) || eszettWord(lower, now.lexicon.words)) return null
-        val fixed = best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.takeIf { it.sure }?.word ?: return null
-        val cased = recase(now.board.locale, typed, fixed)
+        val fixed = best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.takeIf { it.sure }?.word
+        val word = if (names) named(now, fixed ?: lower) else fixed ?: return null
+        val cased = recase(now.board.locale, typed, word)
         return if (cased == typed) null else cased
     }
 
@@ -457,9 +474,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
     /**
      * The row's suggestions for [typed]. With a [scorer] (prediction is on) the words it begins are ranked by the
-     * word before as well as by how common they are, and the person's own often-typed words join them.
+     * word before as well as by how common they are, and the person's own often-typed words join them. With [names]
+     * (as [correct] has it) a name is offered with its capital, and "tom" has "Tom" first, as the space will leave
+     * it, and then "tom", a tap away.
      */
-    fun suggest(typed: String, scorer: Scorer? = null, taps: Taps? = null): Suggestions {
+    fun suggest(typed: String, scorer: Scorer? = null, taps: Taps? = null, names: Boolean = false): Suggestions {
         val now = now
         if (now.lexicon.words.isEmpty() || typed.isEmpty() || typed.length > 24) return Suggestions(emptyList(), null, false)
         val locale = now.board.locale
@@ -468,13 +487,17 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val contractions = now.lexicon.contractions
         val eszett = eszettWord(lower, words)
         val isWord = kept(lower) || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower) || eszett
-        val mend = if ((kept(lower) && remembered(now, lower) == null) || eszett) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
-        val fix = mend?.takeIf { it.sure }?.word
+        val stands = (kept(lower) && remembered(now, lower) == null) || eszett
+        val mend = if (stands) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
+        val sure = mend?.takeIf { it.sure }?.word
+        // What the space will leave: the mend, and a name's capital where the field wants them, as [correct] has it.
+        val fix = if (names && !stands) named(now, sure ?: lower).takeIf { sure != null || recase(locale, typed, it) != typed } else sure
+        fun shown(word: String) = if (names) proper(now, word) else capitalI(now, word)
         val out = LinkedHashSet<String>()
         fix?.let { out += recase(locale, typed, it) }
         if (isWord) out += recase(locale, typed, contractions[lower]?.let { capitalI(now, it) } ?: capitalI(now, lower))
         // A mend that is likely but not certain enough to make on its own is offered, never made.
-        mend?.takeIf { !it.sure }?.let { out += recase(locale, typed, it.word) }
+        mend?.takeIf { !it.sure }?.let { out += recase(locale, typed, if (names) named(now, it.word) else it.word) }
         // English's "I" where a lone i is left as typed because another language has it as a word: a tap away.
         if (lower == "i" && now.board.english && now.lexicon.sharedI && now.board.locale.language != "tr") out += "I"
         // Completions: the commonest few words starting with what is typed, and, where it is typed plainly, the
@@ -531,11 +554,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         top.sortByDescending { it.second }
         if (scorer == null && !noisy) {
-            for ((cand, _) in top) { if (out.size >= 5) break; out += recase(locale, typed, capitalI(now, cand)) }
+            for ((cand, _) in top) { if (out.size >= 5) break; out += recase(locale, typed, shown(cand)) }
         } else {
             // A word ranked twice (by frequency, and in context) is offered once, in its higher place.
             val taken = out.mapTo(HashSet()) { it.lowercase(locale) }
-            for ((cand, _) in top) { if (out.size >= 5) break; if (taken.add(cand.lowercase(locale))) out += recase(locale, typed, capitalI(now, cand)) }
+            for ((cand, _) in top) { if (out.size >= 5) break; if (taken.add(cand.lowercase(locale))) out += recase(locale, typed, shown(cand)) }
         }
         return Suggestions(out.toList(), fix?.let { recase(locale, typed, it) }, isWord)
     }
@@ -1046,6 +1069,32 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         word.startsWith("i'") -> "I" + word.substring(1)
         else -> word
     }
+
+    /**
+     * [word] (lower case) as it is all but always written: a name with its capital (tom is Tom, monday Monday,
+     * algeria's Algeria's), I and I'm as [capitalI] has them, any other word as it is.
+     *
+     * The names are English's ([Lexicon.capitals], dict/en_capitals.txt, made by tool/capitals.py): the words of the
+     * list that Tatoeba's sentences write with a capital 19 times in 20 or more where they stand in the middle of a
+     * sentence. A word that is a name only some of the time (will, mark, rose, may, bill, march, turkey) is not
+     * among them and is left as typed: a capital wrongly given spoils a right word. Never one the person keeps in
+     * lower case ([kept]: undoing a capital teaches that, as undoing any fix does), and never a spelling another
+     * loaded language has as a word of its own ([load]).
+     */
+    private fun proper(now: Now, word: String): String {
+        val caps = now.lexicon.capitals
+        if (caps.isEmpty() || word.length < 3) return capitalI(now, word)
+        caps[word]?.let { return if (kept(word)) word else it }
+        // A name's possessive is the name's.
+        if (word.length > 3 && word[word.length - 1] == 's' && (word[word.length - 2] == '\'' || word[word.length - 2] == '’')) {
+            val name = word.substring(0, word.length - 2)
+            caps[name]?.let { return if (kept(name) || kept(word)) word else it + word.substring(word.length - 2) }
+        }
+        return capitalI(now, word)
+    }
+
+    /** A fix, or the word as typed, with each of its words as [proper] has it: a fix may be two words. */
+    private fun named(now: Now, text: String): String = if (' ' in text) text.split(' ').joinToString(" ") { proper(now, it) } else proper(now, text)
 
     /** The typed word's capitals on the correction: all, first, or none. Capitals are the layout's (Turkish i gives İ). */
     private fun recase(locale: Locale, typed: String, fixed: String): String = when {
