@@ -101,9 +101,11 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **Clipboard pins** (`ClipList.kt`, `ClipHistory.kt`; [docs/clipboard-pins.md](docs/clipboard-pins.md)): hold a clip
   in the clipboard's list to pin it. A pinned clip leads the list, is not one of the 25 copies, and stays when the
   history is cleared; Settings › Row tools lists the pins, removes them and takes one written by hand.
-- **The row** (`PluginRow.WordRoom`, `Quill`): about three suggested words, in the row's middle, with room kept at
-  its end for the first of the tools; Undo and Redo are there only while each has something to do; and while the AI
-  writes or rewrites, a feather quill scribbles in the row's busy chip.
+- **The row** (`PluginRow.WordRoom`, `TapGuard`, `Quill`): about three suggested words, in the row's middle, with
+  room kept at its end for the first of the tools; Undo and Redo are there only while each has something to do, and
+  the row keeps its shape as they come and go (a tap on an arrow leaves the row as it was, and what takes the place
+  of an arrow that its own tap took away takes no tap for 0.6 seconds); and while the AI writes or rewrites, a
+  feather quill scribbles in the row's busy chip.
 - **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
   the mic key stands where the full stop was (`Layouts.withMic`).
 
