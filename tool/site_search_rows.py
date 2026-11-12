@@ -130,8 +130,16 @@ def languages():
     return rows, len(found), sum(1 for l in found if l["dictionary"])
 
 
+def model_built():
+    """Whether this tree's app has the on-phone language model's library in it: android/app/build.gradle.kts depends
+    on :llm. Where it has not, the app shows nothing of that model (Net.toMap, LocalAi.built), and nor does the site."""
+    gradle = (ROOT / "android/app/build.gradle.kts").read_text()
+    return re.search(r'^\s*implementation\(project\(":llm"\)\)', gradle, re.M) is not None
+
+
 def connections():
     src = (KOTLIN / "NetLedger.kt").read_text()
+    local = model_built()
     features = []
     body = src[src.index("enum class NetFeature"):src.index("enum class NetPath")]
     for m in re.finditer(r"^    ([A-Z_]+)\(" + STRING + r",\s*" + STRING + r",\s*" + STRING, body, re.M):
@@ -139,12 +147,17 @@ def connections():
     works = []
     for b in blocks(src[src.index("val WORKS"):src.index("fun hostOf")], r"(?<![A-Za-z])Works"):
         wid, title, line = strings(b)
+        if wid == "rewrite-local" and not local:
+            continue
         works.append([title, "Once a speech model is on the phone. None is yet." if wid == "dictation" else line])
     paths = []
     body = src[src.index("enum class NetPath"):]
     for m in re.finditer(r"^    [A-Z_]+\(\n\s+NetFeature\.([A-Z_]+), " + STRING + ", " + STRING, body, re.M):
         block = body[m.start():body.index("\n    ),", m.start())]
         paths.append(dict(feature=m.group(1), title=unescape(m.group(3)), trigger=joined(block, "trigger"), sends=joined(block, "sends")))
+    # Asserted on the whole ledger, below; shown without the on-phone model's download where the build has no library.
+    shown_paths = [p for p in paths if local or p["feature"] != "LOCAL_MODELS"]
+    features = [f for f in features if local or f["const"] != "LOCAL_MODELS"]
     offline = [
         ["Offline is off", "One switch for every internet connection Ghost Keyboard can make."],
         ["What it stops", "Each is a network connection Ghost Keyboard would otherwise make. What leaves your phone, below, lists them one by one: the servers, what starts each, and what is sent."],
@@ -156,12 +169,12 @@ def connections():
     ]
     leaves = [["Offline", "The one switch that stops them all."]]
     for f in features:
-        mine = [p for p in paths if p["feature"] == f["const"]]
+        mine = [p for p in shown_paths if p["feature"] == f["const"]]
         assert mine, f
         leaves.append([f["title"]])
         leaves += [[p["title"], f"When: {p['trigger']} Sent: {p['sends']}"] for p in mine]
     assert len(paths) == sum(1 for _ in re.finditer(r"^    [A-Z_]+\(\n\s+NetFeature\.", body, re.M))
-    return offline, leaves, len(paths)
+    return offline, leaves, len(shown_paths)
 
 
 def made():
