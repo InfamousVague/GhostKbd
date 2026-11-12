@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Tries Ghost Keyboard's decoder, as it is in this tree, on the words it lost: tool/versus/fixtures.py [file ...].
+"""Tries Ghost Keyboard's decoder, as it is in this tree, on the words it lost: tool/versus/fixtures.py [file ...]
+[--keep-taps-at-marks] [--set NAME=VALUE ...] (the last two as tool/versus/whatif.py has them).
 
 Each line of tool/versus/fixtures/*.tsv is a word another keyboard got and Ghost Keyboard did not, with the taps of
 the whole sentence it was in, exactly as they were injected on the emulator. This types every such sentence through
@@ -21,7 +22,16 @@ import score  # noqa: E402
 
 
 def main():
-    files = sys.argv[1:] or sorted(glob.glob(os.path.join(HERE, "fixtures", "*.tsv")))
+    argv = sys.argv[1:]
+    extra = []
+    if "--keep-taps-at-marks" in argv:
+        argv.remove("--keep-taps-at-marks")
+        extra.append("--keep-taps-at-marks")
+    while "--set" in argv:
+        i = argv.index("--set")
+        extra += argv[i:i + 2]
+        del argv[i:i + 2]
+    files = argv or sorted(glob.glob(os.path.join(HERE, "fixtures", "*.tsv")))
     if not files:
         raise SystemExit("fixtures: no tool/versus/fixtures/*.tsv (tool/versus/score.py <run> --fixtures writes them)")
     rows = []
@@ -40,7 +50,7 @@ def main():
     for r in rows:
         sentences[(r["thumb"], r["line"])] = r
     lines = ["%s/%s\t%s" % (k[0], k[1], r["events"]) for k, r in sentences.items()]
-    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + size, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + size + extra, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if p.returncode != 0:
         raise SystemExit("fixtures: replay.sh failed: " + p.stderr[-600:])
     now = {}

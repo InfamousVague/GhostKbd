@@ -119,7 +119,8 @@ how good either is on real typing, which is what the accuracy record is for (Set
 `tool/accuracy-replay.sh`) and, from anyone who turns them on, the anonymous typing reports ([reports.md](reports.md)).
 The typing trainer ([trainer.md](trainer.md)) is the one place where the keyboard knows what was meant: a run
 measures where that person's taps land about each key, and each run after the first tests a fix made from it, read
-both ways on the same taps, which reaches everyday typing only once it is proven better and taken.
+both ways on the same taps, which reaches everyday typing only once it is proven better and taken. Against another
+keyboard, the same taps are typed into both on the emulator: [versus.md](versus.md).
 
 Tap typing, 30,000 words (`taps`), 0.10.4's autocorrect beside 0.11.0's on the same taps:
 

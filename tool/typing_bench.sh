@@ -8,12 +8,15 @@
 #   tool/typing_bench.sh mistakes     # what learning from a person's corrections does for their habits
 #   tool/typing_bench.sh voice        # next words with a writer's own earlier sentences (Mockingbird's samples)
 #   JAVA_OPTS="-Dwords=60000 -Dverbose=true" tool/typing_bench.sh taps
+#   tool/typing_bench.sh versus       # the words lost to another keyboard on the emulator, typed again by their
+#                                     # own taps (tool/versus/fixtures.py, docs/versus.md); takes its options
 #
 # The sentences are Tatoeba's held-out English ones (every 20th of the export, never counted for the starter
 # tables), read from build/typing-bench/en-heldout.txt. `python3 tool/next_words.py en` fetches the export into
 # build/ngram-src/; this script cuts the held-out sentences from it the first time.
 set -e
 cd "$(dirname "$0")/.."
+if [ "$1" = versus ]; then shift; exec python3 tool/versus/fixtures.py "$@"; fi
 held=build/typing-bench/en-heldout.txt
 if [ ! -f "$held" ]; then
   export_file=build/ngram-src/eng_sentences_detailed.tsv.bz2

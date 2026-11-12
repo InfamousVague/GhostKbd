@@ -34,6 +34,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, HERE)
+import timing  # noqa: E402
 THUMB_ORDER = ["careful", "leaning", "sloppy"]
 
 
@@ -91,10 +93,13 @@ def events_line(rec):
     return " ".join(parts)
 
 
-def replay(records, size):
-    """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes)}."""
+def replay(records, size, keep_taps_at_marks=False, dials=()):
+    """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes)}.
+    [keep_taps_at_marks]: the word before a mark from the ?123 page is read by its taps, as the app does not.
+    [dials]: the decoder's own numbers for this run, as "TapDecoder.BUDGET=8" (Replay.kt's --set)."""
     lines = ["%s/%d\t%s" % (r["thumb"], r["line"], events_line(r)) for r in records]
-    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + [str(v) for v in size], input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    extra = (["--keep-taps-at-marks"] if keep_taps_at_marks else []) + [x for dial in dials for x in ("--set", dial)]
+    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + [str(v) for v in size] + extra, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if p.returncode != 0:
         raise SystemExit("score: replay.sh failed: " + p.stderr[-600:])
     out = {}
@@ -165,8 +170,12 @@ def classes(rec, on):
 
 
 def gaps(rec):
-    """Milliseconds from one key press's mark on the field to the next, for the pace that was really kept."""
-    times = [t for t, _ in rec["typed"]]
+    """Milliseconds from one touch to the next, for the pace that was really kept: by the emulator's clock where
+    the record has it (a touch going down to the next going down, marks from the ?123 page aside), else by the
+    times the field marked each key press at."""
+    if rec.get("clock") and len(rec["clock"]) == len(rec["touches"]):
+        return [b[0] - a[0] for a, b, t, u in zip(rec["clock"], rec["clock"][1:], rec["touches"], rec["touches"][1:]) if t["kind"] != "mark" and u["kind"] != "mark"]
+    times = timing.presses(rec)
     return [b - a for a, b in zip(times, times[1:]) if 0 < b - a < 2000]
 
 
@@ -175,7 +184,35 @@ def interval(values):
     return v[int(0.025 * (len(v) - 1))], v[int(0.975 * (len(v) - 1))]
 
 
+def word_list():
+    """Ghost Keyboard's English word list as its files have it (assets/dict/en.tsv, the contractions and the slang
+    list): {word: how common, on the list's own scale}. For saying of a lost word whether the keyboard could have
+    known it at all; the keyboard's own test (Autocorrect.isWord) knows a little more than the files say."""
+    words = {}
+    base = os.path.join(ROOT, "android", "app", "src", "main", "assets", "dict")
+    try:
+        for line in open(os.path.join(base, "en.tsv"), encoding="utf-8"):
+            f = line.rstrip("\n").split("\t")
+            if len(f) >= 2:
+                try:
+                    words[f[0].lower()] = float(f[1])
+                except ValueError:
+                    pass
+        for line in open(os.path.join(base, "en_contractions.tsv"), encoding="utf-8"):
+            f = line.rstrip("\n").split("\t")
+            if len(f) == 2:
+                words.setdefault(f[1].lower(), 0.0)
+        for line in open(os.path.join(base, "en_slang.txt"), encoding="utf-8"):
+            for w in line.split():
+                if not w.startswith("#"):
+                    words.setdefault(w.lower(), 0.0)
+    except OSError:
+        pass
+    return words
+
+
 def category(word, original, clean, off, space_trouble, order, first=False):
+    """What the thumb did to a word the keyboard then got wrong: the first of these that is true of it."""
     if clean:
         return "a right word changed"
     if space_trouble:
@@ -188,11 +225,106 @@ def category(word, original, clean, off, space_trouble, order, first=False):
         return "a name or other capital"
     if len(word) <= 3:
         return "a short word (three letters or fewer)"
-    if re.search(r"(.)\1", word):
-        return "a word with a doubled letter"
-    if off >= 2:
-        return "two or more keys off"
+    if off >= 3:
+        return "three or more keys off"
+    if off == 2:
+        return "two keys off"
     return "one key off"
+
+
+def capitals(rec):
+    """(names the field has with their capital, names it has at all): the sentence's words after its first that
+    are written with a capital (Tom, Algeria, Monday; not I), counted where the field has the right letters. The
+    thumb types everything in lower case, so a capital is the keyboard's doing. The word score leaves capitals aside."""
+    def tokens(text):
+        return [w for w in (re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t) for t in text.replace("’", "'").split()) if w]
+    want, got = tokens(rec["target"]), tokens(rec["out"])
+    lower = [w.lower() for w in got]
+    with_capital = found = 0
+    used = 0
+    for j, w in enumerate(want):
+        if j == 0 or not w[:1].isupper() or w == "I" or w.startswith("I'"):
+            continue
+        # The first place from where the last name was found: names are few, and in order.
+        try:
+            k = lower.index(w.lower(), used)
+        except ValueError:
+            continue
+        used = k + 1
+        found += 1
+        with_capital += 1 if got[k][:1].isupper() else 0
+    return with_capital, found
+
+
+def at_the_press(rec):
+    """What each letter's tap typed at the moment it was made, before any word was corrected: for every tap meant
+    for a letter, (where it landed: "own", "other" letter's key, or the "bar"; what was typed: "meant", the key
+    "under" it, "third", or "more" than a letter changed). None where the field's changes do not line up with the
+    touches, one for one."""
+    touches = [t for t in rec["touches"] if t["kind"] != "mark" or t.get("types", True)]
+    presses, last = [], None
+    for ms, text in rec["typed"]:
+        if last is None or ms - last >= 40:
+            presses.append([text, text])
+        else:
+            presses[-1][1] = text
+        last = ms
+    if len(presses) != len(touches):
+        return None
+    out, before = [], ""
+    for t, (first, after) in zip(touches, presses):
+        if t["kind"] == "key":
+            on, meant = t.get("on"), t["meant"]
+            got = first[-1].lower() if len(first) == len(before) + 1 and first.startswith(before) else None
+            where = "own" if on == meant else "bar" if on == " " else "other"
+            out.append((where, "more" if got is None else "meant" if got == meant else "under" if got == on else "third"))
+        before = after
+    return out
+
+
+def reach(letters, common):
+    """How many letters of a word TapDecoder.search will read as another key (its `changes`, as of 0.15.0): one in
+    a word of three letters or fewer, two up to five, three up to eight, four beyond; and where the letters typed
+    spell a common word, one up to four letters and two beyond. Read across from the decoder: keep it in step."""
+    if common:
+        return 1 if letters <= 4 else 2
+    return 1 if letters <= 3 else 2 if letters <= 5 else 3 if letters <= 8 else 4
+
+
+COMMON = 3.2  # Autocorrect.COMMON: from this Zipf frequency a listed word is a common one
+
+
+def limit(rec, j, clean, typed, off, order, listed):
+    """What in Ghost Keyboard's decoder stood between the thumb's slip and the word meant: the first of these that
+    is true of word [j]. Worked out from the taps and the word list alone, so it holds for another keyboard's
+    losses too only as a description of the slip."""
+    if clean:
+        return "typed as meant, and changed"
+    mine = [t for t in rec["touches"] if t["word"] == j]
+    before = [t for t in rec["touches"] if t["word"] == j - 1]
+    if any(t["kind"] == "key" and t.get("on") == " " for t in mine):
+        return "cut in two: one of its letters landed on the space bar"
+    if any(t["kind"] == "space" and t.get("on") not in (" ", None) for t in mine + before):
+        return "run together: the space landed on a letter"
+    if any(kind == "space missed" and w in (j, j - 1) for w, kind in rec["slips"]):
+        return "run together: no space was typed"
+    if order:
+        return "a letter left out, doubled or swapped"
+    letters = typed.strip()
+    common = listed.get(letters, 0.0) >= COMMON
+    if off > reach(len(letters), common):
+        return "more letters off their keys than the search will change in a word this long"
+    if common:
+        return "the letters typed spell a common word, which is kept"
+    if letters in listed:
+        return "the letters typed spell a rare word"
+    return "no word typed, the word meant within the search's reach, and not mended"
+
+
+def ends_off_letters(rec, j):
+    """Word [j] is ended by a mark typed from the ?123 page: Ghost Keyboard then reads it without its taps."""
+    marks = [t for t in rec["touches"] if t["kind"] == "mark" and t["word"] == j]
+    return any(sum(1 for u in marks if u["meant"] == t["meant"]) > 1 for t in marks)
 
 
 def main():
@@ -203,13 +335,19 @@ def main():
     ap.add_argument("--resamples", type=int, default=2000)
     args = ap.parse_args()
 
-    runs, metas = {}, {}
+    runs, metas, left_out = {}, {}, {}
     for name in sorted(os.listdir(args.run)):
-        if name.endswith(".jsonl"):
+        # <keyboard>.jsonl alone: <keyboard>.stalled.jsonl is what was thrown away.
+        if name.endswith(".jsonl") and name.count(".") == 1:
             kb = name[:-6]
             runs[kb] = {}
+            left_out[kb] = 0
             for line in open(os.path.join(args.run, name)):
                 r = json.loads(line)
+                # A sentence the emulator never typed without a stall says nothing of the keyboard (run.py, timing.py).
+                if r.get("stalled"):
+                    left_out[kb] += 1
+                    continue
                 runs[kb][(r["thumb"], r["line"])] = r
             meta = os.path.join(args.run, kb + ".meta.json")
             metas[kb] = json.load(open(meta)) if os.path.exists(meta) else {}
@@ -294,6 +432,20 @@ def main():
                 "ms_between_key_presses": {"median": pace[len(pace) // 2] if pace else 0, "5%": pace[int(0.05 * len(pace))] if pace else 0, "95%": pace[int(0.95 * len(pace))] if pace else 0},
             }
         res["gaps"] = {kb: {k: {"gap": point[keyboards[0]][k] - point[kb][k], "interval": interval(diff[(kb, k)])} for k in ("wrong", "left", "spoiled")} for kb in keyboards[1:]}
+        # The same count over the words none of whose taps (their space's too) had to be moved off a key that is
+        # no letter, on any keyboard: does the moving decide anything?
+        def moved(kb, line, j):
+            return any(t.get("moved") for t in table[(kb, thumb, line)]["rec"]["touches"] if t["word"] == j and t["kind"] != "mark")
+        steady = [(line, j) for line in lines for j in range(len(table[(keyboards[0], thumb, line)]["right"])) if not any(moved(kb, line, j) for kb in keyboards)]
+        res["no_tap_moved"] = {"words": len(steady), "wrong": {kb: 100.0 * sum(1 for line, j in steady if not table[(kb, thumb, line)]["right"][j]) / max(1, len(steady)) for kb in keyboards}}
+        # What each tap typed as it was made.
+        res["at_the_press"] = {}
+        for kb in keyboards:
+            tally = collections.Counter()
+            for line in lines:
+                for pair in at_the_press(table[(kb, thumb, line)]["rec"]) or [("unread", "unread")]:
+                    tally[pair] += 1
+            res["at_the_press"][kb] = {"%s/%s" % k: v for k, v in sorted(tally.items())}
         results["thumbs"][thumb] = res
 
     # The tables.
@@ -317,6 +469,19 @@ def main():
                 md.append("| %s, against %s | %+.1f | %+.1f to %+.1f | %+.1f (%+.1f to %+.1f) | %+.1f (%+.1f to %+.1f) |" % (
                     thumb, names[kb], g["wrong"]["gap"], g["wrong"]["interval"][0], g["wrong"]["interval"][1],
                     g["left"]["gap"], g["left"]["interval"][0], g["left"]["interval"][1], g["spoiled"]["gap"], g["spoiled"]["interval"][0], g["spoiled"]["interval"][1]))
+        md.append("")
+
+    if len(keyboards) > 0:
+        md.append("| Thumb | Keyboard | Taps that landed on another letter's key | of them typed as the letter meant, there and then | Taps on their own key | of them typed as something else | Words wrong where no tap was moved off a key that is no letter |")
+        md.append("| --- | --- | ---: | ---: | ---: | ---: | ---: |")
+        for thumb, res in results["thumbs"].items():
+            for kb in keyboards:
+                a = res["at_the_press"][kb]
+                other = sum(v for k, v in a.items() if k.startswith("other/"))
+                own = sum(v for k, v in a.items() if k.startswith("own/"))
+                md.append("| %s | %s | %d | %d (%.0f%%) | %d | %d (%.1f%%) | %.1f%% of %d |" % (
+                    thumb, names[kb], other, a.get("other/meant", 0), 100.0 * a.get("other/meant", 0) / max(1, other), own, own - a.get("own/meant", 0), 100.0 * (own - a.get("own/meant", 0)) / max(1, own),
+                    res["no_tap_moved"]["wrong"][kb], res["no_tap_moved"]["words"]))
         md.append("")
 
     # The JVM against the emulator.
@@ -362,11 +527,19 @@ def main():
         recs = list(runs[kb].values())
         second = [r for r in recs if "uiautomator" in r]
         odd = [r for r in recs if re.search(r"[^A-Za-z ,.?!'’\n-]", r["out"])]
-        checks[kb] = {"sentences": len(recs), "read_twice": len(second), "read_twice_same": sum(1 for r in second if r["uiautomator"] == r["out"]), "with_other_characters": len(odd)}
+        aside = os.path.join(args.run, kb + ".stalled.jsonl")
+        caps = [capitals(r) for r in recs]
+        checks[kb] = {"sentences": len(recs), "read_twice": len(second), "read_twice_same": sum(1 for r in second if r["uiautomator"] == r["out"]), "with_other_characters": len(odd),
+                      "names_given_their_capital": sum(c[0] for c in caps), "names_with_the_right_letters": sum(c[1] for c in caps),
+                      "typings_thrown_away_for_a_stall": sum(1 for _ in open(aside)) if os.path.exists(aside) else 0,
+                      "left_out_as_stalled": left_out.get(kb, 0), "timed_by_the_emulators_clock": sum(1 for r in recs if r.get("clock")),
+                      "doubted_still": sum(1 for r in recs if timing.doubt(r))}
     results["checks"] = checks
 
     # Where another keyboard got the word and Ghost Keyboard did not.
+    listed = word_list()
     losses = []
+    wins = []
     counts = collections.Counter()
     other_way = collections.Counter()
     if "ghost" in keyboards and len(keyboards) > 1:
@@ -385,23 +558,48 @@ def main():
                             continue
                         if e["right"][j] and not o["right"][j]:
                             other_way[(thumb, other)] += 1
+                            wins.append({"category": category(word, originals[j] if j < len(originals) else word, o["clean"][j], o["off"][j], o["space"][j], o["order"][j], first=j == 0),
+                                         "thumb": thumb, "line": line, "word": j, "meant": word, "typed": o["typed"][j], "ghost": e["pairs"][j], "other": other, "others": o["pairs"][j] or "(nothing)",
+                                         "sentence": rec["target"], "ghost_field": rec["out"], "other_field": o["rec"]["out"]})
                             continue
                         if not o["right"][j]:
                             continue
                         cat = category(word, originals[j] if j < len(originals) else word, e["clean"][j], e["off"][j], e["space"][j], e["order"][j], first=j == 0)
+                        lim = limit(rec, j, e["clean"][j], e["typed"][j], e["off"][j], e["order"][j], listed)
                         left = e["pairs"][j] or "(nothing)"
                         how = "left as typed" if left == e["typed"][j].strip() else "changed to another word"
                         counts[(cat, thumb)] += 1
-                        losses.append({"category": cat, "outcome": how, "thumb": thumb, "line": line, "word": j, "meant": word, "typed": e["typed"][j], "ghost": left, "other": other, "others": o["pairs"][j], "sentence": rec["target"], "ghost_field": rec["out"], "other_field": o["rec"]["out"], "events": events_line(rec)})
+                        typed_word = e["typed"][j].strip()
+                        known = "yes" if word in listed else "no"
+                        slip_is_word = "yes" if (typed_word != word and typed_word in listed) else "no"
+                        losses.append({"category": cat, "limit": lim, "no_taps": "yes" if ends_off_letters(rec, j) else "no",
+                                       "outcome": how, "thumb": thumb, "line": line, "word": j, "meant": word, "typed": e["typed"][j], "ghost": left, "other": other, "others": o["pairs"][j],
+                                       "meant_in_list": known, "typed_is_a_word": slip_is_word,
+                                       "sentence": rec["target"], "ghost_field": rec["out"], "other_field": o["rec"]["out"], "events": events_line(rec)})
     results["losses"] = {"count": len(losses), "by_category": {}, "other_way": {"%s/%s" % k: v for k, v in other_way.items()}}
     by_cat = collections.Counter(l["category"] for l in losses)
     for cat, n in by_cat.most_common():
         results["losses"]["by_category"][cat] = {"count": n, "by_thumb": {t: counts[(cat, t)] for t in results["thumbs"]}, "left_as_typed": sum(1 for l in losses if l["category"] == cat and l["outcome"] == "left as typed")}
-    cols = ["category", "outcome", "thumb", "line", "word", "meant", "typed", "ghost", "other", "others", "sentence", "ghost_field", "other_field", "events"]
+    results["losses"]["meant_not_in_ghosts_list"] = sum(1 for l in losses if l["meant_in_list"] == "no")
+    results["losses"]["slip_spelled_another_word"] = sum(1 for l in losses if l["typed_is_a_word"] == "yes")
+    results["losses"]["left_as_typed"] = sum(1 for l in losses if l["outcome"] == "left as typed")
+    by_limit = collections.Counter(l["limit"] for l in losses)
+    results["losses"]["by_limit"] = {lim: {"count": n, "by_thumb": {t: sum(1 for l in losses if l["limit"] == lim and l["thumb"] == t) for t in results["thumbs"]},
+                                           "no_taps": sum(1 for l in losses if l["limit"] == lim and l["no_taps"] == "yes")} for lim, n in by_limit.most_common()}
+    results["losses"]["no_taps"] = sum(1 for l in losses if l["no_taps"] == "yes")
+    cols = ["category", "limit", "no_taps", "outcome", "thumb", "line", "word", "meant", "typed", "ghost", "other", "others", "meant_in_list", "typed_is_a_word", "sentence", "ghost_field", "other_field", "events"]
     with open(os.path.join(args.run, "losses.tsv"), "w") as f:
         f.write("\t".join(cols) + "\n")
         for l in sorted(losses, key=lambda l: (-by_cat[l["category"]], l["category"], THUMB_ORDER.index(l["thumb"]) if l["thumb"] in THUMB_ORDER else 9, l["line"], l["word"])):
             f.write("\t".join(str(l[c]) for c in cols) + "\n")
+    # The other way: what another keyboard got wrong and Ghost Keyboard did not (the slip as the other's keys had it).
+    win_cols = ["category", "thumb", "line", "word", "meant", "typed", "ghost", "other", "others", "sentence", "ghost_field", "other_field"]
+    with open(os.path.join(args.run, "wins.tsv"), "w") as f:
+        f.write("\t".join(win_cols) + "\n")
+        for w in sorted(wins, key=lambda w: (w["category"], THUMB_ORDER.index(w["thumb"]) if w["thumb"] in THUMB_ORDER else 9, w["line"], w["word"])):
+            f.write("\t".join(str(w[c]) for c in win_cols) + "\n")
+    results["wins"] = {"count": len(wins), "by_category": dict(collections.Counter(w["category"] for w in wins).most_common())}
+    wins_note = "The other way, %d words Ghost Keyboard got and %s did not: %s." % (len(wins), " or ".join(names[k] for k in keyboards[1:]), "; ".join("%s %d" % kv for kv in collections.Counter(w["category"] for w in wins).most_common())) if wins else ""
     if args.fixtures and losses:
         os.makedirs(os.path.join(HERE, "fixtures"), exist_ok=True)
         with open(os.path.join(HERE, "fixtures", "ghost-lost-to-%s.tsv" % "-".join(keyboards[1:])), "w") as f:
@@ -412,11 +610,34 @@ def main():
                 f.write("\t".join(str(l[c]) for c in cols) + "\n")
 
     if losses:
-        md.append("| What went wrong (Ghost Keyboard wrong, %s right) | Words | careful | leaning | sloppy | Left as typed |" % " or ".join(names[k] for k in keyboards[1:]))
-        md.append("| --- | ---: | ---: | ---: | ---: | ---: |")
+        md.append("| What went wrong (Ghost Keyboard wrong, %s right) | Words | careful | leaning | sloppy | Left as typed | The slip spelled another word | The word meant is in no list of ours |" % " or ".join(names[k] for k in keyboards[1:]))
+        md.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
         for cat, v in results["losses"]["by_category"].items():
-            md.append("| %s | %d | %d | %d | %d | %d |" % (cat, v["count"], v["by_thumb"].get("careful", 0), v["by_thumb"].get("leaning", 0), v["by_thumb"].get("sloppy", 0), v["left_as_typed"]))
+            mine = [l for l in losses if l["category"] == cat]
+            md.append("| %s | %d | %d | %d | %d | %d | %d | %d |" % (cat, v["count"], v["by_thumb"].get("careful", 0), v["by_thumb"].get("leaning", 0), v["by_thumb"].get("sloppy", 0), v["left_as_typed"],
+                                                           sum(1 for l in mine if l["typed_is_a_word"] == "yes"), sum(1 for l in mine if l["meant_in_list"] == "no")))
+        md.append("| all | %d | %d | %d | %d | %d | %d | %d |" % (len(losses), sum(1 for l in losses if l["thumb"] == "careful"), sum(1 for l in losses if l["thumb"] == "leaning"), sum(1 for l in losses if l["thumb"] == "sloppy"),
+                                                              results["losses"]["left_as_typed"], results["losses"]["slip_spelled_another_word"], results["losses"]["meant_not_in_ghosts_list"]))
         md.append("")
+        md.append("| What stood in the decoder's way (the same %d words) | Words | careful | leaning | sloppy | Ended by a mark from ?123, so read without taps | For example (typed, left, meant) |" % len(losses))
+        md.append("| --- | ---: | ---: | ---: | ---: | ---: | --- |")
+        for lim, v in results["losses"]["by_limit"].items():
+            mine = [l for l in losses if l["limit"] == lim]
+            shown = []
+            for l in sorted(mine, key=lambda l: (l["line"], l["word"])):
+                e = "%s, %s, %s" % (l["typed"].strip() or "(nothing)", l["ghost"], l["meant"])
+                if e not in shown:
+                    shown.append(e)
+            md.append("| %s | %d | %d | %d | %d | %d | %s |" % (lim, v["count"], v["by_thumb"].get("careful", 0), v["by_thumb"].get("leaning", 0), v["by_thumb"].get("sloppy", 0), v["no_taps"], "; ".join(shown[:4])))
+        md.append("| all | %d | %d | %d | %d | %d | |" % (len(losses), sum(1 for l in losses if l["thumb"] == "careful"), sum(1 for l in losses if l["thumb"] == "leaning"), sum(1 for l in losses if l["thumb"] == "sloppy"), results["losses"]["no_taps"]))
+        md.append("")
+
+    if wins_note:
+        md.append(wins_note)
+        md.append("")
+    md.append("Not in the score, which leaves capitals aside: of the names the thumb typed in lower case and the field has the right letters of (Tom, Mary, Algeria, Monday), given their capital: %s." % "; ".join(
+        "%s %d of %d" % (names[kb], checks[kb]["names_given_their_capital"], checks[kb]["names_with_the_right_letters"]) for kb in keyboards))
+    md.append("")
 
     with open(os.path.join(args.run, "results.json"), "w") as f:
         json.dump(results, f, indent=1)
@@ -426,7 +647,9 @@ def main():
     print("\n".join(md))
     for kb in keyboards:
         c = checks[kb]
-        print("%s: %d sentences; read a second way %d times, the same %d; with a character that should not be there: %d" % (names[kb], c["sentences"], c["read_twice"], c["read_twice_same"], c["with_other_characters"]))
+        print("%s: %d sentences; read a second way %d times, the same %d; with a character no tap types: %d" % (names[kb], c["sentences"], c["read_twice"], c["read_twice_same"], c["with_other_characters"]))
+        print("    typings thrown away for a stall and done again: %d; never got through, and left out: %d; every touch timed on the emulator: %d; still doubted (timing.py): %d" % (
+            c["typings_thrown_away_for_a_stall"], c["left_out_as_stalled"], c["timed_by_the_emulators_clock"], c["doubted_still"]))
     for thumb, res in results["thumbs"].items():
         for kb in keyboards:
             k = res["keyboards"][kb]

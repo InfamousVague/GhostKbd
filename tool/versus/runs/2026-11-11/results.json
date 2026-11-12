@@ -1,0 +1,822 @@
+{
+ "keyboards": {
+  "ghost": {
+   "keyboard": "ghost",
+   "name": "Ghost Keyboard",
+   "version": {
+    "package": "com.infamousvague.devkeyboard",
+    "versionName": "0.15.0",
+    "versionCode": "80",
+    "lastUpdateTime": "2026-11-11 17:45:47",
+    "apk": "/data/app/~~4nagQH32_zHYdgqwSu0afQ==/com.infamousvague.devkeyboard-sBGCAl6Dwv_8Sv5z09cR1g==/base.apk",
+    "sha256": "7eae7ac86e755cbbd6cafe662ac968ae1ab96d2e2422bc675f87ce959bf4537f"
+   },
+   "geometry": "ghost-1248x1972-420dpi.json",
+   "geometry_measured": "2026-11-11T19:21:12-05:00",
+   "device": {
+    "serial": "emulator-5584",
+    "width": 1248,
+    "height": 1972,
+    "dpi": 420,
+    "model": "sdk_gphone64_arm64",
+    "android": "16"
+   },
+   "started": "2026-11-11T19:28:42-05:00",
+   "sentences": 300,
+   "file": "build/typing-bench/en-heldout.txt",
+   "first_line": 90000,
+   "skipped": {
+    "an apostrophe that is no listed contraction": 19,
+    "another character": 16,
+    "an acronym": 5,
+    "not one sentence with one closing mark": 3
+   },
+   "seed": "7",
+   "aim": "answers",
+   "learn": false,
+   "thumbs": {
+    "careful": "scatter 0.20 of a key across and 0.15 down, no lean",
+    "leaning": "scatter 0.20 of a key across and 0.15 down, leaning 0.24 of a key right and 0.18 down",
+    "sloppy": "scatter 0.34 of a key across and 0.25 down, no lean"
+   },
+   "taken_up_again": [
+    "2026-11-11T23:35:31-05:00"
+   ],
+   "typed_again_for_a_stall": 0,
+   "finished": "2026-11-11T23:39:40-05:00",
+   "version_at_end": {
+    "package": "com.infamousvague.devkeyboard",
+    "versionName": "0.15.0",
+    "versionCode": "80",
+    "lastUpdateTime": "2026-11-11 17:45:47",
+    "apk": "/data/app/~~4nagQH32_zHYdgqwSu0afQ==/com.infamousvague.devkeyboard-sBGCAl6Dwv_8Sv5z09cR1g==/base.apk",
+    "sha256": "7eae7ac86e755cbbd6cafe662ac968ae1ab96d2e2422bc675f87ce959bf4537f"
+   }
+  },
+  "gboard": {
+   "keyboard": "gboard",
+   "name": "Gboard",
+   "version": {
+    "package": "com.google.android.inputmethod.latin",
+    "versionName": "15.1.08.726012951-preload-arm64-v8a",
+    "versionCode": "163542534",
+    "lastUpdateTime": "2026-10-07 19:35:23",
+    "apk": "/product/app/LatinIMEGooglePrebuilt/LatinIMEGooglePrebuilt.apk",
+    "sha256": "636b16dde5a77b4e6ebf25be5cc1e2a799488905bc718420125857cba4203c11"
+   },
+   "geometry": "gboard-1248x1972-420dpi.json",
+   "geometry_measured": "2026-11-11T18:51:53-05:00",
+   "device": {
+    "serial": "emulator-5584",
+    "width": 1248,
+    "height": 1972,
+    "dpi": 420,
+    "model": "sdk_gphone64_arm64",
+    "android": "16"
+   },
+   "started": "2026-11-11T21:20:28-05:00",
+   "sentences": 300,
+   "file": "build/typing-bench/en-heldout.txt",
+   "first_line": 90000,
+   "skipped": {
+    "an apostrophe that is no listed contraction": 19,
+    "another character": 16,
+    "an acronym": 5,
+    "not one sentence with one closing mark": 3
+   },
+   "seed": "7",
+   "aim": "answers",
+   "learn": false,
+   "thumbs": {
+    "careful": "scatter 0.20 of a key across and 0.15 down, no lean",
+    "leaning": "scatter 0.20 of a key across and 0.15 down, leaning 0.24 of a key right and 0.18 down",
+    "sloppy": "scatter 0.34 of a key across and 0.25 down, no lean"
+   },
+   "taken_up_again": [
+    "2026-11-11T23:27:28-05:00"
+   ],
+   "typed_again_for_a_stall": 0,
+   "finished": "2026-11-11T23:35:26-05:00",
+   "version_at_end": {
+    "package": "com.google.android.inputmethod.latin",
+    "versionName": "15.1.08.726012951-preload-arm64-v8a",
+    "versionCode": "163542534",
+    "lastUpdateTime": "2026-10-07 19:35:23",
+    "apk": "/product/app/LatinIMEGooglePrebuilt/LatinIMEGooglePrebuilt.apk",
+    "sha256": "636b16dde5a77b4e6ebf25be5cc1e2a799488905bc718420125857cba4203c11"
+   }
+  }
+ },
+ "thumbs": {
+  "careful": {
+   "sentences": 300,
+   "words": 1735,
+   "keyboards": {
+    "ghost": {
+     "words_wrong": 47,
+     "left_wrong": 43,
+     "spoiled": 4,
+     "slipped": 281,
+     "typed_as_meant": 1454,
+     "words_added": 2,
+     "rates": {
+      "wrong": 2.7089337175792507,
+      "left": 2.478386167146974,
+      "spoiled": 0.23054755043227665,
+      "mended": 84.69750889679716,
+      "spoiled_per_1000": 2.751031636863824,
+      "sentences_right": 85.66666666666667
+     },
+     "intervals": {
+      "wrong": [
+       1.962983735277622,
+       3.504804974561899
+      ],
+      "left": [
+       1.7683970336565886,
+       3.2348020078081428
+      ],
+      "spoiled": [
+       0.05589714924538849,
+       0.4694835680751174
+      ],
+      "mended": [
+       80.52434456928839,
+       88.76404494382022
+      ],
+      "spoiled_per_1000": [
+       0.6635700066357001,
+       5.610098176718092
+      ],
+      "sentences_right": [
+       81.66666666666667,
+       89.66666666666667
+      ]
+     },
+     "taps": 8628,
+     "taps_moved_by_guard": 32,
+     "ms_between_key_presses": {
+      "median": 197,
+      "5%": 136,
+      "95%": 260
+     }
+    },
+    "gboard": {
+     "words_wrong": 32,
+     "left_wrong": 27,
+     "spoiled": 5,
+     "slipped": 282,
+     "typed_as_meant": 1453,
+     "words_added": 1,
+     "rates": {
+      "wrong": 1.8443804034582132,
+      "left": 1.5561959654178674,
+      "spoiled": 0.2881844380403458,
+      "mended": 90.42553191489361,
+      "spoiled_per_1000": 3.4411562284927735,
+      "sentences_right": 90.0
+     },
+     "intervals": {
+      "wrong": [
+       1.2422360248447204,
+       2.5214899713467047
+      ],
+      "left": [
+       1.0089020771513353,
+       2.167712492869367
+      ],
+      "spoiled": [
+       0.05820721769499418,
+       0.5717552887364208
+      ],
+      "mended": [
+       86.86131386861314,
+       93.66197183098592
+      ],
+      "spoiled_per_1000": [
+       0.697350069735007,
+       6.854009595613434
+      ],
+      "sentences_right": [
+       86.33333333333333,
+       93.33333333333333
+      ]
+     },
+     "taps": 8628,
+     "taps_moved_by_guard": 54,
+     "ms_between_key_presses": {
+      "median": 205,
+      "5%": 138,
+      "95%": 272
+     }
+    }
+   },
+   "gaps": {
+    "gboard": {
+     "wrong": {
+      "gap": 0.8645533141210375,
+      "interval": [
+       0.11990407673860881,
+       1.567034242600116
+      ]
+     },
+     "left": {
+      "gap": 0.9221902017291066,
+      "interval": [
+       0.3305785123966942,
+       1.5393724097098875
+      ]
+     },
+     "spoiled": {
+      "gap": -0.057636887608069176,
+      "interval": [
+       -0.40045766590389015,
+       0.2942907592701589
+      ]
+     }
+    }
+   },
+   "no_tap_moved": {
+    "words": 1681,
+    "wrong": {
+     "ghost": 2.676977989292088,
+     "gboard": 1.9036287923854849
+    }
+   },
+   "at_the_press": {
+    "ghost": {
+     "bar/more": 2,
+     "bar/under": 2,
+     "other/under": 224,
+     "own/meant": 6969
+    },
+    "gboard": {
+     "bar/meant": 1,
+     "bar/more": 2,
+     "bar/under": 1,
+     "other/meant": 130,
+     "other/third": 2,
+     "other/under": 85,
+     "own/meant": 6968,
+     "own/third": 8
+    }
+   }
+  },
+  "leaning": {
+   "sentences": 300,
+   "words": 1735,
+   "keyboards": {
+    "ghost": {
+     "words_wrong": 134,
+     "left_wrong": 129,
+     "spoiled": 5,
+     "slipped": 684,
+     "typed_as_meant": 1051,
+     "words_added": 12,
+     "rates": {
+      "wrong": 7.723342939481268,
+      "left": 7.435158501440922,
+      "spoiled": 0.2881844380403458,
+      "mended": 81.14035087719299,
+      "spoiled_per_1000": 4.757373929590866,
+      "sentences_right": 66.0
+     },
+     "intervals": {
+      "wrong": [
+       6.399069226294357,
+       9.095920617420067
+      ],
+      "left": [
+       6.149425287356322,
+       8.825151682294539
+      ],
+      "spoiled": [
+       0.05875440658049354,
+       0.5685048322910745
+      ],
+      "mended": [
+       77.8125,
+       84.4311377245509
+      ],
+      "spoiled_per_1000": [
+       0.9737098344693281,
+       9.293680297397769
+      ],
+      "sentences_right": [
+       60.666666666666664,
+       71.33333333333333
+      ]
+     },
+     "taps": 8611,
+     "taps_moved_by_guard": 140,
+     "ms_between_key_presses": {
+      "median": 194,
+      "5%": 135,
+      "95%": 255
+     }
+    },
+    "gboard": {
+     "words_wrong": 56,
+     "left_wrong": 50,
+     "spoiled": 6,
+     "slipped": 690,
+     "typed_as_meant": 1045,
+     "words_added": 5,
+     "rates": {
+      "wrong": 3.2276657060518734,
+      "left": 2.881844380403458,
+      "spoiled": 0.345821325648415,
+      "mended": 92.7536231884058,
+      "spoiled_per_1000": 5.741626794258373,
+      "sentences_right": 84.66666666666667
+     },
+     "intervals": {
+      "wrong": [
+       2.3307436182019976,
+       4.1183294663573085
+      ],
+      "left": [
+       2.0184544405997693,
+       3.753501400560224
+      ],
+      "spoiled": [
+       0.1135718341851221,
+       0.6218202374222724
+      ],
+      "mended": [
+       90.59180576631259,
+       94.84808454425364
+      ],
+      "spoiled_per_1000": [
+       1.8921475875118259,
+       10.166358595194085
+      ],
+      "sentences_right": [
+       80.33333333333333,
+       88.66666666666667
+      ]
+     },
+     "taps": 8611,
+     "taps_moved_by_guard": 181,
+     "ms_between_key_presses": {
+      "median": 204,
+      "5%": 141,
+      "95%": 267
+     }
+    }
+   },
+   "gaps": {
+    "gboard": {
+     "wrong": {
+      "gap": 4.495677233429394,
+      "interval": [
+       3.103448275862069,
+       5.842314237095859
+      ]
+     },
+     "left": {
+      "gap": 4.553314121037464,
+      "interval": [
+       3.1615925058548013,
+       5.885529157667386
+      ]
+     },
+     "spoiled": {
+      "gap": -0.057636887608069176,
+      "interval": [
+       -0.351288056206089,
+       0.23242300987797793
+      ]
+     }
+    }
+   },
+   "no_tap_moved": {
+    "words": 1550,
+    "wrong": {
+     "ghost": 8.0,
+     "gboard": 3.2903225806451615
+    }
+   },
+   "at_the_press": {
+    "ghost": {
+     "bar/more": 6,
+     "bar/under": 13,
+     "other/under": 807,
+     "own/meant": 6357
+    },
+    "gboard": {
+     "bar/meant": 11,
+     "bar/more": 1,
+     "bar/under": 2,
+     "other/meant": 545,
+     "other/third": 13,
+     "other/under": 262,
+     "own/meant": 6331,
+     "own/third": 18
+    }
+   }
+  },
+  "sloppy": {
+   "sentences": 300,
+   "words": 1735,
+   "keyboards": {
+    "ghost": {
+     "words_wrong": 280,
+     "left_wrong": 279,
+     "spoiled": 1,
+     "slipped": 1000,
+     "typed_as_meant": 735,
+     "words_added": 28,
+     "rates": {
+      "wrong": 16.138328530259365,
+      "left": 16.080691642651296,
+      "spoiled": 0.05763688760806916,
+      "mended": 72.1,
+      "spoiled_per_1000": 1.3605442176870748,
+      "sentences_right": 41.0
+     },
+     "intervals": {
+      "wrong": [
+       14.269208549971115,
+       18.02624073017684
+      ],
+      "left": [
+       14.213197969543147,
+       17.969195664575015
+      ],
+      "spoiled": [
+       0.0,
+       0.17772511848341233
+      ],
+      "mended": [
+       68.94790602655772,
+       75.15151515151516
+      ],
+      "spoiled_per_1000": [
+       0.0,
+       4.267425320056899
+      ],
+      "sentences_right": [
+       35.333333333333336,
+       46.333333333333336
+      ]
+     },
+     "taps": 8615,
+     "taps_moved_by_guard": 219,
+     "ms_between_key_presses": {
+      "median": 195,
+      "5%": 136,
+      "95%": 256
+     }
+    },
+    "gboard": {
+     "words_wrong": 111,
+     "left_wrong": 108,
+     "spoiled": 3,
+     "slipped": 1003,
+     "typed_as_meant": 732,
+     "words_added": 4,
+     "rates": {
+      "wrong": 6.3976945244956775,
+      "left": 6.22478386167147,
+      "spoiled": 0.1729106628242075,
+      "mended": 89.23230309072781,
+      "spoiled_per_1000": 4.098360655737705,
+      "sentences_right": 71.33333333333333
+     },
+     "intervals": {
+      "wrong": [
+       5.110336817653891,
+       7.718696397941681
+      ],
+      "left": [
+       4.959630911188005,
+       7.495538370017846
+      ],
+      "spoiled": [
+       0.0,
+       0.4043905257076834
+      ],
+      "mended": [
+       87.13272543059777,
+       91.38297872340425
+      ],
+      "spoiled_per_1000": [
+       0.0,
+       9.575923392612859
+      ],
+      "sentences_right": [
+       66.0,
+       76.66666666666667
+      ]
+     },
+     "taps": 8615,
+     "taps_moved_by_guard": 354,
+     "ms_between_key_presses": {
+      "median": 206,
+      "5%": 142,
+      "95%": 270
+     }
+    }
+   },
+   "gaps": {
+    "gboard": {
+     "wrong": {
+      "gap": 9.740634005763688,
+      "interval": [
+       8.022922636103154,
+       11.549295774647888
+      ]
+     },
+     "left": {
+      "gap": 9.855907780979827,
+      "interval": [
+       8.16098378982672,
+       11.64874551971326
+      ]
+     },
+     "spoiled": {
+      "gap": -0.11527377521613834,
+      "interval": [
+       -0.2962085308056872,
+       0.0
+      ]
+     }
+    }
+   },
+   "no_tap_moved": {
+    "words": 1405,
+    "wrong": {
+     "ghost": 15.587188612099645,
+     "gboard": 6.192170818505338
+    }
+   },
+   "at_the_press": {
+    "ghost": {
+     "bar/more": 12,
+     "bar/under": 21,
+     "other/meant": 2,
+     "other/under": 1369,
+     "own/meant": 5783,
+     "own/third": 1
+    },
+    "gboard": {
+     "bar/meant": 13,
+     "bar/more": 5,
+     "bar/under": 10,
+     "other/meant": 736,
+     "other/third": 24,
+     "other/under": 586,
+     "own/meant": 5767,
+     "own/third": 47
+    }
+   }
+  }
+ },
+ "resamples": 2000,
+ "jvm_agreement": {
+  "sentences": 900,
+  "same_text": 900,
+  "words": 5205,
+  "same_words": 5205,
+  "touches": 26805,
+  "touches_read_the_same": 26802
+ },
+ "checks": {
+  "ghost": {
+   "sentences": 900,
+   "read_twice": 17,
+   "read_twice_same": 17,
+   "with_other_characters": 0,
+   "names_given_their_capital": 0,
+   "names_with_the_right_letters": 188,
+   "typings_thrown_away_for_a_stall": 30,
+   "left_out_as_stalled": 0,
+   "timed_by_the_emulators_clock": 30,
+   "doubted_still": 0
+  },
+  "gboard": {
+   "sentences": 900,
+   "read_twice": 16,
+   "read_twice_same": 16,
+   "with_other_characters": 0,
+   "names_given_their_capital": 134,
+   "names_with_the_right_letters": 191,
+   "typings_thrown_away_for_a_stall": 58,
+   "left_out_as_stalled": 0,
+   "timed_by_the_emulators_clock": 58,
+   "doubted_still": 0
+  }
+ },
+ "losses": {
+  "count": 326,
+  "by_category": {
+   "a short word (three letters or fewer)": {
+    "count": 85,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 29,
+     "sloppy": 55
+    },
+    "left_as_typed": 60
+   },
+   "the space: run into its neighbour, or split": {
+    "count": 75,
+    "by_thumb": {
+     "careful": 2,
+     "leaning": 21,
+     "sloppy": 52
+    },
+    "left_as_typed": 5
+   },
+   "three or more keys off": {
+    "count": 39,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 7,
+     "sloppy": 31
+    },
+    "left_as_typed": 28
+   },
+   "one key off": {
+    "count": 32,
+    "by_thumb": {
+     "careful": 7,
+     "leaning": 9,
+     "sloppy": 16
+    },
+    "left_as_typed": 24
+   },
+   "a letter left out": {
+    "count": 28,
+    "by_thumb": {
+     "careful": 8,
+     "leaning": 10,
+     "sloppy": 10
+    },
+    "left_as_typed": 21
+   },
+   "two keys off": {
+    "count": 24,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 6,
+     "sloppy": 17
+    },
+    "left_as_typed": 23
+   },
+   "a letter swapped": {
+    "count": 15,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 9,
+     "sloppy": 5
+    },
+    "left_as_typed": 14
+   },
+   "a letter doubled": {
+    "count": 8,
+    "by_thumb": {
+     "careful": 2,
+     "leaning": 1,
+     "sloppy": 5
+    },
+    "left_as_typed": 7
+   },
+   "a name or other capital": {
+    "count": 8,
+    "by_thumb": {
+     "careful": 0,
+     "leaning": 4,
+     "sloppy": 4
+    },
+    "left_as_typed": 7
+   },
+   "a right word changed": {
+    "count": 6,
+    "by_thumb": {
+     "careful": 4,
+     "leaning": 2,
+     "sloppy": 0
+    },
+    "left_as_typed": 0
+   },
+   "a contraction": {
+    "count": 6,
+    "by_thumb": {
+     "careful": 0,
+     "leaning": 3,
+     "sloppy": 3
+    },
+    "left_as_typed": 3
+   }
+  },
+  "other_way": {
+   "careful/gboard": 12,
+   "leaning/gboard": 23,
+   "sloppy/gboard": 29
+  },
+  "meant_not_in_ghosts_list": 24,
+  "slip_spelled_another_word": 76,
+  "left_as_typed": 192,
+  "by_limit": {
+   "more letters off their keys than the search will change in a word this long": {
+    "count": 89,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 25,
+     "sloppy": 63
+    },
+    "no_taps": 2
+   },
+   "no word typed, the word meant within the search's reach, and not mended": {
+    "count": 65,
+    "by_thumb": {
+     "careful": 4,
+     "leaning": 19,
+     "sloppy": 42
+    },
+    "no_taps": 18
+   },
+   "a letter left out, doubled or swapped": {
+    "count": 51,
+    "by_thumb": {
+     "careful": 11,
+     "leaning": 20,
+     "sloppy": 20
+    },
+    "no_taps": 11
+   },
+   "cut in two: one of its letters landed on the space bar": {
+    "count": 37,
+    "by_thumb": {
+     "careful": 2,
+     "leaning": 13,
+     "sloppy": 22
+    },
+    "no_taps": 1
+   },
+   "the letters typed spell a common word, which is kept": {
+    "count": 31,
+    "by_thumb": {
+     "careful": 4,
+     "leaning": 8,
+     "sloppy": 19
+    },
+    "no_taps": 6
+   },
+   "run together: the space landed on a letter": {
+    "count": 26,
+    "by_thumb": {
+     "careful": 0,
+     "leaning": 2,
+     "sloppy": 24
+    },
+    "no_taps": 4
+   },
+   "run together: no space was typed": {
+    "count": 12,
+    "by_thumb": {
+     "careful": 0,
+     "leaning": 6,
+     "sloppy": 6
+    },
+    "no_taps": 0
+   },
+   "the letters typed spell a rare word": {
+    "count": 9,
+    "by_thumb": {
+     "careful": 1,
+     "leaning": 6,
+     "sloppy": 2
+    },
+    "no_taps": 0
+   },
+   "typed as meant, and changed": {
+    "count": 6,
+    "by_thumb": {
+     "careful": 4,
+     "leaning": 2,
+     "sloppy": 0
+    },
+    "no_taps": 0
+   }
+  },
+  "no_taps": 42
+ },
+ "wins": {
+  "count": 64,
+  "by_category": {
+   "a short word (three letters or fewer)": 19,
+   "one key off": 12,
+   "a right word changed": 11,
+   "the space: run into its neighbour, or split": 7,
+   "a letter swapped": 4,
+   "a name or other capital": 4,
+   "a letter doubled": 3,
+   "a letter left out": 2,
+   "two keys off": 1,
+   "a contraction": 1
+  }
+ }
+}

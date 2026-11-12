@@ -17,8 +17,18 @@
 // tool/versus/score.py's agreement count for the typing. When either drifts from the app, those two say so.
 //
 // A line of taps.tsv:  <id> TAB <event> <event> ...   where an event is  T:<x>:<y>:<ms>  (a tap at a screen pixel)
-// or  M:<mark>:<ms>  (a mark typed from the ?123 page, which is not modelled: the mark is typed as that page's key
-// would type it). Out:  <id> TAB <field's text> TAB <what the keys gave, no autocorrect>.
+// or  M:<mark>:<ms>  (a mark typed from the ?123 page: the page itself is not modelled, the mark is typed as its key
+// there would type it). Out:  <id> TAB <field's text> TAB <what the keys gave, no autocorrect> TAB <fixes>.
+//
+// A mark typed from the ?123 page ends its word with no taps to read it by, as in the app: tapsFor asks
+// KeyboardView.tapKeys, which is null on any page but the letters. So the word before a question mark, an exclamation
+// mark or a comma is corrected by which keys are neighbours alone. (The first cut of this file read those words by
+// their taps, and the emulator said otherwise in 24 sentences of 900.) `replay ... --keep-taps-at-marks` reads them
+// by their taps all the same: what the app would do if it kept the letters page's keys for that.
+//
+// `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
+// @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
+// sentences of a versus run (tool/versus/whatif.py, fixtures.py). Nothing in the app is changed by it.
 
 import com.infamousvague.devkeyboard.Autocorrect
 import com.infamousvague.devkeyboard.Key
@@ -210,8 +220,10 @@ class Decoder(root: File) {
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
  */
-class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true) {
+class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val keepTapsAtMarks: Boolean = false) {
     val text = StringBuilder()
+    /** The ?123 page is showing: KeyboardView.tapKeys is null there, and a word is read without its taps. */
+    private var offLetters = false
     private class Touch(val c: Char, val x: Float, val y: Float)
     private val wordTouches = ArrayList<Touch?>()
     private var lastSpaceAt = 0L
@@ -273,8 +285,11 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         }
     }
 
-    /** A mark typed from another page. */
-    fun mark(c: Char) = onText(c.toString(), null)
+    /** A mark typed from the ?123 page (the keys are the letters again by the next tap: the thumb goes back). */
+    fun mark(c: Char) {
+        offLetters = !keepTapsAtMarks
+        try { onText(c.toString(), null) } finally { offLetters = false }
+    }
 
     private fun onText(t: String, touch: Touch?) {
         lastSpaceAt = 0L
@@ -310,6 +325,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             xs[i] = t.x; ys[i] = t.y; known++
         }
         if (known * 2 < word.length) return null
+        if (offLetters) return null
         val (keys, keyW, space) = board.tapKeys
         return Taps(xs, ys, keys, keyW, space)
     }
@@ -377,7 +393,31 @@ fun probes(root: File, args: List<String>) {
     if (taps.isEmpty() || same != taps.size) kotlin.system.exitProcess(1)
 }
 
-fun replay(root: File, args: List<String>) {
+/** One of the decoder's dials for this run: "TapDecoder.BUDGET=8", "Autocorrect.TAPS=false". */
+fun dial(setting: String) {
+    val name = setting.substringBefore('=')
+    val value = setting.substringAfter('=')
+    val field = Class.forName("com.infamousvague.devkeyboard." + name.substringBefore('.')).getField(name.substringAfter('.'))
+    when (field.type) {
+        java.lang.Float.TYPE -> field.setFloat(null, value.toFloat())
+        java.lang.Boolean.TYPE -> field.setBoolean(null, value.toBoolean())
+        java.lang.Integer.TYPE -> field.setInt(null, value.toInt())
+        else -> error("versus replay: $name is not a number or a switch")
+    }
+    System.err.println("dial: $name = $value")
+}
+
+fun replay(root: File, all: List<String>) {
+    val keep = "--keep-taps-at-marks" in all
+    val args = ArrayList<String>()
+    var i = 0
+    while (i < all.size) {
+        when {
+            all[i] == "--set" -> { dial(all[i + 1]); i++ }
+            !all[i].startsWith("--") -> args += all[i]
+        }
+        i++
+    }
     val b = board(root, args)
     val decoder = Decoder(root)
     var line = readLine()
@@ -386,7 +426,7 @@ fun replay(root: File, args: List<String>) {
         val tab = line.indexOf('\t')
         if (tab > 0) {
             val id = line.substring(0, tab)
-            val typist = Typist(b, decoder)
+            val typist = Typist(b, decoder, keepTapsAtMarks = keep)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {
                 val f = e.split(':')

@@ -1,0 +1,65 @@
+category	thumb	line	word	meant	typed	ghost	other	others	sentence	ghost_field	other_field
+a contraction	sloppy	90188	0	we've	eebe	we've	gboard	eebe	We've become a hindrance to them.	We've become a hindrance to them.	Eebe become a hindrance to them.
+a letter doubled	leaning	90140	0	take	gakwe	take	gboard	gakee	Take off your coat!	Take of your coat!	Gakee of your coat!
+a letter doubled	leaning	90255	7	businessman	busoimwssman	businessman	gboard	man	I know that Tom is a respectable businessman.	I l one that yom is a respectable businessman.	I know that tom is a respectable business man.
+a letter doubled	sloppy	90285	0	tom	rrom	tom	gboard	rrom	Tom was knifed.	Tom was knifrs.	Rrom was knifes.
+a letter left out	careful	90255	7	businessman	busibessma	businessman	gboard	man	I know that Tom is a respectable businessman.	I know that tom is a respectable businessman.	I know that tom is a respectable business man.
+a letter left out	sloppy	90135	0	only	nly	only	gboard	nlt	Only Vladimir is moving to Algeria.	Only vladimir is moving to algeria.	Nlt Vladimir is moving to qlgedia.
+a letter swapped	careful	90097	0	tom	tmo	tom	gboard	tmo	Tom got a D in his test.	Tom got a d in his test.	TMO got a d in his test.
+a letter swapped	leaning	90071	0	begin	begni	begin	gboard	begni	Begin it.	Begin it.	Begni it.
+a letter swapped	sloppy	90067	1	tom	tmo	tom	gboard	tmo	Does Tom look thin to you?	Does tom look thin to you?	Does tmo look thin to you?
+a letter swapped	sloppy	90273	2	got	gto	got	gboard	go	I haven't got a penny on me.	I have t got a penny on me.	I have to go a penny on me.
+a name or other capital	leaning	90287	6	algeria	slgeria	algeria	gboard	slgeria	Vladimir lives in Adrar, in southern Algeria.	Vladimir loved in adrar, in southern algeria.	Vladimir lo ed im adrar, in southern slgeria.
+a name or other capital	sloppy	90135	5	algeria	qlgedia	algeria	gboard	qlgedia	Only Vladimir is moving to Algeria.	Only vladimir is moving to algeria.	Nlt Vladimir is moving to qlgedia.
+a name or other capital	sloppy	90330	3	tom	fom	tom	gboard	fom	People think that Tom privileges Vladimir at work.	People think that tom privileges vladimir at work.	People think that fom privileges Vladimir at work.
+a name or other capital	sloppy	90333	4	arab	aeab	arab	gboard	aeab	No, I am not Arab.	 O, I am nor arab.	 O, I am not aeab.
+a right word changed	careful	90053	5	humour	humour	humour	gboard	humor	He has a sense of humour.	He has a sense of humour.	He has a sense of humor.
+a right word changed	careful	90152	8	favour	favour	favour	gboard	favor	May I ask you to do me a favour?	May I ask you to do me a favour?	May I ask you to do me a favor?
+a right word changed	careful	90208	4	moustache	moustache	moustache	gboard	mustache	Tom has a huge moustache.	From has a huge moustache.	Fom has a huge mustache.
+a right word changed	careful	90274	6	favour	favour	favour	gboard	favor	I want to ask you a favour.	I want to ask you a favour.	I want to ask you a favor.
+a right word changed	careful	90343	5	moustache	moustache	moustache	gboard	mustache	You look better without a moustache.	You look better without a moustache.	You look better without a mustache.
+a right word changed	leaning	90053	5	humour	humour	humour	gboard	humor	He has a sense of humour.	He has a sense of humour.	He has a sense of humor.
+a right word changed	leaning	90127	6	anna	anna	anna	gboard	a	Vladimir was lost for words as Anna was telling him that.	Vladimir sad lost for words as anna was yelling him that.	Vladimir was lost for words as an a was yelling him that.
+a right word changed	leaning	90142	6	frah	frah	frah	gboard	fran	He looked for you in At Frah.	He looked for you in at frah.	He looked for you in at fran.
+a right word changed	leaning	90143	2	deaf	deaf	deaf	gboard	dead	Is she deaf?	Is she deaf?	Is she dead?
+a right word changed	sloppy	90110	0	am	am	am	gboard	an	Am I hopeless?	Am I hkpelwss?	An I hopeless?
+a right word changed	sloppy	90301	0	i'd	id	i'd	gboard	id	I'd tell you if I knew.	I'd tell you if I knew.	Id tell you if I knew.
+a short word (three letters or fewer)	careful	90072	0	i	k	i	gboard	k	I said what I was supposed to say.	I said what I was supposed t say.	K said what I was supposed to say.
+a short word (three letters or fewer)	careful	90220	2	an	ab	an	gboard	ab	Are you an investor?	Are you an investor?	Are you ab investor?
+a short word (three letters or fewer)	leaning	90135	2	is	id	is	gboard	id	Only Vladimir is moving to Algeria.	Only vladimir is mboing to algeria.	Only Vladimir id mboing to Algeria.
+a short word (three letters or fewer)	leaning	90144	2	a	s	a	gboard	s	Are you a relative?	Are you a relative?	Are you s relative?
+a short word (three letters or fewer)	leaning	90156	0	we	se	we	gboard	se	We tossed a coin to decide.	We tossed a coin to decide.	Se tossed a coin to decide.
+a short word (three letters or fewer)	leaning	90157	0	are	sre	are	gboard	see	Are you presentable?	Are you presentable?	See you presentable?
+a short word (three letters or fewer)	leaning	90262	0	tom	rom	tom	gboard	rom	Tom lied to us about everything.	Tom lied to su about everything.	Rom lied to us about everything.
+a short word (three letters or fewer)	leaning	90287	2	in	im	in	gboard	im	Vladimir lives in Adrar, in southern Algeria.	Vladimir loved in adrar, in southern algeria.	Vladimir lo ed im adrar, in southern slgeria.
+a short word (three letters or fewer)	leaning	90311	0	i	o	i	gboard	o	I plan to go there personally.	I plan to go there personally.	O plan to go there personally.
+a short word (three letters or fewer)	leaning	90331	3	to	ro	to	gboard	ro	Tom ordered Vladimir to redo it all.	Tom ordered vladimir to redo it all.	Tom ordered Vladimir ro redo it all.
+a short word (three letters or fewer)	sloppy	90050	0	get	het	get	gboard	hey	Get some exercise!	Get some sxerfiae!	Hey some exercise!
+a short word (three letters or fewer)	sloppy	90076	1	a	q	a	gboard	q	What a thrill!	What a thrill!	What q thrill!
+a short word (three letters or fewer)	sloppy	90159	0	i	o	i	gboard	o	I was a brat.	I was a brag.	O was a brag.
+a short word (three letters or fewer)	sloppy	90190	2	a	s	a	gboard	s	Isn't it a beautiful place?	Sony it a vwquridup place?	Sony it s beautiful place?
+a short word (three letters or fewer)	sloppy	90254	1	is	iw	is	gboard	iw	Tom is really fun.	Tm is really fun.	Tm iw really fyn.
+a short word (three letters or fewer)	sloppy	90254	3	fun	fyn	fun	gboard	fyn	Tom is really fun.	Tm is really fun.	Tm iw really fyn.
+a short word (three letters or fewer)	sloppy	90263	3	i	u	i	gboard	u	The grape that I picked is very sour.	Rhd grape that I picked is very sour.	Rhe grape that u picked is very sour.
+a short word (three letters or fewer)	sloppy	90299	0	it	jr	it	gboard	jr	It did not rain earlier.	It sis not rain earlier.	Jr did not rain earlier.
+a short word (three letters or fewer)	sloppy	90318	0	i	u	i	gboard	u	I listen to Kiss.	I luste to kiss.	U listen to kiss.
+one key off	careful	90262	1	lied	liwd	lied	gboard	liwd	Tom lied to us about everything.	Tom lied to us about everything.	Tom liwd to us about everything.
+one key off	careful	90291	1	held	hekd	held	gboard	hekd	Vladimir held the door open.	Vladimir held the door open.	Vladimir hekd the door open.
+one key off	leaning	90067	3	thin	yhin	thin	gboard	think	Does Tom look thin to you?	Does tom look thin to you?	Does Tom look think to you?
+one key off	leaning	90114	13	virtues	virtued	virtues	gboard	virtue	The story of Grasshopper Green is full of lively humor and emphasizes the virtues of kindness and generosity without moralizing.	Be story of grasshopper green is full of lively humor and emphasized the virtues of kindness and generosity without morslizong.	The story of grasshopper green is full of lively humor and emphasized the virtue of kindness and generosity without moralizing.
+one key off	leaning	90208	4	moustache	moistache	moustache	gboard	mustache	Tom has a huge moustache.	Tom has a huge moustache.	Tom has a huge mustache.
+one key off	leaning	90274	6	favour	favout	favour	gboard	favor	I want to ask you a favour.	I want to sam you a favour.	I want to Sam you a favor.
+one key off	leaning	90286	1	kept	kdpt	kept	gboard	kdpt	Vladimir kept himself calm.	Vladimir kept himself calm.	Vladimir kdpt himself calm.
+one key off	sloppy	90064	0	soon	spon	soon	gboard	spon	Soon you will see them with your own eyes.	Soon you will see them with your own eyes.	Spon you will see them with your own eyes.
+one key off	sloppy	90150	1	neighbour	neighboyr	neighbour	gboard	neighbor	My neighbour is French.	My neighbour is french.	My neighbor is french.
+one key off	sloppy	90168	6	steppe	ateppe	steppe	gboard	ateppe	Vladimir was herding animals in the steppe.	Vladimir was herding animals in tjw steppe.	Vladimir was herding animals in the ateppe.
+one key off	sloppy	90240	1	fuss	cuss	fuss	gboard	cuss	Don't fuss.	Don't fuss.	Don't cuss.
+one key off	sloppy	90274	6	favour	gavour	favour	gboard	favor	I want to ask you a favour.	I want to as I you a favour.	I want to ask you a favor.
+the space: run into its neighbour, or split	careful	90332	2	from	form	from	gboard	form	Don't eat from the pot.	Don't eat from the pot.	Don't eat form the pot.
+the space: run into its neighbour, or split	leaning	90264	0	vladimir	 ladimit	vladimir	gboard	it	Vladimir is throwing away money that isn't his in the first place.	 Vladimir is throwing away money that di y his in the first place.	 Also it is throwing away money that don't his in the first place.
+the space: run into its neighbour, or split	sloppy	90021	7	very	 ery	very	gboard	ery	The conflict between Iran and Israel is very complex.	The conflict between iran and israel is. Very complex.	The conflict between Iran and Israel is. Ery complex.
+the space: run into its neighbour, or split	sloppy	90241	0	vladimir	 ladimir	vladimir	gboard	ladimir	Vladimir heard the door slam behind him.	 Vladimir jeardvyhecdoor slam behind him.	 Ladimir heard the door slam behind him.
+the space: run into its neighbour, or split	sloppy	90243	3	tag	usgv	tag	gboard	rush	There is no tag on the vehicle.	There is no tag on the vehicle.	There is no rush on the vehicle.
+the space: run into its neighbour, or split	sloppy	90293	4	in	ibv	in	gboard	on	Vladimir raised his children in Algeria.	Vladimir raised his children in algeria.	Vladimir raised his children on Algeria.
+the space: run into its neighbour, or split	sloppy	90322	4	very	 ery	very	gboard	ert	The teacher gave a very boring lecture.	The teacher gave a. Very boring lecrurr.	The teacher gave a. Ert boring lecture.
+two keys off	leaning	90343	5	moustache	mohsyache	moustache	gboard	mustache	You look better without a moustache.	You look better without a moustache.	You look better without a mustache.

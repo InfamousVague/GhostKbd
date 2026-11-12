@@ -14,6 +14,11 @@ front with the keyboard up at the height it was measured at; afterwards that not
 Anything else and the sentence is typed again; three times and the run stops, saying why. Every so often the
 keyboard's installed build is checked against the one the run began with, and the field is read a second way
 (uiautomator) to hold the first to.
+
+Every touch is timed on the emulator's own clock (timing.py). A touch that took 250 ms or more from going down to
+lifting may have been a long-press (the emulator stops for a moment when this Mac is busy), and its sentence is
+typed again, up to six times; what was thrown away goes to <out>/<keyboard>.stalled.jsonl with the reason. A
+sentence that never got through is recorded with "stalled", and score.py leaves it out for every keyboard.
 """
 import argparse
 import datetime
@@ -25,6 +30,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import device as d  # noqa: E402
 import thumb as th  # noqa: E402
+import timing  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # What a touch costs beyond the sleeps asked for, measured on the emulator from the times the field marked each key
@@ -44,23 +50,45 @@ def geometry_for(keyboard):
     path = os.path.join(HERE, "geometry", "%s-%s-%sdpi.json" % (keyboard, size, dpi))
     if not os.path.exists(path):
         raise SystemExit("run: no %s; measure the keyboard first: tool/versus/calibrate.py %s" % (os.path.relpath(path), keyboard))
-    return json.load(open(path))
+    geo = json.load(open(path))
+    geo["_path"] = path
+    return geo
 
 
 def script(tag, touches, settle=0.7, after=0.45):
     """One shell command: a new field, the touches at their pace, and the field's record. Nothing is touched for
-    [settle] seconds after the field is entered: a keyboard's keys take about 0.3 s to be where they will be."""
+    [settle] seconds after the field is entered: a keyboard's keys take about 0.3 s to be where they will be.
+    Around each touch the emulator's clock is read (a shell variable: no command is run for it) and printed as a
+    line "P <before it went down> <after it lifted>", for timing.py."""
     parts = ["am start -n %s --es tag %s --es mode plain >/dev/null" % (d.FIELD_ACTIVITY, tag), "sleep %.2f" % settle]
     for t in touches:
         hold = max(0.02, t["hold"] - SLEEP_OVER)
         gap = max(0.02, t["period"] - t["hold"] - INPUT_PAIR - SLEEP_OVER)
+        parts.append("a=$EPOCHREALTIME")
         parts.append("input motionevent DOWN %.1f %.1f" % (t["x"], t["y"]))
         parts.append("sleep %.3f" % hold)
         parts.append("input motionevent UP %.1f %.1f" % (t["x"], t["y"]))
+        parts.append('echo "P $a $EPOCHREALTIME"')
         parts.append("sleep %.3f" % gap)
     parts.append("sleep %.2f" % after)
     parts.append("run-as %s cat files/events.log" % d.FIELD)
     return "; ".join(parts)
+
+
+def clock(out):
+    """Each touch's two readings of the emulator's clock, in ms from the first: [[before down, after up], ...]."""
+    stamps = []
+    for line in out.splitlines():
+        f = line.split(" ")
+        if len(f) == 3 and f[0] == "P":
+            try:
+                stamps.append((float(f[1]), float(f[2])))
+            except ValueError:
+                pass
+    if not stamps:
+        return []
+    zero = stamps[0][0]
+    return [[round(1000 * (a - zero), 1), round(1000 * (b - zero), 1)] for a, b in stamps]
 
 
 def parse(out):
@@ -110,7 +138,8 @@ def main():
     ap.add_argument("--sentences", type=int, default=300)
     ap.add_argument("--thumbs", default="careful,leaning,sloppy")
     ap.add_argument("--seed", default="7")
-    ap.add_argument("--first", type=int, default=th.FIRST_LINE, help="the line of en-heldout.txt after which sentences are taken")
+    ap.add_argument("--first", type=int, default=th.FIRST_LINE, help="the line of the sentence file after which sentences are taken")
+    ap.add_argument("--file", default=th.HELD_OUT, help="the sentences, one a line (default build/typing-bench/en-heldout.txt)")
     ap.add_argument("--aim", default="answers", choices=["answers", "drawn"])
     ap.add_argument("--learn", action="store_true", help="let the keyboard learn from the field (it is asked not to by default)")
     args = ap.parse_args()
@@ -122,7 +151,7 @@ def main():
         raise SystemExit("run: %s is in front on %s; not touching it" % (where, d.SERIAL))
     geo = geometry_for(args.keyboard)
     board = th.Board(geo)
-    sents, skipped = th.sentences(args.sentences, first=args.first)
+    sents, skipped = th.sentences(args.sentences, path=args.file, first=args.first)
     thumbs = [th.THUMBS[n] for n in args.thumbs.split(",")]
     os.makedirs(args.out, exist_ok=True)
     path = os.path.join(args.out, args.keyboard + ".jsonl")
@@ -148,41 +177,64 @@ def main():
         raise SystemExit("run: the keyboard is %d px tall, and was measured at %d" % (state["height"], geo["keyboard_height"]))
     meta = {
         "keyboard": args.keyboard, "name": kb["name"], "version": version, "geometry": os.path.basename(geo.get("_path", "")),
+        "geometry_measured": geo.get("measured", ""),
         "device": geo["device"], "started": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-        "sentences": len(sents), "first_line": args.first, "skipped": skipped, "seed": args.seed, "aim": args.aim, "learn": args.learn,
+        "sentences": len(sents), "file": os.path.relpath(args.file), "first_line": args.first, "skipped": skipped, "seed": args.seed, "aim": args.aim, "learn": args.learn,
         "thumbs": {t.name: t.describe() for t in thumbs},
     }
+    # A run taken up again keeps when it first began, and says when it was taken up.
+    before = {}
+    if done and os.path.exists(os.path.join(args.out, args.keyboard + ".meta.json")):
+        before = json.load(open(os.path.join(args.out, args.keyboard + ".meta.json")))
+        if before.get("version", {}).get("sha256") != version["sha256"]:
+            raise SystemExit("run: %s holds sentences typed on another build of %s (%s); start a new folder" % (args.out, kb["name"], before.get("version", {}).get("sha256", "?")[:12]))
+        meta["taken_up_again"] = before.get("taken_up_again", []) + [meta["started"]]
+        meta["started"] = before.get("started", meta["started"])
     with open(os.path.join(args.out, args.keyboard + ".meta.json"), "w") as f:
         json.dump(meta, f, indent=1)
         f.write("\n")
     todo = [(t, s) for t in thumbs for s in sents if (t.name, s.line_no) not in done]
     log("%s %s on %s: %d sentences x %d thumbs, %d to type (%d already there)" % (kb["name"], version["versionName"], d.SERIAL, len(sents), len(thumbs), len(todo), len(done)))
     started = time.time()
-    with open(path, "a") as out:
+    with open(path, "a") as out, open(os.path.join(args.out, args.keyboard + ".stalled.jsonl"), "a") as aside:
         for n, (t, s) in enumerate(todo):
             taps, slips = th.plan(s, t, args.seed)
             touches = board.place(taps, args.aim)
             tag = "%s-%d" % (t.name, s.line_no)
             command = script(tag, touches).replace("--es mode plain", "--es mode plain --ez learn true" if args.learn else "--es mode plain")
-            why = None
-            for attempt in range(3):
-                if attempt:
-                    log("  %s: %s; again" % (tag, why))
-                    time.sleep(2 + 3 * attempt)
-                    if d.current_ime() != kb["ime"]:
-                        raise SystemExit("run: stopped at %s: the keyboard in use is no longer %s" % (tag, kb["name"]))
-                    d.ready("again", "plain", ime=kb["ime"])
-                rows = parse(d.sh(command, timeout=300))
+            why = stalled = record = None
+            attempt = 0
+            while True:
+                attempt += 1
+                text = d.sh(command, timeout=300)
+                rows = parse(text)
                 why = wrong(rows, tag, kb["ime"], geo["keyboard_height"])
+                stalled = None
                 if why is None:
+                    keys = [(r[1], r[2]) for r in rows if r[0] == "T"]
+                    record = {
+                        "keyboard": args.keyboard, "thumb": t.name, "line": s.line_no, "target": s.text, "words": s.words,
+                        "touches": touches, "slips": slips, "typed": keys, "out": keys[-1][1] if keys else "", "clock": clock(text),
+                    }
+                    stalled = timing.held(record) if len(record["clock"]) == len(touches) else "the emulator's clock was read for %d of %d touches" % (len(record["clock"]), len(touches))
+                    if stalled is None:
+                        break
+                    aside.write(json.dumps(dict(record, doubt=stalled, attempt=attempt), ensure_ascii=False) + "\n")
+                    aside.flush()
+                if attempt >= (3 if why else 6):
                     break
+                log("  %s: %s; again" % (tag, why or stalled))
+                time.sleep(2 + 3 * min(attempt, 4))
+                if d.current_ime() != kb["ime"]:
+                    raise SystemExit("run: stopped at %s: the keyboard in use is no longer %s" % (tag, kb["name"]))
+                d.ready("again", "plain", ime=kb["ime"])
             if why is not None:
                 raise SystemExit("run: stopped at %s: %s" % (tag, why))
-            keys = [(r[1], r[2]) for r in rows if r[0] == "T"]
-            record = {
-                "keyboard": args.keyboard, "thumb": t.name, "line": s.line_no, "target": s.text, "words": s.words,
-                "touches": touches, "slips": slips, "typed": keys, "out": keys[-1][1] if keys else "",
-            }
+            if stalled is not None:
+                log("  %s: %s, six times over; recorded as stalled, and left out of the score" % (tag, stalled))
+                record["stalled"] = stalled
+            if attempt > 1:
+                record["attempts"] = attempt
             if n % 50 == 49:
                 # The second way of reading the field, and the build still the one the run began with.
                 record["uiautomator"] = d.field_text_by_uiautomator()
@@ -194,6 +246,8 @@ def main():
                 rate = (time.time() - started) / (n + 1)
                 log("  %d of %d (%s); %.1f s a sentence, about %d min to go" % (n + 1, len(todo), tag, rate, rate * (len(todo) - n - 1) / 60))
     meta["finished"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    # Everything thrown away for a stall, this time and before (timing.py --set-aside's too).
+    meta["typings_thrown_away_for_a_stall"] = sum(1 for _ in open(os.path.join(args.out, args.keyboard + ".stalled.jsonl")))
     meta["version_at_end"] = d.version(kb["package"])
     with open(os.path.join(args.out, args.keyboard + ".meta.json"), "w") as f:
         json.dump(meta, f, indent=1)

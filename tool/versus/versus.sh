@@ -13,8 +13,10 @@
 #
 # Only ever an emulator ($VERSUS_SERIAL, default emulator-5584), and only when its launcher or the versus field is
 # in front. A keyboard that is not installed is left out, and the tables say so; SwiftKey has to be put on the
-# emulator from Google Play by hand, signed in to nothing. About four seconds a word: 300 sentences, three thumbs
-# and two keyboards are three and a half hours. A run that was stopped goes on from where it was (same --name).
+# emulator from Google Play by hand, signed in to nothing. About eight seconds a sentence: 300 sentences, three
+# thumbs and two keyboards are four hours, measuring the keys included. A run that was stopped goes on from where
+# it was (same --name). Keep this Mac quiet meanwhile: when it is busy the emulator stalls in the middle of a tap,
+# and though run.py notices and types the sentence again (timing.py), every stall costs a sentence's time.
 set -e
 cd "$(dirname "$0")/../.."
 keyboards="gboard ghost swiftkey"
