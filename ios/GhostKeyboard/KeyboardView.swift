@@ -170,7 +170,14 @@ final class KeyboardView: UIView {
         let wide = landscape ? Self.screenWidth >= Self.widePhone : (across > 0 ? across : Self.screenWidth) >= Self.widePhone
         let stock: CGFloat = traitCollection.userInterfaceIdiom == .phone && wide ? 56 : 54
         let h: CGFloat
-        switch keyHeightSetting { case "short": h = stock - 6; case "tall": h = stock + 6; default: h = stock }
+        switch keyHeightSetting {
+        case "short": h = stock - 6
+        case "tall": h = stock + 6
+        // Condensed, as on Android: rows about three quarters as tall (46 of Gboard's 60), the whole keyboard a fifth
+        // or more smaller (Matt, 2026-11-10: "a condensed version of the keyboard that takes up 15% or more less space").
+        case "condensed": h = (stock * 46 / 60).rounded()
+        default: h = stock
+        }
         let next = landscape ? min(h, 40) : h
         if next != rowHeight { rowHeight = next; layoutKeys(); invalidateIntrinsicContentSize() }
     }
@@ -226,7 +233,9 @@ final class KeyboardView: UIView {
     // --- metrics ----------------------------------------------------------------------------------------------------
 
     /// The strip above the keys: the row's, or a sliver that leaves the top row room to breathe.
-    private var toolbarHeight: CGFloat { pluginRow ? (onPhone ? 46 : 44) : 10 }
+    private var toolbarHeight: CGFloat { pluginRow ? (condensed ? 36 : (onPhone ? 46 : 44)) : (condensed ? 6 : 10) }
+    /// Condensed keys: shorter rows, a slimmer row above, smaller letters.
+    private var condensed: Bool { keyHeightSetting == "condensed" }
     private var onPhone: Bool { traitCollection.userInterfaceIdiom == .phone }
     /// The screen's shorter side, in points: which iPhone this is, whichever way it is held.
     static var screenWidth: CGFloat { min(UIScreen.main.bounds.width, UIScreen.main.bounds.height) }
@@ -589,7 +598,8 @@ final class KeyboardView: UIView {
 
     /// `text` centred on (cx, cy), its size shrunk until it fits `fit`.
     fileprivate func drawText(_ text: String, _ cx: CGFloat, _ cy: CGFloat, size: CGFloat, weight: UIFont.Weight, colour: UIColor, fit: CGFloat) {
-        var size = size
+        // Condensed keys' labels shrink with them, keeping the same room around them.
+        var size = condensed ? (size * 0.87).rounded() : size
         var font = UIFont.systemFont(ofSize: size, weight: weight)
         var s = (text as NSString).size(withAttributes: [.font: font])
         while size > 9 && s.width > fit {
