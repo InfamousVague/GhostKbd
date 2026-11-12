@@ -127,27 +127,39 @@ mended (`score.py`'s `limit`, worked out from the taps and the word list):
   and five of the six right words Ghost Keyboard changed were words its list lacks (yurt, Berber, dialled, envies,
   knifed).
 
-### The word before a question mark is read without its taps
+### The word before a question mark was read without its taps (mended 2026-11-12)
 
-`DevKeyboardService.tapsFor` asks `KeyboardView.tapKeys` where the keys are, and that is null on any page but the
-letters. A question mark or an exclamation mark typed from the ?123 page, and every comma (Ghost Keyboard has no
-comma on its letters page: the { } key is where Gboard's is), therefore ends its word with the keyboard on another
-page, and the word is corrected by which keys are neighbours alone, as before 0.11.0. 42 of the 326 lost words
-ended that way. On the JVM, with the taps kept (`whatif.py --keep-taps-at-marks`), 25 words are mended and 2
-broken: 2.6%, 7.4% and 15.2% wrong in place of 2.7%, 7.7% and 16.1%. A person who holds the full stop for its
-question mark keeps the taps as things are; one who goes to ?123 does not. The first cut of the JVM replay read
-those words by their taps, and the emulator disagreed in 24 sentences of 900: that is how it was found.
+`DevKeyboardService.tapsFor` asks `KeyboardView.tapKeys` where the keys are, and in 0.15.0 that was null on any
+page but the letters. A question mark or an exclamation mark typed from the ?123 page, and every comma (0.15.0 had
+no comma on its letters page: the { } key was where Gboard's is), therefore ended its word with the keyboard on
+another page, and the word was corrected by which keys are neighbours alone, as before 0.11.0. 42 of the 326 lost
+words ended that way. A person who held the full stop for its question mark kept the taps; one who went to ?123
+did not. The first cut of the JVM replay read those words by their taps, and the emulator disagreed in 24
+sentences of 900: that is how it was found.
+
+**Mended** (Matt, 2026-11-12: "Yes, fix it"), on top of 0.16.2. `KeyboardView` keeps where the letters' keys
+listen as it leaves the letters for another page (`lettersKeys`, taken in `showPage` before the page changes), and
+`tapKeys` answers with that on any other page; a new field forgets it. Nothing else changes: the taps of a word
+were always kept by the service, and only the keys to read them against were let go. `TapKeysSourceTest` holds the
+lines to the source, and that the page is changed in no third place. Through the decoder on the JVM, the 900
+sentence-typings of 2026-11-11 now leave 2.6%, 7.4% and 15.2% of words wrong where 0.15.0 left 2.7%, 7.7% and
+16.1%: 25 words mended and 2 broken, 23 of them among the 326 (`whatif.py --marks-without-taps` types as before).
+Not yet typed on a device. A debug build of 0.16.2 with the fix was made and its 421 unit tests pass, but on
+2026-11-12 the emulator was another session's and this Mac's load average stood near 200, where injected taps
+stall. `whatif.py --marks-without-taps --changed build/versus/changed.txt` lists the typings the fix alters, and
+`run.py ghost --only build/versus/changed.txt` types just those: the emulator's text should be the tree's, and
+not 0.15.0's, in every one.
 
 ### What the decoder's own dials would buy
 
 The same 900 sentence-typings through the decoder on the JVM, with its numbers set differently
 (`whatif.py --set`; the `@JvmField` dials `tool/typing_bench.sh` tunes). Words wrong, and words mended and broken
-against the decoder as it is:
+against the build that was measured:
 
 | Decoder | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| as it is | 2.7% | 7.7% | 16.1% | 8.9% | | |
-| taps kept at marks | 2.6% | 7.4% | 15.2% | 8.4% | 25 | 2 |
+| as measured, 0.15.0 (`--marks-without-taps`) | 2.7% | 7.7% | 16.1% | 8.9% | | |
+| taps kept at marks: the tree since 2026-11-12 | 2.6% | 7.4% | 15.2% | 8.4% | 25 | 2 |
 | and `Autocorrect.UNKNOWN_ODD` 0 (it is 1.8) | 2.5% | 6.8% | 14.0% | 7.8% | 56 | 0 |
 | and `MARGIN_COMMON` 0.6 (1.6), `UNKNOWN` 1.6 (3.2) | 2.1% | 6.4% | 13.0% | 7.2% | 96 | 7 |
 | taps kept, every bar and margin off | 3.8% | 6.5% | 11.6% | 7.3% | 151 | 70 |
@@ -203,14 +215,18 @@ some slips in names as they were (Tmo, Rrom and Fom for Tom, Slgeria for Algeria
 ### Using the list
 
     tool/versus/fixtures.py                          # 326 lost words: how many does the decoder in this tree mend?
-    tool/versus/fixtures.py --keep-taps-at-marks     # ... with a what-if
+    tool/versus/fixtures.py --marks-without-taps     # ... typing as 0.15.0 did: none, by construction
     VERBOSE=1 tool/versus/fixtures.py                # and which
     tool/versus/whatif.py --set TapDecoder.SPATIAL=1.0   # all 5,205 words: what a change mends and what it breaks
+    tool/versus/whatif.py --set ... --changed build/versus/changed.txt   # the typings a change alters, and then
+    tool/versus/run.py ghost --out build/versus/runs/try --only build/versus/changed.txt   # just those, on the emulator
 
 `fixtures.py` types each lost word's whole sentence through `Autocorrect` as it stands in the tree, by the taps
-the emulator was given. As things are it mends 0 of 326 and leaves all 241 sentences as the emulator had them,
-which is the point: it starts from the emulator's own answer. Mended should go up with a change to autocorrect;
-`whatif.py` says what else moved.
+the emulator was given, on the keys as they were that day (the list carries its keyboard with it,
+`ghost-lost-to-gboard.geometry.json`: the layout in the tree moves on). Typing as 0.15.0 did, it mends 0 of 326
+and leaves all 241 sentences as the emulator had them, which is the point: it starts from the emulator's own
+answer. With the taps kept at marks, as the tree now types, it mends 23, and 25 of the 241 sentences read
+otherwise. Mended should go up with a change to autocorrect; `whatif.py` says what else moved.
 
 ## How it was measured
 
@@ -303,6 +319,13 @@ cannot run on the JVM, so that part is read across: `Board` is `KeyboardView`'s 
 emulator: the 507 calibration taps must each mean the key the emulator typed (`replay.sh probes`; they do, edge
 pixels and all), and `score.py` counts the sentences whose text on the JVM is the emulator's, character for
 character: 900 of 900.
+
+A run is replayed on the keyboard it was typed on, as the build of that day typed. Each run keeps its own copy of
+the measured keys (`<run>/ghost.geometry.json`), and `Board.recorded` lays them out from that, not from the layout
+code in the tree: 0.16.2 gave the space bar the { } key's place, and on the tree's keys 2 of the 507 calibration
+taps of 0.15.0 already mean another key. A run's `meta.json` says where the build typed otherwise than the tree
+does (`"replay": ["--marks-without-taps"]` for 2026-11-11). With both, the count on main at 0.16.2 is still 900 of
+900: the decoder has not changed since 0.15.0, and its 421 unit tests pass with the fix in.
 
 ## What these numbers are not
 

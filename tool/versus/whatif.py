@@ -10,15 +10,18 @@ emulator, and for asking things the emulator run did not:
                   to land on each key (KeyboardView.LETTER_OFFSETS_DP), so a thumb that lands where it aims is read
                   as off its key: this says what that costs.
   --lean x,y      another lean for the leaning thumb (key widths right, key heights down)
-  --keep-taps-at-marks
+  --marks-without-taps
                   the word before a question mark, an exclamation mark or a comma (typed from the ?123 page) is
-                  read by where its taps landed, as the app does not (KeyboardView.tapKeys is null off the letters)
+                  read without its taps, as the app read it until 2026-11-12 (0.15.0, which the run of 2026-11-11
+                  was typed on): what keeping them is worth
   --set NAME=VALUE
                   one of the decoder's own dials for this run, any number of times: TapDecoder.BUDGET=8,
                   Autocorrect.UNKNOWN_LONG=0, Autocorrect.MARGIN_COMMON=1.0 (the numbers tool/typing_bench.sh tunes)
+  --changed FILE  with either of the two above: writes the typings whose text the change alters, a
+                  "<thumb> <line>" a line, for typing just those on the emulator (tool/versus/run.py --only FILE)
 
 It scores as score.py does (words wrong, left wrong, spoiled), with the same resampling interval. With
---keep-taps-at-marks or --set it also types the sentences through the decoder as it is and says how many words the
+--marks-without-taps or --set it also types the sentences through the decoder as it is and says how many words the
 change mends and how many it breaks. It trusts the replay only as far as score.py's agreement count says (900 of
 900 sentences on 2026-11-11): run that on an emulator run first.
 """
@@ -46,7 +49,8 @@ def main():
     ap.add_argument("--geometry", default=os.path.join(HERE, "geometry", "ghost-1248x1972-420dpi.json"))
     ap.add_argument("--resamples", type=int, default=2000)
     ap.add_argument("--show", type=int, default=0, help="print this many of the words left wrong")
-    ap.add_argument("--keep-taps-at-marks", action="store_true")
+    ap.add_argument("--marks-without-taps", action="store_true")
+    ap.add_argument("--changed", metavar="FILE")
     ap.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
     args = ap.parse_args()
     geo = json.load(open(args.geometry))
@@ -64,9 +68,16 @@ def main():
             for s in sents:
                 taps, slips = th.plan(s, t, args.seed)
                 records.append({"thumb": t.name, "line": s.line_no, "target": s.text, "words": s.words, "touches": board.place(taps, aim), "slips": slips})
-        out = score.replay(records, size, keep_taps_at_marks=args.keep_taps_at_marks, dials=args.set)
-        changed = args.keep_taps_at_marks or args.set
-        as_it_is = score.replay(records, size) if changed else None
+        # The taps are laid on the keys of [--geometry] and read on the same keys, whatever this tree's are now.
+        keys = score.board_file(args.geometry)
+        out = score.replay(records, size, board=keys, flags=["--marks-without-taps"] if args.marks_without_taps else [], dials=args.set)
+        changed = args.marks_without_taps or args.set
+        as_it_is = score.replay(records, size, board=keys) if changed else None
+        if changed and args.changed:
+            moved = [k for k in sorted(out) if out[k][0] != as_it_is[k][0]]
+            with open(args.changed, "w") as f:
+                f.write("".join("%s %d\n" % k for k in moved))
+            print("%d of %d typings come out otherwise: %s" % (len(moved), len(out), args.changed))
         rnd = random.Random(20261111)
         for t in thumbs:
             rows, wrongs = [], []

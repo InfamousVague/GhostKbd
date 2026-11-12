@@ -17,7 +17,7 @@ for f in "tool/versus/runs/$name"/*; do
   case "$base" in
     *.typed-twice.jsonl.gz) continue ;;
     *.gz) to="$out/${base%.gz}"; [ -e "$to" ] || gunzip -c "$f" > "$to" ;;
-    *.meta.json) [ -e "$out/$base" ] || cp "$f" "$out/$base" ;;
+    *.meta.json|*.geometry.json) [ -e "$out/$base" ] || cp "$f" "$out/$base" ;;
   esac
 done
 echo "$out: $(ls "$out" | tr '\n' ' ')"

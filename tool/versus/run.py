@@ -2,6 +2,8 @@
 """Types the sentences into the versus field with one keyboard, a thumb at a time, and records what it left there.
 
     tool/versus/run.py <keyboard> --out build/versus/runs/<name> [--sentences 300] [--thumbs careful,leaning,sloppy]
+                                  [--only <file>]     only the typings listed there, a "<thumb> <line>" a line
+                                                      (tool/versus/whatif.py --changed writes such a file)
 
 For every thumb and sentence: the field is emptied (a new field, so the keyboard starts as it does on a new
 message), the thumb's taps are injected on the emulator at a person's pace (a touch down, held 55 to 95 ms, lifted;
@@ -142,6 +144,7 @@ def main():
     ap.add_argument("--file", default=th.HELD_OUT, help="the sentences, one a line (default build/typing-bench/en-heldout.txt)")
     ap.add_argument("--aim", default="answers", choices=["answers", "drawn"])
     ap.add_argument("--learn", action="store_true", help="let the keyboard learn from the field (it is asked not to by default)")
+    ap.add_argument("--only", help="a file of \"<thumb> <line>\" lines: of the sentences and thumbs asked for, only these are typed")
     args = ap.parse_args()
     kb = d.KEYBOARDS[args.keyboard]
     if not d.installed(kb["package"]):
@@ -155,6 +158,11 @@ def main():
     thumbs = [th.THUMBS[n] for n in args.thumbs.split(",")]
     os.makedirs(args.out, exist_ok=True)
     path = os.path.join(args.out, args.keyboard + ".jsonl")
+    # The keyboard as it was measured goes with the run: the file in tool/versus/geometry is the next build's soon.
+    kept = os.path.join(args.out, args.keyboard + ".geometry.json")
+    if not os.path.exists(kept):
+        import shutil
+        shutil.copyfile(geo["_path"], kept)
     done = set()
     if os.path.exists(path):
         for line in open(path):
@@ -194,6 +202,9 @@ def main():
         json.dump(meta, f, indent=1)
         f.write("\n")
     todo = [(t, s) for t in thumbs for s in sents if (t.name, s.line_no) not in done]
+    if args.only:
+        wanted = {(f[0], int(f[1])) for f in (line.split() for line in open(args.only)) if len(f) >= 2 and f[1].isdigit()}
+        todo = [(t, s) for t, s in todo if (t.name, s.line_no) in wanted]
     log("%s %s on %s: %d sentences x %d thumbs, %d to type (%d already there)" % (kb["name"], version["versionName"], d.SERIAL, len(sents), len(thumbs), len(todo), len(done)))
     started = time.time()
     with open(path, "a") as out, open(os.path.join(args.out, args.keyboard + ".stalled.jsonl"), "a") as aside:

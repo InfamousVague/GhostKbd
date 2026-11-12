@@ -20,11 +20,17 @@
 // or  M:<mark>:<ms>  (a mark typed from the ?123 page: the page itself is not modelled, the mark is typed as its key
 // there would type it). Out:  <id> TAB <field's text> TAB <what the keys gave, no autocorrect> TAB <fixes>.
 //
-// A mark typed from the ?123 page ends its word with no taps to read it by, as in the app: tapsFor asks
-// KeyboardView.tapKeys, which is null on any page but the letters. So the word before a question mark, an exclamation
-// mark or a comma is corrected by which keys are neighbours alone. (The first cut of this file read those words by
-// their taps, and the emulator said otherwise in 24 sentences of 900.) `replay ... --keep-taps-at-marks` reads them
-// by their taps all the same: what the app would do if it kept the letters page's keys for that.
+// A word ended by a mark typed from the ?123 page (a question mark, an exclamation mark, the comma) is read by its
+// taps, as the app reads it since 2026-11-12: KeyboardView.tapKeys answers with the letters' keys as they were when
+// the page was left. Before that it was null off the letters and the word was corrected by which keys are neighbours
+// alone: `replay ... --marks-without-taps` types as those builds did (0.15.0, which the run of 2026-11-11 was typed
+// on; the emulator and this file then agree in 900 sentences of 900, and without it in 876).
+//
+// `replay ... --board <file>` lays the keys out as they were when a run was typed, from the run's own geometry file
+// (tool/versus/score.py writes <file> from it), and not as this tree's layout code has them now. A run is replayed
+// on the keyboard it was typed on: 0.16.2 gave the space bar the { } key's place, and taps aimed at 0.15.0's bar
+// mean other keys on it. Without --board the keys are this tree's (for `geometry`, and for `probes` of a
+// measurement made of this tree's build).
 //
 // `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
 // @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
@@ -58,21 +64,67 @@ class Rect(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
 /**
  * The letters page as KeyboardView draws and reads it at the app's defaults (Normal key height, the row of tools
- * showing, the emoji key, no number row, no mic or globe key, a phone's width, the Adaptive keys plugin off), in the
- * view's own pixels. [top] is where the view starts on the screen.
+ * showing, no number row, no mic or globe key, a phone's width, the Adaptive keys plugin off), in the view's own
+ * pixels. [top] is where the view starts on the screen. [rows] are its keys and [offsetsDp] is
+ * KeyboardView.LETTER_OFFSETS_DP: this tree's ([ofThisTree]), or those a run was typed on ([recorded]).
  */
-class Board(root: File, val width: Float, val screenHeight: Float, dpi: Float, val navInset: Int) {
+class Board(val width: Float, val screenHeight: Float, dpi: Float, val navInset: Int, val rows: List<KeyRow>, private val offsetsDp: Map<String, Pair<Float, Float>>, val symbols: List<KeyRow> = emptyList()) {
+    companion object {
+        /** The keys as this tree's own layout code makes them, with the emoji plugin's key (it is on by default). */
+        fun ofThisTree(root: File, width: Float, screenHeight: Float, dpi: Float, navInset: Int): Board {
+            // KeyboardView.LETTER_OFFSETS_DP, read from the source so a change there is a change here.
+            val src = File(root, "android/app/src/main/kotlin/com/infamousvague/devkeyboard/KeyboardView.kt").readText()
+            val block = src.substringAfter("LETTER_OFFSETS_DP: Map<String, Pair<Float, Float>> = mapOf(").substringBefore("\n        )")
+            val found = Regex("\"(\\w)\" to \\((-?[\\d.]+)f to (-?[\\d.]+)f\\)").findAll(block).associate { it.groupValues[1] to (it.groupValues[2].toFloat() to it.groupValues[3].toFloat()) }
+            check(found.size == 26) { "KeyboardView.LETTER_OFFSETS_DP: read ${found.size} of 26 letters" }
+            val rows = Layouts.withEmoji(Layouts.letters(Layouts.QWERTY, false, Layouts.extras(Layouts.QWERTY, emptyList()), false), false)
+            return Board(width, screenHeight, dpi, navInset, rows, found, Layouts.symbols(Layouts.QWERTY))
+        }
+
+        /**
+         * The keys as they were when a run was typed. [file] is tool/versus/score.py's (board_file), a line a fact:
+         *   screen <width> <height> <dpi> <nav px>
+         *   offset <letter> <dp across> <dp down>
+         *   row <inset> <TYPE|text|label|width> ...          text and label as code points joined by +
+         *   cell <name> <left> <top> <right> <bottom>        where the run's geometry file has that key, on the screen
+         * Every cell must come out of this file's layout arithmetic where it was recorded, to a fiftieth of a pixel:
+         * else the arithmetic is no longer the keyboard's of that day, and nothing is replayed.
+         */
+        fun recorded(file: File): Board {
+            fun text(points: String) = if (points.isEmpty()) "" else points.split('+').joinToString("") { String(Character.toChars(it.toInt())) }
+            var screen: List<String>? = null
+            val offsets = HashMap<String, Pair<Float, Float>>()
+            val rows = ArrayList<KeyRow>()
+            val cells = ArrayList<Pair<String, FloatArray>>()
+            for (line in file.readLines()) {
+                val f = line.split('\t')
+                when (f[0]) {
+                    "screen" -> screen = f.drop(1)
+                    "offset" -> offsets[f[1]] = f[2].toFloat() to f[3].toFloat()
+                    "row" -> rows += KeyRow(f.drop(2).map { k ->
+                        val (type, t, label, w) = k.split('|')
+                        Key(KeyType.valueOf(type), text(t), text(label).ifEmpty { text(t) }, w.toFloat())
+                    }, f[1].toFloat())
+                    "cell" -> cells += f[1] to floatArrayOf(f[2].toFloat(), f[3].toFloat(), f[4].toFloat(), f[5].toFloat())
+                }
+            }
+            val s = checkNotNull(screen) { "${file.name}: no screen line" }
+            val b = Board(s[0].toFloat(), s[1].toFloat(), s[2].toFloat(), s[3].toInt(), rows, offsets)
+            check(cells.size == b.keyRects.size) { "${file.name}: ${cells.size} cells recorded, ${b.keyRects.size} keys laid out" }
+            for ((i, cell) in cells.withIndex()) {
+                val r = b.keyRects[i].second
+                val here = floatArrayOf(r.left, r.top + b.top, r.right, r.bottom + b.top)
+                check(b.name(b.keyRects[i].first) == cell.first && here.indices.all { abs(here[it] - cell.second[it]) <= 0.02f }) {
+                    "${file.name}: the key ${cell.first} was at ${cell.second.joinToString()} when the run was typed, and this file's layout puts ${b.name(b.keyRects[i].first)} at ${here.joinToString()}"
+                }
+            }
+            return b
+        }
+    }
+
     private val density = dpi / 160f
     private fun dp(v: Float) = v * density
 
-    /** KeyboardView.LETTER_OFFSETS_DP, read from the source so a change there is a change here. */
-    private val offsetsDp: Map<String, Pair<Float, Float>> = run {
-        val src = File(root, "android/app/src/main/kotlin/com/infamousvague/devkeyboard/KeyboardView.kt").readText()
-        val block = src.substringAfter("LETTER_OFFSETS_DP: Map<String, Pair<Float, Float>> = mapOf(").substringBefore("\n        )")
-        val found = Regex("\"(\\w)\" to \\((-?[\\d.]+)f to (-?[\\d.]+)f\\)").findAll(block).associate { it.groupValues[1] to (it.groupValues[2].toFloat() to it.groupValues[3].toFloat()) }
-        check(found.size == 26) { "KeyboardView.LETTER_OFFSETS_DP: read ${found.size} of 26 letters" }
-        found
-    }
     private val qwertyRows = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
     private val qwertyInsets = floatArrayOf(0f, 0.5f, 1.5f)
 
@@ -80,8 +132,6 @@ class Board(root: File, val width: Float, val screenHeight: Float, dpi: Float, v
     private val previewSpace = dp(rowHeightDp * 1.3f)
     private val toolbarHeight = dp(44f)
     val keysTop = previewSpace + toolbarHeight
-    val rows: List<KeyRow> = Layouts.withEmoji(Layouts.letters(Layouts.QWERTY, false, Layouts.extras(Layouts.QWERTY, emptyList()), false), false)
-    val symbols: List<KeyRow> = Layouts.symbols(Layouts.QWERTY)
     private val keysHeight = 4 * dp(rowHeightDp)
     private val sidePad = dp(1.5f)
     private val bottomPad = dp(2f)
@@ -220,9 +270,9 @@ class Decoder(root: File) {
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
  */
-class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val keepTapsAtMarks: Boolean = false) {
+class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false) {
     val text = StringBuilder()
-    /** The ?123 page is showing: KeyboardView.tapKeys is null there, and a word is read without its taps. */
+    /** The ?123 page is showing, on a build from before 2026-11-12: KeyboardView.tapKeys was null there, and a word was read without its taps. */
     private var offLetters = false
     private class Touch(val c: Char, val x: Float, val y: Float)
     private val wordTouches = ArrayList<Touch?>()
@@ -287,7 +337,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
 
     /** A mark typed from the ?123 page (the keys are the letters again by the next tap: the thumb goes back). */
     fun mark(c: Char) {
-        offLetters = !keepTapsAtMarks
+        offLetters = marksWithoutTaps
         try { onText(c.toString(), null) } finally { offLetters = false }
     }
 
@@ -357,7 +407,7 @@ fun board(root: File, args: List<String>): Board {
     val w = args[0].toFloat(); val h = args[1].toFloat(); val dpi = args[2].toFloat()
     // The strip Android keeps under the keys with gesture navigation: KeyboardView.NAV_BUTTONS_DP (48) at this density.
     val nav = args.getOrNull(3)?.toInt() ?: ceil(48f * dpi / 160f).toInt()
-    return Board(root, w, h, dpi, nav)
+    return Board.ofThisTree(root, w, h, dpi, nav)
 }
 
 /** The hint calibrate.py starts from: every key's cell on the screen, before any touch correction. */
@@ -374,11 +424,16 @@ fun geometry(root: File, args: List<String>) {
     println("}")
 }
 
-/** calibrate.py's taps, read by [Board.keyAt]: each must mean the key the emulator typed. */
-fun probes(root: File, args: List<String>) {
+/**
+ * calibrate.py's taps, read by [Board.keyAt]: each must mean the key the emulator typed. On this tree's keys, for a
+ * measurement of this tree's build; with `--board <file>` on the keys as the measurement's own file has them.
+ */
+fun probes(root: File, all: List<String>) {
+    val at = all.indexOf("--board")
+    val args = if (at >= 0) all.filterIndexed { i, _ -> i != at && i != at + 1 } else all
     val text = File(args[0]).readText()
     fun num(key: String) = Regex("\"$key\": (\\d+)").find(text)!!.groupValues[1].toFloat()
-    val b = Board(root, num("width"), num("height"), num("dpi"), ceil(48f * num("dpi") / 160f).toInt())
+    val b = if (at >= 0) Board.recorded(File(all[at + 1])) else Board.ofThisTree(root, num("width"), num("height"), num("dpi"), ceil(48f * num("dpi") / 160f).toInt())
     val taps = Regex("\\[\\s*(-?[\\d.]+),\\s*(-?[\\d.]+),\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*\\]").findAll(text.substringAfter("\"probes\":")).toList()
     var same = 0
     val wrong = ArrayList<String>()
@@ -408,17 +463,19 @@ fun dial(setting: String) {
 }
 
 fun replay(root: File, all: List<String>) {
-    val keep = "--keep-taps-at-marks" in all
+    val without = "--marks-without-taps" in all
     val args = ArrayList<String>()
+    var recorded: File? = null
     var i = 0
     while (i < all.size) {
         when {
             all[i] == "--set" -> { dial(all[i + 1]); i++ }
+            all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
             !all[i].startsWith("--") -> args += all[i]
         }
         i++
     }
-    val b = board(root, args)
+    val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
     val decoder = Decoder(root)
     var line = readLine()
     var n = 0
@@ -426,7 +483,7 @@ fun replay(root: File, all: List<String>) {
         val tab = line.indexOf('\t')
         if (tab > 0) {
             val id = line.substring(0, tab)
-            val typist = Typist(b, decoder, keepTapsAtMarks = keep)
+            val typist = Typist(b, decoder, marksWithoutTaps = without)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {
                 val f = e.split(':')

@@ -49,5 +49,9 @@
   "apk": "/data/app/~~4nagQH32_zHYdgqwSu0afQ==/com.infamousvague.devkeyboard-sBGCAl6Dwv_8Sv5z09cR1g==/base.apk",
   "sha256": "7eae7ac86e755cbbd6cafe662ac968ae1ab96d2e2422bc675f87ce959bf4537f"
  },
- "typings_thrown_away_for_a_stall": 30
+ "typings_thrown_away_for_a_stall": 30,
+ "replay": [
+  "--marks-without-taps"
+ ],
+ "replay_note": "0.15.0 read a word ended from the ?123 page without its taps (KeyboardView.tapKeys was null off the letters until 2026-11-12): tool/versus/replay.sh types as it did only with this"
 }

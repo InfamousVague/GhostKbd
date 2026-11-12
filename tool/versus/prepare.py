@@ -3,13 +3,15 @@
 
     snapshot        saves what will be changed: Ghost Keyboard's own data (its settings and everything it has
                     learned; a debug build's, by run-as and tar, to /data/local/tmp on the emulator and to
-                    build/versus/backup/ here), and which keyboard is in use
+                    build/versus/backup/ here), the build of it that is installed (its APK, to
+                    build/versus/backup/), and which keyboard is in use
     clear ghost     Ghost Keyboard as a new install has it: `pm clear`, so default settings and nothing learned.
                     Refused until there is a snapshot
     clear gboard    Gboard's own "Delete learned words and data" (Settings, Privacy), found by its words on the
                     screen. Its settings are left as they are. Says so, and changes nothing, if it cannot find its way
-    restore         Ghost Keyboard's data back from the snapshot, the keyboard that was in use back in use, the
-                    versus field uninstalled, the launcher in front
+    restore         the build of Ghost Keyboard that was installed back, where another has been put over it since
+                    (a build with a change to try), its data back from the snapshot, the keyboard that was in use
+                    back in use, the versus field uninstalled, the launcher in front
 
 A keyboard is cleared so that nothing typed on the emulator before the run is in what it reads sentences by. The
 run itself teaches nothing: the versus field asks keyboards not to learn from it.
@@ -30,6 +32,7 @@ BACKUP = os.path.join(ROOT, "build", "versus", "backup")
 STATE = os.path.join(BACKUP, "state.json")
 GHOST = d.KEYBOARDS["ghost"]["package"]
 DEVICE_TAR = "/data/local/tmp/versus-ghost-before.tar"
+APK = os.path.join(BACKUP, "ghost-before.apk")
 
 
 def snapshot():
@@ -47,6 +50,12 @@ def snapshot():
         on_device = d.sh("sha256sum " + DEVICE_TAR).split()[0]
         if on_device != state["ghost"]["sha256"]:
             raise SystemExit("prepare: the snapshot here is not the one on the emulator")
+        # The build itself, for putting back after one with a change in it has been tried over it.
+        apk = d.adb("exec-out", "cat " + state["ghost"]["version"]["apk"], binary=True)
+        if hashlib.sha256(apk).hexdigest() != state["ghost"]["version"]["sha256"]:
+            raise SystemExit("prepare: the APK pulled from the emulator is not the one installed there")
+        with open(APK, "wb") as f:
+            f.write(apk)
     with open(STATE, "w") as f:
         json.dump(state, f, indent=1)
         f.write("\n")
@@ -133,6 +142,18 @@ def restore():
         raise SystemExit("prepare: no snapshot to restore (%s)" % os.path.relpath(STATE))
     state = json.load(open(STATE))
     d.sh("input keyevent KEYCODE_HOME")
+    if "ghost" in state and d.installed(GHOST) and d.version(GHOST)["sha256"] != state["ghost"]["version"]["sha256"]:
+        # Another build was put over it since the snapshot: the one that was there goes back first (an older one
+        # over a newer needs -d, which a debug build allows).
+        if not os.path.exists(APK) or hashlib.sha256(open(APK, "rb").read()).hexdigest() != state["ghost"]["version"]["sha256"]:
+            raise SystemExit("prepare: Ghost Keyboard is not the build the snapshot was taken of, and %s is not that build either: put it back by hand, then restore again" % os.path.relpath(APK))
+        free = int(os.popen("df -m / | tail -1").read().split()[3])
+        if free < 1024:
+            raise SystemExit("prepare: only %d MB free on this Mac; not installing" % free)
+        print(d.adb("install", "-r", "-d", APK, timeout=300).strip().splitlines()[-1])
+        if d.version(GHOST)["sha256"] != state["ghost"]["version"]["sha256"]:
+            raise SystemExit("prepare: the build that was installed did not go back")
+        print("Ghost Keyboard %s (%s) is installed again, the build the snapshot was taken of" % (state["ghost"]["version"]["versionName"], state["ghost"]["version"]["versionCode"]))
     if "ghost" in state and d.installed(GHOST):
         if d.sh("sha256sum " + DEVICE_TAR, check=False).split()[:1] != [state["ghost"]["sha256"]]:
             # The emulator's copy is gone or changed: send this Mac's.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tries Ghost Keyboard's decoder, as it is in this tree, on the words it lost: tool/versus/fixtures.py [file ...]
-[--keep-taps-at-marks] [--set NAME=VALUE ...] (the last two as tool/versus/whatif.py has them).
+[--marks-without-taps] [--set NAME=VALUE ...] (the last two as tool/versus/whatif.py has them).
 
 Each line of tool/versus/fixtures/*.tsv is a word another keyboard got and Ghost Keyboard did not, with the taps of
 the whole sentence it was in, exactly as they were injected on the emulator. This types every such sentence through
@@ -24,9 +24,9 @@ import score  # noqa: E402
 def main():
     argv = sys.argv[1:]
     extra = []
-    if "--keep-taps-at-marks" in argv:
-        argv.remove("--keep-taps-at-marks")
-        extra.append("--keep-taps-at-marks")
+    if "--marks-without-taps" in argv:
+        argv.remove("--marks-without-taps")
+        extra.append("--marks-without-taps")
     while "--set" in argv:
         i = argv.index("--set")
         extra += argv[i:i + 2]
@@ -35,9 +35,13 @@ def main():
     if not files:
         raise SystemExit("fixtures: no tool/versus/fixtures/*.tsv (tool/versus/score.py <run> --fixtures writes them)")
     rows = []
+    boards = set()
     for path in files:
         cols = None
         for line in open(path, encoding="utf-8"):
+            if line.startswith("# board: "):
+                # The keyboard these taps were made on (its geometry file): they are read on that, not on this tree's.
+                boards.add(score.board_file(os.path.join(score.ROOT, line[len("# board: "):].strip())))
             if line.startswith("#") or not line.strip():
                 continue
             f = line.rstrip("\n").split("\t")
@@ -46,6 +50,9 @@ def main():
                 continue
             rows.append(dict(zip(cols, f)))
     size = os.environ.get("VERSUS_SCREEN", "1248 1972 420").split()
+    if len(boards) > 1:
+        raise SystemExit("fixtures: these files were typed on %d different keyboards; give them one at a time" % len(boards))
+    extra = [x for b in boards if b for x in ("--board", b)] + extra
     sentences = {}
     for r in rows:
         sentences[(r["thumb"], r["line"])] = r

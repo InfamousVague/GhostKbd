@@ -93,12 +93,65 @@ def events_line(rec):
     return " ".join(parts)
 
 
-def replay(records, size, keep_taps_at_marks=False, dials=()):
+NAMED_KEYS = {"space": ("SPACE", " ", ""), "shift": ("SHIFT", "", ""), "delete": ("DELETE", "", ""), "enter": ("ENTER", "", ""), "emoji": ("EMOJI", "", ""),
+              "mic": ("MIC", "", ""), "globe": ("GLOBE", "", ""), "symbols": ("MODE", "", "?123"), "dev": ("MODE", "", "{ }"), "letters": ("MODE", "", "ABC")}
+
+
+def board_file(geometry):
+    """The letters page a run was typed on, as tool/versus/replay/Replay.kt reads it (Board.recorded): written to
+    build/versus/boards/ from the run's geometry file [geometry] (a path), whose touch model lists every key's cell
+    in the order the keyboard laid them out, and the offsets it read touches by. A keyboard's layout changes from
+    one version to the next (0.16.2 gave the space bar the { } key's place), and taps aimed at one are other keys
+    on another: a run is replayed on the keyboard it was typed on. None where the file has no such model."""
+    geo = json.load(open(geometry))
+    model = geo.get("touch_model") or {}
+    if model.get("kind") != "ghost-keyboard-view":
+        return None
+    cells = model["cells"]
+    unit = sorted(r[2] - r[0] for name, r in cells if len(name) == 1 and name.isalpha())[len([1 for name, _ in cells if len(name) == 1 and name.isalpha()]) // 2]
+    rows = []
+    for name, r in cells:
+        if not rows or abs(rows[-1][0][1][1] - r[1]) > 1.0:
+            rows.append([])
+        rows[-1].append((name, r))
+
+    def points(text):
+        return "+".join(str(ord(c)) for c in text)
+    most = 0.0
+    made = []
+    for row in rows:
+        keys = []
+        for name, r in row:
+            kind, text, label = NAMED_KEYS.get(name, ("CHAR", name, "") if len(name) == 1 else ("MODE", "", name))
+            keys.append("%s|%s|%s|%s" % (kind, points(text), points(label), round((r[2] - r[0]) / unit * 2) / 2.0))
+        across = sum(float(k.rsplit("|", 1)[1]) for k in keys)
+        most = max(most, across)
+        made.append((across, keys))
+    dev = geo["device"]
+    out = ["# the letters page a versus run was typed on, from %s (tool/versus/score.py board_file)" % os.path.basename(geometry),
+           "screen\t%d\t%d\t%d\t%d" % (dev["width"], dev["height"], dev["dpi"], int(-(-48 * dev["dpi"] // 160)))]
+    out += ["offset\t%s\t%r\t%r" % (c, v[0], v[1]) for c, v in sorted(model["offsets_dp"].items())]
+    out += ["row\t%s\t%s" % ((most - across) / 2.0, "\t".join(keys)) for across, keys in made]
+    out += ["cell\t%s\t%s" % (name, "\t".join(repr(float(v)) for v in r)) for name, r in cells]
+    folder = os.path.join(ROOT, "build", "versus", "boards")
+    os.makedirs(folder, exist_ok=True)
+    text = "\n".join(out) + "\n"
+    import hashlib
+    path = os.path.join(folder, "%s-%s.board" % (os.path.basename(geometry)[:-5] if geometry.endswith(".json") else os.path.basename(geometry), hashlib.sha256(text.encode("utf-8")).hexdigest()[:10]))
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+    return path
+
+
+def replay(records, size, board=None, flags=(), dials=()):
     """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes)}.
-    [keep_taps_at_marks]: the word before a mark from the ?123 page is read by its taps, as the app does not.
-    [dials]: the decoder's own numbers for this run, as "TapDecoder.BUDGET=8" (Replay.kt's --set)."""
+    [board]: the keys as they were when the touches were made ([board_file]); without it, as this tree lays them out.
+    [flags]: Replay.kt's own, "--marks-without-taps" for a run typed on a build from before 2026-11-12 (a word
+    ended from the ?123 page was read without its taps then). [dials]: the decoder's own numbers for this run, as
+    "TapDecoder.BUDGET=8" (Replay.kt's --set)."""
     lines = ["%s/%d\t%s" % (r["thumb"], r["line"], events_line(r)) for r in records]
-    extra = (["--keep-taps-at-marks"] if keep_taps_at_marks else []) + [x for dial in dials for x in ("--set", dial)]
+    extra = (["--board", board] if board else []) + list(flags) + [x for dial in dials for x in ("--set", dial)]
     p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + [str(v) for v in size] + extra, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if p.returncode != 0:
         raise SystemExit("score: replay.sh failed: " + p.stderr[-600:])
@@ -356,9 +409,18 @@ def main():
     keyboards = [k for k in ("ghost", "gboard", "swiftkey") if k in runs] + [k for k in runs if k not in ("ghost", "gboard", "swiftkey")]
 
     jvm = {}
+    ghost_geometry = None
+    if "ghost" in runs:
+        # The keyboard as it was measured for this run: the run's own copy of it, else the one in tool/versus/geometry.
+        for where in (os.path.join(args.run, "ghost.geometry.json"), os.path.join(HERE, "geometry", metas["ghost"].get("geometry") or "-")):
+            if os.path.exists(where):
+                ghost_geometry = where
+                break
     if "ghost" in runs and not args.no_replay:
         dev = metas["ghost"].get("device", {})
-        jvm = replay(list(runs["ghost"].values()), (dev.get("width", 1248), dev.get("height", 1972), dev.get("dpi", 420)))
+        # As the build that was measured typed: the run's meta says where that is not as this tree types.
+        jvm = replay(list(runs["ghost"].values()), (dev.get("width", 1248), dev.get("height", 1972), dev.get("dpi", 420)),
+                     board=board_file(ghost_geometry) if ghost_geometry else None, flags=metas["ghost"].get("replay", []))
 
     # Every word of every sentence, for every keyboard.
     table = {}   # (kb, thumb, line) -> dict
@@ -602,9 +664,16 @@ def main():
     wins_note = "The other way, %d words Ghost Keyboard got and %s did not: %s." % (len(wins), " or ".join(names[k] for k in keyboards[1:]), "; ".join("%s %d" % kv for kv in collections.Counter(w["category"] for w in wins).most_common())) if wins else ""
     if args.fixtures and losses:
         os.makedirs(os.path.join(HERE, "fixtures"), exist_ok=True)
-        with open(os.path.join(HERE, "fixtures", "ghost-lost-to-%s.tsv" % "-".join(keyboards[1:])), "w") as f:
+        stem = os.path.join(HERE, "fixtures", "ghost-lost-to-%s" % "-".join(keyboards[1:]))
+        with open(stem + ".tsv", "w") as f:
             f.write("# Words another keyboard got and Ghost Keyboard did not (tool/versus/score.py --fixtures). tool/versus/fixtures.py types\n")
             f.write("# each sentence's taps through the decoder on the JVM again and says which words are right now.\n")
+            if ghost_geometry:
+                # The keyboard the taps were made on goes with them: the layout in the tree moves on.
+                import shutil
+                if os.path.abspath(ghost_geometry) != os.path.abspath(stem + ".geometry.json"):
+                    shutil.copyfile(ghost_geometry, stem + ".geometry.json")
+                f.write("# board: %s\n" % os.path.relpath(stem + ".geometry.json", ROOT))
             f.write("\t".join(cols) + "\n")
             for l in sorted(losses, key=lambda l: (-by_cat[l["category"]], l["category"], l["thumb"], l["line"], l["word"])):
                 f.write("\t".join(str(l[c]) for c in cols) + "\n")
