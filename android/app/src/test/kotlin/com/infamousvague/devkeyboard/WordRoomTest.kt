@@ -155,4 +155,25 @@ class WordRoomTest {
         assertEquals(100, wide.lead)
         assertEquals((690 - 200) / 3, wide.width)
     }
+
+    @Test fun `the everyday tools are pinned only where the words still stand in the middle beside them`() {
+        fun pins(total: Int, tools: Int) = PluginRow.WordRoom.pins(total, tools * 40 + 6, tools, least = 80)
+        // A phone, and a wide phone (475, where until 0.16.0 five were pinned and the words stood off to one side).
+        assertEquals(false, pins(412, 4))
+        assertEquals(false, pins(475, 5))
+        assertEquals(false, pins(475, 3))
+        // A foldable's inner screen and a tablet: all five, with three words of 80 or more in the middle.
+        assertEquals(true, pins(690, 5))
+        assertEquals(true, pins(800, 5))
+        // The least width for five: twice their 206 and three words of 80.
+        assertEquals(true, pins(2 * 206 + 240, 5))
+        assertEquals(false, pins(2 * 206 + 239, 5))
+        // Nothing to pin is never pinned.
+        assertEquals(false, pins(2000, 0))
+        // And where they are pinned the words are centred: the same sum WordRoom.of makes.
+        val r = room(690, before = 206, count = 7)
+        assertEquals(0, r.lead)
+        assertEquals((690 - 412) / 3, r.width)
+        assertTrue(r.width >= 80)
+    }
 }

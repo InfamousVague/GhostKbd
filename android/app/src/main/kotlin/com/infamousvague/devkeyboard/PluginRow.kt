@@ -111,9 +111,10 @@ class TapGuard(private val holdMs: Long = HOLD_MS) {
  *
  * The everyday tools (undo and redo, the clipboard, GIFs; emoji too where the board has no room for its key) lead the row (Matt, 2026-11-10: "the word
  * suggestion row is too long move things like the back forward clipboard emoji and gif stuff to the front of the
- * list and remove the settings cog from the toolbar"). Where the row is wide enough for them and three words beside
- * them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay there while
- * words are suggested; on a narrow row they are the first of the tools instead, straight after the words. There is no
+ * list and remove the settings cog from the toolbar"). Where the row is wide enough for them and three words in its
+ * middle beside them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay
+ * there while words are suggested; on a narrower row they are the first of the tools instead, straight after the
+ * words. There is no
  * settings button: a long press on the { } key or the comma opens Settings, as it always has.
  *
  * Words (Matt, 2026-11-12: "Center the auto complete words and only show about three of them reserve some space on
@@ -228,8 +229,14 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
     private fun shared(): Int =
         (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - (if (showArrows) dp(36f) * arrowButtons.size else 0) - (if (showHide) dp(44f) else 0)
 
-    /** Whether [count] everyday tools are pinned at the row's start as the row is now: they fit, with three words beside them. */
-    fun pins(count: Int): Boolean = count > 0 && shared() - count * dp(LEAD_DP) >= 3 * dp(WORD_DP)
+    /**
+     * Whether [count] everyday tools are pinned at the row's start as the row is now: only where three words still
+     * stand in the row's middle beside them, as much kept clear after the words as the tools take before them
+     * ([WordRoom.pins]). On a narrower row they are the first of the tools after the words instead, so the words
+     * are in the middle there too. (Until 0.16.0 they were pinned wherever three words of 92dp fitted beside them,
+     * which on a 475dp screen put the words off to one side.)
+     */
+    fun pins(count: Int): Boolean = WordRoom.pins(shared(), count * dp(LEAD_DP) + dp(EDGE_DP), count, dp(WORD_MIN_DP))
 
     /**
      * Fills the row with [next]. [leading] are the everyday tools: pinned at the row's start where they and three
@@ -344,6 +351,13 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
             const val MOST = 3
 
             /**
+             * Whether [count] everyday tools, taking [before] of a row [total] wide, are pinned at its start: where
+             * three words of at least [least] each fit in the row's middle between them and as much again kept
+             * clear at the row's other end.
+             */
+            fun pins(total: Int, before: Int, count: Int, least: Int): Boolean = count > 0 && (total - 2 * before) / MOST >= least
+
+            /**
              * [total] is the row's width for the strip and what is pinned before it; [before] what stands before the
              * words (the pinned tools, the edge, a chip that leads the strip); [words] how many of the strip's [count]
              * items are words, the first at [firstWord] and the last at [lastWord]; [end] the room one tool takes;
@@ -455,9 +469,8 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
     private companion object {
         /** How faint a [RowItem.dim] item is drawn. */
         const val DIM = 0.45f
-        /** The room one pinned everyday tool takes, and the least a suggested word needs beside them, in dp. */
+        /** The room one pinned everyday tool takes, in dp. */
         const val LEAD_DP = 40f
-        const val WORD_DP = 92f
         /** What the row's first tool keeps between itself and the screen's edge, in dp. */
         const val EDGE_DP = 6f
         /** The room kept at the row's end for the first of the tools that follow the words: one tool's chip. */
