@@ -84,6 +84,14 @@ class KeyboardPrefs(context: Context) {
     /** Typing stats: speed and accuracy counted on this phone (TypingStats.kt). */
     val typingStats: Boolean get() = bool(TYPING_STATS)
 
+    /**
+     * The Prompt enhancer plugin (Enhance.kt): how much a rewrite may add ("tight" keeps to the prompt's own length,
+     * "thorough" sets out more of it), and what the person wrote about themselves and their work, sent with each
+     * prompt that is enhanced.
+     */
+    val enhanceStyle: String get() = prefs.getString(ENHANCE_STYLE, DEFAULTS[ENHANCE_STYLE] as String)!!
+    val enhanceNotes: String get() = prefs.getString(ENHANCE_NOTES, "")!!
+
     /** The Rewrite plugin: the language its Translate goes to, as the person wrote it. */
     val rewriteLanguage: String get() = prefs.getString(REWRITE_LANGUAGE, DEFAULTS[REWRITE_LANGUAGE] as String)!!
 
@@ -373,6 +381,8 @@ class KeyboardPrefs(context: Context) {
         const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
+        const val ENHANCE_STYLE = "enhance_style"
+        const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
         const val PREVIEW_OPEN = "preview_open"
 
@@ -457,6 +467,8 @@ class KeyboardPrefs(context: Context) {
             BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",
+            ENHANCE_STYLE to "tight",
+            ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }

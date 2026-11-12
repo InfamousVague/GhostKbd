@@ -78,7 +78,7 @@ object NetLedger {
  * pages ([sections], by their ids in lib/settings/panes.dart) that say "Offline is on" at their top while it is.
  */
 enum class NetFeature(val id: String, val title: String, val stops: String, val sections: List<String>) {
-    AI("ai", "AI", "Ghostwriter, Rewrite, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite")),
+    AI("ai", "AI", "Ghostwriter, Rewrite, Enhance, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite", "enhance")),
     GITHUB("github", "GitHub commit search", "Ghostwriter’s search of your commits, and Check the token.", listOf("ai-sources")),
     GHOST_ONLINE("ghost-online", "Ghost.md online", "Signing in, searching your notes online, and signing out.", listOf("ai-sources")),
     GIFS("gifs", "GIFs", "GIPHY’s trending and search, and loading or sending a GIF.", listOf("rowtools")),
@@ -114,6 +114,11 @@ enum class NetPath(
         NetFeature.AI, "rewrite", "Rewrite", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("rewrite"),
         trigger = "Tapping Rewrite, then one of its choices.",
         sends = "Your key and model, and the selection or the whole field (up to 6,000 characters).",
+    ),
+    ENHANCE(
+        NetFeature.AI, "enhance", "Prompt enhancer", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("enhance"),
+        trigger = "Tapping Enhance in the row above the keys.",
+        sends = "Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters).",
     ),
     MY_VOICE(
         NetFeature.AI, "my-voice", "In my voice", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("mockingbird"),

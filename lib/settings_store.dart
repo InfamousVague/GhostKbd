@@ -119,6 +119,8 @@ class SettingsStore extends ChangeNotifier {
     'bottom_space': 'auto',
     'typing_stats': true,
     'rewrite_language': 'Spanish',
+    'enhance_style': 'tight',
+    'enhance_notes': '',
     'preview_open': false,
   };
 

@@ -58,7 +58,7 @@ export const LANGUAGE_ROWS = [
 export const OFFLINE_ROWS = [
   ["Offline is off", "One switch for every internet connection Ghost Keyboard can make."],
   ["What it stops", "Each is a network connection Ghost Keyboard would otherwise make. What leaves your phone, below, lists them one by one: the servers, what starts each, and what is sent."],
-  ["AI", "Ghostwriter, Rewrite, In my voice, Mockingbird’s training, Test it and Load models."],
+  ["AI", "Ghostwriter, Rewrite, Enhance, In my voice, Mockingbird’s training, Test it and Load models."],
   ["GitHub commit search", "Ghostwriter’s search of your commits, and Check the token."],
   ["Ghost.md online", "Signing in, searching your notes online, and signing out."],
   ["GIFs", "GIPHY’s trending and search, and loading or sending a GIF."],
@@ -76,12 +76,13 @@ export const OFFLINE_ROWS = [
   ["An update already downloaded", "It can still be installed from About, after a restart too: nothing more is fetched."],
 ];
 
-/** Settings › Offline › What leaves your phone: the 17 connections, without their server lines. */
+/** Settings › Offline › What leaves your phone: the 18 connections, without their server lines. */
 export const LEAVES_ROWS = [
   ["Offline", "The one switch that stops them all."],
   ["AI"],
   ["Ghostwriter", "When: Typing >> with “Fill as soon as I type >>” on, tapping Fill, or pressing enter on a <<request>>. Sent: Your key and model, the request, up to 1,500 characters before it and 400 after, the name of the app you are typing in, today’s date and your style profile. Each behind its own switch, and never more than: matching past messages (6,000 characters), Ghost.md notes (9,000, and their titles), commit messages (9,000, each with its date and repository) and recent clipboard (2,500). With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com."],
   ["Rewrite", "When: Tapping Rewrite, then one of its choices. Sent: Your key and model, and the selection or the whole field (up to 6,000 characters)."],
+  ["Prompt enhancer", "When: Tapping Enhance in the row above the keys. Sent: Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters)."],
   ["In my voice", "When: Tapping In my voice with text selected. Sent: Your key and model, the selection, your style profile, and up to 3,000 characters of similar things you typed."],
   ["Mockingbird’s training", "When: Tapping Train now. By itself with “Retrain by itself” on: once 50 new samples are kept, no sooner than 20 hours after the last time. Sent: Your key and model, and your newest samples: up to 14,000 characters of texting and 10,000 of writing."],
   ["Test it", "When: Tapping Test it in Settings › Your AI. Sent: Your key and model, and the words “Are you there?”."],

@@ -78,6 +78,10 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
   terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
   per-app profile can turn them on or off for one app.
+- **Prompt enhancer** (the `enhance` plugin, `Enhance.kt`; a Market add-on; [docs/prompt-enhancer.md](docs/prompt-enhancer.md)):
+  an Enhance chip in the row. What was typed for an AI is rewritten as a clearer prompt, in place: what is wanted
+  first, every particular kept, nothing added. Tight or thorough, with a few words about you and your work if you
+  give them. Its own ledger path (`NetPath.ENHANCE`): the person's own AI provider and nowhere else.
 - **Text shortcuts** (the `shortcuts` plugin, `Shortcuts.kt`; Settings › Typing, off until switched on;
   [docs/text-shortcuts.md](docs/text-shortcuts.md)): a few letters that stand for a phrase. `omw` and a space types
   "On my way!"; the row offers the phrase first; backspace straight after puts the letters back. A phrase can hold

@@ -112,6 +112,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('rewrite'))
         SettingsSection(id: 'rewrite', label: 'Rewrite', icon: _icon(Lucide.penLine), hue: 'mint', group: 'plugins', summary: _rewriteSummary, page: _rewritePage, parts: (s) => [_aiProviderPart()]),
+      if (store.pluginOn('enhance') && pluginHere('enhance'))
+        SettingsSection(id: 'enhance', label: 'Prompt enhancer', icon: _icon(LucideMore.wandSparkles), hue: 'coral', group: 'plugins', summary: _enhanceSummary, page: _enhancePage, parts: (s) => [_aiProviderPart()]),
       if (store.pluginOn('ghostmd') && pluginHere('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
@@ -1802,5 +1804,57 @@ List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Remove Rewrite', onPress: () => store.setPlugin('rewrite', false))]),
+  ];
+}
+
+// --- Prompt enhancer (0.16.0) ---------------------------------------------------------------------------------------
+
+String _enhanceSummary(SettingsStore s) =>
+    s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : (s.choice('enhance_style') == 'thorough' ? 'Clearer prompts, set out in full' : 'Clearer prompts, no longer than yours');
+
+/// Settings › Prompt enhancer (android Enhance.kt, docs/prompt-enhancer.md): how much a rewrite may add, a few words
+/// about the person that go with each prompt, and what it does and never does.
+List<Widget> _enhancePage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  final notes = store.choice('enhance_notes');
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Type what you want from an AI, tap Enhance in the row above the keys, and a clearer prompt takes its place. It works on what you selected, or on the whole field.'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
+    ),
+    PaneSection(
+      children: [
+        _choice(store, 'enhance_style', 'How much it writes', const {'tight': 'Tight', 'thorough': 'Thorough'}, 'Tight: about as long as yours, only clearer. Thorough: the goal, the context, the limits and what done looks like, each as far as you gave it.'),
+      ],
+    ),
+    PaneSection(
+      title: 'About you and your work',
+      footer: const Text('Optional, up to 600 characters: your stack, how you like changes made, who you write for. It is sent with each prompt you enhance and used only where it bears on it. Press enter to keep it.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('enhance-notes-$notes'),
+            defaultValue: notes,
+            placeholder: 'Kotlin and Flutter. Small changes, with tests.',
+            ariaLabel: 'About you and your work',
+            maxLength: 600,
+            onSubmitted: (text) => store.set('enhance_notes', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    const PaneSection(
+      title: 'How it works',
+      children: [
+        SettingRow(label: 'What you want comes first', hint: Text('Then what the AI needs to know to do it.')),
+        SettingRow(label: 'Your particulars are kept', hint: Text('Names, paths, commands, numbers, code and links stay exactly as you wrote them.')),
+        SettingRow(label: 'Nothing is added', hint: Text('No requirement, fact or step you did not give. It does not answer the prompt, and a short clear ask stays short.')),
+        SettingRow(label: 'Where it leads the row', hint: Text('In AI chat apps, and in terminals with Agent keys on. Elsewhere it waits among the row’s tools.')),
+        SettingRow(label: 'Never', hint: Text('In password fields, while incognito, or with Offline on.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Prompt enhancer', onPress: () => store.setPlugin('enhance', false))]),
   ];
 }

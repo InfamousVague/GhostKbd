@@ -1401,7 +1401,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT, Plugins.SHORTCUTS)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT, Plugins.SHORTCUTS, Plugins.ENHANCE)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -1640,7 +1640,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
     private fun leads(item: RowItem): Boolean =
-        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || (item.id.startsWith("rewrite") && item.bold)
+        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
 
     /**
      * The tools reached for in every app: undo and redo, the clipboard, emoji, GIFs. They lead the row (Matt,
@@ -1714,6 +1714,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
         if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
             items += netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
+        }
+        // Prompt enhancer: the selection, or the whole field, as a clearer prompt. It leads the row where what is
+        // typed is a prompt (an AI chat app, or an app the agent keys show in) and with a selection; elsewhere it
+        // waits among the tools.
+        if (Plugins.isOn(prefs, Plugins.ENHANCE) && aiAllowed() && fieldHasText()) {
+            val prompts = app == AppKind.ASSISTANT || (profile?.flag("agent") ?: (Plugins.isOn(prefs, Plugins.AGENT) && AgentKeys.suits(app)))
+            items += netItem("enhance", "Enhance", icon = RowIcon.SPARKLE, tint = RowTint.AI, bold = prompts || selStart != selEnd) { enhance() }
         }
         // Selected text in another app: to Ghost.md as a note.
         if (ghost && !inGhost && selStart != selEnd) {
@@ -2164,6 +2171,33 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    /**
+     * The Prompt enhancer plugin: the selection, or everything in the field when nothing is selected, as a clearer
+     * prompt. The field is selected the way Rewrite selects it, so undo puts back the cursor and not a selection.
+     */
+    private fun enhance() {
+        if (offlineOn) { sayOffline(); return }
+        val ic = currentInputConnection
+        if (ic == null || !aiAllowed()) { scheduleRow(); return }
+        var selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected.isBlank()) {
+            val was = editor.selectionNow()
+            ic.performContextMenuAction(android.R.id.selectAll)
+            editor.sent()
+            selected = ic.getSelectedText(0)?.toString().orEmpty()
+            editor.rememberRewrite(selected, was)
+        }
+        if (selected.isBlank()) { scheduleRow(); return }
+        startEnhance(selected)
+    }
+
+    private fun startEnhance(selected: String) {
+        if (offlineOn) { sayOffline(); return }
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.enhance(this, prefs, selected, currentInputEditorInfo?.packageName) { onAiDone(it) }
+        scheduleRow()
+    }
+
     /** There is something in the field to rewrite: text beside the cursor, or a selection. */
     private fun fieldHasText(): Boolean {
         if (selStart != selEnd) return true
@@ -2387,6 +2421,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** What the row says the AI is doing for [job]: writing the request, rewriting as asked, or in the person's voice. */
     private fun doing(job: Ghostwriter.Job): String {
+        if (job.mode == Enhance.MODE) return "Enhancing your prompt…"
         Rewrite.mode(prefs, job.mode)?.let { return "${it.label}…" }
         if (job.selection) return "Rewriting in your voice…"
         return "Writing \u201C${preview(job.request)}\u201D…"
@@ -2417,7 +2452,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("ai-retry-${job.id}", label = "Retry", icon = RowIcon.RETRY, bold = true, chip = true) {
                     aiJob = null
                     val mode = Rewrite.mode(prefs, job.mode)
-                    if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    if (job.mode == Enhance.MODE) startEnhance(job.tag) else if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
                     scheduleRow()
                 }
                 items += dismiss

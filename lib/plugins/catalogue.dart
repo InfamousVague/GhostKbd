@@ -455,6 +455,30 @@ const List<PluginManifest> catalogue = [
         'It uses the AI provider you choose, with your own key, straight from your phone. Never while incognito.',
   ),
   PluginManifest(
+    id: 'enhance',
+    name: 'Prompt enhancer',
+    line: 'Turns what you typed for an AI into a clearer prompt, in place.',
+    description:
+        'An Enhance button in the row above the keys. Type what you want from an AI assistant or a coding agent, however '
+        'roughly, and tap it: the prompt is rewritten to say what you want first, keep every name, path, number and line '
+        'of code as you wrote it, and set out the context and limits you gave. It adds nothing you did not say, does not '
+        'answer the prompt, and leaves a short clear ask short. It works on the text you selected, or on the whole field '
+        'when nothing is selected, and the answer replaces it; undo puts yours back. In AI chat apps, and in terminals '
+        'with Agent keys on, the button leads the row. It uses the AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, '
+        'DeepSeek, OpenRouter or your own server) with your own key, straight from your phone. Never in password fields '
+        'or while incognito.',
+    category: PluginCategory.tools,
+    hue: 'coral',
+    icon: LucideMore.wandSparkles,
+    adds: ['An Enhance button in the row', 'Your prompt, clearer, with every particular kept', 'A few words about you and your work, used where they help'],
+    permissions: [
+      PluginPermission(Permission.network, 'To send the prompt you chose to enhance to the AI you choose, with your own key.'),
+    ],
+    hosts: ['the AI provider you choose'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'adaptive',
     name: 'Adaptive keys',
     line: 'Nudges a key toward your slips, slowly, and hands it back as your aim comes right.',

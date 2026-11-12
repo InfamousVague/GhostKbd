@@ -31,6 +31,8 @@ package com.infamousvague.devkeyboard
  *   shortened, made formal or casual, or translated, in place.
  * - `adaptive` (AdaptiveKeys.kt): learns where you aim at each letter and the neighbours you hit by mistake, and moves
  *   the keys' touch areas to suit; a heatmap of the mistakes and the moved aims can be drawn over the keys.
+ * - `enhance` (Enhance.kt, AiClient.kt): an Enhance chip in the row: the selection, or the whole field, rewritten as a
+ *   clearer prompt for an AI, in place.
  * - `shortcuts` (Shortcuts.kt): a few letters that stand for a phrase (omw: On my way!), offered in the row and put
  *   in at a space; kept on the phone.
  * - `agent` (AgentKeys.kt): the keys a coding agent in a terminal is driven with (Shift+Tab, Esc twice, Ctrl+C, a new
@@ -57,7 +59,8 @@ object Plugins {
     const val REWRITE = "rewrite"
     const val AGENT = "agent"
     const val SHORTCUTS = "shortcuts"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS)
+    const val ENHANCE = "enhance"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS, ENHANCE)
 
     fun enabled(prefs: KeyboardPrefs): Set<String> =
         prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()

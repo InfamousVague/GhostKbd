@@ -73,6 +73,20 @@ object Ghostwriter {
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
         launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
+    /** The Prompt enhancer plugin: the [selected] text rewritten as a clearer prompt, to replace the selection. */
+    fun enhance(context: Context, prefs: KeyboardPrefs, selected: String, app: String?, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        return launch(prefs, Job(ids.incrementAndGet(), "Enhance", selected, selection = true, mode = Enhance.MODE), done) {
+            // Debug builds only, as for a <<request>>: the key "debug-echo" answers without any AI, saying where the
+            // prompt was going, so the chip, the row and the undo can be tried on an emulator.
+            if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
+                Thread.sleep(800)
+                return@launch "Enhanced (debug, ${AppContext.kind(app).name.lowercase()}): ${selected.trim().take(120)}"
+            }
+            Enhance.run(prefs, selected, app)
+        }
+    }
+
     /**
      * Runs [work] on the worker and hands [job] back on the main thread. With Offline on the work is never started
      * (no notes read, no commits searched): the job ends with "Offline is on", which the row shows as its error.
