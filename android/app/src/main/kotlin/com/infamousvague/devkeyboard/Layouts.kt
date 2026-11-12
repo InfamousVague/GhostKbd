@@ -95,11 +95,12 @@ object Layouts {
      * The other pages have no { } key and come back as they were, full stop and all: numbers are typed there, and
      * need it. So does a letters page with no full stop before enter to take the place of.
      *
-     * The letters page is known by its { } key, or by the emoji key that has taken that key's place ([withEmoji]).
+     * The letters page is known by its ?123 key: the other pages' rows start with ABC, and every page may have the
+     * emoji key ([withEmoji]) and a comma ([withComma]).
      */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
-        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.DEV || it.type == KeyType.EMOJI }) return rows
+        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.SYMBOLS }) return rows
         val at = last.keys.indexOfFirst { it.type == KeyType.ENTER } - 1
         val stop = last.keys.getOrNull(at)?.takeIf { it.type == KeyType.CHAR && it.text.isNotEmpty() } ?: return rows
         val mic = Key(KeyType.MIC, hint = stop.text, alts = (listOf(stop.text) + stop.alts).distinct())
@@ -110,32 +111,52 @@ object Layouts {
     const val LEAST_BAR = 3f
 
     /**
-     * The emoji plugin's key (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is. And make it the
-     * same as the dictation where it's just the icon no background. And move the code button up to where the emoji
-     * button used to be in the toolbar"): on the letters page it stands in the { } key's place, between ?123 and
-     * the space bar, and is drawn as the mic key is, its icon alone. The { } key is then a button in the row above
-     * the keys (DevKeyboardService.everyday).
+     * The comma key on the letters, for Settings › Look & feel › Keys › Comma key (Matt, 2026-11-12, of 0.16.2's
+     * bottom row: "The comma key should be in the original spot the code was in the emoji key should cut into the
+     * spacebar"; and then: "On second thought remove the comma by default make it a setting users can toggle on").
+     * Where the { } key is a button in the row above the keys (DevKeyboardService.everyday), its place on the board,
+     * next to ?123, is the comma's, as it is Gboard's and as it is on the ?123 page: the same key as there, [spec]'s
+     * own comma where its script has one (Arabic's ،) with the Latin one a long press away.
      *
-     * Where there is no row to hold that button ([keepCode]: the row is hidden, or nothing is in it), the { } key
-     * keeps a key on the board, straight after the emoji key, with a key's width taken from the space bar, so the
-     * code keys can still be reached. That is not done where it would leave the bar under [LEAST_BAR] key widths:
-     * there the board keeps its { } key as it was, and has no emoji key.
-     *
-     * Its third time on the board: it was a key between { } and the space bar from 0.12.1 to 0.15.0, and a button in
-     * the row in 0.16. Pages with no { } key come back as they were.
+     * Where the { } key keeps its place (there is no row to hold the button) this is not asked for, and the comma is
+     * on the full stop's long press, as it has been since the { } key took its key. Pages with no { } key have their
+     * comma already, and come back as they are.
      */
-    fun withEmoji(rows: List<KeyRow>, keepCode: Boolean): List<KeyRow> {
+    fun withComma(rows: List<KeyRow>, spec: LayoutSpec = QWERTY): List<KeyRow> {
         val last = rows.last()
         val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
         if (at < 0) return rows
+        return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = sym(",", spec) }, last.inset)
+    }
+
+    /**
+     * The emoji plugin's key, drawn as the mic key is, its icon alone (Matt, 2026-11-12: "make it the same as the
+     * dictation where it's just the icon no background"); a tap opens emoji and a hold opens Settings.
+     *
+     * [inPlace]: the { } key is a button in the row and nothing else has its place on the letters, so the emoji key
+     * takes it, next to ?123, and the space bar keeps its whole width (Matt, the same day: "Move the emoji key to
+     * where the dev tools toggle is"). That is the letters as 0.16.2 has them.
+     *
+     * Otherwise it stands straight after the key beside ?123 or ABC, with a key's width taken from the bar (five
+     * keys to four): after the comma, where the Comma key setting has put one on the letters ("the emoji key should
+     * cut into the spacebar") and on the ?123, =\< and code pages, which always have one; or after the { } key, on
+     * letters whose row is hidden, as the board was from 0.12.1 to 0.15.0. A row whose bar would be left under
+     * [LEAST_BAR], or that has the key already, comes back as it is.
+     */
+    fun withEmoji(rows: List<KeyRow>, inPlace: Boolean = false): List<KeyRow> {
+        val last = rows.last()
+        if (last.keys.any { it.type == KeyType.EMOJI }) return rows
         val emoji = Key(KeyType.EMOJI, pill = false)
-        if (!keepCode) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = emoji }, last.inset)
+        val code = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
+        if (inPlace && code >= 0) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[code] = emoji }, last.inset)
+        val mode = last.keys.indexOfFirst { it.type == KeyType.MODE && (it.page == Page.SYMBOLS || it.page == Page.LETTERS) }
+        val beside = last.keys.getOrNull(mode + 1)?.takeIf { mode >= 0 && (it.type == KeyType.CHAR || it.type == KeyType.MODE && it.page == Page.DEV) } ?: return rows
         val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
         if (space.width - 1f < LEAST_BAR) return rows
         val keys = ArrayList<Key>(last.keys.size + 1)
         last.keys.forEach { key ->
-            if (key === last.keys[at]) keys += emoji
             keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
+            if (key === beside) keys += emoji
         }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }

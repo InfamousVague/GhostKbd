@@ -26,6 +26,18 @@ class MainActivity : FlutterActivity() {
     private val imm by lazy { getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager }
     private val onUpdate: (Updater.State) -> Unit = { channel?.invokeMethod("updateChanged", it.toMap(this)) }
     private val onModel: (WhisperModel.State) -> Unit = { channel?.invokeMethod("dictationChanged", dictationState()) }
+    private val onLocalModel: () -> Unit = { channel?.invokeMethod("localAiChanged", localAiState()) }
+
+    /**
+     * Rewrite on this phone (LocalAi.kt, LocalModels.kt): whether this build can run a model at all ("built": where
+     * it cannot, Settings shows none of this), the switch, whether Rewrite runs on the phone as things stand, and
+     * every model with where it stands here.
+     */
+    private fun localAiState(): Map<String, Any?> = LocalModels.toMap(this) + mapOf(
+        "built" to LocalAi.built(this),
+        "on" to prefs.rewriteLocal,
+        "serves" to LocalAi.serves(this, prefs),
+    )
 
     /** A page the app was opened at (the keyboard's mic key, when the microphone is not allowed yet). */
     private var openAt: String? = null
@@ -189,6 +201,7 @@ class MainActivity : FlutterActivity() {
         KeyboardPrefs(this).pinLegacyLayouts()
         WhisperModel.refresh(this)
         WhisperModel.addListener(onModel)
+        LocalModels.addListener(onLocalModel)
         openAt = intent?.getStringExtra(EXTRA_OPEN)
         signedIn(intent)
         profileIntent(intent)
@@ -199,6 +212,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         Updater.removeListener(onUpdate)
         WhisperModel.removeListener(onModel)
+        LocalModels.removeListener(onLocalModel)
         super.onDestroy()
     }
 
@@ -305,6 +319,20 @@ class MainActivity : FlutterActivity() {
                         val pack = call.argument<String>("pack") ?: prefs.stockSound
                         SoundPacks.sample(this@MainActivity, pack, prefs.soundVolume.coerceAtLeast(0.15f))
                         result.success(null)
+                    }
+                    "localAiState" -> result.success(localAiState())
+                    "useLocalModel" -> {
+                        // A model that is here is chosen; one that is not is fetched, and chosen once it is here if no
+                        // other is in use (LocalModels.download).
+                        LocalModels.spec(call.argument<String>("id"))?.let { spec ->
+                            if (LocalModels.isReady(this@MainActivity, spec)) prefs.set(KeyboardPrefs.LOCAL_MODEL, spec.id) else LocalModels.download(this@MainActivity, spec)
+                        }
+                        result.success(localAiState())
+                    }
+                    "cancelLocalModel" -> { LocalModels.cancel(); result.success(localAiState()) }
+                    "deleteLocalModel" -> {
+                        LocalModels.spec(call.argument<String>("id"))?.let { LocalModels.delete(this@MainActivity, it) }
+                        result.success(localAiState())
                     }
                     "dictationState" -> result.success(dictationState())
                     "downloadModel" -> {

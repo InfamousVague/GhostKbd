@@ -46,9 +46,26 @@ object Rewrite {
         WHAT TO DO:
     """.trimIndent()
 
-    /** [text] rewritten as [mode] asks. Blocking: run it off the main thread. */
-    fun run(prefs: KeyboardPrefs, mode: Mode, text: String): String {
+    /** What the AI is told for [mode]: the same words whether it is the person's provider or the phone's own model. */
+    fun system(mode: Mode): String = SYSTEM + " " + mode.ask
+
+    /**
+     * [text] rewritten as [mode] asks. Blocking: run it off the main thread. On the phone's own model where that is
+     * set up and chosen for Rewrite (LocalAi.serves), which needs no key and no connection; [stopped] is asked while
+     * it writes, and ends it. Otherwise on the person's provider, as it always was.
+     */
+    fun run(context: android.content.Context, prefs: KeyboardPrefs, mode: Mode, text: String, stopped: () -> Boolean = { false }): String {
+        if (LocalAi.serves(context, prefs)) {
+            if (text.length > LocalRewrite.MAX_CHARS) throw AiClient.AiError("That's too long for the model on this phone: select a part of it")
+            val raw = LocalAi.complete(
+                context, LocalModels.active(context), system(mode), LocalRewrite.shots(mode.id), text,
+                maxTokens = LocalRewrite.budget(text), temperature = LocalRewrite.temperature(mode.id), stopped = stopped,
+            )
+            val made = LocalRewrite.clean(raw, text)
+            LocalRewrite.refuse(mode.id, text, made)?.let { throw AiClient.AiError(it) }
+            return made
+        }
         if (text.length > MAX_CHARS) throw AiClient.AiError("That's too long to rewrite at once: select a part of it")
-        return AiClient.complete(prefs, NetPath.REWRITE, SYSTEM + " " + mode.ask, text, maxTokens = 4000, effort = "low")
+        return AiClient.complete(prefs, NetPath.REWRITE, system(mode), text, maxTokens = 4000, effort = "low")
     }
 }

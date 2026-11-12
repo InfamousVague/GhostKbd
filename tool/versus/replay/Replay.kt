@@ -77,8 +77,9 @@ class Board(val width: Float, val screenHeight: Float, dpi: Float, val navInset:
             val block = src.substringAfter("LETTER_OFFSETS_DP: Map<String, Pair<Float, Float>> = mapOf(").substringBefore("\n        )")
             val found = Regex("\"(\\w)\" to \\((-?[\\d.]+)f to (-?[\\d.]+)f\\)").findAll(block).associate { it.groupValues[1] to (it.groupValues[2].toFloat() to it.groupValues[3].toFloat()) }
             check(found.size == 26) { "KeyboardView.LETTER_OFFSETS_DP: read ${found.size} of 26 letters" }
-            val rows = Layouts.withEmoji(Layouts.letters(Layouts.QWERTY, false, Layouts.extras(Layouts.QWERTY, emptyList()), false), false)
-            return Board(width, screenHeight, dpi, navInset, rows, found, Layouts.symbols(Layouts.QWERTY))
+            // KeyboardView.rebuild at the defaults: no mic key, the { } key away in the row, no comma key, the emoji key.
+            val rows = Layouts.withEmoji(Layouts.letters(Layouts.QWERTY, false, Layouts.extras(Layouts.QWERTY, emptyList()), false), inPlace = true)
+            return Board(width, screenHeight, dpi, navInset, rows, found, Layouts.withEmoji(Layouts.symbols(Layouts.QWERTY), inPlace = true))
         }
 
         /**

@@ -32,6 +32,7 @@ object NetLedger {
         Works("learning", "Adaptive keys, typing stats and per-app profiles", "Learned and kept on this phone."),
         Works("row", "Clipboard history, emoji, undo and redo, markdown and terminal keys", "None of them has ever needed a connection."),
         Works("dictation", "Dictation", "With a speech model already on the phone."),
+        Works("rewrite-local", "Rewrite and Fix on this phone", "With a language model already on the phone (Settings › AI › Rewrite)."),
         Works("ghostmd", "Ghost.md on this phone", "[[links]], #tags and Save to Ghost.md."),
         Works("passwords", "Password manager logins", "Android and your manager draw and fill them; their connections are their own."),
         Works("samples", "Mockingbird’s samples", "Still kept on this phone where that switch is on. None is sent to train."),
@@ -87,6 +88,7 @@ enum class NetFeature(val id: String, val title: String, val stops: String, val 
     GHOST_ONLINE("ghost-online", "Ghost.md online", "Signing in, searching your notes online, and signing out.", listOf("ai-sources")),
     GIFS("gifs", "GIFs", "GIPHY’s trending and search, and loading or sending a GIF.", listOf("rowtools")),
     MODELS("models", "Speech model downloads", "Fetching a dictation model. One already on the phone keeps working.", listOf("dictation")),
+    LOCAL_MODELS("local-models", "Language model downloads", "Fetching a model for Rewrite on this phone. One already on the phone keeps working, and Rewrite with it.", listOf("rewrite")),
     UPDATES("updates", "Updates", "The check for a new version, by itself and by hand, the Update chip above the keys, and the download.", listOf("about")),
     REPORTS("reports", "Anonymous typing reports", "Sending a typing report. What is waiting stays on the phone until it can go, or until you turn sharing off.", listOf("stats")),
     CONNECTORS("connectors", "Connectors", "Reading a connector’s tools, and every tool Ghostwriter would have called while it writes.", listOf("connectors")),
@@ -193,6 +195,11 @@ enum class NetPath(
         NetFeature.MODELS, "model", "Speech model download", listOf("ghostkbd.com", "huggingface.co", "*.huggingface.co", "*.hf.co"), plugins = listOf("dictation"),
         trigger = "Adding Dictation, and choosing a speech model that isn’t on the phone.",
         sends = "The model file’s name, and where to carry on from when part of it is already here.",
+    ),
+    LOCAL_MODEL(
+        NetFeature.LOCAL_MODELS, "local-model", "Language model download", listOf("ghostkbd.com", "huggingface.co", "*.huggingface.co", "*.hf.co"), plugins = listOf("rewrite"),
+        trigger = "Tapping Download beside a model in Settings › AI › Rewrite › On this phone. Never by itself.",
+        sends = "The model file’s name, and where to carry on from when part of it is already here. Nothing of what you type: with a model on the phone, Rewrite sends nothing anywhere.",
     ),
     UPDATE_CHECK(
         NetFeature.UPDATES, "update-check", "Update check", listOf("ghostkbd.com"),

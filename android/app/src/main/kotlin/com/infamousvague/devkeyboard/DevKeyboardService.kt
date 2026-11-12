@@ -660,14 +660,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
-        // The emoji key stands where the { } key did, and the { } key is a button in the row (everyday), so with
-        // emoji added there is always a row to hold it, unless the row is hidden: then the { } key stays on the
-        // board, beside the emoji key (Layouts.withEmoji).
+        // Wherever there is a row, the { } key is a button in it (everyday), and its place on the board, next to
+        // ?123, is the emoji key's; with Settings › Look & feel › Keys › Comma key on it is the comma's, and the emoji
+        // key stands beside that, cut from the space bar (Matt, 2026-11-12: "The comma key should be in the original
+        // spot the code was in the emoji key should cut into the spacebar", then: "On second thought remove the comma
+        // by default make it a setting users can toggle on"). With no row (it is hidden, or nothing is in it) the
+        // { } key keeps that place, as it always had it, and the emoji key stands beside it (Layouts.withEmoji).
+        // The { } key goes to the row only where something takes its place on the board, and then there is always
+        // a row to hold it (as since 0.16.2), unless the row is hidden.
         val emojiOn = Plugins.isOn(prefs, Plugins.EMOJI)
-        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || emojiOn || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
-        codeInRow = emojiOn && rowShown
+        val taken = emojiOn || prefs.commaKey
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || taken || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
+        codeInRow = rowShown && taken
         view.emojiKey = emojiOn
-        view.codeKey = emojiOn && !rowShown
+        view.codeAway = codeInRow
+        view.commaKey = prefs.commaKey
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
@@ -2075,7 +2082,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
         if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
-            items += netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
+            // On the phone's own model Rewrite needs no network: its chip is as it always is, Offline on or off.
+            items += if (LocalAi.serves(this, prefs)) RowItem("rewrite", label = "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd, chip = true) { showingRewrite = true; scheduleRow() }
+                else netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
         }
         // Prompt enhancer: the selection, or the whole field, as a clearer prompt. It leads the row where what is
         // typed is a prompt (an AI chat app, or an app the agent keys show in) and with a selection; elsewhere it
@@ -2513,7 +2522,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The Rewrite plugin: [mode] done to the selection, or to everything in the field when nothing is selected. */
     private fun rewriteWith(mode: Rewrite.Mode) {
         showingRewrite = false
-        if (offlineOn) { sayOffline(); return }
+        if (offlineOn && !LocalAi.serves(this, prefs)) { sayOffline(); return }
         val ic = currentInputConnection
         if (ic == null || !aiAllowed()) { scheduleRow(); return }
         var selected = ic.getSelectedText(0)?.toString().orEmpty()
@@ -2530,9 +2539,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     private fun startRewrite(selected: String, mode: Rewrite.Mode) {
-        if (offlineOn) { sayOffline(); return }
+        if (offlineOn && !LocalAi.serves(this, prefs)) { sayOffline(); return }
         aiJob?.cancelled = true
-        aiJob = Ghostwriter.rewriteAs(prefs, selected, mode) { onAiDone(it) }
+        aiJob = Ghostwriter.rewriteAs(this, prefs, selected, mode) { onAiDone(it) }
         scheduleRow()
     }
 

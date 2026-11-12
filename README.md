@@ -146,6 +146,27 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **The keyboard times itself** (`Perf.kt`, debug builds only, while `files/debug-perf` is there): each piece of a
   key press's work, how often and how long, written to the log as the keys hide.
 
+## 0.16.3
+
+- **A Comma key setting** (Settings › Look & feel › Keys › Comma key, off unless turned on; `Layouts.withComma`,
+  `KeyboardPrefs.commaKey`): with it on, the letters end with ?123, the comma, the emoji key, the space bar, the full
+  stop (or the mic) and enter, as Gboard's do. The comma stands where the { } key was until 0.16.2 moved that key to
+  a button in the row above the keys, and the emoji key moves over beside it, taking a key's width from the space bar
+  (five keys to four). With it off the letters are as 0.16.2 has them: the emoji key next to ?123, the bar at its
+  whole width, and a comma a hold on the full stop.
+- **The emoji key on the other pages** (`Layouts.withEmoji`): ?123, =\< and the code keys have it next to their
+  comma, a key's width off their space bar. In 0.16.2 those pages had no way to emoji but back through the letters.
+- With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
+  stands beside it, as from 0.12.1 to 0.15.0.
+
+## Rewrite on this phone (written, not yet built into the app)
+
+Rewrite and its Fix on a language model that runs on the phone: Settings › AI › Rewrite › On this phone, Ghost.md's
+Qwen3.5 2B and 4B files, a process of its own for the model, worked examples in what the model is shown, and a check
+on what it writes before that replaces anything. `LocalAi.kt`, `LocalModels.kt`, `LocalRewrite.kt`, `LlmService.kt`,
+`android/llm` (llama.cpp v0.9.0) and `tool/local_ai_try`. The native library is not part of the build yet, so no
+version has any of it: [docs/local-ai.md](docs/local-ai.md) says where it stands and how to finish it.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
@@ -202,10 +223,12 @@ first of them whole in view at the row's end (`PluginRow.WordRoom`). Whether the
 both arrows were there, so the row keeps its shape as they come and go. A tap on an arrow keeps the row as it was,
 words and all, so the arrow stays under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
 takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
-on") takes its room out of theirs. Emoji is a key on the board, where the { } key was, drawn as the mic key is,
-its icon alone; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
-showing (since 0.16.2: `Layouts.withEmoji`, `DevKeyboardService.everyday`). With emoji off the { } key keeps its
-place on the board, and with the row hidden both are keys there. With dictation on,
+on") takes its room out of theirs. Emoji is a key on the board, next to ?123 where the { } key was, drawn as
+the mic key is, its icon alone (`Layouts.withEmoji`); with Settings' Comma key on, the comma has that place and the
+emoji key stands beside it, a key's width off the space bar (`Layouts.withComma`); the ?123 pages have the emoji key
+next to their comma; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
+showing (`DevKeyboardService.everyday`). With no row above the keys (it is hidden, or
+nothing is in it) the { } key keeps its place next to ?123, and the emoji key stands beside it. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop
 keeps its key. There is no settings cog in the

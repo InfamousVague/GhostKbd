@@ -1028,6 +1028,7 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
         _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
         _toggle(store, 'key_borders', 'Key borders'),
+        _toggle(store, 'comma_key', 'Comma key', 'A comma next to ?123 on the letters. The emoji key moves over beside it, and the space bar gives up a key’s width. Off, a comma is a hold on the full stop.'),
         _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Holding the key beside ?123 opens settings either way.'),
         _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Holding the key beside ?123 still opens settings.'),
       ]),
@@ -1285,7 +1286,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
-        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, where the { } key was, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'emoji', 'Emoji', 'A key next to ?123, beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),
@@ -1808,19 +1809,68 @@ List<Widget> _appProfilePage(BuildContext context, SettingsStore store, String p
 
 // --- Rewrite (0.9.0) ----------------------------------------------------------------------------------------------
 
-String _rewriteSummary(SettingsStore s) => s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : 'Fix, shorten, restyle, translate into ${s.choice('rewrite_language')}';
+String _rewriteSummary(SettingsStore s) => s.localAi['serves'] == true
+    ? 'On this phone: fix, shorten, restyle, translate into ${s.choice('rewrite_language')}'
+    : s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : 'Fix, shorten, restyle, translate into ${s.choice('rewrite_language')}';
+
+/// Rewrite on this phone: its switch and the models, each a tap from downloaded, chosen or stopped. Shown only by
+/// a build that can run one (the phone's `built`).
+List<Widget> _rewriteLocal(SettingsStore store) {
+  final local = store.localAi;
+  if (local['built'] != true) return const [];
+  final models = ((local['models'] as List?) ?? const []).whereType<Map>().toList();
+  final active = local['active'];
+  return [
+    PaneSection(
+      title: 'On this phone',
+      footer: const Text(
+        'A language model that runs on this phone: no key, no connection, and what you write never leaves it. It works with Offline on. '
+        'Tap a model to download it (once, over Wi-Fi if you can: they are large), tap again to stop. '
+        'A phone is slower than a server: a line or two takes a few seconds, and a long text has to be selected in parts. '
+        'Whatever comes back that is not a rewrite of your text is not put in the field.',
+      ),
+      children: [
+        _toggle(store, 'rewrite_local', 'Rewrite on this phone', 'With a model below on the phone, Fix and the other choices run on it. With none, or with this off, they run on your AI.'),
+        for (final m in models)
+          SettingRow(
+            label: m['name'] as String,
+            hint: Text('${m['note']}  ${_megabytes(m['bytes'])}${m['error'] != null && m['error'] != store.offlineReason ? ' · ${m['error']}' : ''}'),
+            icon: AppIcon(m['id'] == active ? Lucide.circleCheck : LucideMore.hardDriveDownload, size: 18),
+            value: Text(switch (m) {
+              _ when m['downloading'] == true => '${(((m['progress'] as num?) ?? 0) * 100).round()}% · Stop',
+              _ when m['id'] == active => 'In use',
+              _ when m['installed'] == true => 'Use',
+              _ => 'Get',
+            }),
+            onPress: m['downloading'] == true
+                ? store.cancelLocalModel
+                : m['id'] == active
+                    ? null
+                    : () => store.useLocalModel(m['id'] as String),
+            // A model that is not on the phone would have to be fetched.
+            disabledReason: m['installed'] == true || m['downloading'] == true ? null : store.offlineReason,
+          ),
+        for (final m in models)
+          if (m['installed'] == true)
+            SettingRow(label: 'Delete ${m['name']}', hint: Text('Frees ${_megabytes(m['bytes'])}.'), onPress: () => store.deleteLocalModel(m['id'] as String)),
+      ],
+    ),
+  ];
+}
 
 List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
-  final ready = store.ai['ready'] == true;
+  final local = store.localAi['serves'] == true;
+  final ready = local || store.ai['ready'] == true;
   final language = store.choice('rewrite_language');
   return [
     PaneHero(
       glyph: AppIcon(Lucide.penLine, size: 24),
-      title: ready ? 'Ready' : 'Add an AI key',
+      title: local ? 'Ready, on this phone' : ready ? 'Ready' : 'Add an AI key',
       meta: const Text('Tap Rewrite in the row above the keys, then how: it works on what you selected, or on the whole field, and replaces it.'),
-      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
+      status: PaneHeroStatus(local ? 'On' : store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
     ),
     if (isIOS) ..._iosAiNotes(context, store),
+    ..._rewriteLocal(store),
     PaneSection(
       title: 'Translate into',
       footer: const Text('Any language, written however you like: Spanish, Deutsch, 日本語. Press enter to keep it.'),

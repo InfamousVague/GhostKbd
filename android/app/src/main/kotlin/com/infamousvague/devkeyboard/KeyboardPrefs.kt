@@ -30,6 +30,13 @@ class KeyboardPrefs(context: Context) {
     val toolbar: Boolean get() = bool(TOOLBAR)
     /** Settings › Look & feel › Keys › Hide the row: no strip above the keys at all, whatever plugins are added. */
     val hideRow: Boolean get() = bool(HIDE_ROW)
+
+    /**
+     * Settings › Look & feel › Keys › Comma key: a comma next to ?123 on the letters, where the { } key was, with the
+     * emoji key moved over beside it. Off unless turned on (Matt, 2026-11-12: "remove the comma by default make it a
+     * setting users can toggle on").
+     */
+    val commaKey: Boolean get() = bool(COMMA_KEY)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -94,6 +101,14 @@ class KeyboardPrefs(context: Context) {
 
     /** The Rewrite plugin: the language its Translate goes to, as the person wrote it. */
     val rewriteLanguage: String get() = prefs.getString(REWRITE_LANGUAGE, DEFAULTS[REWRITE_LANGUAGE] as String)!!
+
+    /**
+     * Settings › AI › Rewrite › On this phone: Rewrite and its Fix run on a language model on the phone itself where
+     * one is here (LocalAi.kt), in place of the AI provider; and which model, where more than one is here
+     * (LocalModels.kt; "": whichever is).
+     */
+    val rewriteLocal: Boolean get() = bool(REWRITE_LOCAL)
+    val localModel: String get() = prefs.getString(LOCAL_MODEL, DEFAULTS[LOCAL_MODEL] as String)!!
 
     /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
     val backlight: Boolean get() = bool(BACKLIGHT)
@@ -329,6 +344,7 @@ class KeyboardPrefs(context: Context) {
         const val KEY_BORDERS = "key_borders"
         const val TOOLBAR = "toolbar"
         const val HIDE_ROW = "hide_row"
+        const val COMMA_KEY = "comma_key"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
@@ -395,6 +411,8 @@ class KeyboardPrefs(context: Context) {
         const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
+        const val REWRITE_LOCAL = "rewrite_local"
+        const val LOCAL_MODEL = "local_model"
         const val ENHANCE_STYLE = "enhance_style"
         const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
@@ -420,6 +438,7 @@ class KeyboardPrefs(context: Context) {
             KEY_BORDERS to false,
             TOOLBAR to false,
             HIDE_ROW to false,
+            COMMA_KEY to false,
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",
@@ -485,6 +504,8 @@ class KeyboardPrefs(context: Context) {
             BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",
+            REWRITE_LOCAL to true,
+            LOCAL_MODEL to "",
             ENHANCE_STYLE to "tight",
             ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,
