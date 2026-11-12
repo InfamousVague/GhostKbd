@@ -11,6 +11,9 @@ above the keys the moment the text arrives, and a tap types it. It is also the f
 history, whose plugin it belongs to. Turning it on is when Android is asked for the permission, and not before.
 Android only.
 
+Codes that come by email are a switch of their own beside it, read from the mail app's notification and held with
+these: [mail-codes.md](mail-codes.md).
+
 ## What happens to a text
 
 - Android hands every text that arrives to the app (`SmsCodeReceiver`). It cannot hand over only some: the

@@ -98,6 +98,7 @@ class SettingsStore extends ChangeNotifier {
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,
     'sms_codes': false,
+    'mail_codes': false,
     'ai_provider': 'anthropic',
     'ai_base_url': '',
     'mockingbird_collect': true,
@@ -369,6 +370,8 @@ class SettingsStore extends ChangeNotifier {
     loaded = true;
     notifyListeners();
     await refreshSmsCodes();
+    await refreshMailCodes();
+    await refreshStrip();
   }
 
   Future<void> refreshStatus() async {
@@ -539,6 +542,59 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> askForTexts() => _call('askForTexts');
+
+  /// One-time codes from email (android MailCodes.kt): read from a mail app's own notification, on the phone. The
+  /// switch (`on`), whether Android has given the app notification access (`allowed`), the Android version
+  /// (`android`, its API level), whether Android shows this app a notification it judges to hold a code (`shown`:
+  /// from Android 15 only once the phone's owner has said so, and `command` is what they type on a computer for
+  /// that), and whether Android has hidden one from the keyboard since the switch went on (`hidden`).
+  Map<String, Object?> mailCodes = const {'on': false, 'allowed': false, 'android': 0, 'shown': true, 'hidden': false, 'command': ''};
+
+  void _setMailCodes(Object? raw) {
+    if (raw is! Map) return;
+    mailCodes = raw.map((k, v) => MapEntry('$k', v as Object?));
+    _values['mail_codes'] = mailCodes['on'] == true;
+    notifyListeners();
+  }
+
+  /// Read again each time the app comes back to the front: notification access is given on Android's own page.
+  Future<void> refreshMailCodes() async {
+    try {
+      _setMailCodes(await _channel.invokeMethod<Object>('mailCodesState'));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// The switch. On, Android's page for notification access opens where it has not been given.
+  Future<void> setMailCodes(bool on) async {
+    _values['mail_codes'] = on;
+    mailCodes = {...mailCodes, 'on': on};
+    notifyListeners();
+    try {
+      _setMailCodes(await _channel.invokeMethod<Object>('setMailCodes', {'on': on}));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> openNotificationAccess() => _call('openNotificationAccess');
+
+  /// What the keyboard last found under its keys (android SystemStrip.kt): `buttons` is "drawn", "none" or "unknown"
+  /// (whether the phone's own hide and switch-keyboard buttons are there), `galaxy` whether the phone is one whose
+  /// settings say, and `line` the numbers in one line, for a report. Null until the keys have been shown since the
+  /// app last started.
+  Map<String, Object?>? strip;
+
+  Future<void> refreshStrip() async {
+    try {
+      final raw = await _channel.invokeMethod<Object>('stripState');
+      strip = raw is Map ? raw.map((k, v) => MapEntry('$k', v as Object?)) : null;
+      notifyListeners();
+    } on MissingPluginException {
+      return;
+    }
+  }
   Future<void> openAppInfo() => _call('openAppInfo');
 
   /// The Connectors plugin (android Connectors.kt): each connector with its tools and their switches, how many tools

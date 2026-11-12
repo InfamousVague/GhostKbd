@@ -645,6 +645,65 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
 
 // --- Developer ----------------------------------------------------------------------------------------------------
 
+/// One-time codes from email (android MailCodes.kt, docs/mail-codes.md), under the codes from texts. Read from the
+/// mail app's own notification, on the phone: there is no account to connect and nothing leaves the phone. The
+/// switch can be on before Android has given notification access: the row then says it is waiting, with Android's
+/// page a tap away. And from Android 15 it says what Android keeps back, and the two ways the phone's owner has to
+/// let codes through, rather than seem broken.
+List<Widget> _mailCodesRows(SettingsStore store) {
+  final s = store.mailCodes;
+  final on = s['on'] == true;
+  final allowed = s['allowed'] == true;
+  final android = (s['android'] as num?)?.toInt() ?? 0;
+  // Android 15 (API 35) and later replace the words of a notification they judge to hold a code before an app that
+  // reads notifications sees it, unless the phone's owner has said otherwise for that app.
+  final kept = android >= 35 && s['shown'] != true;
+  final hidden = s['hidden'] == true;
+  final command = s['command'] as String? ?? '';
+  final String hint;
+  if (!on) {
+    hint = 'A code that arrives in Gmail or another mail app shows above the keys, a tap to type it. It is read from the mail app’s notification, on this phone: there is no account to connect.${allowed ? '' : ' Android will ask to let Ghost Keyboard see notifications.'}';
+  } else if (!allowed) {
+    hint = 'Waiting for Android: it has not given notification access yet.';
+  } else if (kept) {
+    hint = hidden
+        ? 'Android has hidden a mail’s notification from Ghost Keyboard: it does that with any it judges to hold a code. The rows below are the ways to let them through.'
+        : 'On. Android 15 and later hide a notification they judge to hold a code from apps that read notifications, so a code may not show until you let them through, below.';
+  } else {
+    hint = 'A code in a mail app’s notification shows above the keys for three minutes and in the clipboard for ten, or until you use it. Only mail apps’ notifications are read, only for a code, and only the code is kept, in memory. Nothing is sent anywhere.';
+  }
+  return [
+    SettingRow(
+      label: 'One-time codes from email',
+      hint: Text(hint),
+      icon: AppIcon(Lucide.mail, size: 18),
+      control: GlacierSwitch(checked: on, onCheckedChange: store.setMailCodes, ariaLabel: 'One-time codes from email'),
+    ),
+    if (on && !allowed)
+      SettingRow(label: 'Allow notification access', hint: const Text('Android’s own page, where you turn it on for Ghost Keyboard.'), icon: AppIcon(LucideMore.shieldCheck, size: 18), onPress: store.openNotificationAccess),
+    if (on && !allowed)
+      SettingRow(
+        label: 'If Android says it is restricted',
+        hint: const Text('Open Android’s page for Ghost Keyboard here, tap ⋮ at the top of it, then Allow restricted settings, and come back. Android does this to apps from outside a store.'),
+        icon: AppIcon(Lucide.externalLink, size: 18),
+        onPress: store.openAppInfo,
+      ),
+    if (on && allowed && kept) ...[
+      SettingRow(
+        label: 'Let codes through, from a computer',
+        hint: Text('Once, with the phone connected: $command  Tap to copy it. It tells Android to show Ghost Keyboard the notifications it would hide. Come back to this page afterwards: Android takes it up when Ghost Keyboard connects to it again, which it does from here.'),
+        icon: AppIcon(Lucide.copy, size: 18),
+        onPress: () => Clipboard.setData(ClipboardData(text: command)),
+      ),
+      const SettingRow(
+        label: 'Or turn off Android’s search for codes',
+        hint: Text('It is part of Enhanced notifications in Android’s notification settings (on a Galaxy: Suggest actions and replies for notifications). With that off Android looks for no codes, so it hides none from any app, and it stops suggesting replies.'),
+        icon: AppIcon(Lucide.bell, size: 18),
+      ),
+    ],
+  ];
+}
+
 // --- About --------------------------------------------------------------------------------------------------------
 
 /// About's version number. Tapped five times in a row it shows Settings › Developer, as Android's build number does.
@@ -1033,10 +1092,24 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Holding the key beside ?123 still opens settings.'),
       ]),
       PaneSection(
-        footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),
+        footer: Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them, and lets the keys sit lower where the phone says both buttons are off; choose More if they still crowd the keys on your phone, or None for only what Android asks for.${_stripFound(store)}'),
         children: [_choice(store, 'bottom_space', 'Space under the keys', const {'none': 'None', 'auto': 'Auto', 'more': 'More'})],
       ),
     ];
+
+/// What Auto found under the keys the last time they were shown (android SystemStrip.kt), as a sentence for the
+/// footer of Space under the keys; nothing until the keys have been shown.
+String _stripFound(SettingsStore store) {
+  final strip = store.strip;
+  if (strip == null) return '';
+  return switch (strip['buttons']) {
+    'none' => ' On this phone both are off, so Auto keeps only the gesture bar’s room.',
+    'drawn' => ' On this phone they are there, and Auto keeps their room.',
+    _ => strip['galaxy'] == true
+        ? ' This phone did not say whether they are on, so Auto keeps their room.'
+        : ' This phone has no setting that says whether they are there, so Auto keeps their room.',
+  };
+}
 
 List<Widget> _keyPressPart(BuildContext context, SettingsStore store) => [
       PaneSection(children: [
@@ -1285,6 +1358,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
+        if (store.pluginOn('clipboard')) ..._mailCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
         _plugin(store, 'emoji', 'Emoji', 'A key next to ?123, beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
@@ -1464,7 +1538,7 @@ List<Widget> _aboutPage(BuildContext context, SettingsStore store) {
           SettingRow(
             label: 'Copy these details',
             icon: AppIcon(Lucide.copy, size: 18),
-            onPress: () => Clipboard.setData(ClipboardData(text: 'Ghost Keyboard ${u['current'] ?? ''}\nplugins: ${store.plugins.join(', ')}\nsettings: ${store.settingsJson}')),
+            onPress: () => Clipboard.setData(ClipboardData(text: 'Ghost Keyboard ${u['current'] ?? ''}\nplugins: ${store.plugins.join(', ')}\nsettings: ${store.settingsJson}${store.strip == null ? '' : '\nunder the keys: ${store.strip!['line']}'}')),
           ),
           SettingRow(label: 'Hide developer settings', onPress: () => store.set('developer', false)),
         ],

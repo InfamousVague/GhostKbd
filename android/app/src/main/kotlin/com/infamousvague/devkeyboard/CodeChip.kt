@@ -53,7 +53,7 @@ object CodeLook {
  * What makes a row item a one-time code's chip ([RowItem.code]): when the code came and how long it is offered where
  * the chip is, the row's start or the clipboard's list. Both on SystemClock.elapsedRealtime, as SmsCodes keeps them.
  */
-class RowCode(val at: Long, val span: Long)
+class RowCode(val at: Long, val span: Long, val mail: Boolean = false)
 
 /**
  * A text message with something in it: Phosphor's chat bubble (regular, with the duotone weight's 20% layer as the
@@ -69,6 +69,18 @@ internal val TEXT_CODE_ICON = PackIcon(
     ),
     listOf("M21 6V18a.75.75 0 01-.75.75H7.5L4.23 21.57A.75.75 0 013 21V6a.75.75 0 01.75-.75h16.5A.75.75 0 0121 6Z"),
     0.2f,
+)
+
+/**
+ * A mail, for a code that came in a mail app's notification (MailCodes.kt): Phosphor's envelope-simple (regular, with
+ * the duotone weight's flap as the wash; as above), on its own 256 grid.
+ */
+internal val MAIL_CODE_ICON = PackIcon(
+    false,
+    listOf("M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM203.43,64,128,133.15,52.57,64ZM216,192H40V74.19l82.59,75.71a8,8,0,0,0,10.82,0L216,74.19V192Z"),
+    listOf("M224,56l-96,88L32,56Z"),
+    0.2f,
+    box = 256f,
 )
 
 /**
@@ -181,7 +193,7 @@ class CodeChip(context: Context, code: CharSequence, private val timing: RowCode
         val icon = dp(ICON_DP)
         canvas.save()
         canvas.translate(if (rtl) w - dp(PAD_DP) - icon else dp(PAD_DP), (h - icon) / 2)
-        IconDrawable.drawGlyph(canvas, TEXT_CODE_ICON, icon, ink, iconPaint)
+        IconDrawable.drawGlyph(canvas, if (timing.mail) MAIL_CODE_ICON else TEXT_CODE_ICON, icon, ink, iconPaint)
         canvas.restore()
 
         val start = if (rtl) dp(PAD_DP) else dp(PAD_DP + ICON_DP + GAP_DP)

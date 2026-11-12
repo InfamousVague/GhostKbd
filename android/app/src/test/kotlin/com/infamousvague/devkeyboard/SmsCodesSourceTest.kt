@@ -62,7 +62,7 @@ class SmsCodesSourceTest {
         val chips = service.substringAfter("private fun codeItems(fresh: Boolean): List<RowItem> {").substringBefore("\n    }")
         assertTrue(chips, chips.contains("tint = RowTint.CODE"))
         // In the row it is drawn for as long as it leads the row, in the clipboard's list for as long as it is held.
-        assertTrue(chips, chips.contains("code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS)"))
+        assertTrue(chips, chips.contains("code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS, code.mail)"))
         for (clipboards in listOf("RowTint.CLIPBOARD", "RowIcon.CLIPBOARD", "icon =")) assertFalse(clipboards, chips.contains(clipboards))
         // The row draws such an item as a CodeChip, and nothing else is drawn as one.
         val row = code("PluginRow.kt")
@@ -86,6 +86,9 @@ class SmsCodesSourceTest {
         // No other source reads the codes: not the clipboard history's file, not the AI, not the reports, not the stats.
         val readers = kotlin.listFiles()!!.filter { it.extension == "kt" && code(it.name).contains(Regex("SmsCodes\\.(live|fresh|take)\\(")) }.map { it.name }.sorted()
         assertEquals(listOf("DevKeyboardService.kt", "SmsCodes.kt"), readers)
+        // And only a mail app's notification puts one there besides a text (MailCodes.kt).
+        val holders = kotlin.listFiles()!!.filter { it.extension == "kt" && code(it.name).contains(Regex("SmsCodes\\.hold\\(")) }.map { it.name }.sorted()
+        assertEquals(listOf("MailCodes.kt"), holders)
         for (name in listOf("ClipHistory.kt", "Ghostwriter.kt", "AiClient.kt", "Mockingbird.kt", "Reports.kt", "TypingStats.kt", "TypingProfile.kt", "Rewrite.kt")) {
             assertFalse(name, code(name).contains("SmsCodes") || code(name).contains("OtpCodes"))
         }

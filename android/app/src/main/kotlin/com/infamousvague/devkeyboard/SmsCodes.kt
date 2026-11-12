@@ -42,8 +42,11 @@ object SmsCodes {
     /** Held at once: a code asked for again arrives as a second text. */
     const val MAX = 3
 
-    /** A code and when its text arrived ([SystemClock.elapsedRealtime]). Nothing else of the text is kept. */
-    class Code(val text: String, val at: Long)
+    /**
+     * A code and when its text arrived ([SystemClock.elapsedRealtime]). Nothing else of the text is kept. [mail]: it
+     * came in a mail app's notification, not a text (MailCodes.kt), which only changes the picture on its chip.
+     */
+    class Code(val text: String, val at: Long, val mail: Boolean = false)
 
     private val held = ArrayList<Code>()
     private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
@@ -56,10 +59,19 @@ object SmsCodes {
     /** A text has arrived at [now]: its code, where it has one, is held. The text goes no further than this call. */
     fun take(message: String, now: Long): Code? {
         val code = OtpCodes.find(message) ?: return null
-        val entry = Code(code, now)
+        return hold(code, now, now, mail = false)
+    }
+
+    /**
+     * Holds [code], which came at [at] (a mail's notification may have been on the screen a while before it was
+     * read, MailCodes.kt), as [now] stands. Newest first, the same code once.
+     */
+    fun hold(code: String, at: Long, now: Long, mail: Boolean): Code {
+        val entry = Code(code, at, mail)
         synchronized(held) {
             held.removeAll { it.text == code || now - it.at >= KEEP_MS }
-            held.add(0, entry)
+            held.add(entry)
+            held.sortByDescending { it.at }
             while (held.size > MAX) held.removeAt(held.size - 1)
         }
         changed()
@@ -86,8 +98,17 @@ object SmsCodes {
         if (had) changed()
     }
 
+    /** Lets go of the codes that came one way, by [mail] or by text: that way's switch was turned off. */
+    fun drop(mail: Boolean) {
+        val had = synchronized(held) { held.removeAll { it.mail == mail } }
+        if (had) changed()
+    }
+
     /** The switch in Settings › Row tools, which is the clipboard plugin's: without the plugin there is nowhere to show a code. */
     fun wanted(prefs: KeyboardPrefs) = prefs.smsCodes && Plugins.isOn(prefs, Plugins.CLIPBOARD)
+
+    /** Codes are shown at all: either way they come is switched on. */
+    fun shown(prefs: KeyboardPrefs) = wanted(prefs) || MailCodes.wanted(prefs)
 
     /** Whether Android lets the app receive text messages. */
     fun allowed(context: Context) = context.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
@@ -102,7 +123,7 @@ object SmsCodes {
         runCatching {
             context.packageManager.setComponentEnabledSetting(ComponentName(context, SmsCodeReceiver::class.java), state, PackageManager.DONT_KILL_APP)
         }
-        if (!on) clear()
+        if (!on) drop(mail = false)
     }
 }
 

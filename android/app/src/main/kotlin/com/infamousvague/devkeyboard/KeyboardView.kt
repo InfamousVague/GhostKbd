@@ -552,7 +552,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val keyPadY get() = dp(if (condensed) 4.5f else 6f)
     private val keyRadius get() = dp(6f)
     private var navInset = 0
-    private var seenInset = -1
+    private var seenInset = -1L
 
     /** The letters page sets the height; the symbol pages spread their rows over the same space, as Gboard does. */
     private val rowCount get() = if (numberRow) 5 else 4
@@ -561,13 +561,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     init {
         isHapticFeedbackEnabled = true
         setOnApplyWindowInsetsListener { _, insets ->
-            val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            // onMeasure works the strip out afresh (bottomInset); this only asks for it when one of Android's numbers
+            // moves. Every one of them: since Android 14 the room for its own buttons comes as a caption bar, after
+            // the navigation bar's and without that one changing, and a keyboard that watched only the navigation bar
+            // went on standing where the buttons then were.
+            val now = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                var all = 0L
+                for (type in intArrayOf(WindowInsets.Type.navigationBars(), WindowInsets.Type.captionBar(), WindowInsets.Type.tappableElement(), WindowInsets.Type.systemGestures())) {
+                    all = all * 4099 + insets.getInsets(type).bottom
+                }
+                all
             } else {
-                @Suppress("DEPRECATION") insets.systemWindowInsetBottom
+                @Suppress("DEPRECATION") insets.systemWindowInsetBottom.toLong()
             }
-            // onMeasure works the strip out afresh (bottomInset); this only asks for it when Android's number moves.
-            if (!embedded && bottom != seenInset) { seenInset = bottom; requestLayout() }
+            if (!embedded && now != seenInset) { seenInset = now; requestLayout() }
             insets
         }
     }
@@ -586,6 +593,13 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         set(value) { if (field != value) { field = value; requestLayout() } }
 
     /**
+     * The phone's own settings for the buttons it draws under a keyboard (SystemStrip.phone), as the service last
+     * read them: on a Galaxy with both buttons switched off, "auto" keeps only the gesture bar's room.
+     */
+    var phone = SystemStrip.Phone(false)
+        set(value) { if (field != value) { field = value; requestLayout() } }
+
+    /**
      * The strip Android keeps under the keyboard for its own buttons (collapse, switch keyboard) and the gesture bar.
      * Read from the window itself each layout, so it is right however the insets were dispatched.
      *
@@ -593,30 +607,68 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * [NAV_BUTTONS_DP] tall, but some phones report only the thin gesture bar's height as the inset; the buttons then
      * sat on the bottom row (Matt, 2026-11-09: "The keyboard needs to be higher the bottom stock android keyboard
      * collapse and select are intercepting the UI"). So wherever there is a gesture bar at all, the keys keep at
-     * least the buttons' height clear.
+     * least the buttons' height clear; unless the phone itself says its buttons are off (Matt, 2026-11-12: "if not
+     * be able to slide the keyboard down since we don't need to reserve the space anymore"), and then only the
+     * gesture bar's. SystemStrip.kt has the rule and what it goes by.
      */
     private fun bottomInset(): Int {
         if (embedded) return 0
         val insets = rootWindowInsets ?: return navInset
         var gestures = 0
+        var navigation = 0
+        var caption = 0
+        var tappable = 0
         val reported = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             gestures = maxOf(insets.getInsets(WindowInsets.Type.systemGestures()).bottom, insets.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom)
-            maxOf(
-                insets.getInsets(WindowInsets.Type.navigationBars()).bottom,
-                insets.getInsets(WindowInsets.Type.tappableElement()).bottom,
-            )
+            navigation = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            caption = insets.getInsets(WindowInsets.Type.captionBar()).bottom
+            tappable = insets.getInsets(WindowInsets.Type.tappableElement()).bottom
+            maxOf(navigation, caption, tappable)
         } else {
             @Suppress("DEPRECATION") insets.systemWindowInsetBottom
         }
         lastReported = maxOf(reported, lastReported)
-        if (bottomSpace == "none") return lastReported
-        val buttons = if (lastReported > 0 || gestures > 0 || hadGestures) { hadGestures = true; ceil(dp(NAV_BUTTONS_DP)).toInt() } else 0
-        return maxOf(lastReported, buttons) + if (bottomSpace == "more") ceil(dp(MORE_SPACE_DP)).toInt() else 0
+        if (lastReported > 0 || gestures > 0) hadGestures = true
+        val stripShown = androidStrip()?.isShown == true
+        val buttons = SystemStrip.buttons(caption, stripShown, phone)
+        // The gesture bar alone: Android's own measure of it where that is a gesture bar's, a small margin where the
+        // phone draws none, and never more than a gesture bar is.
+        val barMost = ceil(dp(if (phone.hint == 0) HIDDEN_BAR_DP else GESTURE_BAR_DP)).toInt()
+        val bar = systemBarHeight().takeIf { it in 1..barMost } ?: barMost
+        val room = SystemStrip.room(bottomSpace, lastReported, hadGestures, buttons, ceil(dp(NAV_BUTTONS_DP)).toInt(), bar, ceil(dp(MORE_SPACE_DP)).toInt())
+        val seen = SystemStrip.Seen(navigation, caption, tappable, gestures, stripShown, phone, buttons, room, resources.displayMetrics.density)
+        if (seen != SystemStrip.seen) SystemStrip.seen = seen
+        return room
     }
 
     /** The most Android has reported for the strip, and whether it has ever had a gesture bar: neither flickers back as insets are re-sent. */
     private var lastReported = 0
     private var hadGestures = false
+
+    /**
+     * Android's own strip of buttons in this window, where it has put one there (Android 13 and later, with gesture
+     * navigation): looked for once the window is up, and again whenever it was not found.
+     */
+    private var strip: View? = null
+    private fun androidStrip(): View? {
+        strip?.takeIf { it.isAttachedToWindow }?.let { return it }
+        fun find(view: View, depth: Int): View? {
+            if (view.javaClass.name == SystemStrip.STRIP_CLASS) return view
+            if (view !is android.view.ViewGroup || depth > 6) return null
+            for (i in 0 until view.childCount) find(view.getChildAt(i), depth + 1)?.let { return it }
+            return null
+        }
+        strip = runCatching { find(rootView, 0) }.getOrNull()
+        return strip
+    }
+
+    /**
+     * Android's own measure of its bar at the bottom of the screen (px): with gesture navigation, the gesture bar's.
+     * 0 where it will not say. Asked each time (it changes with the way of navigating); only its name is looked up once.
+     */
+    private val systemBarId by lazy { runCatching { android.content.res.Resources.getSystem().getIdentifier("navigation_bar_height", "dimen", "android") }.getOrDefault(0) }
+    private fun systemBarHeight(): Int =
+        if (systemBarId == 0) 0 else runCatching { android.content.res.Resources.getSystem().getDimensionPixelSize(systemBarId) }.getOrDefault(0)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -1796,6 +1848,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         const val WRITING_WAIT_MS = 3000L
         /** The strip Android draws its collapse and switch-keyboard buttons in, with gesture navigation (dp). */
         const val NAV_BUTTONS_DP = 48f
+        /** The most a gesture bar by itself is given (dp), and what is kept where the phone draws no gesture bar at all: the corners of the screen. */
+        const val GESTURE_BAR_DP = 24f
+        const val HIDDEN_BAR_DP = 12f
         /** What "More" adds under the keys (dp). */
         const val MORE_SPACE_DP = 20f
         /**

@@ -158,6 +158,20 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   comma, a key's width off their space bar. In 0.16.2 those pages had no way to emoji but back through the letters.
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
+- **One-time codes from email** (`MailCodes.kt`; Settings › Row tools, off unless turned on;
+  [docs/mail-codes.md](docs/mail-codes.md)): a sign-in code that arrives in Gmail, or another mail app, is a chip at
+  the start of the row as a code from a text is, with an envelope on it. It is read from the mail app's own
+  notification, on the phone, once Android's notification access has been given: there is no account to connect and
+  nothing leaves the phone. Not by signing in to Gmail, which Google's rules for its Gmail access do not allow a
+  mobile keyboard. From Android 15, Android hides most code-bearing notifications from an app like this one until the
+  phone's owner lets them through (a command from a computer, or Android's Enhanced notifications turned off); Settings
+  says so, and says when Android has hidden one. Seen on the emulator; not with a real mail in a real Gmail.
+- **The keys sit lower where the phone's own buttons are off** (`SystemStrip.kt`;
+  [docs/system-strip.md](docs/system-strip.md)): Space under the keys › Auto still keeps 48dp for Android's hide and
+  switch-keyboard buttons, but only the gesture bar's room where a Galaxy's own settings say both are switched off.
+  The keyboard also counts the room Android 14 and later give those buttons (a caption bar inset it used not to
+  read), and Settings says what it found under the keys. Not seen on a Galaxy, and one of the settings' names is a
+  guess; where anything cannot be read the keys stay where they were.
 
 ## Rewrite on this phone (written, not yet built into the app)
 

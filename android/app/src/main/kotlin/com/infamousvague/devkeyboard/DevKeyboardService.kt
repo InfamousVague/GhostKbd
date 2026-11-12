@@ -264,13 +264,28 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         (Plugins.isOn(prefs, Plugins.INCOGNITO) && incognitoOn) || profile?.flag("incognito") == true ||
             (currentInputEditorInfo?.let { it.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0 } == true)
 
-    /** A one-time code arrived by text, was typed, or ran out (SmsCodes.kt): the row is drawn again, and once more when the newest stops being fresh. */
+    /** The phone's own settings for the buttons it draws under a keyboard (SystemStrip.phone), kept in step by [stripWatcher]. */
+    private var stripPhone = SystemStrip.Phone(false)
+    private val stripWatcher = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            stripPhone = SystemStrip.phone(this@DevKeyboardService)
+            keyboard?.phone = stripPhone
+        }
+    }
+
+    /**
+     * A one-time code arrived by text or by mail, was typed, or ran out (SmsCodes.kt, MailCodes.kt): the row is drawn
+     * again, and once more when the newest stops being fresh. A mail's code may have been on the screen a while before
+     * it was read, and stops being fresh that much sooner.
+     */
     private val codesFresh = Runnable { scheduleRow() }
     private val onSmsCode: () -> Unit = {
         rowHandler.post {
             scheduleRow()
             rowHandler.removeCallbacks(codesFresh)
-            rowHandler.postDelayed(codesFresh, SmsCodes.FRESH_MS + 500)
+            val now = android.os.SystemClock.elapsedRealtime()
+            val age = SmsCodes.fresh(now)?.let { now - it.at } ?: 0L
+            rowHandler.postDelayed(codesFresh, (SmsCodes.FRESH_MS - age).coerceAtLeast(0L) + 500)
         }
     }
 
@@ -343,7 +358,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         clipboard.addPrimaryClipChangedListener(onClip)
         // One-time codes from texts: Android's receiver is made to match the switch, and a code that arrives redraws the row.
         SmsCodes.apply(this)
+        MailCodes.apply(this)
         SmsCodes.addListener(onSmsCode)
+        // Whether the phone draws its own buttons under the keyboard (SystemStrip.kt): read now, and again when the
+        // person changes it in the phone's settings, so the keys move without the keyboard being restarted.
+        stripPhone = SystemStrip.phone(this)
+        for (uri in SystemStrip.watched()) runCatching { contentResolver.registerContentObserver(uri, false, stripWatcher) }
         // Sound shaping is gone (0.5.7): any filters set with it are cleared, so every pack plays as made.
         prefs.prefs.edit().remove("sound_filters").apply()
         // Long-press customisation is gone too (0.5.8): every key's popup is as it ships.
@@ -357,6 +377,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         reader.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SmsCodes.removeListener(onSmsCode)
+        runCatching { contentResolver.unregisterContentObserver(stripWatcher) }
         rowHandler.removeCallbacks(codesFresh)
         SoundPacks.release()
         WhisperModel.removeListener(onModel)
@@ -643,6 +664,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.wideLayout = prefs.wideLayout
         view.oneHanded = prefs.oneHanded
         view.bottomSpace = prefs.bottomSpace
+        view.phone = stripPhone
         view.deleteSwipe = prefs.deleteSwipe
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
         view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this, language.spec.id) else null
@@ -2122,7 +2144,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 scheduleRow()
             }
         }
-        // A one-time code that arrived by text a moment ago (SmsCodes.kt). Incognito does not hide it: nothing of it
+        // A one-time code that arrived by text or by mail a moment ago (SmsCodes.kt, MailCodes.kt). Incognito does not hide it: nothing of it
         // is kept either way, and a sign-in is where incognito is most often on.
         items += codeItems(fresh = true)
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) {
@@ -2176,19 +2198,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
-     * One-time codes from texts as chips: the one that has just arrived, for the row's start ([fresh]), or every
-     * one still held, for the clipboard's list. None with the switch off. A chip of its own (CodeChip.kt), not the
-     * clipboard's: its own colour, a text message on it, and the time it has left there running round its edge.
+     * One-time codes from texts and from email as chips: the one that has just arrived, for the row's start
+     * ([fresh]), or every one still held, for the clipboard's list. None with both switches off. A chip of its own
+     * (CodeChip.kt), not the clipboard's: its own colour, a text message or an envelope on it, and the time it has
+     * left there running round its edge.
      */
     private fun codeItems(fresh: Boolean): List<RowItem> {
-        if (!SmsCodes.wanted(prefs)) return emptyList()
+        if (!SmsCodes.shown(prefs)) return emptyList()
         val now = android.os.SystemClock.elapsedRealtime()
         val codes = if (fresh) listOfNotNull(SmsCodes.fresh(now)) else SmsCodes.live(now)
         return codes.map { code ->
             RowItem(
                 "${if (fresh) "fresh-code" else "code"}-${code.at}", label = code.text, tint = RowTint.CODE, chip = true,
-                code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS),
-                description = "One-time code ${CodeLook.spoken(code.text)}, from a text message",
+                code = RowCode(code.at, if (fresh) SmsCodes.FRESH_MS else SmsCodes.KEEP_MS, code.mail),
+                description = "One-time code ${CodeLook.spoken(code.text)}, from ${if (code.mail) "an email" else "a text message"}",
             ) { pasteCode(code) }
         }
     }

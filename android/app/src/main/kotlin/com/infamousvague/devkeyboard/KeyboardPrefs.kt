@@ -252,6 +252,8 @@ class KeyboardPrefs(context: Context) {
     val arrowKeys: Boolean get() = bool(ARROW_KEYS)
     /** The clipboard plugin's "One-time codes from texts" (SmsCodes.kt): off until switched on, and Android asked. */
     val smsCodes: Boolean get() = bool(SMS_CODES)
+    /** And its "One-time codes from email" (MailCodes.kt): off until switched on, and Android's notification access given. */
+    val mailCodes: Boolean get() = bool(MAIL_CODES)
     /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
     val slang: Boolean get() = bool(SLANG)
     /**
@@ -406,6 +408,7 @@ class KeyboardPrefs(context: Context) {
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
+        const val MAIL_CODES = "mail_codes"
         const val SLANG = "slang"
         const val SHORTCUTS_AUTO = "shortcuts_auto"
         const val WIDE_LAYOUT = "wide_layout"
@@ -500,6 +503,7 @@ class KeyboardPrefs(context: Context) {
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
             SMS_CODES to false,
+            MAIL_CODES to false,
             SLANG to true,
             SHORTCUTS_AUTO to true,
             WIDE_LAYOUT to "split",

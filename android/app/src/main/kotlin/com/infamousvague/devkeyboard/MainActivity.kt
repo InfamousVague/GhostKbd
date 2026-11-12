@@ -68,6 +68,41 @@ class MainActivity : FlutterActivity() {
         "target" to applicationInfo.targetSdkVersion,
     )
 
+    /**
+     * One-time codes from email (MailCodes.kt): the switch, whether Android has given notification access, the
+     * Android version, whether Android shows this app a notification it judges to hold a code (`shown`; from Android
+     * 15 it does not unless the phone's owner has said so, and `command` is how), and whether it has hidden one from
+     * the keyboard since the switch went on (`hidden`).
+     */
+    private fun mailState(): Map<String, Any?> {
+        // The phone's owner may have just allowed the app its codes, on a computer: Android takes that up when the listener connects.
+        MailCodeListener.reconnect(this)
+        return mailStateNow()
+    }
+
+    private fun mailStateNow(): Map<String, Any?> = mapOf(
+        "on" to prefs.mailCodes,
+        "allowed" to MailCodes.allowed(this),
+        "android" to Build.VERSION.SDK_INT,
+        "shown" to MailCodes.trusted(this),
+        "hidden" to (MailCodes.hiddenAt != 0L),
+        "command" to MailCodes.command(packageName),
+    )
+
+    /** Android's page where notification access is given: this listener's own where Android has one (11 and later), else the list. */
+    private fun openNotificationAccess() {
+        val own = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, ComponentName(this, MailCodeListener::class.java).flattenToString())
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.isSuccess
+        } else false
+        if (!own) runCatching { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
     private fun askForTexts() {
         prefs.prefs.edit().putBoolean(SMS_ASKED, true).apply()
         requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_SMS)
@@ -231,6 +266,7 @@ class MainActivity : FlutterActivity() {
                         val ok = key != null && prefs.set(key, call.argument<Any>("value"))
                         // The codes' switch by this door too: Android's receiver follows it (never the permission).
                         if (ok && key == KeyboardPrefs.SMS_CODES) SmsCodes.apply(this@MainActivity)
+                        if (ok && key == KeyboardPrefs.MAIL_CODES) MailCodes.apply(this@MainActivity)
                         if (ok) result.success(null) else result.error("bad_setting", "Unknown setting or wrong type: $key", null)
                     }
                     "status" -> result.success(status())
@@ -250,7 +286,7 @@ class MainActivity : FlutterActivity() {
                         val on = call.argument<Boolean>("on") == true
                         if (!Plugins.set(prefs, id, on)) { result.error("bad_plugin", "Unknown plugin: $id", null); return@setMethodCallHandler }
                         // One-time codes from texts are the clipboard plugin's: without it their receiver is off.
-                        if (id == Plugins.CLIPBOARD) SmsCodes.apply(this@MainActivity)
+                        if (id == Plugins.CLIPBOARD) { SmsCodes.apply(this@MainActivity); MailCodes.apply(this@MainActivity) }
                         // Adding dictation fetches its model and asks for the microphone, in one go.
                         if (id == Plugins.DICTATION && on) {
                             WhisperModel.download(this@MainActivity)
@@ -309,6 +345,19 @@ class MainActivity : FlutterActivity() {
                         result.success(smsState())
                     }
                     "askForTexts" -> { askForTexts(); result.success(null) }
+                    // What the keyboard last found under its keys (SystemStrip.kt): whether the phone's own buttons are
+                    // there, and one line of the numbers for a report. Null until the keys have been shown.
+                    "stripState" -> result.success(SystemStrip.seen?.let { mapOf("buttons" to it.buttons.name.lowercase(), "galaxy" to it.phone.galaxy, "line" to it.line()) })
+                    "mailCodesState" -> result.success(mailState())
+                    "setMailCodes" -> {
+                        // On: the switch, Android's listener, and Android's own page where access has not been given.
+                        val on = call.argument<Boolean>("on") == true
+                        prefs.set(KeyboardPrefs.MAIL_CODES, on)
+                        MailCodes.apply(this@MainActivity)
+                        if (on && !MailCodes.allowed(this@MainActivity)) openNotificationAccess()
+                        result.success(mailState())
+                    }
+                    "openNotificationAccess" -> { openNotificationAccess(); result.success(null) }
                     "openAppInfo" -> {
                         // Android's page for this app: its permissions, and (⋮) "Allow restricted settings".
                         runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
