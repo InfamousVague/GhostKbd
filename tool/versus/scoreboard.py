@@ -11,6 +11,9 @@ says how many words are left wrong, by thumb:
            same three thumbs laid on the same keys. Nothing was looked at there but these totals: what a change
            does to these is what it does.
 
+  --final          also types a third set, kept for the end: 300 more held-out sentences from line 110,001 on.
+                   Only its totals are ever printed (no --show, no --save of its words), so that nothing can be
+                   fitted to it: look at it when the work is done, not while it is being done
   --save NAME      keeps every word's verdict under build/versus/scoreboard/NAME.json
   --against NAME   and says, set by set, how many words are mended and how many broken since then (--show N of each)
   --bench          also runs the typing bench's own tap test (tool/typing_bench.sh taps, 12,000 words): words right,
@@ -38,6 +41,7 @@ RUN = os.path.join(HERE, "runs", "2026-11-11")
 GEOMETRY = os.path.join(RUN, "ghost.geometry.json")
 THUMBS = ["careful", "leaning", "sloppy"]
 UNSEEN_FIRST = 100000
+FINAL_FIRST = 110000
 
 
 def kept(name):
@@ -134,6 +138,7 @@ def main():
     ap.add_argument("--java")
     ap.add_argument("--set", action="append", default=[])
     ap.add_argument("--marks-without-taps", action="store_true")
+    ap.add_argument("--final", action="store_true")
     ap.add_argument("--unseen-first", type=int, default=UNSEEN_FIRST)
     ap.add_argument("--sentences", type=int, default=300)
     args = ap.parse_args()
@@ -148,6 +153,8 @@ def main():
     gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in kept("gboard.jsonl.gz")}
     print(line("seen", now["seen"], gboard))
     print(line("unseen", now["unseen"]))
+    if args.final:
+        print(line("final", typed(unseen(FINAL_FIRST, args.sentences))))
     folder = os.path.join(ROOT, "build", "versus", "scoreboard")
     if args.against:
         then = json.load(open(os.path.join(folder, args.against + ".json")))
