@@ -30,6 +30,13 @@ class KeyboardPrefs(context: Context) {
     val toolbar: Boolean get() = bool(TOOLBAR)
     /** Settings › Look & feel › Keys › Hide the row: no strip above the keys at all, whatever plugins are added. */
     val hideRow: Boolean get() = bool(HIDE_ROW)
+
+    /**
+     * Settings › Look & feel › Keys › Comma key: a comma next to ?123 on the letters, where the { } key was, with the
+     * emoji key moved over beside it. Off unless turned on (Matt, 2026-11-12: "remove the comma by default make it a
+     * setting users can toggle on").
+     */
+    val commaKey: Boolean get() = bool(COMMA_KEY)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -337,6 +344,7 @@ class KeyboardPrefs(context: Context) {
         const val KEY_BORDERS = "key_borders"
         const val TOOLBAR = "toolbar"
         const val HIDE_ROW = "hide_row"
+        const val COMMA_KEY = "comma_key"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
@@ -430,6 +438,7 @@ class KeyboardPrefs(context: Context) {
             KEY_BORDERS to false,
             TOOLBAR to false,
             HIDE_ROW to false,
+            COMMA_KEY to false,
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",

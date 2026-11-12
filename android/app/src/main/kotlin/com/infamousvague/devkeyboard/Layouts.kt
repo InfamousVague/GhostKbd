@@ -111,15 +111,16 @@ object Layouts {
     const val LEAST_BAR = 3f
 
     /**
-     * The comma key on the letters (Matt, 2026-11-12, of 0.16.2's bottom row: "The comma key should be in the original
-     * spot the code was in the emoji key should cut into the spacebar"): where the { } key is a button in the row
-     * above the keys (DevKeyboardService.everyday), its place on the board, next to ?123, is the comma's, as it is
-     * Gboard's and as it is on the ?123 page: the same key as there, [spec]'s own comma where its script has one
-     * (Arabic's ،) with the Latin one a long press away. 0.16.2 had put the emoji key in that place.
+     * The comma key on the letters, for Settings › Look & feel › Keys › Comma key (Matt, 2026-11-12, of 0.16.2's
+     * bottom row: "The comma key should be in the original spot the code was in the emoji key should cut into the
+     * spacebar"; and then: "On second thought remove the comma by default make it a setting users can toggle on").
+     * Where the { } key is a button in the row above the keys (DevKeyboardService.everyday), its place on the board,
+     * next to ?123, is the comma's, as it is Gboard's and as it is on the ?123 page: the same key as there, [spec]'s
+     * own comma where its script has one (Arabic's ،) with the Latin one a long press away.
      *
-     * Where the { } key keeps its place (there is no row to hold the button) the rows come back as they were, and
-     * the comma is on the full stop's long press, as it has been since the { } key took its key. Pages with no { }
-     * key have their comma already.
+     * Where the { } key keeps its place (there is no row to hold the button) this is not asked for, and the comma is
+     * on the full stop's long press, as it has been since the { } key took its key. Pages with no { } key have their
+     * comma already, and come back as they are.
      */
     fun withComma(rows: List<KeyRow>, spec: LayoutSpec = QWERTY): List<KeyRow> {
         val last = rows.last()
@@ -129,19 +130,25 @@ object Layouts {
     }
 
     /**
-     * The emoji plugin's key: on every page it stands straight after the key beside ?123 or ABC, which is the comma
-     * (or the { } key, on letters whose row is hidden), between that key and the space bar, with a key's width taken
-     * from the bar (five keys to four). It is where Gboard has its emoji key, where this keyboard had it from 0.12.1
-     * to 0.15.0, and where Matt's thumb looks for it ("include the emoji next to the comma key as I've become
-     * accustomed to using that"). It is drawn as the mic key is, its icon alone (Matt, the same day: "make it the
-     * same as the dictation where it's just the icon no background"); a tap opens emoji and a hold opens Settings.
+     * The emoji plugin's key, drawn as the mic key is, its icon alone (Matt, 2026-11-12: "make it the same as the
+     * dictation where it's just the icon no background"); a tap opens emoji and a hold opens Settings.
      *
-     * In 0.16.2 it stood in the { } key's own place and took nothing from the bar, and the other pages had no way to
-     * emoji at all. A row whose bar would be left under [LEAST_BAR], or that has the key already, comes back as it is.
+     * [inPlace]: the { } key is a button in the row and nothing else has its place on the letters, so the emoji key
+     * takes it, next to ?123, and the space bar keeps its whole width (Matt, the same day: "Move the emoji key to
+     * where the dev tools toggle is"). That is the letters as 0.16.2 has them.
+     *
+     * Otherwise it stands straight after the key beside ?123 or ABC, with a key's width taken from the bar (five
+     * keys to four): after the comma, where the Comma key setting has put one on the letters ("the emoji key should
+     * cut into the spacebar") and on the ?123, =\< and code pages, which always have one; or after the { } key, on
+     * letters whose row is hidden, as the board was from 0.12.1 to 0.15.0. A row whose bar would be left under
+     * [LEAST_BAR], or that has the key already, comes back as it is.
      */
-    fun withEmoji(rows: List<KeyRow>): List<KeyRow> {
+    fun withEmoji(rows: List<KeyRow>, inPlace: Boolean = false): List<KeyRow> {
         val last = rows.last()
         if (last.keys.any { it.type == KeyType.EMOJI }) return rows
+        val emoji = Key(KeyType.EMOJI, pill = false)
+        val code = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
+        if (inPlace && code >= 0) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[code] = emoji }, last.inset)
         val mode = last.keys.indexOfFirst { it.type == KeyType.MODE && (it.page == Page.SYMBOLS || it.page == Page.LETTERS) }
         val beside = last.keys.getOrNull(mode + 1)?.takeIf { mode >= 0 && (it.type == KeyType.CHAR || it.type == KeyType.MODE && it.page == Page.DEV) } ?: return rows
         val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
@@ -149,7 +156,7 @@ object Layouts {
         val keys = ArrayList<Key>(last.keys.size + 1)
         last.keys.forEach { key ->
             keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
-            if (key === beside) keys += Key(KeyType.EMOJI, pill = false)
+            if (key === beside) keys += emoji
         }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }

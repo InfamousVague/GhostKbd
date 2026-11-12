@@ -148,13 +148,16 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 
 ## 0.16.3
 
-- **The comma is back next to ?123, and the emoji key beside it** (`Layouts.withComma`, `Layouts.withEmoji`): the
-  letters end with ?123, the comma, the emoji key, the space bar, the full stop (or the mic) and enter, as Gboard's
-  do. The comma stands where the { } key was until 0.16.2 moved that key to a button in the row above the keys; the
-  emoji key takes a key's width from the space bar (five keys to four), where it stood from 0.12.1 to 0.15.0. 0.16.2
-  had put the emoji key in the { } key's own place. The ?123, =\< and code pages have the emoji key next to their
-  comma too. With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and
-  the emoji key stands beside it; the comma is then on the full stop's long press, as before.
+- **A Comma key setting** (Settings › Look & feel › Keys › Comma key, off unless turned on; `Layouts.withComma`,
+  `KeyboardPrefs.commaKey`): with it on, the letters end with ?123, the comma, the emoji key, the space bar, the full
+  stop (or the mic) and enter, as Gboard's do. The comma stands where the { } key was until 0.16.2 moved that key to
+  a button in the row above the keys, and the emoji key moves over beside it, taking a key's width from the space bar
+  (five keys to four). With it off the letters are as 0.16.2 has them: the emoji key next to ?123, the bar at its
+  whole width, and a comma a hold on the full stop.
+- **The emoji key on the other pages** (`Layouts.withEmoji`): ?123, =\< and the code keys have it next to their
+  comma, a key's width off their space bar. In 0.16.2 those pages had no way to emoji but back through the letters.
+- With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
+  stands beside it, as from 0.12.1 to 0.15.0.
 
 ## Rewrite on this phone (written, not yet built into the app)
 
@@ -220,10 +223,11 @@ first of them whole in view at the row's end (`PluginRow.WordRoom`). Whether the
 both arrows were there, so the row keeps its shape as they come and go. A tap on an arrow keeps the row as it was,
 words and all, so the arrow stays under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
 takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
-on") takes its room out of theirs. Emoji is a key on the board, next to the comma on every page, a key's width
-off the space bar, drawn as the mic key is, its icon alone (`Layouts.withEmoji`); the comma stands next to ?123
-(`Layouts.withComma`), where the { } key was; and the { } key is a button in the row, where the emoji button was,
-lit while the code keys are showing (`DevKeyboardService.everyday`). With no row above the keys (it is hidden, or
+on") takes its room out of theirs. Emoji is a key on the board, next to ?123 where the { } key was, drawn as
+the mic key is, its icon alone (`Layouts.withEmoji`); with Settings' Comma key on, the comma has that place and the
+emoji key stands beside it, a key's width off the space bar (`Layouts.withComma`); the ?123 pages have the emoji key
+next to their comma; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
+showing (`DevKeyboardService.everyday`). With no row above the keys (it is hidden, or
 nothing is in it) the { } key keeps its place next to ?123, and the emoji key stands beside it. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop

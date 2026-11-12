@@ -126,9 +126,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
     /**
-     * The { } key is a button in the row above the keys: its place on the letters, next to ?123, is the comma's
-     * ([Layouts.withComma]). Off, there is no row to hold the button, and the { } key keeps its place.
+     * The { } key is away from the board, a button in the row above the keys: its place on the letters, next to
+     * ?123, goes to the emoji key, or with [commaKey] to the comma ([Layouts.withComma], [Layouts.withEmoji]).
+     * Off, there is no row to hold the button, and the { } key keeps its place.
      */
+    var codeAway = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+
+    /** Settings › Look & feel › Keys › Comma key: with the { } key away, the comma has its place and the emoji key stands beside it. */
     var commaKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
     var micKey = false
@@ -513,8 +518,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         }
         // The mic first: it knows the letters page by its { } key, which the emoji key then takes the place of.
         val spoken = if (micKey) Layouts.withMic(base) else base
-        val pointed = if (commaKey) Layouts.withComma(spoken, spec) else spoken
-        rows = if (emojiKey) Layouts.withEmoji(pointed) else pointed
+        // With the { } key away its place is the comma's (the setting on), or the emoji key's, or with neither it
+        // stays the { } key's own, which is then the way to the code keys as well as the row's button.
+        val pointed = if (codeAway && commaKey) Layouts.withComma(spoken, spec) else spoken
+        rows = if (emojiKey) Layouts.withEmoji(pointed, inPlace = codeAway && !commaKey) else pointed
         layoutKeys()
     }
 
