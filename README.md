@@ -117,6 +117,16 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   read (`WordRoom.shown`); GIFs lead the tools that follow the words, so on a phone the GIF button is the one in
   view at the row's end.
 
+## 0.16.2
+
+- **Dictation shows its words as you speak** (`LiveWords.kt`, `Dictation.kt`, `whisper_jni.cpp`'s `nativeDraft`;
+  Settings › Dictation › Show words as I speak, on unless switched off; [docs/dictation.md](docs/dictation.md)): the
+  phrase being spoken is written down again about once a second and shown in the field as a draft, a second or so
+  behind the voice, and the phrase as written down at its pause takes the draft's place. Until now the words came
+  only at a pause of 0.6 seconds, which for a message spoken straight through meant all at the end. A phrase is one
+  undo step however often its draft was revised (`FieldEditor.replaceBefore`). Debug builds compile whisper for
+  speed too, and can be given a recording in the microphone's place (`DebugSpeech.kt`).
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's

@@ -116,6 +116,8 @@ class KeyboardPrefs(context: Context) {
      */
     val dictationWords: String get() = prefs.getString(DICTATION_WORDS, "")!!
     val dictationTidy: Boolean get() = bool(DICTATION_TIDY)
+    /** Dictated words shown in the field as they are spoken, and not only at each pause (LiveWords.kt). */
+    val dictationLive: Boolean get() = bool(DICTATION_LIVE)
 
     /**
      * The languages that are on: codes from Languages.ALL, comma-separated, in the order they were turned on
@@ -362,6 +364,7 @@ class KeyboardPrefs(context: Context) {
         const val DICTATION_LANGUAGE = "dictation_language"
         const val DICTATION_WORDS = "dictation_words"
         const val DICTATION_TIDY = "dictation_tidy"
+        const val DICTATION_LIVE = "dictation_live"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
@@ -448,6 +451,7 @@ class KeyboardPrefs(context: Context) {
             DICTATION_LANGUAGE to "auto",
             DICTATION_WORDS to "",
             DICTATION_TIDY to true,
+            DICTATION_LIVE to true,
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",
             "theme_mode" to "dark",

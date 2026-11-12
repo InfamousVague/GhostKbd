@@ -43,7 +43,16 @@ void main() {
     // Long takes: no limit, the words as you talk, and when a take ends by itself. No "60 seconds" anywhere.
     final long = section('Long takes').children.whereType<SettingRow>().toList();
     expect(long.map((r) => r.label), ['No time limit', 'It stops by itself']);
-    expect((long[0].hint as Text).data, contains('a sentence or two behind your voice'));
+    expect((long[0].hint as Text).data, contains('a piece at a time, each ending at a pause'));
+
+    // As you speak: on unless switched off, and the page says what it is, that the last words can change, and what it costs.
+    expect(store.flag('dictation_live'), isTrue);
+    final live = section('As you speak').children.whereType<SettingRow>().single;
+    expect(live.label, 'Show words as I speak');
+    expect((live.hint as Text).data, allOf(contains('while you are still talking'), contains('can change until you pause')));
+    for (final phrase in ['on this phone', 'battery', 'at each pause', 'all at the end if you never pause']) {
+      expect(footer('As you speak'), contains(phrase));
+    }
     expect((long[1].hint as Text).data, allOf(contains('45 seconds'), contains('30 minutes')));
     for (final s in sections()) {
       for (final r in s.children.whereType<SettingRow>()) {
@@ -82,7 +91,7 @@ void main() {
 
   test('the Market’s card says takes have no limit, and that only Tidy sends anything', () {
     final plugin = pluginById('dictation')!;
-    for (final phrase in ['for as long as you like', 'a piece at each pause', 'Nothing you say is sent anywhere', 'your own words', 'that sends the words, never the sound, and only when you tap it']) {
+    for (final phrase in ['for as long as you like', 'about a second behind your voice', 'Nothing you say is sent anywhere', 'your own words', 'that sends the words, never the sound, and only when you tap it']) {
       expect(plugin.description, contains(phrase));
     }
     expect(plugin.adds, contains('Takes of any length, written down as you talk'));

@@ -106,6 +106,18 @@ class EditHistory(private val maxSteps: Int = MAX_STEPS, private val maxUnits: I
         private fun hasInk(text: CharSequence): Boolean = text.any { !it.isWhitespace() }
 
         /**
+         * How much [a] and [b] begin alike, in characters, never ending between the two halves of one character
+         * (an emoji, a rare letter): what a revised text keeps of the text it takes the place of.
+         */
+        fun sharedStart(a: CharSequence, b: CharSequence): Int {
+            var n = 0
+            val most = minOf(a.length, b.length)
+            while (n < most && a[n] == b[n]) n++
+            if (n > 0 && n < maxOf(a.length, b.length) && Character.isHighSurrogate(a[n - 1])) n--
+            return n
+        }
+
+        /**
          * Whether [text] begins a new word after [typed]: [typed] already has a word and its space, and [text] is not
          * a space. So "hello " then "w" is a new step, while a space, a comma or a full stop stays with its word, and
          * a lone space joins the word typed after it.

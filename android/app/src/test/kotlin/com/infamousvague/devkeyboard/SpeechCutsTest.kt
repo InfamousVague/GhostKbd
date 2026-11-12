@@ -187,4 +187,15 @@ class SpeechCutsTest {
         near(5.3, taken / rate.toDouble(), within = 0.12)
         assertTrue(taken <= heard)
     }
+
+    @Test fun `how much speech the piece in hand has in it`() {
+        // LiveWords waits for most of a second of it before a piece's first draft: the quiet a piece begins with is not speech.
+        val cuts = SpeechCuts()
+        hear(cuts, room(1.0))
+        assertEquals(0, cuts.spokenMs)
+        hear(cuts, voice(0.5))
+        near(0.5, cuts.spokenMs / 1000.0)
+        hear(cuts, room(0.2) + voice(0.7))
+        near(1.2, cuts.spokenMs / 1000.0)
+    }
 }

@@ -102,6 +102,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var takeField: FieldKey? = null
 
     /**
+     * The draft of the piece being spoken, as it stands in the field just before the cursor ([onDraft]), with the
+     * space that parts it from what came before ([liveLead]); null between pieces. [liveLost]: the draft was no
+     * longer there to be revised (the cursor was moved, or the app changed its text), so it stands as it is and no
+     * more is shown of this piece until it is written down.
+     */
+    private var liveDraft: String? = null
+    private var liveLead = ""
+    private var liveLost = false
+
+    /**
      * A shortcut's letters that were just said to be meant as typed (their own chip tapped, or their phrase taken
      * back with backspace): the next space leaves them alone, once.
      */
@@ -1384,8 +1394,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val view = keyboard ?: return
         if (dictation.listening) { dictation.stop(); return }
         // Still writing the last take down (the keys ask only after a few seconds of it: a long take on a slow
-        // phone): a tap lets the rest of it go, and what it has typed already stays.
-        if (takeOpen) { dictation.cancel(); onDictated(""); return }
+        // phone): a tap lets the rest of it go, and what it has typed already stays, a draft among it.
+        if (takeOpen) { dictation.cancel(); keepDraft(); onDictated(""); return }
         if (view.dictation == DictationPhase.TRANSCRIBING) return
         if (!dictation.hasPermission()) {
             // An input method cannot ask for a permission itself: the settings app asks, on Dictation's page.
@@ -1395,6 +1405,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.dictation = DictationPhase.LISTENING
         said = null
         saying.setLength(0)
+        liveDraft = null
+        liveLost = false
         dictation.start(this)
         takeOpen = dictation.active
         takeField = fieldKey
@@ -1408,22 +1420,85 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         keyboard?.dictation = DictationPhase.OFF
         saying.setLength(0)
         said = null
+        // A draft stands as it is in the field it was spoken into: nothing more is known of it.
+        liveDraft = null
+        liveLost = false
         updateWorking()
+    }
+
+    /** A take ends with a draft in the field that will not be written down again: it stands, as words the take said. */
+    private fun keepDraft() {
+        val run = liveDraft ?: return
+        liveDraft = null
+        if (saying.isNotEmpty()) saying.append(liveLead)
+        saying.append(run.removePrefix(liveLead))
     }
 
     override fun onLevel(level: Float) { keyboard?.level = level }
 
     override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING; updateWorking() }
 
+    /**
+     * The piece being spoken, as far as it has been heard (LiveWords.kt): shown in the field in place of the draft
+     * before it, so the words are there as they are said. One step in the undo history however often it is revised.
+     */
+    override fun onDraft(text: String) {
+        val shown = LiveWords.shown(text)
+        // A draft with no words in it leaves what is shown alone: the next has more to go on.
+        if (shown.isEmpty() || liveLost) return
+        val ic = currentInputConnection ?: return
+        val old = liveDraft
+        if (old == null) {
+            toolsHeld = false
+            finishTyping()
+            liveLead = LiveWords.lead(ic.getTextBeforeCursor(1, 0)?.toString().orEmpty())
+            val run = liveLead + shown
+            editor.insert(run, Kind.DICTATION)
+            liveDraft = run
+            lastCorrection = null
+            swipeStood()
+            lastSwipe = null
+            notTyped()
+            autoSpaced = false
+            return
+        }
+        val run = liveLead + shown
+        if (run == old) return
+        // No longer just before the cursor (a tap in the text, an app that rewrote it): it stands as it is.
+        if (editor.replaceBefore(old, run, Kind.DICTATION)) liveDraft = run else { liveDraft = null; liveLost = true }
+    }
+
     /** Words written down while the take goes on (a piece that ended at a pause): they go in at once, and the mic stays open. */
-    override fun onHeard(text: String) = speak(text)
+    override fun onHeard(text: String) = settle(text)
+
+    /**
+     * A piece as written down at its pause, [text], takes its draft's place; with no draft shown it goes in at the
+     * cursor as it always did. Where it has no words after all, its draft is taken back.
+     */
+    private fun settle(text: String) {
+        val old = liveDraft
+        liveDraft = null
+        liveLost = false
+        if (old != null) {
+            val run = if (text.isEmpty()) "" else liveLead + text
+            if (editor.replaceBefore(old, run, Kind.DICTATION)) {
+                if (text.isNotEmpty()) {
+                    if (saying.isNotEmpty()) saying.append(liveLead)
+                    saying.append(text)
+                }
+                return
+            }
+            // The draft is no longer before the cursor: it stays where it is, and the piece goes in where the cursor is now.
+        }
+        speak(text)
+    }
 
     /** The take is over: its last words go in, and what it put in altogether can be tidied from the row. */
     override fun onDictated(text: String) {
         takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
         updateWorking()
-        speak(text)
+        settle(text)
         said = saying.toString().takeIf { it.isNotBlank() }
         saying.setLength(0)
         // The row shows its tools now, Tidy first among them, and not suggestions for the take's last word: the
@@ -1439,8 +1514,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         finishTyping()
         val ic = currentInputConnection ?: return
         // A space before the words where they follow other words, none where they start a line.
-        val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
-        val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
+        val lead = LiveWords.lead(ic.getTextBeforeCursor(1, 0)?.toString().orEmpty())
         editor.insert(lead + text, Kind.DICTATION)
         // What the take has said, for Tidy to replace: its words, and not the space that parts them from what stood
         // before (an answer comes back trimmed, and "the update. Um can you" must not become "the update.Can you").
@@ -1459,6 +1533,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
         saying.setLength(0)
+        liveDraft = null
+        liveLost = false
         updateWorking()
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }

@@ -122,6 +122,7 @@ class SettingsStore extends ChangeNotifier {
     'rewrite_language': 'Spanish',
     'dictation_words': '',
     'dictation_tidy': true,
+    'dictation_live': true,
     'enhance_style': 'tight',
     'enhance_notes': '',
     'preview_open': false,

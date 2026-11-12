@@ -65,6 +65,9 @@ class SpeechCuts(rate: Int = 16_000) {
     /** Whether what is left when the take ends (everything heard and not yet taken) has speech in it. */
     fun rest(): Boolean = frames.any { it >= SPEECH }
 
+    /** How much speech there is in what has been heard and not yet taken, in milliseconds: its loud moments, added up. */
+    val spokenMs: Int get() = frames.count { it >= SPEECH } * FRAME_MS
+
     private fun decide(): Cut? {
         val n = frames.size
         if (n == 0) return null

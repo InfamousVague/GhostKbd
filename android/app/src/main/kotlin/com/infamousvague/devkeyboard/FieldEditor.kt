@@ -452,7 +452,9 @@ class FieldEditor(
      * Replaces [old], just before the cursor, with [new]. False, and nothing done, when [old] is not there and [must]
      * is set; with [must] off [new] is typed anyway. [typedFirst] is a separator the person pressed that the fix
      * swallowed: it is written down as typed first, so undoing the fix gives back the word and its space.
-     * A swiped word swapped for another choice stays one step.
+     * A swiped word swapped for another choice stays one step. So do dictated words revised as more is heard
+     * (LiveWords.kt): the run they were put in as is still the newest step, and it becomes [new]; only what
+     * differs is typed again, from the first letter that does; and revised to nothing, the step is gone.
      */
     fun replaceBefore(old: String, new: String, kind: Kind, typedFirst: String = "", must: Boolean = true): Boolean {
         var r: Reading? = null
@@ -465,7 +467,7 @@ class FieldEditor(
         var amend: Step? = null
         if (read != null) guarded {
             val top = history.top()
-            if (kind == Kind.SWIPE && found && read.selected.isEmpty() && top != null && top === tip && top.kind == Kind.SWIPE &&
+            if ((kind == Kind.SWIPE || kind == Kind.DICTATION) && found && read.selected.isEmpty() && top != null && top === tip && top.kind == kind &&
                 top.caret == top.inserted.length && top.inserted.toString() == old
             ) {
                 amend = top
@@ -482,7 +484,10 @@ class FieldEditor(
                 }
             }
         }
-        send(cut, 0, new, 0, false, -1, batch = true)
+        // A draft of dictated words giving way to the next: what the two begin with alike stays as it is in the
+        // field. Only where the step is amended, or nothing is being written down: a new step takes [old] out whole.
+        val keep = if (kind == Kind.DICTATION && found && (amend != null || read == null)) EditHistory.sharedStart(old, new) else 0
+        send(cut - keep, 0, new.substring(keep), 0, false, -1, batch = true)
         guarded {
             amend?.let {
                 it.inserted.setLength(0)
@@ -491,7 +496,9 @@ class FieldEditor(
                 it.time = clock()
                 history.redo.clear()
                 edited()
-                if (it.at >= 0) { caret.predict(it.at); caret.predict(it.at + new.length) } else caret.unknown()
+                if (it.at >= 0) { if (cut - keep > 0) caret.predict(it.at + keep); caret.predict(it.at + new.length) } else caret.unknown()
+                // Dictated words that turned out to be none: nothing was put in, and there is nothing to undo.
+                if (new.isEmpty() && it.removed.isEmpty()) { history.undo.remove(it); tip = null }
             }
             plan?.let { record(it) }
         }

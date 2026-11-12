@@ -10,8 +10,8 @@ Speech is turned into text on the phone by whisper.cpp, as before. Nothing that 
 ## Takes of any length
 
 whisper hears thirty seconds at a time and gives its words only when it has heard a piece whole. So a take is heard
-as a row of pieces, each written down on a thread of its own while the next is being spoken, and its words go into
-the field as each piece is done: a sentence or two behind the voice, not word by word.
+as a row of pieces, each written down on a thread of its own while the next is being spoken, and each piece's words
+are in the field for good when it is done.
 
 Where a piece ends (`SpeechCuts`):
 
@@ -36,6 +36,41 @@ A take's words are for the field it was started in. In another field, or once th
 written down yet is let go and never typed (`Dictation.cancel`, `DevKeyboardService.dropTake`). And where the last
 words take more than three seconds to write down (a long take on a slow phone), the panel says so and a tap stops
 it there: what the take has typed already stays.
+
+## As you speak
+
+Matt, 2026-11-12, of 0.16.1: "I want dictation to show as I'm typing in the chat box instead of having it all show
+up at the very end". A piece ends only at a pause of 0.6 seconds, so someone who speaks a message straight through
+saw nothing until they tapped to finish.
+
+Since 0.16.2 (`LiveWords.kt`; Settings › Dictation › Show words as I speak, on unless switched off) the piece in
+hand is also written down again and again while it is being spoken, each time whole and from its start, and what
+comes back is shown in the field as a draft that the next one replaces. So the words are there about a second
+behind the voice, and the last word or two of them can change as more is heard. At the pause the piece is written
+down as it always was, and that takes the draft's place.
+
+- **When**: the first draft of a piece once it has 0.9 seconds of speech in it (speech, not sound: a piece begins with
+  the end of the pause before it), then one for every 0.9 seconds more, and never two at once: a phone that takes
+  longer than that to make one makes them as fast as it can.
+- **How**: a draft is whisper's ordinary reading of the sound, made a little quicker: one segment, no time marks, no
+  second try at a higher temperature (`nativeDraft`). It is given whisper's whole window. A window cut to the
+  piece's length was three times quicker on a desk, but on the emulator those drafts took "Ask" for "It's" and once
+  filled the field with "is is is is".
+- **What is shown** (`LiveWords.shown`, `believable`): the draft without the full stop, dots or comma whisper ends
+  it with (the person is mid-sentence), and nothing at all where it repeats one word four times, says a phrase twice
+  over, or has more words than anyone could have said.
+- **In the field** (`DevKeyboardService.onDraft`, `settle`; `FieldEditor.replaceBefore`): the draft is ordinary text
+  just before the cursor. Each new one changes only what differs from the last, from the first letter that does, and
+  a piece is one step in the undo history however often it was revised. Where the draft is no longer just before the
+  cursor (a tap in the text, an app that rewrote it) it stands as it is, and the piece as written down goes in where
+  the cursor is.
+- A draft gives way to a piece that is waiting to be written down (`nativeAbortDraft`), so the end of a take does not
+  wait on one.
+
+Everything is still on the phone. It costs processor time for as long as someone speaks.
+
+In a debug build a recording can stand in for the microphone (`DebugSpeech.kt`: `files/debug-speech.wav` in the app's
+own storage), which is how this was tried on an emulator, whose microphone hears nothing.
 
 ## Your words
 
@@ -67,7 +102,15 @@ on. Settings › Dictation › Offer Tidy in the row turns the Tidy chip off.
 
 ## Checked
 
-`SpeechCutsTest` (10 tests, on made sound: a tone for a voice, a hiss for a room): a pause ends a piece in the middle
+**On the emulator, 2026-11-12, with a debug build of 0.16.2's code and the model the app starts with (base.en):** a
+recording of eleven seconds of speech (whisper.cpp's own sample, three phrases with pauses between) played in the
+microphone's place. The words came into the field about once a second while it played, each draft carrying the last
+one on ("Ask me", "Ask NOT", "Ask NOT what you're doin", "Ask NOT what your country c…"), and each phrase's draft
+was replaced by the phrase as written down at its pause. `LiveWordsTest` (7 tests) holds the rules, and
+`FieldEditorTest` that a revised piece is one undo step and types only what changed. On a phone, with a voice and a
+real microphone, it has not been tried.
+
+`SpeechCutsTest` (11 tests, on made sound: a tone for a voice, a hiss for a room): a pause ends a piece in the middle
 of the quiet, a breath does not, a voice that never pauses is cut before 24 seconds at its quietest moment, quiet is
 let go and never written down, a quiet short take is never thrown away, and how long since anyone spoke.
 `DictationWordsTest` (10): the word list, what whisper is given, what Tidy is told, the ledger path.
@@ -75,8 +118,9 @@ let go and never written down, a quiet short take is never thrown away, and how 
 
 Not checked, and it matters most here:
 
-- No take was spoken into a phone or an emulator when this was written. The recorder's loop, the second thread and
-  the order the pieces arrive in (`Dictation.start`, `write`) have no test and were not run.
+- No take has been spoken into a phone's microphone by me. The recorder's loop, the second thread and the order the
+  pieces arrive in (`Dictation.start`, `write`) have no unit test; they were run on the emulator with a recording
+  (above) and with a silent microphone.
 - The numbers above (4 s, 0.6 s, 24 s, 250, 12%) are chosen, not measured. Whether pieces cut this way read well,
   whether whisper keeps up with the voice on a given phone and model, and whether Your words really changes a
   spelling are all unmeasured.

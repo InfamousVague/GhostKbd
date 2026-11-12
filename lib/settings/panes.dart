@@ -556,9 +556,16 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(
+      title: 'As you speak',
+      footer: const Text('The words are written down on this phone again and again while you talk, which uses some battery for as long as you do. Off, they arrive at each pause, and all at the end if you never pause.'),
+      children: [
+        _toggle(store, 'dictation_live', 'Show words as I speak', 'They are in the field while you are still talking, about a second behind. The last word or two can change until you pause.'),
+      ],
+    ),
+    PaneSection(
       title: 'Long takes',
       children: const [
-        SettingRow(label: 'No time limit', hint: Text('A take is written down a piece at a time, each ending at a pause, so the words arrive a sentence or two behind your voice.')),
+        SettingRow(label: 'No time limit', hint: Text('A take is written down for good a piece at a time, each ending at a pause, however long you speak.')),
         SettingRow(label: 'It stops by itself', hint: Text('After 45 seconds with nobody speaking, and at 30 minutes whatever is said. A mic left open does not listen for ever.')),
       ],
     ),

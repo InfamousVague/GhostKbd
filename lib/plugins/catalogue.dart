@@ -162,8 +162,8 @@ const List<PluginManifest> catalogue = [
     line: 'Speak instead of typing: whisper, running on your phone.',
     description:
         'A microphone key next to Enter, where the full stop was. Tap it, talk for as long as you like, and tap again: '
-        'whisper turns what you said into text on your phone, a piece at each pause, so your words appear while you '
-        'are still talking. Nothing you say is sent anywhere. Give it your own words (names, products, repositories) '
+        'whisper turns what you say into text on your phone as you say it: your words appear about a second behind '
+        'your voice, and each phrase is settled at its pause. Nothing you say is sent anywhere. Give it your own words (names, products, repositories) '
         'and it is likelier to spell them your way. After a take the row offers Tidy, which has your AI take out the '
         'ums and false starts: that sends the words, never the sound, and only when you tap it. Hold the key for the '
         'full stop and its punctuation; two spaces type a full stop too. It starts with Ghost.md\'s English model, '
