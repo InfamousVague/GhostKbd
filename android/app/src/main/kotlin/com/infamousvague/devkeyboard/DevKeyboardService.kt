@@ -464,7 +464,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSwipe = null
         toolsHeld = false
         wordTouches.clear(); takenTouch = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null; ends.clear(); swipeGone = null; strokes.clear() }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null; ends.clear(); swipeGone = null; strokes.clear(); said = null; lastShortcut = null; keptShortcut = null }
         // Whatever happened while the keyboard was away, the open step is over. Not on a restart: onStartInput has
         // just dealt with that, and an app that restarts after every key must not end the word at every letter.
         if (!restarting) editor.sent()
@@ -1018,6 +1018,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDelete() {
         toolsHeld = false
+        said = null
         finishTyping()
         keyboard?.takeTyped()
         takenTouch = wordTouches.removeLastOrNull()?.let { it to System.currentTimeMillis() }
@@ -1092,6 +1093,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onSpace() {
         toolsHeld = false
+        said = null
         finishTyping()
         try { space() } finally { endWord() }
     }
@@ -1134,6 +1136,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onEnter() {
         toolsHeld = false
+        said = null
         finishTyping()
         try { enter() } finally { endWord() }
     }
@@ -1376,6 +1379,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         speak(text)
         said = saying.toString().takeIf { it.isNotBlank() }
         saying.setLength(0)
+        // The row shows its tools now, Tidy first among them, and not suggestions for the take's last word: the
+        // chips are for this moment, and the next key takes them away.
+        if (said != null) toolsHeld = true
         scheduleRow()
     }
 
@@ -2760,6 +2766,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         wordTouches.clear(); takenTouch = null
         hangul = Hangul.State()
         toolsHeld = false
+        said = null
         if (gifMode == GifMode.TYPING) return
         if (currentInputConnection == null) return
         // More strokes than anyone draws ahead of the reading: the oldest is let go rather than typed long after.
