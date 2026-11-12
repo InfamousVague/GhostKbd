@@ -239,6 +239,15 @@ class FieldMirrorTest {
         now += 1
         // Whatever the app did meanwhile is read afresh.
         assertNull(mirror.textBefore(2))
+        // And a key typed now does not make the old reading young again: its own questions go to the app too.
+        mirror.committed("y", 1)
+        mirror.reported(7, 7, false)
+        assertNull(mirror.textBefore(2))
+        // The reading made after that key is the next start.
+        read("Helloxy")
+        type("z", 7)
+        assertEquals("yz", mirror.textBefore(2))
+        assertEquals(0, mirror.strikes)
     }
 
     @Test fun `a reading that is not what was guessed is a strike, and two end the guessing in that field`() {

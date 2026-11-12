@@ -156,7 +156,7 @@ class FieldMirror(private val clock: () -> Long) {
     fun committed(text: CharSequence, newCursorPosition: Int) {
         stamp++
         if (!held) return
-        if (selected.isNotEmpty() || caret < 0 || newCursorPosition != 1) { drop(); return }
+        if (selected.isNotEmpty() || caret < 0 || newCursorPosition != 1 || rested()) { drop(); return }
         if (text.isEmpty()) return
         before.append(text)
         if (before.length > KEEP_BEFORE) { before.delete(0, before.length - KEEP_BEFORE); beforeWhole = false }
@@ -169,7 +169,7 @@ class FieldMirror(private val clock: () -> Long) {
     fun deleted(beforeLength: Int, afterLength: Int) {
         stamp++
         if (!held) return
-        if (selected.isNotEmpty() || caret < 0 || beforeLength < 0 || afterLength < 0) { drop(); return }
+        if (selected.isNotEmpty() || caret < 0 || beforeLength < 0 || afterLength < 0 || rested()) { drop(); return }
         var b = beforeLength
         var a = afterLength
         // More than is known to be there: all of it where the reading reaches the field's edge, else nothing is known.
@@ -185,6 +185,12 @@ class FieldMirror(private val clock: () -> Long) {
         if (b > 0) { caret -= b; await(caret) }
         if (b > 0 || a > 0) edited()
     }
+
+    /**
+     * The keys have been at rest too long for the reading to be gone by. A key typed then does not make it young
+     * again: it is dropped, that key's own questions go to the app, and the reading made after it is the next start.
+     */
+    private fun rested() = clock() - touchedAt > IDLE_MS
 
     private fun await(position: Int) {
         awaited.addLast(position)
@@ -240,7 +246,7 @@ class FieldMirror(private val clock: () -> Long) {
     private fun answers(): Boolean {
         if (!held) return false
         if (exact && edits == 0) return true
-        return selected.isEmpty() && caret >= 0 && reports && strikes < MAX_STRIKES && clock() - touchedAt <= IDLE_MS
+        return selected.isEmpty() && caret >= 0 && reports && strikes < MAX_STRIKES && !rested()
     }
 
     /** The [n] characters before the cursor (fewer at the field's start), or null where the app must be asked. */
