@@ -78,6 +78,48 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The last autocorrection, while backspace can still undo it: the word as typed, what replaced it, and the separator. */
     private var lastCorrection: Triple<String, String, String>? = null
 
+    /**
+     * The text shortcut a space has just put in (Shortcuts.kt), while backspace can still take it back: the letters
+     * as typed, what they became, and the separator. The very next key decides: backspace puts the letters back, and
+     * anything else lets the phrase stand.
+     */
+    private var lastShortcut: Triple<String, String, String>? = null
+
+    /**
+     * What the dictation that has just ended put in the field, exactly as it went in (every piece, with the spaces
+     * between), while it still stands just before the cursor and no key has been pressed since: the row then offers
+     * to tidy it, or to make a prompt of it. [saying] is the same for the take still going on.
+     */
+    private var said: String? = null
+    private val saying = StringBuilder()
+
+    /**
+     * A dictation take is open or still being written down, and the field it was started in: its words are for that
+     * field alone. In any other field, or once that one is gone, what is not yet written down is let go ([dropTake])
+     * rather than typed where it was not said.
+     */
+    private var takeOpen = false
+    private var takeField: FieldKey? = null
+
+    /** The { } button is in the row above the keys, where the emoji button was: the emoji key has the { } key's place on the board ([applySettings]). */
+    private var codeInRow = false
+
+    /**
+     * The draft of the piece being spoken, as it stands in the field just before the cursor ([onDraft]), with the
+     * space that parts it from what came before ([liveLead]); null between pieces. [liveLost]: the draft was no
+     * longer there to be revised (the cursor was moved, or the app changed its text), so it stands as it is and no
+     * more is shown of this piece until it is written down.
+     */
+    private var liveDraft: String? = null
+    private var liveLead = ""
+    private var liveLost = false
+
+    /**
+     * A shortcut's letters that were just said to be meant as typed (their own chip tapped, or their phrase taken
+     * back with backspace): the next space leaves them alone, once.
+     */
+    private var keptShortcut: String? = null
+
     // --- next-word prediction (NextWords.kt, NextWordModel.kt) -------------------------------------------------------
     //
     // The key handlers below only set the flags here: nothing of the model runs on a key press. The look at the text
@@ -204,6 +246,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private var toolsHeld = false
 
+    /**
+     * With [toolsHeld] after an arrow: the row was suggesting words when the arrow was tapped, the arrow in view at its
+     * end, and goes on suggesting them (or keeps their room, where there are none here) so the arrow stays under the
+     * thumb. A row that jumped to its tools there put Undo at its other end, and the next tap on whatever tool stood
+     * where Undo had been. Read only while [toolsHeld] is set, and set afresh wherever that is.
+     */
+    private var heldWords = false
+
     /** Mockingbird: the field's text as last read, kept as a sample once it is sent or left. */
     private var draft = ""
     private var draftApp: String? = null
@@ -303,6 +353,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDestroy() {
         swipeWorker.shutdownNow()
+        gone = true
+        reader.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SmsCodes.removeListener(onSmsCode)
         rowHandler.removeCallbacks(codesFresh)
@@ -366,12 +418,40 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * starting again keeps its history if the editor finds its newest step in the text, read there and then
      * ([FieldEditor.restarted]): inputs that share one view (a web page, Compose, Flutter) arrive the same way.
      */
+    /**
+     * The text around the cursor as the keyboard knows it without asking the app again (FieldMirror.kt), and the
+     * connection that keeps it in step with all the keyboard does to the field.
+     */
+    private val mirror = FieldMirror { android.os.SystemClock.uptimeMillis() }
+    private var mirrored: MirrorConnection? = null
+
+    /** The app in this field does not answer Android 12's one reading of it: the row reads the old way here. */
+    private var plainReads = false
+
+    /**
+     * The field, for everything the keyboard does to it, the service's own code and Android's helpers alike: Android's
+     * connection with the mirror kept in step (MirrorConnection.kt). Another connection is another field, or the same
+     * one started again: what was known is forgotten. The mirror is the main thread's alone, so a call from any
+     * other thread is given Android's connection as it is.
+     */
+    override fun getCurrentInputConnection(): InputConnection? {
+        val real = super.getCurrentInputConnection() ?: return null
+        if (Looper.myLooper() !== Looper.getMainLooper()) return real
+        mirrored?.let { if (it.target === real) return it }
+        mirror.drop()
+        return MirrorConnection(real, mirror).also { mirrored = it }
+    }
+
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        // Another field starts with nothing known about it; the same field started again keeps what it has shown of
+        // itself (whether its app reports the cursor, whether a reading of it was ever not as guessed).
+        if (restarting) mirror.drop() else { mirror.newField(); plainReads = false }
         runCatching {
             val key = attribute?.let {
                 FieldKey(it.fieldId, it.packageName, it.inputType, it.imeOptions, it.hintText?.toString(), it.fieldName, it.label?.toString(), it.privateImeOptions)
             }
+            if (takeOpen && key != takeField) dropTake()
             if (attribute == null) { fieldKey = null; editor.detach(); return@runCatching }
             undoOn = Plugins.isOn(prefs, Plugins.UNDO)
             if (restarting && key == fieldKey) { editor.restarted(attribute.initialSelStart, attribute.initialSelEnd); return@runCatching }
@@ -383,6 +463,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The field is gone, and its history with it. */
     override fun onFinishInput() {
         super.onFinishInput()
+        mirror.drop()
+        dropTake()
         runCatching { AccuracyLog.flush(this); AccuracyLog.clearTaps() }
         fieldKey = null
         editor.detach()
@@ -418,11 +500,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         wordTouches.clear(); takenTouch = null
         lastSpaceAt = 0L
         if (redo) editor.redo() else editor.undo()
+        // The row keeps the shape it had: its tools, or its words with the arrow at their end.
+        heldWords = row?.showsWords == true
         toolsHeld = true
         scheduleRow()
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        // A debug build times its own work while files/debug-perf is there (Perf.kt); a release build never does.
+        if (BuildConfig.DEBUG) Perf.on = java.io.File(filesDir, "debug-perf").exists()
+        Perf.time("show") { startView(info, restarting) }
+    }
+
+    private fun startView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         runCatching { AppProfiles.seen(this, prefs, info.packageName) }
         // What Mockingbird heard in apps of this kind (a chat, or anything else) counts most toward the next word here.
@@ -443,7 +533,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         lastSwipe = null
         toolsHeld = false
         wordTouches.clear(); takenTouch = null
-        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null; ends.clear(); swipeGone = null; strokes.clear() }
+        if (!restarting) { inlineViews = emptyList(); closeGifs(); closeEmoji(); showingClips = false; showingRewrite = false; ctrlOn = false; altOn = false; flushDraft(); aiJob?.cancelled = true; aiJob = null; ends.clear(); swipeGone = null; strokes.clear(); said = null; lastShortcut = null; keptShortcut = null }
         // Whatever happened while the keyboard was away, the open step is over. Not on a restart: onStartInput has
         // just dealt with that, and an app that restarts after every key must not end the word at every letter.
         if (!restarting) editor.sent()
@@ -462,8 +552,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         updateShift()
     }
 
-    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
+    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) =
+        Perf.time("selection") { selectionMoved(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd) }
+
+    private fun selectionMoved(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        // First of all: a cursor that is not where the keys' own typing put it means the mirror no longer holds.
+        mirror.reported(newSelStart, newSelEnd, candidatesStart != -1 || candidatesEnd != -1)
         // A tap in the text (not the keyboard's own doing) lets the row go back to that word's suggestions.
         if (editor.onSelection(newSelStart, newSelEnd)) toolsHeld = false
         selStart = newSelStart
@@ -491,6 +586,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
+        // Turned or unfolded mid-take: Android may build the keys again, without their listening panel, while the
+        // mic is still open. The take ends here, and what it heard is written down.
+        if (takeOpen && dictation.listening) dictation.stop()
         super.onConfigurationChanged(newConfig)
         applySettings()
     }
@@ -508,7 +606,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
-    private fun applySettings() {
+    private fun applySettings() = Perf.time("settings") { applyNow() }
+
+    private fun applyNow() {
         offlineOn = prefs.offline
         language = prefs.languageState(latinField)
         autocorrect.setLanguages(language.dictionaries, language.board, language.lexicons)
@@ -529,8 +629,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val view = keyboard ?: return
         val theme = KeyboardTheme.resolve(this, prefs)
         view.theme = theme
-        view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this)
-        view.emojiKey = Plugins.isOn(prefs, Plugins.EMOJI)
+        // The mic key stands where the full stop was (Layouts.withMic). In a password, an e-mail address or a web
+        // address the full stop keeps its key: nothing is dictated there, and an address needs one at every turn.
+        // So it does while a trainer run is typed: a story is typed, full stops and all, never spoken.
+        view.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(this) && !wantsLatin(currentInputEditorInfo) &&
+            !Trainer.typing(currentInputEditorInfo?.packageName, packageName)
         // A trainer run that is trying a layout has the keyboard wear it, in the trainer's own field and for that run
         // only (Trainer.heightFor); the setting itself is never touched.
         val keyHeight = Trainer.heightFor(currentInputEditorInfo?.packageName, packageName) ?: prefs.keyHeight
@@ -557,7 +660,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
-        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true)
+        // The emoji key stands where the { } key did, and the { } key is a button in the row (everyday), so with
+        // emoji added there is always a row to hold it, unless the row is hidden: then the { } key stays on the
+        // board, beside the emoji key (Layouts.withEmoji).
+        val emojiOn = Plugins.isOn(prefs, Plugins.EMOJI)
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || emojiOn || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
+        codeInRow = emojiOn && rowShown
+        view.emojiKey = emojiOn
+        view.codeKey = emojiOn && !rowShown
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
@@ -639,7 +749,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!prefs.autoCaps) { view.setAutoShift(false); return }
         val info = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
-        val caps = if (info.inputType != InputType.TYPE_NULL) ic.getCursorCapsMode(info.inputType) else 0
+        val caps = if (info.inputType != InputType.TYPE_NULL) Perf.time("caps") { ic.getCursorCapsMode(info.inputType) } else 0
         view.setAutoShift(caps != 0)
     }
 
@@ -662,6 +772,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = false
         finishTyping()
         val jamo = text.singleOrNull()?.takeIf { caretBack == 0 && language.spec.script == Script.HANGUL && Hangul.isJamo(it) }
+        // A key typed after a shortcut's phrase lets it stand, and letters typed on are no longer the letters kept:
+        // a key typed into a GIF or emoji search too, so a backspace long after cannot take the phrase back.
+        lastShortcut = null
+        keptShortcut = null
+        said = null
         if (gifMode == GifMode.TYPING) { gifQuery = if (jamo != null) hangulOnto(gifQuery, jamo) else gifQuery + text; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery = if (jamo != null) hangulOnto(emojiQuery, jamo) else emojiQuery + text; scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -990,9 +1105,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDelete() {
         toolsHeld = false
+        said = null
         finishTyping()
         keyboard?.takeTyped()
         takenTouch = wordTouches.removeLastOrNull()?.let { it to System.currentTimeMillis() }
+        // The shortcut just expanded, for this backspace alone: whatever this one does, the next is plain backspace.
+        val shortcut = lastShortcut
+        lastShortcut = null
         if (gifMode == GifMode.TYPING) { hangul = Hangul.State(); gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { hangul = Hangul.State(); if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -1018,6 +1137,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if (lastCorrection != null && undoCorrection(ic, keepSeparator = false)) return
+        // Backspace straight after a shortcut's phrase puts back the letters that were typed, and the next space
+        // leaves them be. Only the very next key: where the phrase is no longer just before the cursor, or another key
+        // came between, backspace is backspace.
+        shortcut?.let { (typed, text, separator) ->
+            if (editor.replaceBefore(text + separator, typed, Kind.SNIPPET)) {
+                keptShortcut = typed
+                lastSpaceAt = 0L
+                scheduleRow()
+                return
+            }
+        }
         // Backspace straight after a swiped word takes the whole word, as Gboard does.
         lastSwipe?.let { swipe ->
             lastSwipe = null
@@ -1052,6 +1182,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onSpace() {
         toolsHeld = false
+        said = null
         finishTyping()
         try { space() } finally { endWord() }
     }
@@ -1080,6 +1211,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 return
             }
         }
+        // A shortcut by itself before the cursor becomes what it stands for, before autocorrect sees its letters.
+        lastShortcut = null
+        val kept = keptShortcut
+        if (expandShortcut(ic, " ")) { lastSpaceAt = now; return }
+        // Letters that were kept as typed in place of their phrase are kept from autocorrect too: a plain space.
+        if (kept != null && keptShortcut == null) { lastCorrection = null; editor.type(" "); lastSpaceAt = now; return }
         if (correctLastWord(ic, " ")) { lastSpaceAt = now; return }
         lastCorrection = null
         editor.type(" ")
@@ -1088,6 +1225,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onEnter() {
         toolsHeld = false
+        said = null
         finishTyping()
         try { enter() } finally { endWord() }
     }
@@ -1103,10 +1241,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (Plugins.isOn(prefs, Plugins.GHOSTWRITER) && !offlineOn && aiAllowed() && aiJob?.running != true &&
             Ghostwriter.tagAt(ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty(), ic.getTextAfterCursor(400, 0)?.toString().orEmpty()) != null
         ) { fillAtCursor(); return }
+        // Enter straight after a shortcut puts its phrase in first, as a space would, and then does what enter does:
+        // the phrase stands, with no backspace to take it back once the line or the message has gone.
+        val kept = keptShortcut
+        val expanded = runCatching { expandShortcut(ic, "") }.getOrDefault(false)
+        lastShortcut = null
+        // The phrase a shortcut stands for is not autocorrect's to mend, and nor are letters kept as typed in place
+        // of their phrase (as a space leaves both alone).
+        val settled = expanded || (kept != null && keptShortcut == null)
         // Enter finishes a message's last word as a space would have: it is mended too, where enter sends a message
         // or starts a new line of one (never a search, a form's one-word field, or the first word of anything).
         atSwipe = lastSwipe?.word
-        if (endsProse(info, ic)) runCatching { correctLastWord(ic, "") }
+        if (!settled && endsProse(info, ic)) runCatching { correctLastWord(ic, "") }
         lastSpaceAt = 0L
         lastCorrection = null
         swipeStood()
@@ -1297,12 +1443,24 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     // --- dictation (the dictation plugin) ---------------------------------------------------------------------------
 
-    /** The emoji key beside the space bar: the panel the row's button opened. */
-    override fun onEmoji() { if (Plugins.isOn(prefs, Plugins.EMOJI)) openEmoji() }
+    /** The emoji key, where the { } key was. */
+    override fun onEmoji() = openEmoji()
+
+    /** Another page of keys is showing: the row's { } button is lit on the code keys, and plain on any other. */
+    override fun onPage() = scheduleRow()
+
+    /** The row's { } button: the code keys, and the letters again. */
+    private fun toggleCode() {
+        val view = keyboard ?: return
+        view.showPage(if (view.page == Page.DEV) Page.LETTERS else Page.DEV)
+    }
 
     override fun onMic() {
         val view = keyboard ?: return
         if (dictation.listening) { dictation.stop(); return }
+        // Still writing the last take down (the keys ask only after a few seconds of it: a long take on a slow
+        // phone): a tap lets the rest of it go, and what it has typed already stays, a draft among it.
+        if (takeOpen) { dictation.cancel(); keepDraft(); onDictated(""); return }
         if (view.dictation == DictationPhase.TRANSCRIBING) return
         if (!dictation.hasPermission()) {
             // An input method cannot ask for a permission itself: the settings app asks, on Dictation's page.
@@ -1310,38 +1468,146 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         view.dictation = DictationPhase.LISTENING
+        said = null
+        saying.setLength(0)
+        liveDraft = null
+        liveLost = false
         dictation.start(this)
+        takeOpen = dictation.active
+        takeField = fieldKey
+    }
+
+    /** Lets a take go whose field is gone: the mic closes, nothing more of it is typed, and the keys come back. */
+    private fun dropTake() {
+        if (!takeOpen) return
+        takeOpen = false
+        dictation.cancel()
+        keyboard?.dictation = DictationPhase.OFF
+        saying.setLength(0)
+        said = null
+        // A draft stands as it is in the field it was spoken into: nothing more is known of it.
+        liveDraft = null
+        liveLost = false
+        updateWorking()
+    }
+
+    /** A take ends with a draft in the field that will not be written down again: it stands, as words the take said. */
+    private fun keepDraft() {
+        val run = liveDraft ?: return
+        liveDraft = null
+        if (saying.isNotEmpty()) saying.append(liveLead)
+        saying.append(run.removePrefix(liveLead))
     }
 
     override fun onLevel(level: Float) { keyboard?.level = level }
 
     override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING; updateWorking() }
 
+    /**
+     * The piece being spoken, as far as it has been heard (LiveWords.kt): shown in the field in place of the draft
+     * before it, so the words are there as they are said. One step in the undo history however often it is revised.
+     */
+    override fun onDraft(text: String) {
+        val shown = LiveWords.shown(text)
+        // A draft with no words in it leaves what is shown alone: the next has more to go on.
+        if (shown.isEmpty() || liveLost) return
+        val ic = currentInputConnection ?: return
+        val old = liveDraft
+        if (old == null) {
+            toolsHeld = false
+            finishTyping()
+            liveLead = LiveWords.lead(ic.getTextBeforeCursor(1, 0)?.toString().orEmpty())
+            val run = liveLead + shown
+            editor.insert(run, Kind.DICTATION)
+            liveDraft = run
+            lastCorrection = null
+            swipeStood()
+            lastSwipe = null
+            notTyped()
+            autoSpaced = false
+            return
+        }
+        val run = liveLead + shown
+        if (run == old) return
+        // No longer just before the cursor (a tap in the text, an app that rewrote it): it stands as it is.
+        if (editor.replaceBefore(old, run, Kind.DICTATION)) liveDraft = run else { liveDraft = null; liveLost = true }
+    }
+
+    /** Words written down while the take goes on (a piece that ended at a pause): they go in at once, and the mic stays open. */
+    override fun onHeard(text: String) = settle(text)
+
+    /**
+     * A piece as written down at its pause, [text], takes its draft's place; with no draft shown it goes in at the
+     * cursor as it always did. Where it has no words after all, its draft is taken back.
+     */
+    private fun settle(text: String) {
+        val old = liveDraft
+        liveDraft = null
+        liveLost = false
+        if (old != null) {
+            val run = if (text.isEmpty()) "" else liveLead + text
+            if (editor.replaceBefore(old, run, Kind.DICTATION)) {
+                if (text.isNotEmpty()) {
+                    if (saying.isNotEmpty()) saying.append(liveLead)
+                    saying.append(text)
+                }
+                return
+            }
+            // The draft is no longer before the cursor: it stays where it is, and the piece goes in where the cursor is now.
+        }
+        speak(text)
+    }
+
+    /** The take is over: its last words go in, and what it put in altogether can be tidied from the row. */
     override fun onDictated(text: String) {
+        takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
         updateWorking()
+        settle(text)
+        said = saying.toString().takeIf { it.isNotBlank() }
+        saying.setLength(0)
+        // The row shows its tools now, Tidy first among them, and not suggestions for the take's last word: the
+        // chips are for this moment, and the next key takes them away.
+        if (said != null) { toolsHeld = true; heldWords = false }
+        scheduleRow()
+    }
+
+    /** Puts dictated [text] in at the cursor, and keeps it as part of what this take has said. */
+    private fun speak(text: String) {
         if (text.isEmpty()) return
         toolsHeld = false
         finishTyping()
         val ic = currentInputConnection ?: return
         // A space before the words where they follow other words, none where they start a line.
-        val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
-        val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
+        val lead = LiveWords.lead(ic.getTextBeforeCursor(1, 0)?.toString().orEmpty())
         editor.insert(lead + text, Kind.DICTATION)
+        // What the take has said, for Tidy to replace: its words, and not the space that parts them from what stood
+        // before (an answer comes back trimmed, and "the update. Um can you" must not become "the update.Can you").
+        if (saying.isNotEmpty()) saying.append(lead)
+        saying.append(text)
         lastCorrection = null
+        // A word swiped before the take is done with: the row is the take's now (its Tidy chip), not that word's others.
+        swipeStood()
+        lastSwipe = null
         // Spoken words are whisper's guess at them, not typing: they are not counted for next-word prediction.
         notTyped()
         autoSpaced = false
     }
 
     override fun onError(message: String) {
+        takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
+        saying.setLength(0)
+        liveDraft = null
+        liveLost = false
         updateWorking()
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        if (Perf.on) { android.util.Log.i("GhostPerf", "\n" + Perf.report() + "\nmirror       strikes=${mirror.strikes}"); Perf.reset() }
+        mirror.drop()
         finishTyping()
         flushDraft()
         // Next-word prediction: the last words are counted, then (off this thread) old counts fade and the file is written.
@@ -1363,7 +1629,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT, Plugins.SHORTCUTS, Plugins.ENHANCE)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -1373,19 +1639,92 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
-     * One look at the text before the cursor, a moment after each edit: what next-word prediction learns from it
-     * ([NextWordLearner.look], also while the row is hidden), then what the row shows for it ([refreshRow]). The text is read
-     * once and shared, so this is no more asking of the app than the row's refresh alone was.
+     * One look at the text around the cursor, a moment after each edit: what next-word prediction learns from it
+     * ([NextWordLearner.look], also while the row is hidden), then what the row shows for it ([refreshRow]);
+     * [refreshWith] does both. The text is read once and shared.
+     *
+     * On Android 12 and later the reading is the one call that brings what stands before the cursor, what is
+     * selected, what follows and where the cursor is (which is what the mirror starts from: FieldMirror.kt), and it
+     * is made off the main thread ([reader]): asking is the one thing here that waits on the app, 10 to 16 ms a key on
+     * the emulator and far longer in an app that is busy. The answer is used only if nothing was typed or moved while
+     * it was on its way ([FieldMirror.stamp]); otherwise the field is read again.
      */
     private fun tick() {
-        val ic = currentInputConnection
+        val wanted = learnAllowed() || row?.visibility == View.VISIBLE
+        val conn = currentInputConnection as? MirrorConnection
+        // Nothing to learn here and no row to draw: the app is not asked for its text at all. And before Android 12,
+        // or in a field whose app does not answer its one reading, the text is read as it always was, here and now.
+        if (!wanted || conn == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || plainReads) {
+            Perf.time("tick") { refreshWith(if (wanted) Perf.time("tick.read") { currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() } else null) }
+            return
+        }
+        // One reading at a time: a refresh asked for while the app is still answering the last is that answer's to
+        // give (the row is filled as things stand when it comes), or the reading after it where the field has moved.
+        val now = android.os.SystemClock.uptimeMillis()
+        if (reading && now - readingSince < READ_LOST_MS) return
+        // Android gives up on an app after two seconds, so an answer this late is not coming: this field is read
+        // the old way from here on, and the row is not left waiting for it.
+        if (reading) { reading = false; readTurn++; plainReads = true; tick(); return }
+        reading = true
+        readingSince = now
+        val turn = ++readTurn
+        val stamp = mirror.stamp
+        val real = conn.target
+        reader.execute {
+            val asked = android.os.SystemClock.uptimeMillis()
+            val around = runCatching { Perf.time("tick.read") { real.getSurroundingText(READ_BEFORE, READ_AFTER, 0) } }.getOrNull()
+            val took = android.os.SystemClock.uptimeMillis() - asked
+            rowHandler.post {
+                // The service is gone, or this answer was given up on.
+                if (gone || turn != readTurn) return@post
+                reading = false
+                // Something was typed or moved while the app was answering, or the field is another: this is a reading
+                // of a field that has moved on. It is read again now (the wait before a refresh has been had).
+                if (stamp != mirror.stamp || mirrored !== conn) { tick(); return@post }
+                runCatching {
+                    Perf.time("tick") {
+                        conn.took(around, READ_BEFORE, READ_AFTER)
+                        val at = around?.let { minOf(it.selectionStart, it.selectionEnd) } ?: -1
+                        when {
+                            // What was just read is the field itself until the row is filled: the row's further
+                            // questions (what follows the cursor, what is selected) are answered from it, and the
+                            // app is asked once where it was asked three or four times.
+                            around != null && at >= 0 && at <= around.text.length ->
+                                mirror.during { refreshWith(around.text.subSequence(maxOf(0, at - CONTEXT_CHARS), at).toString()) }
+                            // Nothing after a long wait is Android giving up on an app that is not answering: it is not asked again.
+                            took >= GAVE_UP_MS -> refreshWith(null)
+                            // The app does not answer this call: from here on this field is read the old way.
+                            else -> { plainReads = true; refreshWith(conn.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString()) }
+                        }
+                    }
+                }.onFailure { android.util.Log.e("GhostKeyboard", "row refresh failed", it) }
+            }
+        }
+    }
+
+    /**
+     * The row's readings of the field are made on this thread (Matt, 2026-11-12: "do a performance pass on the
+     * keyboard to make sure everything is as fast as possible"): the keys answer the next touch while the app takes
+     * its time, where the whole keyboard used to stand still until it had answered. [reading]: one is being made.
+     */
+    private val reader = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "field-reader").apply { isDaemon = true } }
+    private var reading = false
+    private var readingSince = 0L
+    private var readTurn = 0
+
+    /** The service has been destroyed: an answer that comes after that is for nobody. */
+    private var gone = false
+
+    /**
+     * What a refresh does with its reading: [before] is the [CONTEXT_CHARS] before the cursor (before the selection,
+     * where there is one), null where the app was not asked or did not answer.
+     */
+    private fun refreshWith(before: String?) {
         val learn = learnAllowed()
-        // Nothing to learn here and no row to draw: the app is not asked for its text at all.
-        val before = if (learn || row?.visibility == View.VISIBLE) ic?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() else null
         val place = if (before != null && (learn || predictionAllowed())) runCatching { placeAt(before) }.getOrNull() else null
         // Learning must never stop the row from drawing. The AI's own typing is not the person's.
         if (typing == null) runCatching { learner.look(before, place, learn) }.onFailure { android.util.Log.e("GhostKeyboard", "next-word learning failed", it) }
-        refreshRow(before, place)
+        Perf.time("tick.row") { refreshRow(before, place) }
     }
 
     /** Where the cursor stands among the words of [before], for next-word prediction; null where nothing is predicted. */
@@ -1459,8 +1798,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /**
      * What the row shows, the first that applies: the GIF search; a password manager's logins; a swiped word's
      * alternatives; autocorrect's suggestions for the word being typed (or the word a fix replaced, to keep it);
-     * after a space, the three likeliest next words with the tools scrolling after them; and with nothing to
-     * suggest, the plugins' own buttons. [before] is the text before the cursor as [tick] read it, and [place] where
+     * after a space, the three likeliest next words; and with nothing to suggest, the plugins' own buttons. Words
+     * are about three at a time, with the tools after them in the strip ([showWords]). [before] is the text before the cursor as [tick] read it, and [place] where
      * that puts the cursor for next-word prediction.
      */
     private fun refreshRow(before: String?, place: NextWordText.Place?) {
@@ -1496,8 +1835,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val codes = codeItems(fresh = false)
             items += codes
             if (clips.isEmpty() && codes.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
-            for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
-            if (clips.isNotEmpty()) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear clipboard history") { ClipHistory.clear(this); scheduleRow() }
+            // How a clip is pinned, said until one has been: a hold is not something anyone finds by themselves.
+            if (clips.isNotEmpty() && !ClipHistory.pinnedOnce(this)) items += RowItem("clips-hint", label = "Hold a clip to pin it", icon = RowIcon.PIN, dim = true)
+            // The pinned lead the list, each with its pin; a hold pins a clip or lets it go, a tap pastes either.
+            for (clip in clips) items += RowItem(
+                "clip-${clip.at}-${clip.pinned}", label = preview(clip.text), icon = RowIcon.PIN.takeIf { clip.pinned }, tint = RowTint.CLIPBOARD.takeIf { clip.pinned }, chip = true,
+                description = "${if (clip.pinned) "Pinned. " else ""}${preview(clip.text)}. Hold to ${if (clip.pinned) "unpin" else "pin"}.",
+                onLong = { pinClip(clip) },
+            ) { pasteClip(clip.text) }
+            // Clearing takes the copies; what is pinned stays, so with nothing but pins there is nothing to clear.
+            if (clips.any { !it.pinned }) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear the copies. Pinned clips stay.") { ClipHistory.clear(this); scheduleRow() }
             strip.setItems(items)
             return
         }
@@ -1516,14 +1863,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         lastSwipe?.let { swipe ->
-            swipe.choices.forEachIndexed { i, w -> items += RowItem("swipe-$i-$w", label = w, bold = w == swipe.word, wide = true) { replaceSwipe(w) } }
-            strip.setItems(middleBold(items), everyday())
+            // About three, as every row of words is: the word it was read as is always one of them.
+            val shown = swipe.choices.take(WORDS).let { if (swipe.word in it) it else listOf(swipe.word) + it.take(WORDS - 1) }
+            shown.forEachIndexed { i, w -> items += RowItem("swipe-$i-$w", label = w, bold = w == swipe.word, wide = true) { replaceSwipe(w) } }
+            showWords(strip, items)
             return
         }
         if (!toolsHeld) currentInputConnection?.let { ic -> if (selStart == selEnd && contextual(ic, before, items)) { strip.setItems(items); return } }
+        // An arrow tapped at the end of a row of words: the words go on, so the arrow stays where the thumb is.
+        val wordsHeld = toolsHeld && heldWords
         // Only while there are words to suggest from: on a layout with no word list (Korean, plain ABC) every word
         // would otherwise get a quoted "keep" chip and nothing else.
-        if (!toolsHeld && Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions && autocorrectAllowed() && autocorrect.active) {
+        if ((!toolsHeld || wordsHeld) && Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions && autocorrectAllowed() && autocorrect.active) {
             val ic = currentInputConnection
             val correction = lastCorrection
             // Next-word prediction: what is likely here, where it may be offered. Made in well under a millisecond
@@ -1556,7 +1907,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                         // The everyday tools next (or pinned before it all, where the row is wide), then the rest.
                         val at = items.size
                         items += tools.filter { it !in first }
-                        strip.setItems(items, everyday(), at)
+                        fill(strip, items, at)
                         return
                     }
                 }
@@ -1567,10 +1918,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     s.words.forEachIndexed { i, w ->
                         items += RowItem("s-$i-$w", label = w, bold = i == 0 && (s.fix != null || s.typedIsWord), wide = true) { pickSuggestion(word, w) }
                     }
-                    // pizza → 🍕: an emoji for the word, tapped in after it.
+                    // About three words, the likeliest (Matt, 2026-11-12: "only show about three of them"): the word as
+                    // typed, where it is offered, is one of the three.
+                    while (items.size > WORDS) items.removeAt(items.size - 1)
+                    // pizza → 🍕: an emoji for the word, tapped in after it. A small chip after the words, not one of them.
                     if (Plugins.isOn(prefs, Plugins.EMOJI) && prefs.emojiSuggest) Emoji.forWord(word).forEach { e ->
                         val shown = e.toned(prefs.emojiSkin)
-                        items += RowItem("se-$shown", label = shown, wide = true) { editor.insert(" $shown", Kind.EMOJI); Emoji.used(this, shown); scheduleRow() }
+                        items += RowItem("se-$shown", label = shown, chip = true) { editor.insert(" $shown", Kind.EMOJI); Emoji.used(this, shown); scheduleRow() }
                     }
                 }
             }
@@ -1585,42 +1939,89 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Nothing to suggest: the tools, the everyday ones first but for what is about this very moment.
         if (items.isEmpty()) {
             val tools = tools()
+            // No word to suggest here, and the row was showing words when the arrow was tapped: their room stays,
+            // empty, and the tools follow it as they did.
+            if (wordsHeld) {
+                fill(strip, listOf(RowItem("words-held", label = "", wide = true)) + tools.filter { !leads(it) }, 1)
+                return
+            }
             val first = tools.filter(::leads)
-            strip.setItems(first + tools.filter { it !in first }, everyday(), first.size)
+            fill(strip, first + tools.filter { it !in first }, first.size)
             return
         }
-        strip.setItems(middleBold(items), everyday())
+        showWords(strip, items)
+    }
+
+    /**
+     * Fills the row with [items], the everyday tools pinned before them (on a row too narrow for that, put in at [at]:
+     * [PluginRow.setItems]). Whether they are pinned is asked as if both arrows were among them, so the row keeps its
+     * shape as Undo and Redo come and go.
+     */
+    private fun fill(strip: PluginRow, items: List<RowItem>, at: Int) {
+        val everyday = everyday()
+        val missing = if (Plugins.isOn(prefs, Plugins.UNDO)) 2 - everyday.count { it.guard } else 0
+        // GIFs lead the tools that follow the words (and the everyday ones too, on a row too narrow to pin those).
+        val gif = gifTool()
+        strip.setItems(if (gif == null) items else items.take(at) + gif + items.drop(at), everyday, at, everyday.size + missing)
+    }
+
+    /**
+     * The row with words in it (Matt, 2026-11-12: "Center the auto complete words and only show about three of them
+     * reserve some space on the right to show at least one toolbar icon"): the words, the pick in the middle, then
+     * whatever small chips came with them (an emoji for the word), then the tools, so the first of the tools is in
+     * view at the row's end and the rest are a slide away ([PluginRow.setItems] centres the words and keeps that
+     * room). The tools about this very moment are not among them: they come back when the word is done.
+     */
+    private fun showWords(strip: PluginRow, items: List<RowItem>) {
+        val shown = middleBold(items.filter { it.wide }) + items.filter { !it.wide }
+        fill(strip, shown + tools().filter { !leads(it) }, shown.size)
     }
 
     /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
     private fun leads(item: RowItem): Boolean =
-        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || (item.id.startsWith("rewrite") && item.bold)
+        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || item.id.startsWith("said-") || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
 
     /**
-     * The tools reached for in every app: undo and redo, the clipboard, GIFs. They lead the row (Matt, 2026-11-10:
-     * "move things like the back forward clipboard emoji and gif stuff to the front of the list"): pinned at its start
-     * where it is wide enough, else the first of the tools ([PluginRow.setItems]). Icons only, so they take no more
-     * room than two words.
-     *
-     * Emoji was one of them, and is a key beside the space bar now (Matt, 2026-11-11: "Move the emoji button to the
-     * left of the spacebar and to the right of the code toggle"). It is still here on a board whose bar has no room
-     * for that key ([Layouts.withEmoji]), so the plugin is never without its way in.
+     * The tools reached for in every app: the clipboard, the { } button, undo and redo. They stand at the row's
+     * start, before the suggested words (Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left
+     * aligned on the toolbar before the auto suggest"), on every row but one too narrow for them and two words
+     * ([PluginRow.pins]). Icons only. The clipboard and the { } button come first, because they are always there;
+     * the arrows, which are there only while each has something to do, come and go after them, so no button moves
+     * when one does. The { } button stands where the emoji button stood until 0.16.2: emoji is a key on the board
+     * now, in the { } key's place (Matt, the same day; [Layouts.withEmoji]). GIFs, which were among them until
+     * 0.16.0, lead the tools that follow the words ([gifTool]).
      */
     private fun everyday(): List<RowItem> {
-        val items = ArrayList<RowItem>(5)
-        if (Plugins.isOn(prefs, Plugins.UNDO)) {
-            // Lit: the keyboard's own last step, or the app's undo where it has none. Dim: nothing to do.
-            val canUndo = editor.canUndo
-            val canRedo = editor.canRedo
-            items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", dim = !canUndo, onTap = if (canUndo) ({ undoTap(redo = false) }) else null)
-            items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", dim = !canRedo, onTap = if (canRedo) ({ undoTap(redo = true) }) else null)
-        }
+        val items = ArrayList<RowItem>(4)
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI) && keyboard?.showsEmojiKey != true) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
-        // GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
-        if (Plugins.isOn(prefs, Plugins.GIFS)) items += if (offlineOn) RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
-            else RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
+        // Where the emoji button was (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is ... And
+        // move the code button up to where the emoji button used to be in the toolbar"): the { } key, as a button.
+        // A tap shows the code keys and another the letters again; it is lit while they are showing; and a hold opens
+        // Settings, as a hold on the key always did.
+        if (codeInRow) {
+            val on = keyboard?.page == Page.DEV
+            items += RowItem("code-$on", icon = RowIcon.BRACES, tint = RowTint.CODE.takeIf { on }, chip = true, description = if (on) "Code keys, showing. Letters" else "Code keys", onLong = { onOpenSettings() }) { toggleCode() }
+        }
+        if (Plugins.isOn(prefs, Plugins.UNDO)) {
+            // Each is there only while it has something to do (Matt, 2026-11-12: "only show undo and redo when an undo
+            // and redo is available"): the keyboard's own last step, or the app's undo where it has none. They were
+            // always there, and dim with nothing to do.
+            // An arrow's own tap can take it away (the last Undo), and Redo then stands where it stood: each is
+            // guarded, so a thumb still tapping does not land on what took its place (TapGuard).
+            if (editor.canUndo) items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", guard = true) { undoTap(redo = false) }
+            if (editor.canRedo) items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", guard = true) { undoTap(redo = true) }
+        }
         return items
+    }
+
+    /**
+     * The GIF button, the first of the tools that follow the words: on a phone it is the tool in view at the row's
+     * end. GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
+     */
+    private fun gifTool(): RowItem? = when {
+        !Plugins.isOn(prefs, Plugins.GIFS) -> null
+        offlineOn -> RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
+        else -> RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
     }
 
     /**
@@ -1660,6 +2061,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
+        // Straight after a dictation: what the take put in, tidied, or made a prompt of. Each sends those words to
+        // the person's own AI, and only when tapped; with no AI set up, or Offline on, there is nothing to offer.
+        if (Plugins.isOn(prefs, Plugins.DICTATION) && said != null && aiAllowed() && !offlineOn && selStart == selEnd && AiClient.ready(prefs)) {
+            if (prefs.dictationTidy) items += netItem("said-tidy", "Tidy", icon = RowIcon.WAND, tint = RowTint.AI, bold = true) { tidySaid(prompt = false) }
+            if (Plugins.isOn(prefs, Plugins.ENHANCE)) items += netItem("said-prompt", "As a prompt", icon = RowIcon.SPARKLE, tint = RowTint.AI, bold = true) { tidySaid(prompt = true) }
+        }
         // Mockingbird: the selection rewritten as you.
         if (Plugins.isOn(prefs, Plugins.MOCKINGBIRD) && aiAllowed() && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
@@ -1669,6 +2076,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
         if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
             items += netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
+        }
+        // Prompt enhancer: the selection, or the whole field, as a clearer prompt. It leads the row where what is
+        // typed is a prompt (an AI chat app, or an app the agent keys show in) and with a selection; elsewhere it
+        // waits among the tools.
+        if (Plugins.isOn(prefs, Plugins.ENHANCE) && aiAllowed() && fieldHasText()) {
+            val prompts = app == AppKind.ASSISTANT || (profile?.flag("agent") ?: (Plugins.isOn(prefs, Plugins.AGENT) && AgentKeys.suits(app)))
+            items += netItem("enhance", "Enhance", icon = RowIcon.SPARKLE, tint = RowTint.AI, bold = prompts || selStart != selEnd) { enhance() }
         }
         // Selected text in another app: to Ghost.md as a note.
         if (ghost && !inGhost && selStart != selEnd) {
@@ -1707,6 +2121,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("fresh-${clip.at}", label = preview(clip.text), icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, bold = true, chip = true) { pasteClip(clip.text) }
             }
         }
+        // Agent keys (AgentKeys.kt): what a coding agent is driven with, before the terminal's own keys. An app's
+        // profile decides for that app; without one they show where the plugin is added and the app suits them.
+        val agent = profile?.flag("agent") ?: (Plugins.isOn(prefs, Plugins.AGENT) && AgentKeys.suits(app))
+        if (agent) for (chip in AgentKeys.chips(app, enterSends())) {
+            items += RowItem("agent-${chip.id}", label = chip.label, chip = true, description = chip.says) { agentTap(chip) }
+        }
         // An app's profile decides for that app; without one, the plugin's own rule (the apps it suits, or everywhere).
         if (profile?.flag("terminal") ?: (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL))) {
             items += RowItem("esc", label = "Esc", chip = true) { sendKey(KeyEvent.KEYCODE_ESCAPE) }
@@ -1717,7 +2137,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("up", icon = RowIcon.CARET_UP, chip = true, description = "Up") { sendKey(KeyEvent.KEYCODE_DPAD_UP) }
             items += RowItem("down", icon = RowIcon.CARET_DOWN, chip = true, description = "Down") { sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
             items += RowItem("right", icon = RowIcon.CARET_RIGHT, chip = true, description = "Right") { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
-            for (c in listOf("|", "~", "/", "-", "&&", ">")) items += RowItem("t$c", label = c, chip = true) { editor.type(c) }
+            // The agent keys have a / of their own, nearer the thumb: the row does not show two.
+            for (c in listOf("|", "~", "/", "-", "&&", ">")) if (!(agent && c == "/")) items += RowItem("t$c", label = c, chip = true) { editor.type(c) }
         }
         if (profile?.flag("markdown") ?: (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN))) {
             items += RowItem("md-b", icon = RowIcon.BOLD, chip = true, description = "Bold") { wrap("**", "**") }
@@ -1769,9 +2190,69 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         editor.insert(code.text, Kind.PASTE)
         notTyped()
         autoSpaced = false
-        toolsHeld = true
+        toolsHeld = true; heldWords = false
         showingClips = false
         SmsCodes.used(code)
+        scheduleRow()
+    }
+
+    // --- text shortcuts (Shortcuts.kt) --------------------------------------------------------------------------------
+
+    /** Text shortcuts are read here: the plugin is added, and the field is not a password. */
+    private fun shortcutsHere(): Boolean = Plugins.isOn(prefs, Plugins.SHORTCUTS) && !isPassword(currentInputEditorInfo)
+
+    /** What [entry] types now: its text with today's date, the time and the newest clip put in where it asks for them. */
+    private fun shortcutText(entry: Shortcuts.Entry): String {
+        // The clipboard is read only where the phrase asks for it, and never while incognito or with its plugin off.
+        val clip = if ("{clipboard}" in entry.text && Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) ClipHistory.recent(this).firstOrNull()?.text else null
+        val now = java.time.LocalDateTime.now()
+        return Shortcuts.expanded(entry.text, now.toLocalDate().toString(), "%02d:%02d".format(now.hour, now.minute), clip)
+    }
+
+    /**
+     * A space or enter straight after a shortcut: its letters become what it stands for, followed by [separator].
+     * True when it did. Not where shortcuts wait for a tap ([KeyboardPrefs.shortcutsAuto] off), where the letters were
+     * just kept as typed, or where the cursor stands inside a longer run of characters.
+     */
+    private fun expandShortcut(ic: InputConnection, separator: String): Boolean {
+        if (!shortcutsHere()) return false
+        val entries = Shortcuts.all(prefs)
+        if (entries.isEmpty()) return false
+        val before = ic.getTextBeforeCursor(Shortcuts.MAX_SHORTCUT + 1, 0)?.toString() ?: return false
+        val entry = Shortcuts.find(entries, before) ?: return false
+        val typed = Shortcuts.token(before)
+        // Letters kept as typed are let be, once, whether or not a space would have expanded them: the caller sees
+        // they were, and keeps autocorrect off them too.
+        if (typed.equals(keptShortcut, ignoreCase = true)) { keptShortcut = null; return false }
+        if (!prefs.shortcutsAuto) return false
+        val after = ic.getTextAfterCursor(1, 0)
+        if (!after.isNullOrEmpty() && !after[0].isWhitespace()) return false
+        val text = shortcutText(entry)
+        // One step in the history, after the separator as typed: undo gives back the letters and their space.
+        if (!editor.replaceBefore(typed, text + separator, Kind.SNIPPET, typedFirst = separator)) return false
+        lastShortcut = Triple(typed, text, separator)
+        lastCorrection = null
+        // A phrase put in whole was not typed word by word: next-word prediction does not count it.
+        notTyped()
+        return true
+    }
+
+    /** The row's chip for a shortcut was tapped: [typed], just before the cursor, becomes [text]. */
+    private fun useShortcut(typed: String, text: String) {
+        finishTyping()
+        if (!editor.replaceBefore(typed, text, Kind.SNIPPET)) { scheduleRow(); return }
+        lastCorrection = null
+        lastShortcut = null
+        notTyped()
+        scheduleRow()
+    }
+
+    /** A clip was held in the clipboard's list: it is pinned, or let go back among the copies. */
+    private fun pinClip(clip: ClipList.Clip) {
+        if (!ClipHistory.pin(this, clip.text, !clip.pinned)) {
+            android.widget.Toast.makeText(this, "${ClipList.MAX_PINS} clips are pinned already. Unpin one first.", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         scheduleRow()
     }
 
@@ -1781,9 +2262,49 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Pasted words were not typed: next-word prediction does not count them.
         notTyped()
         autoSpaced = false
-        toolsHeld = true
+        toolsHeld = true; heldWords = false
         ClipHistory.fresh = null
         showingClips = false
+        scheduleRow()
+    }
+
+    /**
+     * Whether enter in this field does something other than start a new line: sends the message, searches, goes on
+     * to the next field ([enter] asks the same of it). A new-line chip is only worth its place where it does.
+     */
+    private fun enterSends(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        if (info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) return false
+        val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
+        return action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED
+    }
+
+    /**
+     * An agent key was tapped (AgentKeys.kt). A press is a key press with its modifiers, as the terminal row's Esc
+     * and Ctrl send theirs: what it does is the app's business, and the field is checked after it. What is typed or
+     * wrapped is an edit like any other, and a step in the history.
+     */
+    private fun agentTap(chip: AgentKeys.Chip) {
+        finishTyping()
+        lastCorrection = null
+        lastSwipe = null
+        when (val does = chip.does) {
+            is AgentKeys.Does.Press -> {
+                val code = when (does.code) {
+                    AgentKeys.Code.TAB -> KeyEvent.KEYCODE_TAB
+                    AgentKeys.Code.ESCAPE -> KeyEvent.KEYCODE_ESCAPE
+                    AgentKeys.Code.C -> KeyEvent.KEYCODE_C
+                    AgentKeys.Code.J -> KeyEvent.KEYCODE_J
+                    AgentKeys.Code.R -> KeyEvent.KEYCODE_R
+                }
+                var meta = 0
+                if (does.ctrl) meta = meta or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+                if (does.shift) meta = meta or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+                repeat(does.times) { sendKey(code, meta) }
+            }
+            is AgentKeys.Does.Type -> editor.type(does.text)
+            is AgentKeys.Does.Wrap -> wrap(does.open, does.close)
+        }
         scheduleRow()
     }
 
@@ -1890,6 +2411,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     }
                     return true
                 }
+            }
+        }
+        // A text shortcut standing by itself before the cursor: what it stands for, a tap away (and a space away,
+        // where shortcuts expand by themselves), with the letters themselves beside it for when they are what is meant.
+        if (shortcutsHere()) Shortcuts.find(Shortcuts.all(prefs), before)?.let { entry ->
+            val typed = Shortcuts.token(before)
+            if (!typed.equals(keptShortcut, ignoreCase = true)) {
+                val text = shortcutText(entry)
+                items += RowItem("shortcut-${entry.shortcut}", label = preview(text), bold = true, chip = true, fill = true, description = "Shortcut: ${preview(text)}") { useShortcut(typed, text) }
+                items += RowItem("shortcut-keep-$typed", label = "\u201C$typed\u201D", chip = true, description = "Keep $typed as typed") { keptShortcut = typed; scheduleRow() }
+                return true
             }
         }
         if (Plugins.isOn(prefs, Plugins.EMOJI)) {
@@ -2001,6 +2533,68 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (offlineOn) { sayOffline(); return }
         aiJob?.cancelled = true
         aiJob = Ghostwriter.rewriteAs(prefs, selected, mode) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /**
+     * The Prompt enhancer plugin: the selection, or everything in the field when nothing is selected, as a clearer
+     * prompt. The field is selected the way Rewrite selects it, so undo puts back the cursor and not a selection.
+     */
+    private fun enhance() {
+        if (offlineOn) { sayOffline(); return }
+        val ic = currentInputConnection
+        if (ic == null || !aiAllowed()) { scheduleRow(); return }
+        var selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected.isBlank()) {
+            val was = editor.selectionNow()
+            ic.performContextMenuAction(android.R.id.selectAll)
+            editor.sent()
+            selected = ic.getSelectedText(0)?.toString().orEmpty()
+            editor.rememberRewrite(selected, was)
+        }
+        if (selected.isBlank()) { scheduleRow(); return }
+        startEnhance(selected)
+    }
+
+    private fun startEnhance(selected: String, spoken: Boolean = false) {
+        if (offlineOn) { sayOffline(); return }
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.enhance(this, prefs, selected, currentInputEditorInfo?.packageName, spoken) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /**
+     * Tidy or As a prompt, straight after a dictation: the words that take put in are selected, exactly those and no
+     * others, and the answer takes their place (undo puts them back, with the cursor where it was). Where they no
+     * longer stand just before the cursor (something else was typed, the cursor was moved, the app changed them)
+     * nothing is selected and nothing is sent.
+     */
+    private fun tidySaid(prompt: Boolean) {
+        val text = said
+        said = null
+        if (offlineOn) { sayOffline(); return }
+        val ic = currentInputConnection
+        if (text == null || ic == null || !aiAllowed() || selStart != selEnd || selEnd < text.length) { scheduleRow(); return }
+        if (ic.getTextBeforeCursor(text.length, 0)?.toString() != text) { scheduleRow(); return }
+        val was = editor.selectionNow()
+        ic.setSelection(selEnd - text.length, selEnd)
+        editor.sent()
+        val selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected != text) {
+            // The app did not select what was asked for: the cursor goes back, and nothing is sent.
+            ic.setSelection(selEnd, selEnd)
+            editor.sent()
+            scheduleRow()
+            return
+        }
+        editor.rememberRewrite(selected, was)
+        if (prompt) startEnhance(selected, spoken = true) else startTidy(selected)
+    }
+
+    private fun startTidy(selected: String) {
+        if (offlineOn) { sayOffline(); return }
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.tidy(this, prefs, selected) { onAiDone(it) }
         scheduleRow()
     }
 
@@ -2227,6 +2821,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** What the row says the AI is doing for [job]: writing the request, rewriting as asked, or in the person's voice. */
     private fun doing(job: Ghostwriter.Job): String {
+        if (job.mode == Enhance.MODE) return "Enhancing your prompt…"
+        if (job.mode == Enhance.SAID) return "Making it a prompt…"
+        if (job.mode == DictationWords.TIDY) return "Tidying what you said…"
         Rewrite.mode(prefs, job.mode)?.let { return "${it.label}…" }
         if (job.selection) return "Rewriting in your voice…"
         return "Writing \u201C${preview(job.request)}\u201D…"
@@ -2257,7 +2854,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("ai-retry-${job.id}", label = "Retry", icon = RowIcon.RETRY, bold = true, chip = true) {
                     aiJob = null
                     val mode = Rewrite.mode(prefs, job.mode)
-                    if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    if (job.mode == DictationWords.TIDY) startTidy(job.tag) else if (job.mode == Enhance.SAID) startEnhance(job.tag, spoken = true) else if (job.mode == Enhance.MODE) startEnhance(job.tag) else if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
                     scheduleRow()
                 }
                 items += dismiss
@@ -2497,6 +3094,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         wordTouches.clear(); takenTouch = null
         hangul = Hangul.State()
         toolsHeld = false
+        said = null
         if (gifMode == GifMode.TYPING) return
         if (currentInputConnection == null) return
         // More strokes than anyone draws ahead of the reading: the oldest is let go rather than typed long after.
@@ -2729,6 +3327,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
         /** How much text before the cursor each look reads: enough for the row's own patterns and the last few words. */
         private const val CONTEXT_CHARS = 200
+        /**
+         * What the row's one reading of the field asks for, before the cursor and after it: enough for every question
+         * a key press or the row then has, of which the longest are Mockingbird's look at the message being written
+         * (1,500 and 500, at every word's end) and Ghostwriter's at a request (2,000 and 400). The reading is made
+         * off the main thread, so its length costs the keys nothing.
+         */
+        private const val READ_BEFORE = 2000
+        private const val READ_AFTER = 500
+        /** A reading that came back with nothing after this long was not refused by the app: it never answered. */
+        private const val GAVE_UP_MS = 200L
+        /** A reading not back after this long is not coming (Android itself gives up after two seconds). */
+        private const val READ_LOST_MS = 4000L
+        /** How many words the row suggests at once: Gboard's three. */
+        private const val WORDS = 3
         /** How many strokes may wait to be read, and how much of the text before the cursor must be as it was for a reading to be typed. */
         private const val MAX_STROKES = 4
         /** How many of a field's latest autocorrections are remembered, and for how long a word typed again where one stood counts as meant. */

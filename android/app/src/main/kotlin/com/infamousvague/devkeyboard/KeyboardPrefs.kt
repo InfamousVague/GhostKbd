@@ -84,6 +84,14 @@ class KeyboardPrefs(context: Context) {
     /** Typing stats: speed and accuracy counted on this phone (TypingStats.kt). */
     val typingStats: Boolean get() = bool(TYPING_STATS)
 
+    /**
+     * The Prompt enhancer plugin (Enhance.kt): how much a rewrite may add ("tight" keeps to the prompt's own length,
+     * "thorough" sets out more of it), and what the person wrote about themselves and their work, sent with each
+     * prompt that is enhanced.
+     */
+    val enhanceStyle: String get() = prefs.getString(ENHANCE_STYLE, DEFAULTS[ENHANCE_STYLE] as String)!!
+    val enhanceNotes: String get() = prefs.getString(ENHANCE_NOTES, "")!!
+
     /** The Rewrite plugin: the language its Translate goes to, as the person wrote it. */
     val rewriteLanguage: String get() = prefs.getString(REWRITE_LANGUAGE, DEFAULTS[REWRITE_LANGUAGE] as String)!!
 
@@ -102,6 +110,14 @@ class KeyboardPrefs(context: Context) {
     /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
     val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
     val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
+    /**
+     * Dictation's "Your words" (DictationWords.kt): names and terms whisper is told to expect, parted by commas, and
+     * whether the row offers Tidy after a take (it sends nothing until it is tapped).
+     */
+    val dictationWords: String get() = prefs.getString(DICTATION_WORDS, "")!!
+    val dictationTidy: Boolean get() = bool(DICTATION_TIDY)
+    /** Dictated words shown in the field as they are spoken, and not only at each pause (LiveWords.kt). */
+    val dictationLive: Boolean get() = bool(DICTATION_LIVE)
 
     /**
      * The languages that are on: codes from Languages.ALL, comma-separated, in the order they were turned on
@@ -210,6 +226,8 @@ class KeyboardPrefs(context: Context) {
     val ghostwriterTyping: Boolean get() = bool(GHOSTWRITER_TYPING)
     /** Ghostwriter searches Ghost.md's notes: Ghost.md on this phone, else the online connector once signed in. */
     val ghostwriterNotes: Boolean get() = bool(GHOSTWRITER_NOTES)
+    /** Ghostwriter may call the tools of the person's connectors that are switched on (Connectors.kt). */
+    val ghostwriterConnectors: Boolean get() = bool(GHOSTWRITER_CONNECTORS)
     /** Adaptive keys: draw the heatmap of mistakes and moved aims over the keys. */
     val adaptiveMap: Boolean get() = bool(ADAPTIVE_MAP)
     /** Arrow keys pinned at the end of the row above the keys, SwiftKey's way. */
@@ -218,6 +236,11 @@ class KeyboardPrefs(context: Context) {
     val smsCodes: Boolean get() = bool(SMS_CODES)
     /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
     val slang: Boolean get() = bool(SLANG)
+    /**
+     * Text shortcuts (Shortcuts.kt): a space or enter straight after a shortcut puts in what it stands for. Off, the
+     * row still offers it, and only a tap there puts it in.
+     */
+    val shortcutsAuto: Boolean get() = bool(SHORTCUTS_AUTO)
 
     /**
      * Swipe typing, the clipboard, undo and redo and emoji joined autocorrect as plugins on by default (0.8.5, Matt:
@@ -339,6 +362,9 @@ class KeyboardPrefs(context: Context) {
         const val SOUND_VOLUME = "sound_volume"
         const val STOCK_SOUND = "stock_sound"
         const val DICTATION_LANGUAGE = "dictation_language"
+        const val DICTATION_WORDS = "dictation_words"
+        const val DICTATION_TIDY = "dictation_tidy"
+        const val DICTATION_LIVE = "dictation_live"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
@@ -357,16 +383,20 @@ class KeyboardPrefs(context: Context) {
         const val GITHUB_TOKEN = "github_token"
         const val GHOSTWRITER_TYPING = "ghostwriter_typing"
         const val GHOSTWRITER_NOTES = "ghostwriter_notes"
+        const val GHOSTWRITER_CONNECTORS = "ghostwriter_connectors"
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
         const val SLANG = "slang"
+        const val SHORTCUTS_AUTO = "shortcuts_auto"
         const val WIDE_LAYOUT = "wide_layout"
         const val ONE_HANDED = "one_handed"
         const val DELETE_SWIPE = "delete_swipe"
         const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
+        const val ENHANCE_STYLE = "enhance_style"
+        const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
         const val PREVIEW_OPEN = "preview_open"
 
@@ -419,6 +449,9 @@ class KeyboardPrefs(context: Context) {
             SOUND_VOLUME to "35",
             STOCK_SOUND to "bamboo",
             DICTATION_LANGUAGE to "auto",
+            DICTATION_WORDS to "",
+            DICTATION_TIDY to true,
+            DICTATION_LIVE to true,
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",
             "theme_mode" to "dark",
@@ -440,16 +473,20 @@ class KeyboardPrefs(context: Context) {
             GITHUB_TOKEN to "",
             GHOSTWRITER_TYPING to true,
             GHOSTWRITER_NOTES to true,
+            GHOSTWRITER_CONNECTORS to true,
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
             SMS_CODES to false,
             SLANG to true,
+            SHORTCUTS_AUTO to true,
             WIDE_LAYOUT to "split",
             ONE_HANDED to "off",
             DELETE_SWIPE to true,
             BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",
+            ENHANCE_STYLE to "tight",
+            ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,
         ) + AI_PROVIDERS.flatMap { listOf("ai_key_$it" to "", "ai_model_$it" to "") }
     }

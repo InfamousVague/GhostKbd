@@ -67,18 +67,62 @@ object AiClient {
      * heavier work; providers that take no such setting ignore it. [webSearch] lets the model look things up online
      * with its provider's own search, where the provider has one ([SEARCHES]). With Offline on it fails at once with
      * "Offline is on".
+     *
+     * With [tools] the model may ask for one before it answers (the Connectors plugin; AiTools.kt has the exchange for
+     * each shape): [call] runs it, given its name and arguments, and what it answers goes back to the model. Gemini
+     * is then not asked to search the web as well, which not all of its models allow in one request.
      */
-    fun complete(prefs: KeyboardPrefs, path: NetPath, system: String, user: String, maxTokens: Int, effort: String = "low", webSearch: Boolean = false): String {
+    fun complete(
+        prefs: KeyboardPrefs, path: NetPath, system: String, user: String, maxTokens: Int, effort: String = "low", webSearch: Boolean = false,
+        tools: List<AiTools.Tool> = emptyList(), call: ((String, JSONObject) -> String)? = null,
+    ): String {
         if (Net.offline(prefs)) throw AiError(Net.OFFLINE_MESSAGE)
         val s = setup(prefs)
         val via = Via(prefs, path)
         val search = webSearch && s.provider.id in SEARCHES
+        if (tools.isNotEmpty() && call != null) return withTools(via, s, system, user, maxTokens, effort, search, tools, call).trim().ifEmpty { throw AiError("The AI sent back nothing") }
         return when (s.provider.wire) {
             Wire.ANTHROPIC -> anthropic(via, s, system, user, maxTokens, effort, search)
             Wire.GEMINI -> gemini(via, s, system, user, maxTokens, search)
             Wire.OPENAI -> if (search && s.provider.id == "openai") openAiResponses(via, s, system, user, maxTokens) else openAi(via, s, system, user, maxTokens, search)
         }.trim().ifEmpty { throw AiError("The AI sent back nothing") }
     }
+
+    /**
+     * The same request with tools the model may call (AiTools.kt): each shape's own request, as it is made without
+     * tools, handed to that shape's exchange.
+     */
+    private fun withTools(via: Via, s: Setup, system: String, user: String, maxTokens: Int, effort: String, search: Boolean, tools: List<AiTools.Tool>, call: (String, JSONObject) -> String): String =
+        when (s.provider.wire) {
+            Wire.ANTHROPIC -> {
+                val fallback = s.model in FALLBACK_MODELS
+                val body = JSONObject().put("model", s.model).put("max_tokens", maxTokens).put("system", system)
+                    .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", user)))
+                if (Regex("^claude-(opus|sonnet|haiku|fable)-5").containsMatchIn(s.model)) body.put("output_config", JSONObject().put("effort", effort))
+                if (fallback) body.put("fallbacks", "default")
+                if (search) body.put("tools", JSONArray().put(anthropicSearchTool(s.model)))
+                AiTools.anthropic(body, tools, call) { request(via, "POST", "${s.base}/messages", anthropicHeaders(s, fallback), it) }
+            }
+            Wire.GEMINI -> {
+                val body = JSONObject()
+                    .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
+                    .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", user)))))
+                    .put("generationConfig", JSONObject().put("maxOutputTokens", maxTokens))
+                AiTools.gemini(body, tools, call) { request(via, "POST", "${s.base}/models/${s.model}:generateContent", mapOf("x-goog-api-key" to s.key), it) }
+            }
+            Wire.OPENAI -> if (search && s.provider.id == "openai") {
+                val body = JSONObject().put("model", s.model).put("instructions", system).put("input", user).put("max_output_tokens", maxTokens)
+                    .put("tools", JSONArray().put(JSONObject().put("type", "web_search")))
+                AiTools.openAiResponses(body, tools, call) { request(via, "POST", "${s.base}/responses", bearer(s), it) }
+            } else {
+                val body = JSONObject().put("model", s.model).put("messages", JSONArray()
+                    .put(JSONObject().put("role", "system").put("content", system))
+                    .put(JSONObject().put("role", "user").put("content", user)))
+                body.put(if (s.provider.id == "openai") "max_completion_tokens" else "max_tokens", maxTokens)
+                if (search && s.provider.id == "openrouter") body.put("plugins", JSONArray().put(JSONObject().put("id", "web")))
+                AiTools.openAi(body, tools, call) { request(via, "POST", "${s.base}/chat/completions", bearer(s), it) }
+            }
+        }
 
     /** The models the chosen provider offers this key, for Settings' picker. */
     fun models(prefs: KeyboardPrefs): List<String> {

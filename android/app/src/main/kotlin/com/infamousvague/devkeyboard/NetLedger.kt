@@ -57,17 +57,21 @@ object NetLedger {
      * Why [path] may not connect to [url], in words for the person, or null when it may. In order: Offline refuses
      * everything; only https; then the server must be one the path lists. The AI's paths may reach one server only,
      * [aiServer], the API root of the provider chosen in Settings (or the person's own server), so a key never goes
-     * to a provider it was not made for.
+     * to a provider it was not made for. The connectors' paths may reach the servers the person added in Settings ›
+     * Connectors ([added], their addresses) and no other, each at its own port, so a connector's token never goes
+     * anywhere but to a server its owner wrote down.
      */
-    fun check(offline: Boolean, path: NetPath, url: String, aiServer: String? = null): String? {
+    fun check(offline: Boolean, path: NetPath, url: String, aiServer: String? = null, added: Collection<String> = emptyList()): String? {
         if (offline) return OFFLINE_MESSAGE
         if (!url.startsWith("https://", ignoreCase = true)) return "Ghost Keyboard only connects over https"
         val host = hostOf(url) ?: return "Ghost Keyboard can’t read that address"
-        val allowed = if (path.ownServer) {
-            val own = aiServer?.let { hostOf(it) }
-            own != null && own == host && portOf(aiServer) == portOf(url)
-        } else {
-            portOf(url) == 443 && path.hosts.any { matches(it, host) }
+        val allowed = when {
+            path.ownServer -> {
+                val own = aiServer?.let { hostOf(it) }
+                own != null && own == host && portOf(aiServer) == portOf(url)
+            }
+            path.personal -> added.any { hostOf(it) == host && portOf(it) == portOf(url) }
+            else -> portOf(url) == 443 && path.hosts.any { matches(it, host) }
         }
         return if (allowed) null else "Ghost Keyboard doesn’t talk to $host"
     }
@@ -78,20 +82,23 @@ object NetLedger {
  * pages ([sections], by their ids in lib/settings/panes.dart) that say "Offline is on" at their top while it is.
  */
 enum class NetFeature(val id: String, val title: String, val stops: String, val sections: List<String>) {
-    AI("ai", "AI", "Ghostwriter, Rewrite, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite")),
+    AI("ai", "AI", "Ghostwriter, Rewrite, Enhance, Tidy after a dictation, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite", "enhance")),
     GITHUB("github", "GitHub commit search", "Ghostwriter’s search of your commits, and Check the token.", listOf("ai-sources")),
     GHOST_ONLINE("ghost-online", "Ghost.md online", "Signing in, searching your notes online, and signing out.", listOf("ai-sources")),
     GIFS("gifs", "GIFs", "GIPHY’s trending and search, and loading or sending a GIF.", listOf("rowtools")),
     MODELS("models", "Speech model downloads", "Fetching a dictation model. One already on the phone keeps working.", listOf("dictation")),
     UPDATES("updates", "Updates", "The check for a new version, by itself and by hand, the Update chip above the keys, and the download.", listOf("about")),
     REPORTS("reports", "Anonymous typing reports", "Sending a typing report. What is waiting stays on the phone until it can go, or until you turn sharing off.", listOf("stats")),
+    CONNECTORS("connectors", "Connectors", "Reading a connector’s tools, and every tool Ghostwriter would have called while it writes.", listOf("connectors")),
 }
 
 /**
  * One reason to connect. [hosts] are the servers it may reach, each a name or "*.domain" for any name under one;
  * [ownServer] marks the AI's paths, which reach the one provider chosen in Settings: one of [hosts], or the person's
- * own server. [plugins] are the Market plugins it belongs to (lib/plugins/catalogue.dart ids), [trigger] is what
- * starts it and [sends] what goes with it, both in words Settings shows as they are.
+ * own server. [personal] marks the connectors' paths, which list no server of their own: they reach the servers the
+ * person added in Settings › Connectors, and no other. [plugins] are the Market plugins it belongs to
+ * (lib/plugins/catalogue.dart ids), [trigger] is what starts it and [sends] what goes with it, both in words Settings
+ * shows as they are.
  */
 enum class NetPath(
     val feature: NetFeature,
@@ -102,18 +109,30 @@ enum class NetPath(
     val plugins: List<String> = emptyList(),
     val trigger: String,
     val sends: String,
+    val personal: Boolean = false,
 ) {
     GHOSTWRITER(
         NetFeature.AI, "ghostwriter", "Ghostwriter", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("ghostwriter"),
         trigger = "Typing >> with “Fill as soon as I type >>” on, tapping Fill, or pressing enter on a <<request>>.",
         sends = "Your key and model, the request, up to 1,500 characters before it and 400 after, the name of the app you are typing in, today’s date and your style profile. " +
             "Each behind its own switch, and never more than: matching past messages (6,000 characters), Ghost.md notes (9,000, and their titles), commit messages (9,000, each with its date and repository) and recent clipboard (2,500). " +
-            "With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com.",
+            "With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com. " +
+            "With “My connectors” on: the names and descriptions of up to 16 of their tools that you switched on, and whatever those tools answer when the AI calls them (up to 6,000 characters an answer, 6 calls a request).",
     ),
     REWRITE(
         NetFeature.AI, "rewrite", "Rewrite", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("rewrite"),
         trigger = "Tapping Rewrite, then one of its choices.",
         sends = "Your key and model, and the selection or the whole field (up to 6,000 characters).",
+    ),
+    ENHANCE(
+        NetFeature.AI, "enhance", "Prompt enhancer", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("enhance"),
+        trigger = "Tapping Enhance in the row above the keys.",
+        sends = "Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters). “As a prompt”, after a dictation, sends the words that take put in instead.",
+    ),
+    TIDY(
+        NetFeature.AI, "tidy", "Tidy after a dictation", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("dictation"),
+        trigger = "Tapping Tidy in the row above the keys, straight after a dictation. Speech itself is turned into text on the phone and is never sent.",
+        sends = "Your key and model, the words that take put in (up to 6,000 characters), and the words under “Your words” in Dictation’s settings.",
     ),
     MY_VOICE(
         NetFeature.AI, "my-voice", "In my voice", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("mockingbird"),
@@ -184,6 +203,16 @@ enum class NetPath(
         NetFeature.UPDATES, "update-download", "Update download", listOf("ghostkbd.com"),
         trigger = "A newer version found with “Install updates by itself” on, or tapping Update now.",
         sends = "The request alone.",
+    ),
+    CONNECTOR_TOOLS(
+        NetFeature.CONNECTORS, "connector-tools", "A connector’s tools", emptyList(), plugins = listOf("connectors"), personal = true,
+        trigger = "Adding a connector, and tapping Refresh on one, in Settings › Connectors.",
+        sends = "Your token for that server, where you gave it one, and the request for its list of tools. Nothing of what you type.",
+    ),
+    CONNECTOR_CALL(
+        NetFeature.CONNECTORS, "connector-call", "A connector’s tool", emptyList(), plugins = listOf("connectors"), personal = true,
+        trigger = "A Ghostwriter request with “My connectors” on, when the AI asks for one of the tools you switched on. At most 6 calls a request.",
+        sends = "Your token for that server, the tool’s name, and the arguments the AI chose for it, which it makes from your request and the text around it.",
     ),
     REPORT(
         NetFeature.REPORTS, "report", "Typing report", listOf("ghostkbd.com"),

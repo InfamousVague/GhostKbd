@@ -36,12 +36,15 @@ fun main(args: Array<String>) {
     // --- the ledger is whole ------------------------------------------------------------------------------------------
     expect(NetPath.values().map { it.id }.distinct().size == NetPath.values().size, "two ledger paths share an id")
     for (p in NetPath.values()) {
-        expect(p.hosts.isNotEmpty(), "${p.name} lists no server")
+        // A connector's path lists no server of its own: the servers are the ones the person added.
+        expect(p.hosts.isNotEmpty() != p.personal, if (p.personal) "${p.name} is the person's own servers' and must list none" else "${p.name} lists no server")
         expect(p.trigger.length > 10 && p.trigger.endsWith("."), "${p.name} does not say what starts it")
         expect(p.sends.length > 5 && p.sends.endsWith("."), "${p.name} does not say what is sent")
         expect(p.title.isNotBlank(), "${p.name} has no title")
         for (h in p.hosts) expect(Regex("^(\\*\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+$").matches(h), "${p.name}: \"$h\" is not a server's name")
         expect(p.ownServer == (p.feature == NetFeature.AI), "${p.name}: only the AI's paths reach the chosen provider")
+        expect(p.personal == (p.feature == NetFeature.CONNECTORS), "${p.name}: only the connectors' paths reach the servers the person added")
+        expect(!(p.ownServer && p.personal), "${p.name} cannot be both the AI's and a connector's")
     }
     for (f in NetFeature.values()) {
         expect(NetPath.values().any { it.feature == f }, "${f.name} has no path")
@@ -50,9 +53,10 @@ fun main(args: Array<String>) {
     expect(NetLedger.WORKS.map { it.id }.contains("dictation"), "the still-works list has no dictation line")
 
     // --- Offline refuses everything -----------------------------------------------------------------------------------
+    val added = listOf("https://mcp.example.com/mcp", "https://home.example.org:8443/mcp")
     for (p in NetPath.values()) {
-        val host = p.hosts.first().removePrefix("*.")
-        expect(NetLedger.check(true, p, "https://$host/x", claude) == "Offline is on", "${p.name} is not refused while Offline is on")
+        val host = p.hosts.firstOrNull()?.removePrefix("*.") ?: "mcp.example.com"
+        expect(NetLedger.check(true, p, "https://$host/x", claude, added) == "Offline is on", "${p.name} is not refused while Offline is on")
     }
 
     // --- with Offline off, only https, only the ledger's servers --------------------------------------------------------
@@ -99,6 +103,27 @@ fun main(args: Array<String>) {
     no(NetPath.REWRITE, "http://ollama.home.example:11434/v1/chat/completions", own)
     no(NetPath.GIF_IMAGE, "https://ollama.home.example:11434/a.gif", own)
     no(NetPath.MODEL, "https://api.anthropic.com/v1/messages", claude)
+
+    // --- the connectors' paths: the servers the person added, and no other ------------------------------------------------
+    for (p in NetPath.values().filter { it.personal }) {
+        fun reach(url: String, list: List<String> = added) = NetLedger.check(false, p, url, claude, list)
+        expect(reach("https://mcp.example.com/mcp") == null, "${p.name} should reach a server that was added")
+        expect(reach("https://mcp.example.com/other/page") == null, "${p.name} should reach another page of a server that was added")
+        expect(reach("https://home.example.org:8443/mcp") == null, "${p.name} should reach an added server at its own port")
+        expect(reach("https://home.example.org/mcp") != null, "${p.name} must not reach another port of an added server")
+        expect(reach("https://mcp.example.com:8443/mcp") != null, "${p.name} must not reach another port of an added server")
+        expect(reach("http://mcp.example.com/mcp") != null, "${p.name} must not connect without https")
+        expect(reach("https://evil.mcp.example.com/mcp") != null, "${p.name} must not reach a name under an added server")
+        expect(reach("https://mcp.example.com.evil.io/mcp") != null, "${p.name} must not reach a look-alike of an added server")
+        expect(reach("https://mcp.example.com@evil.io/mcp") != null, "${p.name} must not be fooled by a user part")
+        expect(reach("https://api.anthropic.com/v1/messages") != null, "${p.name} must not reach the AI's server")
+        expect(reach("https://ghostkbd.com/apk.json") != null, "${p.name} must not reach a server of another path")
+        expect(reach("https://mcp.example.com/mcp", emptyList()) != null, "${p.name} must reach nothing when no server is added")
+    }
+    // A server being added lets no other path reach it: the AI's key, and every other request, go where they always did.
+    for (p in NetPath.values().filter { !it.personal }) {
+        expect(NetLedger.check(false, p, "https://mcp.example.com/mcp", claude, added) != null, "${p.name} must not reach a connector's server")
+    }
 
     // --- the sources: one door ----------------------------------------------------------------------------------------
     val sources = kotlin.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()

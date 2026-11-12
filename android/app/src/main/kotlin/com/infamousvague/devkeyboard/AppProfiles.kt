@@ -6,8 +6,8 @@ import org.json.JSONObject
 
 /**
  * Per-app profiles (Matt, 2026-11-09: "per app profiles"): a few settings that follow the app being typed in. An app
- * with a profile can have the number row, autocorrect's own fixes, the terminal keys, the markdown buttons and
- * incognito each forced on or off; a setting the profile leaves alone follows Settings as it always did.
+ * with a profile can have the number row, autocorrect's own fixes, the terminal keys, the agent keys, the markdown
+ * buttons and incognito each forced on or off; a setting the profile leaves alone follows Settings as it always did.
  *
  * Profiles live in the keyboard's settings file ([KeyboardPrefs.prefs]) as one JSON object under [KEY], so the
  * service hears a change the moment Settings makes it. The apps typed in lately are kept beside them ([RECENT]: the
@@ -19,7 +19,7 @@ object AppProfiles {
     private const val MAX_RECENT = 12
 
     /** What a profile can set, in the order Settings lists them. */
-    val FIELDS = listOf("number_row", "autocorrect", "terminal", "markdown", "incognito")
+    val FIELDS = listOf("number_row", "autocorrect", "terminal", "agent", "markdown", "incognito")
 
     class Profile(val pkg: String, val label: String, val values: Map<String, Boolean>) {
         /** On, off, or null where the profile leaves [key] to Settings. */

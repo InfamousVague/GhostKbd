@@ -97,6 +97,12 @@ object Trainer {
     private var vocabulary: List<String>? = null
     private val disk = Executors.newSingleThreadExecutor { r -> Thread(r, "trainer").apply { isDaemon = true } }
 
+    /**
+     * Whether a run is being typed in a field of [fieldPackage]: this app's own field, while a run is on. The keys
+     * are then the ones a story is typed on: the full stop keeps its key, and the mic stays off it (Layouts.withMic).
+     */
+    fun typing(fieldPackage: String?, ownPackage: String): Boolean = session != null && fieldPackage == ownPackage
+
     /** The key height the keyboard wears in a field of [fieldPackage]: a trial's, only in this app's own field and only while its run is on. Null: the person's own. */
     fun heightFor(fieldPackage: String?, ownPackage: String): String? = session?.takeIf { fieldPackage == ownPackage }?.wear
 

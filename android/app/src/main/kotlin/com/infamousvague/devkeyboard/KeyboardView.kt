@@ -36,8 +36,10 @@ interface KeyboardListener {
     fun onHideKeyboard()
     /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
     fun onMic()
-    /** The emoji key beside the space bar was tapped. */
+    /** The emoji key, where the { } key was, was tapped. */
     fun onEmoji() {}
+    /** Another page of keys is showing (letters, ?123, the code keys): the row's { } button says which. */
+    fun onPage() {}
     /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
     /** Cursor control: a slide left from backspace takes the word before the cursor. */
@@ -70,6 +72,7 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
     override fun onMic() = guard("onMic") { inner.onMic() }
     override fun onEmoji() = guard("onEmoji") { inner.onEmoji() }
+    override fun onPage() = guard("onPage") { inner.onPage() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
@@ -111,24 +114,40 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var keyBorders = false
         set(value) { field = value; invalidate() }
 
-    /** The dictation plugin is added and its model is here: the mic key stands beside the space bar. */
+    /**
+     * The dictation plugin is added, its model is here and the field is one to speak into: on the letters page the
+     * mic key stands where the full stop was, next to enter ([Layouts.withMic]).
+     */
+    /**
+     * The emoji plugin is added: its key stands in the { } key's place on the letters page ([Layouts.withEmoji]).
+     * [codeKey]: there is no row above the keys to hold the { } button, so the { } key stays on the board beside it.
+     */
+    var emojiKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
+    var codeKey = false
+        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
-    /** The emoji plugin is added: its key stands between { } and the space bar on the letters page, where the bar has the room ([Layouts.withEmoji]). */
-    var emojiKey = false
-        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
-
-    /** Whether the letters page has the emoji key as things stand (the plugin, the layout, the globe, the mic). Where it has not, the row keeps its emoji button. */
-    var showsEmojiKey = false
-        private set
-
     var dictation = DictationPhase.OFF
-        set(value) { field = value; if (value == DictationPhase.OFF) level = 0f; invalidate() }
+        set(value) {
+            if (value == DictationPhase.TRANSCRIBING && field != value) writingSince = android.os.SystemClock.uptimeMillis()
+            field = value
+            if (value == DictationPhase.OFF) level = 0f
+            invalidate()
+        }
+
+    /**
+     * When a take's last words began to be written down. That is a moment for most takes; after [WRITING_WAIT_MS]
+     * of it (a long take, a slow phone) the panel says a tap stops it there, and a tap does (the service lets the
+     * rest of the take go and keeps what it has typed).
+     */
+    private var writingSince = 0L
+    private fun writingLong() = dictation == DictationPhase.TRANSCRIBING && android.os.SystemClock.uptimeMillis() - writingSince >= WRITING_WAIT_MS
 
     /** How loud the microphone hears it, 0..1, eased. */
     var level = 0f
-        set(value) { field = field * 0.6f + value * 0.4f; invalidate() }
+        set(value) { field = field * 0.6f + value * 0.4f; redraw() }
 
     /**
      * The plugin row is shown: a real view (PluginRow) sits in the strip between the preview room and the keys, so
@@ -213,6 +232,112 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     private fun lightId(key: Key) = "${key.type}|${key.text}|${key.label}"
 
+    /**
+     * How lit key [i]'s legend is at [now], as one number: 0 for not at all, else its strength in [LIGHT_LEVELS] steps
+     * with its colour (six bits a channel) or the dimming flag. Two frames with the same codes look the same, which
+     * is what lets a frame that would change nothing be left undrawn ([lightTick]) and a filter be kept for the next
+     * key or frame that needs the same one ([lightFilter]). A step is 1/64 of the way from the legend's colour to the
+     * light's: under two parts in 255 of any channel, which nobody can see.
+     */
+    private fun lightCode(i: Int, key: Key, f: RectF, light: Backlight, now: Long): Int {
+        val strength = light.light(lightIds[i], f.centerX(), f.centerY(), width.toFloat(), now) * light.strength
+        if (strength <= 0.01f) return 0
+        val level = (strength.coerceAtMost(1f) * LIGHT_LEVELS + 0.5f).toInt().coerceAtLeast(1)
+        if (light.dims) return level or LIGHT_DIMS
+        // On the enter key's accent pill the accent would vanish: its legend is left as it is.
+        if (key.type == KeyType.ENTER) return 0
+        val c = light.colourAt(f.centerX(), width.toFloat(), now, theme.accent, level / LIGHT_LEVELS.toFloat())
+        lightColour = c
+        return level or ((c shr 18 and 0x3F) shl 7) or ((c shr 10 and 0x3F) shl 13) or ((c shr 2 and 0x3F) shl 19)
+    }
+
+    /** The colour [lightCode] last worked out, in full: what a new filter for that code is made from. */
+    private var lightColour = 0
+
+    /**
+     * The backlight on a key's legend, as a real board's shine-through legends: brightening blends the light's colour
+     * into the label and icon, dimming fades them. Set on the legend's paints for the one key, cleared after; the key
+     * itself is drawn as ever. One filter is kept for each [code], so a fading key makes one where it made sixty a
+     * second, and the keys of a ripple share theirs.
+     */
+    private fun lightFilter(code: Int): android.graphics.ColorFilter {
+        lightFilters.get(code)?.let { return it }
+        val t = (code and LIGHT_LEVEL_MASK) / LIGHT_LEVELS.toFloat()
+        val made: android.graphics.ColorFilter = if (code and LIGHT_DIMS != 0) {
+            // Fade the legend toward a fifth of its strength.
+            android.graphics.ColorMatrixColorFilter(floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f - t * 0.8f, 0f))
+        } else {
+            // Each channel is the legend's own, less the light's share, with that share of the light's colour added.
+            val c = lightColour
+            val keep = ((1f - t) * 255f + 0.5f).toInt()
+            android.graphics.LightingColorFilter(
+                android.graphics.Color.rgb(keep, keep, keep),
+                android.graphics.Color.rgb((android.graphics.Color.red(c) * t).toInt(), (android.graphics.Color.green(c) * t).toInt(), (android.graphics.Color.blue(c) * t).toInt()),
+            )
+        }
+        // A rainbow goes through every colour there is: what is kept is let go before it is a burden.
+        if (lightFilters.size() >= LIGHT_FILTERS) lightFilters.clear()
+        lightFilters.put(code, made)
+        return made
+    }
+
+    private val lightFilters = android.util.SparseArray<android.graphics.ColorFilter>()
+
+    /** Every key's [lightCode] at [now], as one number: the same for two moments whose frames would look the same. */
+    private fun lightLook(light: Backlight, now: Long): Int {
+        if (light === wordLight && !wordLight.animating(now)) return 0
+        var look = 0
+        for (i in keyRects.indices) look = look * 31 + lightCode(i, keyRects[i].first, keyFaces[i], light, now)
+        return look
+    }
+
+    /** [lightLook] as the last frame drew it. */
+    private var lightDrawn = 0
+
+    /**
+     * The backlight's clock: every [Backlight.frameDelay] while a light is moving, it asks whether the keys would look
+     * any different now, and only then are they drawn again. Until 0.16.2 every tick of it drew the whole board, sixty
+     * times a second for 1.2 s after each key (483 frames for 75 key presses on the emulator), though a fading key's
+     * colour changes far less often than that toward the end of its fade, and not at all in its last tenth.
+     */
+    private val lightTick = Runnable {
+        lightWaiting = false
+        // Hidden, the keys are not drawn; shown again, their first frame starts the clock again.
+        if (isAttachedToWindow && windowVisibility == VISIBLE && isShown) {
+            val light = lightNow
+            val now = android.os.SystemClock.uptimeMillis()
+            if (lightLook(light, now) != lightDrawn) redraw() else if (light.animating(now)) lightSoon(light.frameDelay())
+        }
+    }
+    private var lightWaiting = false
+
+    private fun lightSoon(delay: Long) {
+        if (lightWaiting) return
+        lightWaiting = true
+        postDelayed(lightTick, delay)
+    }
+
+    /**
+     * What the keys look like at rest has changed, or may have: every [invalidate] says so, and what is kept from one
+     * frame to the next (each key's label as shift has it, the size it fits its key at, where its baseline sits) is
+     * worked out again at the next frame. A frame that only moves the light on ([redraw]) keeps it all: nothing but
+     * the light has changed, and measuring thirty labels again for each of sixty frames a second was a third of all
+     * the keyboard's main thread did while someone typed.
+     */
+    private var stale = true
+    private var labels = arrayOfNulls<String>(0)
+    private var sizes = FloatArray(0)
+    private var rises = FloatArray(0)
+
+    override fun invalidate() {
+        stale = true
+        super.invalidate()
+    }
+
+    /** Another frame of the keys as they are: only the light has moved on, a key gone down, a trail grown, the mic heard more. */
+    private fun redraw() = super.invalidate()
+    private val nextFrame = Runnable { redraw() }
+
     /** Lights a swiped word's letters when the backlight is off (it is null): a quick reactive flare. */
     private val wordLight = Backlight("reactive", "accent", 0.85f)
     private val lightNow get() = backlight ?: wordLight
@@ -226,7 +351,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             val rect = letterKey(c) ?: return@forEachIndexed
             postDelayed({
                 lightNow.press(lightId(rect.first), rect.second.centerX(), rect.second.centerY(), android.os.SystemClock.uptimeMillis())
-                invalidate()
+                redraw()
             }, i * 55L)
         }
     }
@@ -242,7 +367,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     /** A key the AI is "pressing" as it types (Ghostwriter), drawn pressed with its preview, and when it lets go. */
     private var ghostKey: Pair<Key, RectF>? = null
-    private val releaseGhost = Runnable { ghostKey = null; invalidate() }
+    private val releaseGhost = Runnable { ghostKey = null; redraw() }
 
     /**
      * Ghostwriter typing: the key for [c] goes down as a finger's would (pressed face, preview bubble, the backlight's
@@ -258,31 +383,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         removeCallbacks(releaseGhost)
         ghostKey = match
         if (match != null) lightNow.press(lightId(match.first), match.second.centerX(), match.second.centerY(), android.os.SystemClock.uptimeMillis())
-        invalidate()
+        redraw()
         postDelayed(releaseGhost, holdMs)
-    }
-
-    /**
-     * The backlight on a key's legend, as a real board's shine-through legends: brightening blends the light's colour
-     * into the label and icon, dimming fades them. Set on the legend's paints for the one key, cleared after; the key
-     * itself is drawn as ever.
-     */
-    private fun legendLight(key: Key, f: RectF, light: Backlight, now: Long): android.graphics.ColorFilter? {
-        val i = light.light(lightId(key), f.centerX(), f.centerY(), width.toFloat(), now) * light.strength
-        if (i <= 0.01f) return null
-        val t = i.coerceIn(0f, 1f)
-        val m = if (light.dims) {
-            // Fade the legend toward a fifth of its strength.
-            floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f - t * 0.8f, 0f)
-        } else {
-            // On the enter key's accent pill the accent would vanish: blend it toward the label's own light instead.
-            if (key.type == KeyType.ENTER) return null
-            val c = light.colourAt(f.centerX(), width.toFloat(), now, theme.accent, t)
-            val r = android.graphics.Color.red(c) * t; val g = android.graphics.Color.green(c) * t; val b = android.graphics.Color.blue(c) * t
-            val k = 1f - t
-            floatArrayOf(k, 0f, 0f, 0f, r, 0f, k, 0f, 0f, g, 0f, 0f, k, 0f, b, 0f, 0f, 0f, 1f, 0f)
-        }
-        return android.graphics.ColorMatrixColorFilter(m)
     }
 
     /** The swipe typing plugin is added: a finger sliding across the letters spells a word. */
@@ -365,10 +467,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private val keyRects = ArrayList<Pair<Key, RectF>>()
 
     fun showPage(next: Page) {
+        val changed = page != next
         page = next
         if (next != Page.LETTERS) { shift = ShiftState.OFF; autoShifted = false }
         rebuild()
         invalidate()
+        if (changed) listener.onPage()
     }
 
     /**
@@ -402,10 +506,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
         }
-        // The emoji key is the letters page's, and whether it has one is asked of that page whichever is showing.
-        showsEmojiKey = emojiKey && Layouts.hasEmojiKey(Layouts.withEmoji(letters, micKey))
-        val keyed = if (emojiKey) Layouts.withEmoji(base, micKey) else base
-        rows = if (micKey) Layouts.withMic(keyed) else keyed
+        // The mic first: it knows the letters page by its { } key, which the emoji key then takes the place of.
+        val spoken = if (micKey) Layouts.withMic(base) else base
+        rows = if (emojiKey) Layouts.withEmoji(spoken, codeKey) else spoken
         layoutKeys()
     }
 
@@ -518,6 +621,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      */
     private val keyOffsets = ArrayList<Pair<Float, Float>?>()
 
+    /** Each of [keyRects]' visible face and its name to the backlight, made once where the keys are laid out, not for every frame. */
+    private val keyFaces = ArrayList<RectF>()
+    private val lightIds = ArrayList<String>()
+
     /** The offset for a key in letter [row] (0 to 2) whose middle is [across] the board (0 to 1); null outside the letter rows. */
     private fun placeOffset(row: Int, across: Float): Pair<Float, Float>? {
         val letters = QWERTY_ROWS.getOrNull(row) ?: return null
@@ -529,6 +636,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private fun layoutKeys() {
         keyRects.clear()
         keyOffsets.clear()
+        keyFaces.clear()
+        lightIds.clear()
+        stale = true
         if (width == 0) return
         val units = rows.maxOf { it.units }
         // Split on a wide screen (an unfolded foldable, a tablet), as Gboard does: each half keeps a phone's key size
@@ -581,6 +691,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             }
             y += rowH
         }
+        for ((key, rect) in keyRects) { keyFaces += face(rect); lightIds += lightId(key) }
     }
 
     /** The visible key face inside a key's touch area. */
@@ -601,17 +712,36 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
     // --- drawing ----------------------------------------------------------------------------------------------------
 
-    override fun onDraw(canvas: Canvas) {
+    override fun onDraw(canvas: Canvas) = Perf.time("draw") { paint(canvas) }
+
+    private fun paint(canvas: Canvas) {
         fill.color = theme.background
         canvas.drawRect(0f, if (embedded) 0f else if (pluginRow) keysTop else keyboardTop, width.toFloat(), height.toFloat(), fill)
         if (showToolbar && !pluginRow) drawToolbar(canvas)
-        val now = android.os.SystemClock.uptimeMillis()
-        for ((key, rect) in keyRects) {
-            // The backlight tints this key's legend only: its label, hint and icon paints, not its face.
-            val lit = lightNow.let { if (it === wordLight && !wordLight.animating(now)) null else legendLight(key, face(rect), it, now) }
-            label.colorFilter = lit; iconPaint.colorFilter = lit; stroke.colorFilter = lit
-            drawKey(canvas, key, rect, pressed = touch?.let { it.key === key && it.panel == null && it.swipe == null } == true || ghostKey?.first === key)
+        // The listening panel stands over every key, and the mic's level moves it many times a second: the keys under
+        // it are not drawn at all.
+        if (dictation != DictationPhase.OFF) { drawDictation(canvas); return }
+        if (stale || labels.size != keyRects.size) {
+            labels = arrayOfNulls(keyRects.size); sizes = FloatArray(keyRects.size); rises = FloatArray(keyRects.size)
+            stale = false
         }
+        val now = android.os.SystemClock.uptimeMillis()
+        val light = lightNow
+        val lit = !(light === wordLight && !wordLight.animating(now))
+        val down = touch?.takeIf { it.panel == null && it.swipe == null }?.key
+        val ghost = ghostKey?.first
+        var look = 0
+        for (i in keyRects.indices) {
+            val key = keyRects[i].first
+            val f = keyFaces[i]
+            // The backlight tints this key's legend only: its label, hint and icon paints, not its face.
+            val code = if (lit) lightCode(i, key, f, light, now) else 0
+            look = look * 31 + code
+            val filter = if (code == 0) null else lightFilter(code)
+            label.colorFilter = filter; iconPaint.colorFilter = filter; stroke.colorFilter = filter
+            drawKey(canvas, i, key, f, pressed = key === down || key === ghost)
+        }
+        lightDrawn = look
         label.colorFilter = null; iconPaint.colorFilter = null; stroke.colorFilter = null
         // A docked or one-handed keyboard: a chevron on its empty side, which moves the keys there when tapped.
         dockFlip()?.let { (cx, side) ->
@@ -626,14 +756,13 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             canvas.drawPath(path, stroke)
         }
         if (adaptiveMap && page == Page.LETTERS) adaptive?.let { drawAdaptive(canvas, it) }
-        // The backlight keeps drawing while it moves (a frame each display refresh, slower for slow effects).
-        lightNow.let { if (it.animating(android.os.SystemClock.uptimeMillis())) postInvalidateDelayed(it.frameDelay()) }
+        // While the backlight moves, its clock asks for the frames that would look any different ([lightTick]).
+        if (light.animating(now)) lightSoon(light.frameDelay())
         touch?.swipe?.let { drawSwipe(canvas, it) }
         fadingSwipe?.let { path ->
             val f = 1f - (android.os.SystemClock.uptimeMillis() - fadingSince) / 280f
-            if (f <= 0f) fadingSwipe = null else { drawSwipe(canvas, path, f); postInvalidateOnAnimation() }
+            if (f <= 0f) fadingSwipe = null else { drawSwipe(canvas, path, f); postOnAnimation(nextFrame) }
         }
-        if (dictation != DictationPhase.OFF) { drawDictation(canvas); return }
         touch?.let { t ->
             when {
                 t.panel != null -> drawPanel(canvas, t.panel!!)
@@ -762,8 +891,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         canvas.drawPath(path, stroke)
     }
 
-    private fun drawKey(canvas: Canvas, key: Key, rect: RectF, pressed: Boolean) {
-        val f0 = face(rect)
+    private fun drawKey(canvas: Canvas, i: Int, key: Key, f0: RectF, pressed: Boolean) {
         var f = f0
         if (theme.mechanical) {
             f = drawKeycap(canvas, key, f0, pressed)
@@ -779,13 +907,11 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             // Gboard: ?123, space and enter are pills about three quarters of a key's height; every other key is only
             // its label, with a wash while pressed.
             val shrink = f.height() * 0.13f
-            val p = RectF(f.left, f.top + shrink, f.right, f.bottom - shrink)
+            val p = pillBox.apply { set(f.left, f.top + shrink, f.right, f.bottom - shrink) }
             val pill = p.height() / 2
             when (key.type) {
                 KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.SPACE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
-                // The emoji key is a pill of the same grey as ?123 and the space bar beside it.
-                KeyType.EMOJI -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.MODE -> if (key.pill) {
                     fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill)
                 } else if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
@@ -795,18 +921,23 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val cx = f.centerX(); val cy = f.centerY()
         when (key.type) {
             KeyType.CHAR -> if (key.text == HALF_SPACE) drawHalfSpace(canvas, cx, cy) else {
-                val text = shown(key)
-                val letter = page == Page.LETTERS && text.length == 1 && text[0].isLetter()
+                // The label as shift has it, the size it fits the key at and where its baseline sits are worked out
+                // once, and kept until the keys change ([stale]): measuring text is the dear part of drawing a key.
+                val text = labels[i] ?: shown(key).also { labels[i] = it }
                 label.typeface = regular
-                label.textSize = sp(if (letter) 23f else if (text.length > 2) 17f else 21f) * labelScale
                 label.color = theme.text
-                fitText(text, f.width() - dp(4f))
-                drawCentered(canvas, text, cx, cy)
-                if (showHints && key.hint != null) {
-                    label.textSize = sp(10.5f) * labelScale
-                    label.color = theme.hint
-                    canvas.drawText(key.hint, f.right - dp(if (condensed) 6f else 7f), f.top + dp(if (condensed) 11f else 13f), label)
+                if (sizes[i] == 0f) {
+                    val letter = page == Page.LETTERS && text.length == 1 && text[0].isLetter()
+                    label.textSize = sp(if (letter) 23f else if (text.length > 2) 17f else 21f) * labelScale
+                    fitText(text, f.width() - dp(4f))
+                    sizes[i] = label.textSize
+                    label.getFontMetrics(metrics)
+                    rises[i] = -(metrics.ascent + metrics.descent) / 2
+                } else {
+                    label.textSize = sizes[i]
                 }
+                canvas.drawText(text, cx, cy + rises[i], label)
+                drawHint(canvas, key, f)
             }
             KeyType.MODE -> {
                 label.typeface = medium
@@ -817,13 +948,23 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             }
             KeyType.SPACE -> drawSpaceLabel(canvas, f)
             KeyType.GLOBE -> drawGlobe(canvas, cx, cy)
-            KeyType.MIC -> drawMic(canvas, cx, cy, theme.text)
-            // In the keys' own colour, not the row's yellow: one of the board's keys.
+            // The full stop whose place it took is in its corner, as a letter's long-press character is.
+            KeyType.MIC -> { drawMic(canvas, cx, cy, theme.text); drawHint(canvas, key, f) }
+            // As the mic key is drawn: the icon alone, in the keys' own colour, with no pill behind it.
             KeyType.EMOJI -> drawPackIcon(canvas, RowIcon.EMOJI, cx, cy, dp(22f), theme.text)
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
         }
+    }
+
+    /** A key's long-press character, small in its corner, where Symbol hints are on. */
+    private fun drawHint(canvas: Canvas, key: Key, f: RectF) {
+        if (!showHints || key.hint == null) return
+        label.typeface = regular
+        label.textSize = sp(10.5f) * labelScale
+        label.color = theme.hint
+        canvas.drawText(key.hint, f.right - dp(if (condensed) 6f else 7f), f.top + dp(if (condensed) 11f else 13f), label)
     }
 
     /**
@@ -921,9 +1062,13 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     private fun drawCentered(canvas: Canvas, text: String, cx: Float, cy: Float) {
-        val m = label.fontMetrics
-        canvas.drawText(text, cx, cy - (m.ascent + m.descent) / 2, label)
+        label.getFontMetrics(metrics)
+        canvas.drawText(text, cx, cy - (metrics.ascent + metrics.descent) / 2, label)
     }
+
+    /** Kept for every measure and every pill, so a frame makes no new ones. */
+    private val metrics = Paint.FontMetrics()
+    private val pillBox = RectF()
 
     private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -974,7 +1119,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             canvas.drawArc(arcBox, 360f * t - 90f, 70f, false, stroke)
             stroke.color = theme.accent
             canvas.drawArc(arcBox, 360f * t + 90f, 70f, false, stroke)
-            if (animationsOn()) postInvalidateOnAnimation()
+            // Drawn again while it writes: for the arcs, and so the words change once it has been at it a while.
+            removeCallbacks(nextFrame)
+            if (animationsOn()) postOnAnimation(nextFrame) else postDelayed(nextFrame, 500)
         } else {
             fill.color = theme.accent
             fill.alpha = 60
@@ -987,7 +1134,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         label.typeface = medium
         label.textSize = sp(15f)
         label.color = theme.text
-        val words = if (dictation == DictationPhase.LISTENING) "Listening… tap to finish" else "Writing it down…"
+        val words = if (dictation == DictationPhase.LISTENING) "Listening… tap to finish" else if (writingLong()) "Still writing it down… tap to stop here" else "Writing it down…"
         drawCentered(canvas, words, cx, cy + r + dp(30f))
     }
 
@@ -1099,22 +1246,22 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * would not (Vietnamese's o has twenty-two), the lines are made as long as the board is wide, and if they still
      * do not fit their cells are made shorter, so the panel never comes down over the key the finger is on.
      */
-    private fun makePanel(key: Key, rect: RectF): Panel? {
+    private fun makePanel(key: Key, rect: RectF, home: Boolean = false): Panel? {
         if (key.alts.isEmpty()) return null
-        val choices = key.alts.map { display(it) }
+        val first = key.alts.map { display(it) }
         val f = face(rect)
         val cellW = f.width() + keyPadX * 2
         val pad = dp(6f)
         val bottom = f.top - dp(2f)
         val room = (bottom - pad * 2).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
         var cellH = f.height()
-        var cols = min(choices.size, 8)
-        var lines = ceil(choices.size / cols.toFloat()).toInt()
+        var cols = min(first.size, 8)
+        var lines = ceil(first.size / cols.toFloat()).toInt()
         if (lines * cellH > room) {
             val across = floor((width - dp(4f) - pad * 2) / cellW).toInt().coerceAtLeast(cols)
             val fit = floor(room / cellH).toInt().coerceAtLeast(1)
-            cols = min(choices.size, ceil(choices.size / fit.toFloat()).toInt().coerceIn(cols, across))
-            lines = ceil(choices.size / cols.toFloat()).toInt()
+            cols = min(first.size, ceil(first.size / fit.toFloat()).toInt().coerceIn(cols, across))
+            lines = ceil(first.size / cols.toFloat()).toInt()
             if (lines * cellH > room) cellH = (room / lines).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
         }
         val w = cols * cellW + pad * 2
@@ -1125,13 +1272,19 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         if (left < dp(2f)) left = dp(2f)
         val top = (bottom - h).coerceAtLeast(0f)
         val bounds = RectF(left, top, left + w, top + h)
+        // The mic key's panel ([home]): its first choice, the full stop, stands in the cell over the key itself even
+        // where the panel had to come in from the screen's edge, and starts chosen, so a hold and a lift types it
+        // (the finger chooses the cell it is under: on the phone that was the colon). Every other panel keeps the
+        // order it has always had.
+        val at = if (home) PanelOrder.home(f.centerX(), left + pad, cellW, cols, first.size) else 0
+        val choices = PanelOrder.withFirstAt(first, at)
         val cells = choices.indices.map { i ->
             // The first line is the one nearest the key, as Gboard fills its panels.
             val line = lines - 1 - i / cols
             val col = i % cols
             RectF(left + pad + col * cellW, top + pad + line * cellH, left + pad + (col + 1) * cellW, top + pad + (line + 1) * cellH)
         }
-        return Panel(choices, cells, bounds, cols)
+        return Panel(choices, cells, bounds, cols).also { it.selected = at }
     }
 
     private fun drawPanel(canvas: Canvas, panel: Panel) {
@@ -1163,7 +1316,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             // The list of layouts: the finger starts below it, on the bar, and what was chosen stays until it comes up into the list.
             if (y > panel.bounds.bottom) return
             val index = panel.cells.indexOfFirst { y < it.bottom }.let { if (it < 0) panel.cells.size - 1 else it }
-            if (index != panel.selected) { panel.selected = index; invalidate() }
+            if (index != panel.selected) { panel.selected = index; redraw() }
             return
         }
         val cols = panel.columns
@@ -1177,7 +1330,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val lineFromTop = floor((y - top) / cellH).toInt().coerceIn(0, lines - 1)
         val line = lines - 1 - lineFromTop
         val index = (line * cols + col).coerceAtMost(panel.choices.size - 1)
-        if (index != panel.selected) { panel.selected = index; invalidate() }
+        if (index != panel.selected) { panel.selected = index; redraw() }
     }
 
     // --- touch ------------------------------------------------------------------------------------------------------
@@ -1319,7 +1472,11 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
+    override fun onTouchEvent(event: MotionEvent): Boolean = Perf.time(
+        when (event.actionMasked) { MotionEvent.ACTION_MOVE -> "touch.move"; MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> "touch.up"; else -> "touch.down" },
+    ) { touched(event) }
+
+    private fun touched(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = event.actionIndex
@@ -1334,7 +1491,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     return true
                 }
                 if (dictation != DictationPhase.OFF) {
-                    if (dictation == DictationPhase.LISTENING && event.actionMasked == MotionEvent.ACTION_DOWN) listener.onMic()
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN && (dictation == DictationPhase.LISTENING || writingLong())) listener.onMic()
                     return true
                 }
                 if (event.actionMasked == MotionEvent.ACTION_DOWN && (x < areaLeft - dp(DOCK_SLACK_DP) || x > areaRight + dp(DOCK_SLACK_DP))) {
@@ -1373,10 +1530,15 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 timer.postDelayed(repeatDelete, 400)
             }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT, KeyType.GLOBE -> timer.postDelayed(longPress, longPressMs)
+            // The mic key holds the full stop it stands in for; not while it is listening, when a touch only ends the take.
+            KeyType.MIC -> if (dictation == DictationPhase.OFF) timer.postDelayed(longPress, longPressMs)
             KeyType.MODE -> if (t.key.label == "{ }") timer.postDelayed(longPress, longPressMs)
+            // The emoji key stands where the { } key did, and a hold on it opens Settings as a hold there always has.
+            KeyType.EMOJI -> timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
-        invalidate()
+        // A key down changes no key at rest: the frame is the same keys with one pressed.
+        redraw()
     }
 
     private fun move(t: Touch, x: Float, y: Float) {
@@ -1417,7 +1579,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 }
             }
             KeyType.CHAR -> {
-                t.swipe?.let { addSwipePoint(it, x, y); invalidate(); return }
+                t.swipe?.let { addSwipePoint(it, x, y); redraw(); return }
                 // Swipe typing: a slide of most of a key's width from a letter starts spelling a word.
                 if (swipeTyping && page == Page.LETTERS && t.panel == null && t.firstKey.text.length == 1 && t.firstKey.text[0].isLetter() &&
                     kotlin.math.hypot(x - t.downX, y - t.downY) > t.rect.width() * 0.9f
@@ -1425,7 +1587,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     t.swipe = arrayListOf(PointF(t.downX, t.downY), PointF(x, y))
                     swipeTimes.clear(); swipeTimes += downAt; swipeTimes += moveAt
                     timer.removeCallbacks(longPress)
-                    invalidate()
+                    redraw()
                     return
                 }
                 // A finger that clearly slides onto another character key types that one instead. A thumb rolls a
@@ -1438,7 +1600,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     t.key = key; t.rect = rect
                     timer.removeCallbacks(longPress)
                     timer.postDelayed(longPress, longPressMs)
-                    invalidate()
+                    redraw()
                 }
             }
             else -> Unit
@@ -1477,15 +1639,15 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             } else {
                 t.longPressed = true
                 val panel = makeLayoutPanel(t.rect)
-                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() } else listener.onShowPicker()
+                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); redraw() } else listener.onShowPicker()
             }
             KeyType.GLOBE -> {
                 t.longPressed = true
                 val panel = makeLayoutPanel(t.rect)
-                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); invalidate() }
+                if (panel != null) { t.panel = panel; performHapticFeedback(LONG_PRESS); redraw() }
             }
             // The { } key, where Gboard's comma was: long-press opens settings, as the comma's did.
-            KeyType.MODE -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
+            KeyType.MODE, KeyType.EMOJI -> { t.longPressed = true; performHapticFeedback(LONG_PRESS); listener.onOpenSettings() }
             KeyType.SHIFT -> {
                 t.longPressed = true
                 shift = ShiftState.LOCKED; autoShifted = false
@@ -1501,7 +1663,16 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 t.panel = panel
                 t.longPressed = true
                 performHapticFeedback(LONG_PRESS)
-                invalidate()
+                redraw()
+            }
+            // The mic key, where the full stop was: its long-press is the full stop's, the full stop first, so a hold
+            // and a lift types one and a slide reaches the rest.
+            KeyType.MIC -> {
+                val panel = makePanel(t.key, t.rect, home = true) ?: return
+                t.panel = panel
+                t.longPressed = true
+                performHapticFeedback(LONG_PRESS)
+                redraw()
             }
             else -> Unit
         }
@@ -1552,7 +1723,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         timer.removeCallbacks(longPress)
         timer.removeCallbacks(repeatDelete)
         touch = null
-        invalidate()
+        redraw()
     }
 
     private fun commit(raw: String) {
@@ -1585,6 +1756,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         /** A held backspace takes this many characters one by one, then whole words, one each [DELETE_WORD_MS]. */
         const val DELETE_CHARS = 15
         const val DELETE_WORD_MS = 200L
+        /** The steps a legend's light is drawn in, and how its code is told apart ([lightCode]). */
+        private const val LIGHT_LEVELS = 64
+        private const val LIGHT_LEVEL_MASK = 0x7F
+        private const val LIGHT_DIMS = 1 shl 25
+        /** The most filters kept at once ([lightFilter]). */
+        private const val LIGHT_FILTERS = 512
         /** A condensed key row, row to row (Normal is 60). */
         const val CONDENSED_ROW_DP = 46f
         /** Wider than this (dp), the keys split: an unfolded foldable's inner screen is 670 or more, a phone 430 or less. */
@@ -1602,6 +1779,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
         /** The least height a long-press panel's cell is squeezed to, so a choice can still be read and hit. */
         private const val PANEL_CELL_MIN_DP = 30f
+        /** How long a take's last words are written down before a tap may stop it there. */
+        const val WRITING_WAIT_MS = 3000L
         /** The strip Android draws its collapse and switch-keyboard buttons in, with gesture navigation (dp). */
         const val NAV_BUTTONS_DP = 48f
         /** What "More" adds under the keys (dp). */

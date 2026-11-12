@@ -125,7 +125,7 @@ object Net {
 
     /** Why [path] may not connect to [url] as things stand, or null when it may: [NetLedger.check] with this phone's settings. */
     fun refusal(prefs: KeyboardPrefs, path: NetPath, url: String): String? =
-        NetLedger.check(offline(prefs), path, url, if (path.ownServer) aiServer(prefs) else null)
+        NetLedger.check(offline(prefs), path, url, if (path.ownServer) aiServer(prefs) else null, if (path.personal) Connectors.addresses(prefs) else emptyList())
 
     /**
      * A connection to [url] for [path], not yet sent, or [Refused]. It follows no redirect by itself and says it is
@@ -236,6 +236,8 @@ object Net {
         return when (path) {
             NetPath.GHOSTWRITER -> on(Plugins.GHOSTWRITER) && ai
             NetPath.REWRITE -> on(Plugins.REWRITE) && ai
+            NetPath.ENHANCE -> on(Plugins.ENHANCE) && ai
+            NetPath.TIDY -> on(Plugins.DICTATION) && ai && prefs.dictationTidy
             NetPath.MY_VOICE, NetPath.TRAIN -> on(Plugins.MOCKINGBIRD) && ai
             NetPath.AI_TEST, NetPath.AI_MODELS -> ai
             NetPath.GITHUB_SEARCH -> on(Plugins.GHOSTWRITER) && ai && prefs.ghostwriterGithub && prefs.githubToken.isNotBlank()
@@ -247,12 +249,17 @@ object Net {
             NetPath.MODEL -> on(Plugins.DICTATION)
             NetPath.UPDATE_CHECK, NetPath.UPDATE_DOWNLOAD -> !Updater.isDebuggable(context)
             NetPath.REPORT -> prefs.shareReports
+            NetPath.CONNECTOR_TOOLS -> on(Plugins.CONNECTORS) && Connectors.all(prefs).isNotEmpty()
+            NetPath.CONNECTOR_CALL -> on(Plugins.CONNECTORS) && on(Plugins.GHOSTWRITER) && ai && Connectors.armed(prefs)
         }
     }
 
     /** The servers [path] can reach as Settings stand: the ledger's, or for the AI's paths the one provider chosen. */
-    private fun hostsNow(prefs: KeyboardPrefs, path: NetPath): List<String> =
-        if (path.ownServer) listOfNotNull(aiServer(prefs)?.let { NetLedger.hostOf(it) }) else path.hosts
+    private fun hostsNow(prefs: KeyboardPrefs, path: NetPath): List<String> = when {
+        path.ownServer -> listOfNotNull(aiServer(prefs)?.let { NetLedger.hostOf(it) })
+        path.personal -> Connectors.addresses(prefs).mapNotNull { NetLedger.hostOf(it) }.distinct()
+        else -> path.hosts
+    }
 
     /**
      * The ledger as Settings › Offline and the Market draw it: `offline`; `features` (id, title, stops, sections);
@@ -272,7 +279,12 @@ object Net {
         val plugins = LinkedHashMap<String, LinkedHashSet<String>>()
         for (p in NetPath.values()) for (id in p.plugins) {
             // The Market says whose server the AI's is: the one chosen, not a provider the plugin is tied to.
-            val hosts = if (p.ownServer) listOf(hostsNow(prefs, p).firstOrNull()?.let { "$it (the AI you chose)" } ?: "the AI server you choose") else p.hosts
+            val hosts = when {
+                p.ownServer -> listOf(hostsNow(prefs, p).firstOrNull()?.let { "$it (the AI you chose)" } ?: "the AI server you choose")
+                // The Market says whose servers a connector's are: the ones written down in its settings.
+                p.personal -> hostsNow(prefs, p).ifEmpty { listOf("the servers you add") }
+                else -> p.hosts
+            }
             plugins.getOrPut(id) { LinkedHashSet() }.addAll(hosts)
         }
         return mapOf(
@@ -282,7 +294,7 @@ object Net {
             "sections" to NetFeature.values().flatMap { it.sections }.distinct(),
             "paths" to NetPath.values().map { p ->
                 mapOf(
-                    "id" to p.id, "feature" to p.feature.id, "title" to p.title, "hosts" to hostsNow(prefs, p), "ownServer" to p.ownServer,
+                    "id" to p.id, "feature" to p.feature.id, "title" to p.title, "hosts" to hostsNow(prefs, p), "ownServer" to p.ownServer, "personal" to p.personal,
                     "trigger" to p.trigger, "sends" to p.sends, "armed" to runCatching { armed(context, prefs, p) }.getOrDefault(false),
                 )
             },

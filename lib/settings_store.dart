@@ -109,15 +109,22 @@ class SettingsStore extends ChangeNotifier {
     'github_token': '',
     'ghostwriter_typing': true,
     'ghostwriter_notes': true,
+    'ghostwriter_connectors': true,
     'adaptive_map': false,
     'arrow_keys': false,
     'slang': true,
+    'shortcuts_auto': true,
     'wide_layout': 'split',
     'one_handed': 'off',
     'delete_swipe': true,
     'bottom_space': 'auto',
     'typing_stats': true,
     'rewrite_language': 'Spanish',
+    'dictation_words': '',
+    'dictation_tidy': true,
+    'dictation_live': true,
+    'enhance_style': 'tight',
+    'enhance_notes': '',
     'preview_open': false,
   };
 
@@ -342,8 +349,11 @@ class SettingsStore extends ChangeNotifier {
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
-      final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
-      clipCount = clips?['count'] as int? ?? 0;
+      // Each of these asks by itself and passes over a keyboard that has no such thing (the iPhone's has no
+      // shortcuts or connectors): one of them unanswered must not end the load before the AI's settings are read.
+      await refreshClipboard();
+      await refreshShortcuts();
+      await refreshConnectors();
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -527,23 +537,158 @@ class SettingsStore extends ChangeNotifier {
   Future<void> askForTexts() => _call('askForTexts');
   Future<void> openAppInfo() => _call('openAppInfo');
 
-  /// The clipboard plugin's history: how many it holds, and clearing it.
-  int clipCount = 0;
-  Future<void> refreshClipboard() async {
-    try {
-      final r = await _channel.invokeMapMethod<String, Object>('clipboardState');
-      clipCount = r?['count'] as int? ?? 0;
+  /// The Connectors plugin (android Connectors.kt): each connector with its tools and their switches, how many tools
+  /// are on and how many Ghostwriter is given, and the last trouble a request had with them. Never a token: only
+  /// whether a connector has one.
+  Map<String, Object?> connectorsState = const {'connectors': [], 'on': 0, 'offered': 0, 'max': 8, 'maxOffered': 16};
+
+  List<Map<Object?, Object?>> get connectors => [for (final c in (connectorsState['connectors'] as List? ?? const [])) if (c is Map) c];
+
+  /// Why a connector was not added, in the keyboard's own words; and whether its server is being asked right now.
+  String? connectorMessage;
+  bool connectorBusy = false;
+
+  /// The add form as it is being written, and a count that gives it new fields once a connector is added.
+  String connectorName = '';
+  String connectorUrl = '';
+  String connectorToken = '';
+  int connectorForm = 0;
+
+  void _setConnectors(Object? raw) {
+    if (raw is! Map) return;
+    connectorsState = {for (final e in raw.entries) '${e.key}': e.value};
+    connectorMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshConnectors() => _connectorCall('connectorsState');
+  Future<void> refreshConnector(String id) => _connectorCall('connectorRefresh', args: {'id': id}, busy: true);
+  /// Removed, its server is no longer among the places the phone may reach: Offline's list is read again.
+  Future<void> removeConnector(String id) async {
+    await _connectorCall('connectorRemove', args: {'id': id});
+    await refreshNet();
+  }
+  Future<void> setConnectorTool(String id, String tool, bool on) => _connectorCall('connectorTool', args: {'id': id, 'tool': tool, 'on': on});
+
+  /// Adds the form's connector, and asks its server for its tools. Added, the form is emptied; refused, it stays as
+  /// written with the reason under it.
+  Future<void> addConnector() async {
+    final before = connectors.length;
+    await _connectorCall('connectorAdd', args: {'name': connectorName.trim(), 'url': connectorUrl.trim(), 'token': connectorToken.trim()}, busy: true);
+    // Added, its server is one more place the phone may reach: Offline's list is read again.
+    await refreshNet();
+    if (connectorMessage == null && connectors.length > before) {
+      connectorName = '';
+      connectorUrl = '';
+      connectorToken = '';
+      connectorForm++;
       notifyListeners();
+    }
+  }
+
+  Future<void> _connectorCall(String method, {Map<String, Object>? args, bool busy = false}) async {
+    if (busy) {
+      connectorBusy = true;
+      notifyListeners();
+    }
+    try {
+      _setConnectors(await _channel.invokeMethod<Object>(method, args));
+    } on MissingPluginException {
+      // No keyboard behind the channel (a test, a desktop build): nothing to ask.
+    } on PlatformException catch (e) {
+      connectorMessage = e.message;
+    } finally {
+      if (busy) connectorBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Text shortcuts (android Shortcuts.kt): each shortcut and what it stands for, as the keyboard keeps them.
+  List<({String shortcut, String text})> shortcuts = const [];
+
+  /// Why a shortcut was not kept (no letters, a space in it, nothing to stand for…), in the keyboard's own words.
+  String? shortcutMessage;
+
+  /// The two fields of Settings › Typing › Text shortcuts' form as they are being written, and a count that gives the
+  /// form new fields once a shortcut is kept.
+  String shortcutDraft = '';
+  String shortcutTextDraft = '';
+  int shortcutForm = 0;
+
+  void _setShortcuts(Object? raw) {
+    if (raw is! Map) return;
+    shortcuts = [
+      for (final e in (raw['shortcuts'] as List? ?? const []))
+        if (e is Map) (shortcut: '${e['shortcut']}', text: '${e['text']}'),
+    ];
+    shortcutMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshShortcuts() => _shortcutCall('shortcutsState');
+  Future<void> removeShortcut(String shortcut) => _shortcutCall('shortcutRemove', {'shortcut': shortcut});
+
+  /// Keeps the form's shortcut. Kept, the form is emptied; refused, it stays as written with the reason under it.
+  Future<void> addShortcut() async {
+    await _shortcutCall('shortcutAdd', {'shortcut': shortcutDraft.trim(), 'text': shortcutTextDraft.trim()});
+    if (shortcutMessage == null && shortcuts.any((s) => s.shortcut.toLowerCase() == shortcutDraft.trim().toLowerCase())) {
+      shortcutDraft = '';
+      shortcutTextDraft = '';
+      shortcutForm++;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _shortcutCall(String method, [Map<String, Object>? args]) async {
+    try {
+      _setShortcuts(await _channel.invokeMethod<Object>(method, args));
     } on MissingPluginException {
       return;
     }
   }
 
+  /// The clipboard plugin's history: how many clips it holds, the pinned ones among them (Android's ClipHistory.kt),
+  /// and clearing it. Clearing takes the copies and leaves what is pinned.
+  int clipCount = 0;
+  List<String> clipPins = const [];
+
+  /// Why a pin written in Settings was not kept (nothing written, too long, too many pinned), until the next change.
+  String? clipMessage;
+
+  void _setClipboard(Object? raw, {bool keepMessage = false}) {
+    if (raw is! Map) return;
+    clipCount = raw['count'] as int? ?? 0;
+    clipPins = [for (final p in (raw['pins'] as List? ?? const [])) '$p'];
+    if (!keepMessage) clipMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshClipboard() => _clipCall('clipboardState');
+
   Future<void> clearClipboard() async {
     try {
-      await _channel.invokeMethod<Object>('clearClipboard');
-      clipCount = 0;
-      notifyListeners();
+      final r = await _channel.invokeMethod<Object>('clearClipboard');
+      // Android answers with what is left (the pinned clips). The iPhone's keyboard has no pins and answers nothing.
+      if (r is Map) {
+        _setClipboard(r);
+      } else {
+        clipCount = clipPins.length;
+        notifyListeners();
+      }
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// Removes a pinned clip for good.
+  Future<void> removeClip(String text) => _clipCall('clipRemove', {'text': text});
+
+  /// Pins a clip written by hand in Settings.
+  Future<void> addClipPin(String text) => _clipCall('clipPinAdd', {'text': text});
+
+  Future<void> _clipCall(String method, [Map<String, Object>? args]) async {
+    try {
+      _setClipboard(await _channel.invokeMethod<Object>(method, args));
     } on MissingPluginException {
       return;
     }

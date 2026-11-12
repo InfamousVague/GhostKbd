@@ -41,6 +41,13 @@ class MainActivity : FlutterActivity() {
      * has been asked for before (after a refusal Android may not ask again, and the page then points at Android's own
      * page for the app). `android` and `target` are for the page's note about what Android 17 keeps back.
      */
+    /** The clipboard plugin's history as Settings › Row tools shows it: how many clips it holds, and the pinned ones. */
+    private fun clipboardState(): Map<String, Any?> {
+        val all = ClipHistory.all(this)
+        val pins = all.filter { it.pinned }
+        return mapOf("count" to all.size, "pinned" to pins.size, "pins" to pins.map { it.text }, "maxPins" to ClipList.MAX_PINS)
+    }
+
     private fun smsState(): Map<String, Any?> = mapOf(
         "on" to prefs.smsCodes,
         "allowed" to SmsCodes.allowed(this),
@@ -252,7 +259,32 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
-                    "clipboardState" -> result.success(mapOf("count" to ClipHistory.all(this@MainActivity).size))
+                    "connectorsState" -> result.success(Connectors.state(prefs))
+                    // Adding one asks its server for its tools at once: what it has is what there is to switch on.
+                    "connectorAdd" -> background(result) {
+                        val refused = Connectors.add(prefs, call.argument<String>("name") ?: "", call.argument<String>("url") ?: "", call.argument<String>("token") ?: "")
+                        if (refused == null) Connectors.all(prefs).lastOrNull()?.let { Connectors.refresh(prefs, it.id) }
+                        Connectors.state(prefs) + mapOf("error" to refused)
+                    }
+                    "connectorRefresh" -> background(result) { Connectors.refresh(prefs, call.argument<String>("id") ?: ""); Connectors.state(prefs) }
+                    "connectorRemove" -> { Connectors.remove(prefs, call.argument<String>("id") ?: ""); result.success(Connectors.state(prefs)) }
+                    "connectorTool" -> {
+                        Connectors.setTool(prefs, call.argument<String>("id") ?: "", call.argument<String>("tool") ?: "", call.argument<Boolean>("on") == true)
+                        result.success(Connectors.state(prefs))
+                    }
+                    "shortcutsState" -> result.success(Shortcuts.state(prefs))
+                    "shortcutAdd" -> {
+                        val error = Shortcuts.add(prefs, call.argument<String>("shortcut") ?: "", call.argument<String>("text") ?: "")
+                        result.success(Shortcuts.state(prefs) + mapOf("error" to error))
+                    }
+                    "shortcutRemove" -> { Shortcuts.remove(prefs, call.argument<String>("shortcut") ?: ""); result.success(Shortcuts.state(prefs)) }
+                    "clipboardState" -> result.success(clipboardState())
+                    "clipRemove" -> { ClipHistory.remove(this@MainActivity, call.argument<String>("text") ?: ""); result.success(clipboardState()) }
+                    "clipPinAdd" -> {
+                        val text = call.argument<String>("text") ?: ""
+                        val added = ClipHistory.add(this@MainActivity, text)
+                        result.success(clipboardState() + mapOf("error" to if (added) null else if (text.isBlank()) "Write something to pin first." else if (text.trim().length > ClipHistory.MAX_CHARS) "That is too long to pin: ${ClipHistory.MAX_CHARS} characters at most." else "${ClipList.MAX_PINS} clips are pinned already. Remove one first."))
+                    }
                     "smsCodesState" -> result.success(smsState())
                     "setSmsCodes" -> {
                         // On: the switch, Android's receiver, and Android's own question where it has not said yes.
@@ -268,7 +300,7 @@ class MainActivity : FlutterActivity() {
                         runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         result.success(null)
                     }
-                    "clearClipboard" -> { ClipHistory.clear(this@MainActivity); result.success(mapOf("count" to 0)) }
+                    "clearClipboard" -> { ClipHistory.clear(this@MainActivity); result.success(clipboardState()) }
                     "sampleSound" -> {
                         val pack = call.argument<String>("pack") ?: prefs.stockSound
                         SoundPacks.sample(this@MainActivity, pack, prefs.soundVolume.coerceAtLeast(0.15f))

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Keyboard for iPhone and iPad: Privacy Policy</title>
+<meta name="description" content="What Ghost Keyboard for iPhone and iPad stores, what leaves your device, and when.">
+<meta name="color-scheme" content="dark light">
+<link rel="canonical" href="https://ghostkbd.com/ios/privacy/">
+<style>
+:root { --bg: #0A0B0C; --ink: #E8EDED; --soft: #9AA3A3; --accent: #51FCFB; --line: #23262A; }
+@media (prefers-color-scheme: light) { :root { --bg: #F6F7F9; --ink: #1F1F1F; --soft: #5F6368; --accent: #007A79; --line: #DDE1E6; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+header a { color: var(--soft); text-decoration: none; font-size: 14px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 24px 0 8px; }
+h2 { font-size: 19px; margin: 32px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+p, li { color: var(--ink); }
+.meta { color: var(--soft); font-size: 14px; }
+a { color: var(--accent); }
+code { font: 14px ui-monospace, Menlo, monospace; background: var(--line); padding: 1px 5px; border-radius: 4px; }
+ul { padding-left: 20px; }
+li { margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+<header><a href="/">← Ghost Keyboard</a></header>
+<h1>Ghost Keyboard: Privacy Policy</h1>
+<p class="meta">For Ghost Keyboard on iPhone and iPad.</p>
+<p>Last updated: 11 November 2026</p>
+<p>Ghost Keyboard is a keyboard for iPhone and iPad, with a companion app for its settings. This policy says what the keyboard and the app store, what leaves your device, and when. The short version: we (the maker of Ghost Keyboard) receive nothing. There is no account, no analytics, no advertising and no server of ours.</p>
+<h2>What ordinary typing does</h2>
+<p>Nothing you type is sent anywhere by typing. Autocorrect, suggestions, swipe typing and Adaptive keys run on your device with dictionaries that ship inside the app.</p>
+<h2>What is stored on your device</h2>
+<ul>
+<li><strong>Your settings</strong>, including words you taught autocorrect.</li>
+<li><strong>Adaptive keys' touch model</strong>: for each letter, where your touches land relative to the key, and up to 400 points where a touch missed (the two letters involved and the position, never the text).</li>
+<li><strong>Clipboard history</strong>, if you use it: up to 25 pieces of text you chose to bring in by tapping Clipboard or Paste on the keyboard. The keyboard does not read the clipboard on its own.</li>
+<li><strong>Mockingbird's samples and style profile</strong>, if you turn Mockingbird on: up to 1,500 samples of text you typed with this keyboard (each up to 1,500 characters) and the written description of your style made from them. Never from secure fields, addresses, numbers or searches, and never while Incognito is on.</li>
+<li><strong>Your API key</strong> for the AI provider you choose, and a GitHub token if you add one, in the iOS Keychain.</li></ul>
+<p>All of it stays in storage shared only by the Ghost Keyboard app and its keyboard. You can delete the clipboard history, Mockingbird's samples and profile, and the touch model in Settings; deleting the app deletes everything.</p>
+<h2>Allow Full Access</h2>
+<p>iOS asks every keyboard whether it may have "Full Access". Without it, Ghost Keyboard types, corrects and themes, and cannot reach the network at all. With it, the keyboard can use the features below, share settings with its app, read the clipboard when you ask it to, and give haptic feedback. Full Access does not change what ordinary typing does: nothing is sent.</p>
+<h2>The AI features (optional, off until you agree)</h2>
+<p>Ghostwriter, Mockingbird and Rewrite work by sending text to an AI provider <strong>you</strong> choose, with <strong>your own</strong> API key. They are off until you add them, enter a key, and agree to a screen in the app that says what follows. You can withdraw that agreement in Settings at any time; the keyboard then refuses every AI feature.</p>
+<p>When you use one of these features, your device sends, directly to the provider you chose:</p>
+<ul>
+<li><strong>Ghostwriter</strong> (a request typed between <code>&lt;&lt;</code> and <code>&gt;&gt;</code>): the request; up to 1,500 characters before and 400 after it in the field you are typing in; the date; a label for the kind of field; your style profile if you have one; with Memory on, past samples of your own typing that relate to the request; with their switches on, up to six recent clipboard items from the keyboard's history and the messages of your own GitHub commits that match the request.</li>
+<li><strong>"In my voice" and Rewrite</strong>: the text you selected (or, with nothing selected, the text around the cursor), your style profile, and for "In my voice" related samples of your typing.</li>
+<li><strong>Training a style profile</strong>: recent samples of your typing (up to about 24,000 characters).</li>
+<li><strong>Test it / Load models</strong> in Settings: a fixed test message, or a request for the provider's list of models.</li></ul>
+<p>Every request carries your API key, as the provider requires. If you turn on web search, the provider performs the search on its side; your device contacts no other service.</p>
+<p>The providers you can choose are listed in the app. What a provider does with what it receives is governed by its own terms and privacy policy, and by your account with it. We are not a party to that exchange and cannot see it.</p>
+<p><strong>GitHub</strong> (optional): if you add a GitHub token and turn the switch on, your device asks GitHub's API for your account name, your organisations, and commits matching words from your request. The token goes only to GitHub.</p>
+<h2>What we collect</h2>
+<p>Nothing. The app contains no analytics or advertising code, we operate no server that it talks to, and we have no way to see your typing, your settings, your keys or your requests.</p>
+<h2>Children</h2>
+<p>Ghost Keyboard is not directed at children and collects no information from anyone.</p>
+<h2>Changes</h2>
+<p>If this policy changes, the new version will be posted at this address with a new date.</p>
+<h2>Contact</h2>
+<p>Questions, or a request about this policy: see <a href="/ios/support/">Support</a>, or open an issue at <a href="https://github.com/InfamousVague/GhostKbd/issues">github.com/InfamousVague/GhostKbd</a>.</p>
+</main>
+</body>
+</html>

@@ -161,19 +161,24 @@ const List<PluginManifest> catalogue = [
     name: 'Dictation',
     line: 'Speak instead of typing: whisper, running on your phone.',
     description:
-        'A microphone key beside the space bar. Tap it, talk, and tap again: whisper turns what you said into text on '
-        'your phone, with nothing sent anywhere. It starts with Ghost.md\'s English model, base.en; models that hear '
-        'about a hundred languages (tiny, base, small, large v3 turbo) can be downloaded in its settings.',
+        'A microphone key next to Enter, where the full stop was. Tap it, talk for as long as you like, and tap again: '
+        'whisper turns what you say into text on your phone as you say it: your words appear about a second behind '
+        'your voice, and each phrase is settled at its pause. Nothing you say is sent anywhere. Give it your own words (names, products, repositories) '
+        'and it is likelier to spell them your way. After a take the row offers Tidy, which has your AI take out the '
+        'ums and false starts: that sends the words, never the sound, and only when you tap it. Hold the key for the '
+        'full stop and its punctuation; two spaces type a full stop too. It starts with Ghost.md\'s English model, '
+        'base.en; models that hear about a hundred languages (tiny, base, small, large v3 turbo) can be downloaded in '
+        'its settings.',
     category: PluginCategory.voice,
     hue: 'rose',
     icon: Lucide.mic,
-    adds: ['A mic key beside the space bar', 'Speech to text on your phone, offline', 'Models for English or about a hundred languages'],
+    adds: ['A mic key next to Enter, in the full stop’s place', 'Speech to text on your phone, offline', 'Takes of any length, written down as you talk', 'Your own words, for names it would misspell', 'Tidy after a take, with your AI', 'Models for English or about a hundred languages'],
     permissions: [
       PluginPermission(Permission.microphone, 'To hear you while you hold the mic open, and only then.'),
       PluginPermission(Permission.download, 'Its speech model: 60 MB to start; bigger and multilingual models if you choose them.'),
-      PluginPermission(Permission.network, 'Only to download the model.'),
+      PluginPermission(Permission.network, 'To download the model. And, only when you tap Tidy after a take, to send those words to the AI you choose.'),
     ],
-    hosts: ['ghostkbd.com', 'huggingface.co', '*.huggingface.co', '*.hf.co'],
+    hosts: ['ghostkbd.com', 'huggingface.co', '*.huggingface.co', '*.hf.co', 'the AI provider you choose'],
     hasPage: true,
     ios: false,
     iosWhy: 'iOS doesn’t let a keyboard use the microphone. The dictation key under the keyboard still works.',
@@ -202,6 +207,23 @@ const List<PluginManifest> catalogue = [
     icon: LucideMore.pointer,
     adds: ['Glide typing on the letters', 'Several words in one stroke', 'Other guesses in the row above the keys'],
     hasPage: true,
+  ),
+  PluginManifest(
+    id: 'shortcuts',
+    name: 'Text shortcuts',
+    line: 'A few letters that type a phrase: omw becomes On my way!',
+    description:
+        'Give a phrase a shortcut: omw for On my way!, @@ for your e-mail address, ;sig for a sign-off of several lines. '
+        'Type the shortcut as a word of its own and the row above the keys offers what it stands for; press space and it '
+        'is put in for you. Backspace straight after puts your letters back, and the letters themselves are a tap away '
+        'in the row for when they are what you meant. A phrase can hold today’s date, the time or your newest clip '
+        '({date}, {time}, {clipboard}) and new lines (\\n). Kept on your phone only, and never used in a password field.',
+    category: PluginCategory.typing,
+    hue: 'mint',
+    icon: Lucide.replace,
+    adds: ['Shortcuts that expand at a space', 'What a shortcut stands for, in the row', 'Backspace to take one back', 'Today’s date, the time and your newest clip in a phrase'],
+    hasPage: true,
+    ios: false,
   ),
   PluginManifest(
     id: 'passwords',
@@ -263,18 +285,44 @@ const List<PluginManifest> catalogue = [
     iosLine: 'Esc, Tab, Ctrl, Alt and arrows for SSH apps.',
   ),
   PluginManifest(
+    id: 'agent',
+    name: 'Agent keys',
+    line: 'The keys a coding agent in a terminal is driven with, a tap each.',
+    description:
+        'For Claude Code, Gemini CLI, Codex and the like, run from your phone over SSH or in Termux. In the row above the '
+        'keys: Shift+Tab for the agent’s next mode, Esc twice to clear the prompt or go back, Ctrl+C to stop it, a new '
+        'line that does not send the prompt (Ctrl+J), / for its commands, @ to name a file, ! for a shell command and '
+        'Ctrl+R to search what you sent before. Each sends what means the same in more than one of those tools. They show '
+        'in terminal apps (Termux, Termius, JuiceSSH, ConnectBot…), before the terminal keys where those are on. In AI '
+        'chat apps the row has what a prompt wants instead: a new line where Enter would send, a code block, / and @. '
+        'A per-app profile turns them on or off for one app.',
+    category: PluginCategory.tools,
+    hue: 'purple',
+    icon: Lucide.bot,
+    adds: ['Shift+Tab, Esc twice, Ctrl+C and Ctrl+R in the row', 'A new line that does not send the prompt', '/ @ and ! a tap away', 'A new line and a code block in AI chat apps'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'clipboard',
     name: 'Clipboard history',
-    line: 'Your last 25 copies, a tap away.',
+    line: 'Your last 25 copies, a tap away, and the ones you pin.',
     description:
         'Everything you copy while Ghost Keyboard is your keyboard, newest first, in the row: tap to paste. Something '
-        'you just copied waits as the row\'s first chip. Kept on your phone only, and never what Android marks sensitive '
-        '(password managers\' copies) or anything copied while incognito.',
+        'you just copied waits as the row\'s first chip. Hold a clip to pin it: a pinned clip leads the list, is not one '
+        'of the 25 and stays when you clear the history, until you unpin it. Kept on your phone only, and never what '
+        'Android marks sensitive (password managers\' copies) or anything copied while incognito.',
     category: PluginCategory.tools,
     hue: 'amber',
     icon: Lucide.clipboardPaste,
-    adds: ['A Clipboard button in the row', 'The last copy as a chip'],
+    adds: ['A Clipboard button in the row', 'The last copy as a chip', 'Clips you pin, which stay'],
     hasPage: true,
+    // The iPhone's keyboard keeps a history with no pins (ios/GhostCore ClipHistory.swift).
+    iosLine: 'Your last 25 copies, a tap away.',
+    iosDescription:
+        'Everything you copy while Ghost Keyboard is your keyboard, newest first, in the row: tap to paste. Something '
+        'you just copied waits as the row\'s first chip. Kept on your phone only, and never anything copied while incognito.',
+    iosAdds: ['A Clipboard button in the row', 'The last copy as a chip'],
   ),
   PluginManifest(
     id: 'undo',
@@ -286,13 +334,21 @@ const List<PluginManifest> catalogue = [
         'answers, dictation) and takes each back the same way in every app, a word or an action at a time, with the '
         'cursor put back where it was. The list is kept in memory for that one field, never saved, and never kept in a '
         'password field. If the text changed some other way, or the keyboard cannot read the field, it forgets its list '
-        'rather than guess and asks the app to undo instead. An arrow dims when there is nothing for it to do.',
+        'rather than guess and asks the app to undo instead. An arrow is in the row only while there is something for it to do.',
     category: PluginCategory.tools,
     hue: 'blue',
     icon: Lucide.undo2,
     adds: ['Undo and Redo in the row', 'The same in every app', 'A word, a paste, a fix or an AI answer per step'],
     hasPage: true,
     iosLine: 'Take back what this keyboard typed, or put it back.',
+    // The iPhone's keyboard keeps both arrows in its row and dims the one with nothing to do.
+    iosDescription:
+        'Undo and Redo arrows in the row. The keyboard keeps its own list of what it did in the field you are in (words '
+        'typed, deletions, autocorrect’s fixes, swiped words, pastes, emoji, markdown, snippets, Ghostwriter and Rewrite '
+        'answers, dictation) and takes each back the same way in every app, a word or an action at a time, with the '
+        'cursor put back where it was. The list is kept in memory for that one field, never saved, and never kept in a '
+        'password field. If the text changed some other way, or the keyboard cannot read the field, it forgets its list '
+        'rather than guess and asks the app to undo instead. An arrow dims when there is nothing for it to do.',
   ),
   PluginManifest(
     id: 'incognito',
@@ -411,6 +467,54 @@ const List<PluginManifest> catalogue = [
         'It uses the AI provider you choose, with your own key, straight from your phone. Never while incognito.',
   ),
   PluginManifest(
+    id: 'connectors',
+    name: 'Connectors',
+    line: 'Let Ghostwriter ask the services you use: add an MCP server by its address.',
+    description:
+        'A connector is a Model Context Protocol (MCP) server: the way AI assistants are given your calendar, your issues '
+        'or your documents. Add one by its https address, with a token if the server wants one, and Ghost Keyboard reads '
+        'the tools it offers. Each tool has a switch: the ones the server marks read-only start on, every other starts off. '
+        'Then <<when am I free Thursday>> can read the real calendar: while Ghostwriter writes, your AI may call the tools '
+        'that are on, and writes from what they answer. Your phone asks the connector’s server itself; a connector’s token '
+        'goes to that server and nowhere else, and your AI key never goes to a connector. What the tools answer is sent to '
+        'your AI, as your notes and commits are. Servers that can only be signed in to through a browser cannot be added '
+        'yet. Up to 8 connectors; your AI is given up to 16 tools with a request and may call 6.',
+    category: PluginCategory.tools,
+    hue: 'cyan',
+    icon: Lucide.network,
+    adds: ['MCP servers, added by address', 'A switch for each of their tools', 'Ghostwriter answers from your own services', 'A token goes only to its own server'],
+    permissions: [
+      PluginPermission(Permission.network, 'To ask the servers you add for their tools, and to call the tools you switched on while Ghostwriter writes.'),
+    ],
+    hosts: ['the servers you add'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
+    id: 'enhance',
+    name: 'Prompt enhancer',
+    line: 'Turns what you typed for an AI into a clearer prompt, in place.',
+    description:
+        'An Enhance button in the row above the keys. Type what you want from an AI assistant or a coding agent, however '
+        'roughly, and tap it: the prompt is rewritten to say what you want first, keep every name, path, number and line '
+        'of code as you wrote it, and set out the context and limits you gave. It adds nothing you did not say, does not '
+        'answer the prompt, and leaves a short clear ask short. It works on the text you selected, or on the whole field '
+        'when nothing is selected, and the answer replaces it; undo puts yours back. In AI chat apps, and in terminals '
+        'with Agent keys on, the button leads the row. It uses the AI you choose (Claude, OpenAI, Gemini, Mistral, Groq, '
+        'DeepSeek, OpenRouter or your own server) with your own key, straight from your phone. Never in password fields '
+        'or while incognito.',
+    category: PluginCategory.tools,
+    hue: 'coral',
+    icon: LucideMore.wandSparkles,
+    adds: ['An Enhance button in the row', 'Your prompt, clearer, with every particular kept', 'A few words about you and your work, used where they help'],
+    permissions: [
+      PluginPermission(Permission.network, 'To send the prompt you chose to enhance to the AI you choose, with your own key.'),
+    ],
+    hosts: ['the AI provider you choose'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'adaptive',
     name: 'Adaptive keys',
     line: 'Nudges a key toward your slips, slowly, and hands it back as your aim comes right.',
@@ -469,7 +573,7 @@ const List<(String, String)> stockSounds = [
 /// rather than offered in the Market. Mockingbird and Ghostwriter stay Market plugins (Matt, 2026-11-09: "ghostwriter should be
 /// a plugin still", "mockingbird should be a plugin as well"), each with a page of its own once added.
 const Set<String> builtInPlugins = {
-  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito',
+  'autocorrect', 'swipe', 'adaptive', 'shortcuts', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito',
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.

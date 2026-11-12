@@ -1,17 +1,19 @@
 # Screenshots
 
-## Taken (2026-11-10)
+## Taken (2026-11-11, on 0.15.0)
 
 Raw screens from the Simulator at the sizes App Store Connect takes, with no transparency, no captions drawn on, and
-no third-party name in any of them. The typing surface is the app's own "Try the keyboard here" field.
+no third-party name in any of them. Every picture has the keyboard up in the app's own "Try the keyboard here" field
+(Matt, 2026-11-11: "make sure you're using the ghost keyboard app try the keyboard here box to display the keyboard"),
+the settings pages too.
 
 - `screenshots/iphone-6.9/` (1320 × 2868, iPhone 17 Pro Max, iOS 27): `01-letters`, `02-developer`, `03-longpress`,
   `04-swipe`, `05-retro`, `06-request`, `07-answer`, `08-look-and-feel`, `09-setup`. Made by
   `ios/RunnerUITests/StoreShots.swift` (`TEST_RUNNER_SHOTS=<folder> ios/tool/ui_test.sh <udid> testShots0_Setup
   testShots1_LettersAndPairs …`, with `STUB_ANSWER="…" python3 ios/tool/stub_server.py` serving the answer).
 - `screenshots/ipad-13/` (2064 × 2752, iPad Pro 13-inch, iOS 27): `01-letters` (the split layout), `02-developer`,
-  `03-retro`, `04-look-and-feel`, `05-setup`. Taken by hand (`xcrun simctl io <udid> screenshot`): the UI test places
-  its taps by the phone's layout.
+  `03-retro`, `04-look-and-feel`, `05-setup`. Taken by hand (`xcrun simctl io <udid> screenshot`, the field tapped
+  at 300, 1324 points): the UI test places its taps by the phone's layout.
 
 The iOS strip under the keyboard shows only its microphone: Ghost Keyboard was the Simulator's only keyboard, which
 is when iOS leaves the globe out. The plan below is what the set was drawn from; the captions are there if the

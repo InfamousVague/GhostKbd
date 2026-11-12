@@ -58,13 +58,14 @@ export const LANGUAGE_ROWS = [
 export const OFFLINE_ROWS = [
   ["Offline is off", "One switch for every internet connection Ghost Keyboard can make."],
   ["What it stops", "Each is a network connection Ghost Keyboard would otherwise make. What leaves your phone, below, lists them one by one: the servers, what starts each, and what is sent."],
-  ["AI", "Ghostwriter, Rewrite, In my voice, Mockingbird’s training, Test it and Load models."],
+  ["AI", "Ghostwriter, Rewrite, Enhance, Tidy after a dictation, In my voice, Mockingbird’s training, Test it and Load models."],
   ["GitHub commit search", "Ghostwriter’s search of your commits, and Check the token."],
   ["Ghost.md online", "Signing in, searching your notes online, and signing out."],
   ["GIFs", "GIPHY’s trending and search, and loading or sending a GIF."],
   ["Speech model downloads", "Fetching a dictation model. One already on the phone keeps working."],
   ["Updates", "The check for a new version, by itself and by hand, the Update chip above the keys, and the download."],
   ["Anonymous typing reports", "Sending a typing report. What is waiting stays on the phone until it can go, or until you turn sharing off."],
+  ["Connectors", "Reading a connector’s tools, and every tool Ghostwriter would have called while it writes."],
   ["Still works", "A privacy switch for Ghost Keyboard’s own connections. The app keeps Android’s internet permission. What you type goes to the app you type in, as with any keyboard; your password manager, Ghost.md and your browser keep their own connections. Android’s own backup is turned off for Ghost Keyboard, whatever this switch says: its settings, keys and what it has learned are not copied to your Google account or to a new phone."],
   ["Typing, autocorrect, suggestions, next words and swipe", "The word lists and the next-word starter tables, for every language that has them, are inside the app; what it learns of your typing is counted on this phone."],
   ["Adaptive keys, typing stats and per-app profiles", "Learned and kept on this phone."],
@@ -76,12 +77,14 @@ export const OFFLINE_ROWS = [
   ["An update already downloaded", "It can still be installed from About, after a restart too: nothing more is fetched."],
 ];
 
-/** Settings › Offline › What leaves your phone: the 17 connections, without their server lines. */
+/** Settings › Offline › What leaves your phone: the 21 connections, without their server lines. */
 export const LEAVES_ROWS = [
   ["Offline", "The one switch that stops them all."],
   ["AI"],
-  ["Ghostwriter", "When: Typing >> with “Fill as soon as I type >>” on, tapping Fill, or pressing enter on a <<request>>. Sent: Your key and model, the request, up to 1,500 characters before it and 400 after, the name of the app you are typing in, today’s date and your style profile. Each behind its own switch, and never more than: matching past messages (6,000 characters), Ghost.md notes (9,000, and their titles), commit messages (9,000, each with its date and repository) and recent clipboard (2,500). With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com."],
+  ["Ghostwriter", "When: Typing >> with “Fill as soon as I type >>” on, tapping Fill, or pressing enter on a <<request>>. Sent: Your key and model, the request, up to 1,500 characters before it and 400 after, the name of the app you are typing in, today’s date and your style profile. Each behind its own switch, and never more than: matching past messages (6,000 characters), Ghost.md notes (9,000, and their titles), commit messages (9,000, each with its date and repository) and recent clipboard (2,500). With “The web” on, the provider may search online itself. OpenRouter is also told this app’s name and its page, ghostkbd.com. With “My connectors” on: the names and descriptions of up to 16 of their tools that you switched on, and whatever those tools answer when the AI calls them (up to 6,000 characters an answer, 6 calls a request)."],
   ["Rewrite", "When: Tapping Rewrite, then one of its choices. Sent: Your key and model, and the selection or the whole field (up to 6,000 characters)."],
+  ["Prompt enhancer", "When: Tapping Enhance in the row above the keys. Sent: Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters). “As a prompt”, after a dictation, sends the words that take put in instead."],
+  ["Tidy after a dictation", "When: Tapping Tidy in the row above the keys, straight after a dictation. Speech itself is turned into text on the phone and is never sent. Sent: Your key and model, the words that take put in (up to 6,000 characters), and the words under “Your words” in Dictation’s settings."],
   ["In my voice", "When: Tapping In my voice with text selected. Sent: Your key and model, the selection, your style profile, and up to 3,000 characters of similar things you typed."],
   ["Mockingbird’s training", "When: Tapping Train now. By itself with “Retrain by itself” on: once 50 new samples are kept, no sooner than 20 hours after the last time. Sent: Your key and model, and your newest samples: up to 14,000 characters of texting and 10,000 of writing."],
   ["Test it", "When: Tapping Test it in Settings › Your AI. Sent: Your key and model, and the words “Are you there?”."],
@@ -103,4 +106,7 @@ export const LEAVES_ROWS = [
   ["Update download", "When: A newer version found with “Install updates by itself” on, or tapping Update now. Sent: The request alone."],
   ["Anonymous typing reports"],
   ["Typing report", "When: Only with “Share anonymous typing reports” on (it is off unless you turn it on): at most once a day as the keyboard hides, once 100 words have been typed; and tapping Send now. Sent: How often things happened (words typed and swiped, fixes made and undone, words put right, swipe readings changed); where taps land on their keys, as a grid of counts with no letters; up to 60 words you mistyped with the word you meant, and up to 12 swipe strokes with the word they were, only ever from the few thousand commonest words of the app’s own word lists; your layout, languages and key size; the app’s version and the two days it covers. No account, no device or install id, no time of day, and no word of your own or rarer than those. Settings shows the exact report before it goes."],
+  ["Connectors"],
+  ["A connector’s tools", "When: Adding a connector, and tapping Refresh on one, in Settings › Connectors. Sent: Your token for that server, where you gave it one, and the request for its list of tools. Nothing of what you type."],
+  ["A connector’s tool", "When: A Ghostwriter request with “My connectors” on, when the AI asks for one of the tools you switched on. At most 6 calls a request. Sent: Your token for that server, the tool’s name, and the arguments the AI chose for it, which it makes from your request and the text around it."],
 ];

@@ -47,7 +47,8 @@ object Ghostwriter {
     /** Starts filling [request]; [done] runs on the main thread unless the job is cancelled first. */
     fun start(context: Context, prefs: KeyboardPrefs, request: String, tag: String, before: String, after: String, app: String?, done: (Job) -> Unit): Job {
         val appContext = context.applicationContext
-        return launch(prefs, Job(ids.incrementAndGet(), request, tag), done) {
+        val job = Job(ids.incrementAndGet(), request, tag)
+        return launch(prefs, job, done) {
             val (system, user) = prompt(appContext, prefs, request, before, after, app)
             // Debug builds only: the key "debug-echo" answers without any AI, to try the typing and the row.
             if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
@@ -57,7 +58,32 @@ object Ghostwriter {
                     .filter { it.startsWith("--- ") }.joinToString("; ") { it.removePrefix("--- ") }
                 return@launch "Shipped the PostHog waitlist events today. (debug: notes ${notes.ifEmpty { "none" }})"
             }
-            AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            // The person's connectors (Connectors.kt): the tools of theirs that are switched on, for the AI to call
+            // where the request needs a fact one of them holds. With none on, the request is the one it always was.
+            val offered = if (Connectors.armed(prefs)) Connectors.offered(Connectors.all(prefs)) else emptyList()
+            if (offered.isEmpty()) return@launch AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            val tools = offered.map { AiTools.Tool(it.aiName, it.description, runCatching { org.json.JSONObject(it.tool.schema) }.getOrElse { org.json.JSONObject().put("type", "object") }) }
+            var calls = 0
+            try {
+                AiClient.complete(prefs, NetPath.GHOSTWRITER, system + Connectors.section(offered), user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb, tools = tools) { name, args ->
+                    // Stopped, or its field left: no tool is called for an answer nobody is waiting for, and the AI
+                    // is not asked again.
+                    if (job.cancelled) throw AiTools.Stopped()
+                    val tool = offered.firstOrNull { it.aiName == name } ?: return@complete "There is no tool called $name."
+                    if (++calls > Connectors.MAX_CALLS) return@complete "No more tools may be called for this request: answer with what you have."
+                    Connectors.call(prefs, tool, args)
+                }.also { Connectors.note(prefs, null) }
+            } catch (e: AiClient.AiError) {
+                // Offline, an AI that could not be reached or would not take the key, is said as it is. So is any
+                // failure after a tool has been called: asked again without the tools, the AI would answer as if
+                // what the tool did had not happened, and a Retry would have it done twice. Anything else may be
+                // the tools themselves (a provider or model that will not take them): the request is made again as
+                // it was before there were connectors, so they never cost anyone their answer, and once that has
+                // answered, Settings › Connectors says what happened.
+                if (job.cancelled || calls > 0 || Net.offline(prefs) || !AiTools.plainMayAnswer(e.message)) throw e
+                AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+                    .also { Connectors.note(prefs, "${java.time.LocalDate.now()}: your AI answered without the connectors. ${e.message}") }
+            }
         }
     }
 
@@ -72,6 +98,35 @@ object Ghostwriter {
     /** The Rewrite plugin: the [selected] text rewritten as [mode] asks, to replace the selection. */
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
         launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
+
+    /**
+     * The Prompt enhancer plugin: the [selected] text rewritten as a clearer prompt, to replace the selection.
+     * [spoken] where it is what a dictation just put in ("As a prompt").
+     */
+    fun enhance(context: Context, prefs: KeyboardPrefs, selected: String, app: String?, spoken: Boolean = false, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        return launch(prefs, Job(ids.incrementAndGet(), "Enhance", selected, selection = true, mode = if (spoken) Enhance.SAID else Enhance.MODE), done) {
+            // Debug builds only, as for a <<request>>: the key "debug-echo" answers without any AI, saying where the
+            // prompt was going, so the chip, the row and the undo can be tried on an emulator.
+            if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
+                Thread.sleep(800)
+                return@launch "Enhanced (debug, ${AppContext.kind(app).name.lowercase()}${if (spoken) ", spoken" else ""}): ${selected.trim().take(120)}"
+            }
+            Enhance.run(prefs, selected, app, spoken)
+        }
+    }
+
+    /** Dictation's Tidy: the words a take put in ([selected]), with what speech adds taken out, to replace them. */
+    fun tidy(context: Context, prefs: KeyboardPrefs, selected: String, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        return launch(prefs, Job(ids.incrementAndGet(), "Tidy", selected, selection = true, mode = DictationWords.TIDY), done) {
+            if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
+                Thread.sleep(800)
+                return@launch "Tidied (debug): ${selected.trim().take(120)}"
+            }
+            DictationWords.tidy(prefs, selected)
+        }
+    }
 
     /**
      * Runs [work] on the worker and hands [job] back on the main thread. With Offline on the work is never started
@@ -139,7 +194,8 @@ object Ghostwriter {
         val kind = AppContext.kind(app)
         val memory = if (prefs.ghostwriterMemory) Mockingbird.relevant(context, "$request ${before.takeLast(300)}", app) else emptyList()
         val clips = if (prefs.ghostwriterClipboard && Plugins.isOn(prefs, Plugins.CLIPBOARD)) {
-            fitting(ClipHistory.all(context).take(6).map { it.text.take(1200) }, 2500) { it.length }
+            // The newest copies, whatever is pinned: a pin from last month is not "recent".
+            fitting(ClipHistory.recent(context).take(6).map { it.text.take(1200) }, 2500) { it.length }
         } else emptyList()
         // The work behind "<<posthog updates we made>>": the person's commits that match, from GitHub.
         var githubNote: String? = null

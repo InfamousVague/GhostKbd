@@ -46,7 +46,7 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   InputConnection, the same in every app, with the cursor put back. Before anything is taken out it is read back and
   compared; if the text changed some other way the history is dropped and the app is asked to undo instead (its edit
   menu's Undo, then Ctrl+Z). In memory only, 100 steps and 200,000 characters at most, never in password fields. An
-  arrow dims when there is nothing for it to do. A history is one field's: where an app only starts its input again
+  arrow is in the row only while it has something to do (since 0.16.0; before, it dimmed). A history is one field's: where an app only starts its input again
   (which is also how another input on the same web page or Flutter screen arrives) it is kept only if its newest step
   is found in the text. A new word typed straight after the last step waits on no read of the field, and a field that
   answers reads slowly is not recorded. The history has no Android in it and is checked off the device:
@@ -70,6 +70,81 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **The website's look & feel key** (`site/js/chunks/look.js`, `site/js/kbd.js`): a whole keyboard on a small screen,
   stepping through the key heights and the foldable and one-handed layouts with the themes.
 - A chip tapped away in the row as Undo lit up could stay drawn (`PluginRow.setItems`).
+
+## 0.16.0
+
+- **Agent keys** (the `agent` plugin, `AgentKeys.kt`; Settings › Row tools, off until switched on;
+  [docs/agent-keys.md](docs/agent-keys.md)): the keys a coding agent in a terminal is driven with, as chips in the
+  row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
+  terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
+  per-app profile can turn them on or off for one app.
+- **Connectors** (the `connectors` plugin, `Connectors.kt`, `McpClient.kt`, `AiTools.kt`; a Market add-on;
+  [docs/connectors.md](docs/connectors.md)): add a Model Context Protocol server by its https address, with a token
+  where it wants one, and switch on the tools Ghostwriter may call while it writes (the ones a server marks read-only
+  start on, every other off). The phone asks the connector itself; a token goes only to its own server and the AI's
+  key never to a connector (`NetPath.CONNECTOR_TOOLS`, `CONNECTOR_CALL`: the servers the person added, and no other).
+  Signing in through a browser is not built yet.
+- **Dictation without a time limit** (`Dictation.kt`, `SpeechCuts.kt`, `DictationWords.kt`;
+  [docs/dictation.md](docs/dictation.md)): a take is cut into pieces at its pauses and written down while it goes on,
+  so the words arrive as you talk (it was 60 seconds, and words only after). Your own words for the speech model
+  (Settings › Dictation › Your words), and after a take a Tidy chip that has your AI take out the ums, with As a
+  prompt beside it where the Prompt enhancer is added. Speech never leaves the phone; Tidy sends the words, only when
+  tapped (`NetPath.TIDY`).
+- **Prompt enhancer** (the `enhance` plugin, `Enhance.kt`; a Market add-on; [docs/prompt-enhancer.md](docs/prompt-enhancer.md)):
+  an Enhance chip in the row. What was typed for an AI is rewritten as a clearer prompt, in place: what is wanted
+  first, every particular kept, nothing added. Tight or thorough, with a few words about you and your work if you
+  give them. Its own ledger path (`NetPath.ENHANCE`): the person's own AI provider and nowhere else.
+- **Text shortcuts** (the `shortcuts` plugin, `Shortcuts.kt`; Settings › Typing, off until switched on;
+  [docs/text-shortcuts.md](docs/text-shortcuts.md)): a few letters that stand for a phrase. `omw` and a space types
+  "On my way!"; the row offers the phrase first; backspace straight after puts the letters back. A phrase can hold
+  `{date}`, `{time}`, `{clipboard}` and `\n`. Kept on the phone, never used in a password field.
+- **Clipboard pins** (`ClipList.kt`, `ClipHistory.kt`; [docs/clipboard-pins.md](docs/clipboard-pins.md)): hold a clip
+  in the clipboard's list to pin it. A pinned clip leads the list, is not one of the 25 copies, and stays when the
+  history is cleared; Settings › Row tools lists the pins, removes them and takes one written by hand.
+- **The row** (`PluginRow.WordRoom`, `TapGuard`, `Quill`): about three suggested words, in the row's middle, with
+  room kept at its end for the first of the tools; Undo and Redo are there only while each has something to do, and
+  the row keeps its shape as they come and go (a tap on an arrow leaves the row as it was, and what takes the place
+  of an arrow that its own tap took away takes no tap for 0.6 seconds); and while the AI writes or rewrites, a
+  feather quill scribbles in the row's busy chip.
+- **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
+  the mic key stands where the full stop was (`Layouts.withMic`).
+
+## 0.16.1
+
+- **The row**: the clipboard, emoji, and undo and redo are at its start, before the suggested words, on a phone too
+  (`PluginRow.pins`, `DevKeyboardService.everyday`): in 0.16.0 they followed the words there, with one of them in
+  view at the row's end. The clipboard and emoji are first and never move; the arrows come and go after them. The words share what is left, about three of them, two where three would be too narrow to
+  read (`WordRoom.shown`); GIFs lead the tools that follow the words, so on a phone the GIF button is the one in
+  view at the row's end.
+
+## 0.16.2
+
+- **The emoji key and the { } button changed places** (`Layouts.withEmoji`, `KeyType.EMOJI`,
+  `DevKeyboardService.everyday`): emoji is a key between ?123 and the space bar, where the { } key was, with no
+  pill behind its icon; the { } key is a button in the row above the keys, second after the clipboard, lit while
+  the code keys are showing. A hold on either opens Settings, as a hold on the { } key did.
+- **Dictation shows its words as you speak** (`LiveWords.kt`, `Dictation.kt`, `whisper_jni.cpp`'s `nativeDraft`;
+  Settings › Dictation › Show words as I speak, on unless switched off; [docs/dictation.md](docs/dictation.md)): the
+  phrase being spoken is written down again about once a second and shown in the field as a draft, a second or so
+  behind the voice, and the phrase as written down at its pause takes the draft's place. Until now the words came
+  only at a pause of 0.6 seconds, which for a message spoken straight through meant all at the end. A phrase is one
+  undo step however often its draft was revised (`FieldEditor.replaceBefore`). Debug builds compile whisper for
+  speed too, and can be given a recording in the microphone's place (`DebugSpeech.kt`).
+- **A key press no longer waits on the app** (`FieldMirror.kt`, `MirrorConnection.kt`, `DevKeyboardService.tick`;
+  [docs/performance.md](docs/performance.md)): asking the app for its text is the one slow thing a keyboard does,
+  and every letter asked two or three times and every space four or more, the keyboard standing still each time
+  until the app's own main thread answered. Now the keyboard keeps its own copy of the text around the cursor, does
+  its own typing to it, and answers from it; the copy is checked against the app after every key, is dropped at any
+  cursor move or edit that was not the keys' own, and a field whose app rewrites what is typed is asked as before.
+  The suggestion row's one reading is made off the main thread. On the emulator, typing 75 keys in another app's
+  field, the keyboard's main thread spent 4.4 s of 17 on a key's follow-up work before and 0.3 s after. A held
+  backspace keeps nearer its 50 ms step for the same reason.
+- **Less drawing** (`KeyboardView`): a key's label is measured once, not for every frame of the backlight's fade
+  (sixty a second for 1.2 s after each key); a frame that would look the same as the last is not drawn; a fading
+  key shares its colour filters where it made a new one every frame; and the keys under the listening panel are
+  not drawn at all. A frame takes the main thread under half the time it did.
+- **The keyboard times itself** (`Perf.kt`, debug builds only, while `files/debug-perf` is there): each piece of a
+  key press's work, how often and how long, written to the log as the keys hide.
 
 ## Releases and auto-update
 
@@ -118,12 +193,23 @@ about how well any of them is corrected.
 ## Next-word prediction
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
-words; a tap types one with a space and offers the next three. The tools scroll in after the words, the first one
-peeking in at the row's end: undo and redo, the clipboard and GIFs first, and on a row wide enough for them
-and three words (a foldable's inner screen, a tablet) pinned at its start instead. Emoji is a key of its own, grey,
-between the { } key and the space bar (it is in the row instead on a board that has both the globe and the mic key,
-where the bar has no width left to give). There is no settings cog in the
-row: hold the { } key or the comma. While a word is typed, its completions are ranked by
+words; a tap types one with a space and offers the next three. The clipboard, emoji, and undo and redo (while each has
+something to do) stand at the row's start, before the words, on every row but one made very narrow for one
+hand (since 0.16.1; in 0.16.0 only on a wide row). Whenever the row shows words (next words, a word's completions, a
+swipe's other readings) it shows about three, sharing what those tools leave (in the row's middle where the row is
+wide enough), two where three would be too narrow to read; the other tools follow the words, GIFs first, with the
+first of them whole in view at the row's end (`PluginRow.WordRoom`). Whether the tools are pinned is asked as if
+both arrows were there, so the row keeps its shape as they come and go. A tap on an arrow keeps the row as it was,
+words and all, so the arrow stays under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
+takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
+on") takes its room out of theirs. Emoji is a key on the board, where the { } key was, drawn as the mic key is,
+its icon alone; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
+showing (since 0.16.2: `Layouts.withEmoji`, `DevKeyboardService.everyday`). With emoji off the { } key keeps its
+place on the board, and with the row hidden both are keys there. With dictation on,
+the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
+punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop
+keeps its key. There is no settings cog in the
+row: hold the emoji key, the { } button or the comma. While a word is typed, its completions are ranked by
 the word before too. **Settings › Typing › Autocorrect › Next word** turns it off, turns its learning off, and
 forgets what it learned. On for everyone who updates. [docs/next-word.md](docs/next-word.md) has the model, the
 formats, the sources and the numbers.
@@ -241,7 +327,7 @@ and its certificate pinned there — **back that folder up**: without it no inst
 
 ## Build and run
 
-Needs Flutter 3.41+ (Dart 3.11) and the Android SDK — the same toolchain as Ghost.md.
+Needs Flutter 3.50 (3.47 still builds it) and the Android SDK.
 
 ```sh
 flutter pub get
@@ -249,3 +335,30 @@ flutter run            # or: flutter build apk
 ```
 
 Then open **Dev Keyboard**, tap **Turn on**, enable it in the system list, come back and tap **Switch**.
+
+The build service names its Flutter: `flutter-version` in `.github/workflows/release.yml` and `check.yml`, 3.50.0
+since 2026-11-11. A release is built by the Flutter the app was tried on, not by whichever came out that morning.
+Android's Gradle plugin (9.3.1), Kotlin (2.4.20) and Gradle (9.5.0) are the versions that Flutter makes a new
+project with (`android/settings.gradle.kts`, `android/gradle/wrapper/gradle-wrapper.properties`).
+
+### Moving to a new Flutter
+
+A new Flutter refuses Android build versions it has stopped supporting, from the day it comes out: 3.50.0 refused
+the Gradle plugin 9.1.0 and Kotlin 2.4.0 that 3.47 had made this project with, without a warning from 3.47 first.
+
+1. Read what the new one asks for, at its tag in `github.com/flutter/flutter`. In
+   `packages/flutter_tools/gradle/src/main/kotlin/DependencyVersionChecker.kt`, below an `error…Version` it refuses
+   to build and below a `warn…Version` it says it soon will. In
+   `packages/flutter_tools/lib/src/android/gradle_utils.dart`, the `template…Version`s are what it makes a new
+   project with, and `compileSdkVersion`, `targetSdkVersion` and `ndkVersion` are its Android defaults. Then the
+   release's list at `docs.flutter.dev/release/breaking-changes`.
+2. Raise the three versions to the template's, together. `targetSdk` stays written out in
+   `android/app/build.gradle.kts`: read [docs/sms-codes.md](docs/sms-codes.md) before raising it.
+3. Push that to a branch of its own, with the new `flutter-version` in both workflows, and run Check on it:
+   `gh workflow run check.yml --ref <branch>`. Check makes a debug build only. A release-mode build
+   (`flutter build apk --release --target-platform android-arm64`) is what tries R8 and the release's packaging.
+4. Run the app that build made on a device before the branch goes to `main`. A machine whose own Flutter is older
+   can still do that: have the branch's Check keep its APK (`actions/upload-artifact`), fetch it with
+   `gh run download`, and sign it again with the machine's debug key
+   (`apksigner sign --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey`), so that it installs over a
+   local debug build and keeps its data.

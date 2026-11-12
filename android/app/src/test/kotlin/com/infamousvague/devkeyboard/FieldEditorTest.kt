@@ -603,6 +603,81 @@ class FieldEditorTest {
         assertEquals("see https://example.com/a?b=1\nline two|", r.show)
     }
 
+    @Test fun dictatedWordsRevisedAsTheyAreSpokenAreOneStep() {
+        // LiveWords: the piece being spoken is put in as a draft, and each new draft takes the last one's place.
+        val r = Rig("Thanks for the update.")
+        r.editor.insert(" And so my fellow", Kind.DICTATION); r.pump()
+        assertTrue(r.editor.replaceBefore(" And so my fellow", " And so my fellow Americans ask what you are", Kind.DICTATION)); r.pump()
+        assertTrue(r.editor.replaceBefore(" And so my fellow Americans ask what you are", " And so my fellow Americans ask what your country", Kind.DICTATION)); r.pump()
+        // The piece as written down at its pause.
+        assertTrue(r.editor.replaceBefore(" And so my fellow Americans ask what your country", " And so, my fellow Americans, ask what your country can do.", Kind.DICTATION)); r.pump()
+        assertEquals("Thanks for the update. And so, my fellow Americans, ask what your country can do.|", r.show)
+        // However often it was revised, it is one step: one undo takes the whole piece back, and one redo gives it again.
+        assertEquals(1, r.steps)
+        r.undo()
+        assertEquals("Thanks for the update.|", r.show)
+        r.redo()
+        assertEquals("Thanks for the update. And so, my fellow Americans, ask what your country can do.|", r.show)
+        assertTrue(r.errors.isEmpty())
+    }
+
+    @Test fun aRevisedDraftTypesOnlyWhatChanged() {
+        val r = Rig()
+        r.editor.insert("ask what you are", Kind.DICTATION); r.pump()
+        r.field.calls.clear()
+        // "ask what you" stays in the field as it is: four letters go, and nine are typed.
+        assertTrue(r.editor.replaceBefore("ask what you are", "ask what your country", Kind.DICTATION)); r.pump()
+        assertEquals("ask what your country|", r.show)
+        assertTrue(r.field.calls.toString(), r.field.calls.any { it.startsWith("delete(4") })
+        assertTrue(r.field.calls.toString(), r.field.calls.contains("commit(9)"))
+        // More of the same sentence: nothing is deleted at all.
+        r.field.calls.clear()
+        assertTrue(r.editor.replaceBefore("ask what your country", "ask what your country can do", Kind.DICTATION)); r.pump()
+        assertTrue(r.field.calls.toString(), r.field.calls.none { it.startsWith("delete") })
+        assertTrue(r.field.calls.contains("commit(7)"))
+        assertEquals(1, r.steps)
+        // The cursor is where the editor takes it to be: a word typed next joins on without a read going wrong.
+        r.keys(" now")
+        assertEquals("ask what your country can do now|", r.show)
+        assertTrue(r.errors.isEmpty())
+    }
+
+    @Test fun aDraftThatTurnedOutToBeNothingLeavesNoStep() {
+        val r = Rig("Hello.")
+        r.editor.insert(" Thank you", Kind.DICTATION); r.pump()
+        assertEquals(1, r.steps)
+        // Written down at its pause, the piece had no words in it: the draft is taken back, and there is nothing to undo.
+        assertTrue(r.editor.replaceBefore(" Thank you", "", Kind.DICTATION)); r.pump()
+        assertEquals("Hello.|", r.show)
+        assertEquals(0, r.steps)
+        r.keys(" Bye")
+        assertEquals("Hello. Bye|", r.show)
+        assertTrue(r.errors.isEmpty())
+    }
+
+    @Test fun aDraftTheCursorLeftIsNotRevised() {
+        val r = Rig()
+        r.editor.insert("And so my fellow", Kind.DICTATION); r.pump()
+        // A tap earlier in the text: the draft is no longer just before the cursor.
+        r.field.selStart = 3; r.field.selEnd = 3
+        r.editor.onSelection(3, 3)
+        assertFalse(r.editor.replaceBefore("And so my fellow", "And so my fellow Americans", Kind.DICTATION))
+        assertEquals("And so my fellow", r.field.text)
+    }
+
+    @Test fun twoPiecesOfOneTakeAreTwoSteps() {
+        val r = Rig()
+        r.editor.insert("First piece", Kind.DICTATION); r.pump()
+        assertTrue(r.editor.replaceBefore("First piece", "First piece.", Kind.DICTATION)); r.pump()
+        // The next piece is put in afresh: it does not join the one before.
+        r.editor.insert(" Second", Kind.DICTATION); r.pump()
+        assertTrue(r.editor.replaceBefore(" Second", " Second piece.", Kind.DICTATION)); r.pump()
+        assertEquals("First piece. Second piece.|", r.show)
+        assertEquals(2, r.steps)
+        r.undo()
+        assertEquals("First piece.|", r.show)
+    }
+
     // --- Enter --------------------------------------------------------------------------------------------------------
 
     @Test fun enterIsItsOwnStepAndSeesTheBulletTheAppAdds() {

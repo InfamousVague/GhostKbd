@@ -7,7 +7,8 @@ package com.infamousvague.devkeyboard
  *
  * - `autocorrect` (Autocorrect.kt): fixes a misspelled word as it is finished. On by default, with swipe, clipboard, undo and emoji.
  * - `dictation` (Dictation.kt, Whisper.kt, WhisperModel.kt): whisper.cpp speech to text on the phone, from a mic
- *   key beside the space bar. Adding it downloads its model and asks for the microphone.
+ *   key next to enter, where the full stop was (Layouts.withMic). Adding it downloads its model and asks for the
+ *   microphone.
  * - `themes` (KeyboardTheme.kt): preset colour themes, and one of the person's own.
  * - `swipe` (Autocorrect.swipe, KeyboardView): glide across the letters to spell a word.
  * - `passwords` (DevKeyboardService's inline suggestions): the autofill service's logins in the plugin row.
@@ -30,6 +31,15 @@ package com.infamousvague.devkeyboard
  *   shortened, made formal or casual, or translated, in place.
  * - `adaptive` (AdaptiveKeys.kt): learns where you aim at each letter and the neighbours you hit by mistake, and moves
  *   the keys' touch areas to suit; a heatmap of the mistakes and the moved aims can be drawn over the keys.
+ * - `connectors` (Connectors.kt, McpClient.kt, AiTools.kt): Model Context Protocol servers the person adds by address;
+ *   Ghostwriter may call the tools of theirs that are switched on while it writes.
+ * - `enhance` (Enhance.kt, AiClient.kt): an Enhance chip in the row: the selection, or the whole field, rewritten as a
+ *   clearer prompt for an AI, in place.
+ * - `shortcuts` (Shortcuts.kt): a few letters that stand for a phrase (omw: On my way!), offered in the row and put
+ *   in at a space; kept on the phone.
+ * - `agent` (AgentKeys.kt): the keys a coding agent in a terminal is driven with (Shift+Tab, Esc twice, Ctrl+C, a new
+ *   line that does not send, / @ ! and Ctrl+R) as chips in the row, in terminal apps; in AI chat apps a new line, a
+ *   code block, / and @.
  */
 object Plugins {
     const val AUTOCORRECT = "autocorrect"
@@ -49,10 +59,26 @@ object Plugins {
     const val GHOSTWRITER = "ghostwriter"
     const val ADAPTIVE = "adaptive"
     const val REWRITE = "rewrite"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE)
+    const val AGENT = "agent"
+    const val SHORTCUTS = "shortcuts"
+    const val ENHANCE = "enhance"
+    const val CONNECTORS = "connectors"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS, ENHANCE, CONNECTORS)
 
-    fun enabled(prefs: KeyboardPrefs): Set<String> =
-        prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()
+    /**
+     * The plugins that are added. The setting is one string, and it is asked about dozens of times for every key
+     * typed (each tool in the row asks whether its plugin is on), so the set made from it is kept for as long as the
+     * string is the same.
+     */
+    fun enabled(prefs: KeyboardPrefs): Set<String> {
+        val raw = prefs.plugins
+        last?.let { (was, set) -> if (was == raw) return set }
+        val set = raw.split(',').map { it.trim() }.filter { it in ALL }.toSet()
+        last = raw to set
+        return set
+    }
+
+    @Volatile private var last: Pair<String, Set<String>>? = null
 
     fun isOn(prefs: KeyboardPrefs, id: String) = id in enabled(prefs)
 

@@ -1,7 +1,7 @@
 // Ghost Keyboard, drawn in HTML: the real keyboard's layout, colours, popups and backlight, as one component.
 //
 // Read from the Android sources, and kept in their terms so the two can be compared side by side:
-//   Layouts.kt        the rows of each page, the { } key beside space and the emoji key after it, long-press
+//   Layouts.kt        the rows of each page, the { } key beside space, the mic key in the full stop's place, long-press
 //                     choices, hints
 //   KeyboardView.kt   metrics (60dp rows, 3dp/6dp key padding, 6dp radius), the key preview, the long-press panel,
 //                     the pill keys, the Retro keycaps, shift, the space-bar cursor, the swipe trail, the heatmap,
@@ -49,7 +49,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 function K(type, o = {}) {
   const text = o.text ?? '';
   const key = { type, text, label: o.label ?? text, width: o.width ?? 1, hint: o.hint ?? null, alts: o.alts ?? [], page: o.page ?? null, pill: o.pill ?? true };
-  key.functional = type === 'shift' || type === 'delete' || type === 'mode' || type === 'emoji';
+  key.functional = type === 'shift' || type === 'delete' || type === 'mode';
   return key;
 }
 const row = (keys, inset = 0) => ({ keys, inset, units: keys.reduce((n, k) => n + k.width, 0) + inset * 2 });
@@ -82,7 +82,6 @@ const bottomRow = (modeLabel, modePage, second) => row([
   K('enter', { width: 1.5 }),
 ]);
 const numberRow = () => row(DIGITS.map(sym));
-const LEAST_BAR = 3;        // the least the space bar is left with, in key widths, whatever stands beside it
 
 export const Layouts = {
   letters(withNumbers = false) {
@@ -135,23 +134,20 @@ export const Layouts = {
     ];
   },
   /**
-   * The emoji plugin's key (Layouts.withEmoji; the app has had it since 0.12.1): straight after the { } key on the
-   * letters page, a key's width taken from the space bar. Other pages have no { } key and come back as they were;
-   * so do the letters where the bar would be left under LEAST_BAR key widths, the mic key counted.
+   * The dictation plugin's mic key (Layouts.withMic; the app has it so since 0.16.0): on the letters page it stands
+   * where the full stop was, next to enter, and the space bar keeps its whole width. The full stop leads its
+   * long-press, with the full stop's own punctuation after it, and shows in its corner. Other pages have no { } key
+   * and come back as they were, full stop and all. The emoji key that stood after { } from 0.12.1 to 0.15.0 is gone:
+   * emoji is a button in the row above the keys again.
    */
-  withEmoji(rows, mic = false) {
-    const last = rows[rows.length - 1];
-    const at = last.keys.findIndex((k) => k.type === 'mode' && k.page === 'dev');
-    const space = last.keys.find((k) => k.type === 'space');
-    if (at < 0 || !space || space.width - 1 - (mic ? 1 : 0) < LEAST_BAR) return rows;
-    const keys = last.keys.flatMap((k, i) => [k.type === 'space' ? { ...k, width: k.width - 1 } : k, ...(i === at ? [K('emoji')] : [])]);
-    return [...rows.slice(0, -1), row(keys, last.inset)];
-  },
-  /** The dictation plugin's mic key, beside the space bar, which gives it a key's width. */
   withMic(rows) {
     const last = rows[rows.length - 1];
-    const keys = last.keys.flatMap((k) => (k.type === 'space' ? [K('mic'), { ...k, width: k.width - 1 }] : [k]));
-    return [...rows.slice(0, -1), row(keys, last.inset)];
+    if (!last.keys.some((k) => k.type === 'mode' && k.page === 'dev')) return rows;
+    const at = last.keys.findIndex((k) => k.type === 'enter') - 1;
+    const stop = last.keys[at];
+    if (!stop || stop.type !== 'char' || !stop.text) return rows;
+    const mic = K('mic', { hint: stop.text, alts: [...new Set([stop.text, ...stop.alts])] });
+    return [...rows.slice(0, -1), row(last.keys.map((k, i) => (i === at ? mic : k)), last.inset)];
   },
   page(page, withNumbers = false) {
     return page === 'symbols' ? Layouts.symbols() : page === 'more' ? Layouts.more() : page === 'dev' ? Layouts.dev() : Layouts.letters(withNumbers);
@@ -643,7 +639,7 @@ const isLetter = (s) => s.length === 1 && s.toLowerCase() !== s.toUpperCase();
 const lightId = (key) => `${key.type.toUpperCase()}|${key.text}|${key.label}`;
 const typeOfChar = (c) => (c === ' ' ? 'space' : c === '\n' ? 'enter' : c === '\b' ? 'delete' : 'char');
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-const ARIA = { space: 'space', delete: 'backspace', enter: 'enter', shift: 'shift', mic: 'dictate', emoji: 'emoji' };
+const ARIA = { space: 'space', delete: 'backspace', enter: 'enter', shift: 'shift', mic: 'dictate' };
 const PAGE_NAMES = { letters: 'letters', symbols: 'numbers and symbols', more: 'more symbols', dev: 'developer keys' };
 let measureCtx = null;
 
@@ -652,9 +648,9 @@ const DEFAULTS = {
   borders: false, hints: true, preview: true, mic: false, split: false, swipe: false, autoCaps: true, doubleSpacePeriod: true,
   spaceCursor: true, keyHeight: 'normal', longPressMs: 300, enter: 'newline', touchAction: 'pan-y', scale: null,
   volume: 0.35, motion: 'auto', label: 'Ghost Keyboard', fragment: null, cog: true, bare: false, hardKeys: 'all',
-  wideLayout: null, oneHanded: 'off', emojiKey: true,
+  wideLayout: null, oneHanded: 'off',
 };
-// emojiKey: the emoji key after { } on the letters page, as the app has it; false is the bottom row without it.
+// mic: the dictation key in the full stop's place on the letters page, as the app has it with dictation on.
 // keyHeight: 'condensed' | 'short' | 'normal' | 'tall' (KEY_HEIGHTS).
 // wideLayout: what a board on a wide screen does (WIDE_LAYOUTS: 'split' | 'full' | 'left' | 'center' | 'right'); null
 //   leaves it to `split`, the older way to ask for 'split'. A board is on a wide screen when it is SPLIT_MIN dp across:
@@ -667,7 +663,7 @@ const DEFAULTS = {
 
 const UNIT_DP = (412 - 3) / 10;          // a key's width on a phone, in dp: what a fragment's keys keep
 const HEADROOM = { preview: 52, panel: 58 };
-const KEY_TYPES = { space: 'space', enter: 'enter', delete: 'delete', backspace: 'delete', shift: 'shift', mic: 'mic', emoji: 'emoji' };
+const KEY_TYPES = { space: 'space', enter: 'enter', delete: 'delete', backspace: 'delete', shift: 'shift', mic: 'mic' };
 
 /**
  * A fragment spec made regular, or null for the whole board.
@@ -803,8 +799,7 @@ export class GhostKbd {
   /**
    * Listens for 'key', 'down', 'input', 'page', 'shift', 'row', 'settings', 'picker', 'arrow', 'cursor', 'swipe', 'mic',
    * 'user', 'theme', 'layout', 'visible', 'motion' ({paused}: the page's pause went on or off), 'dock' ({side, wide}:
-   * the chevron beside docked or one-handed keys was tapped, and the keys went across), 'emoji' (the emoji key was
-   * tapped: the phone opens its emoji panel). Returns the unsubscribe.
+   * the chevron beside docked or one-handed keys was tapped, and the keys went across). Returns the unsubscribe.
    */
   on(type, fn) {
     if (!this._subs.has(type)) this._subs.set(type, new Set());
@@ -1006,8 +1001,7 @@ export class GhostKbd {
 
   _rows(page = this.page) {
     const rows = Layouts.page(page, this.opts.numberRow);
-    const keyed = this.opts.emojiKey ? Layouts.withEmoji(rows, !!this.opts.mic) : rows;
-    return this.opts.mic ? Layouts.withMic(keyed) : keyed;
+    return this.opts.mic ? Layouts.withMic(rows) : rows;
   }
 
   /**
@@ -1081,7 +1075,6 @@ export class GhostKbd {
     const order = [this._frag.page, ...PAGES.filter((p) => p !== this._frag.page)];
     const all = (p) => Layouts.page(p, this.opts.numberRow).flatMap((r) => r.keys);
     if (name === 'mic') return K('mic');
-    if (name === 'emoji') return K('emoji');
     const type = KEY_TYPES[name];
     const lower = isLetter(name) ? name.toLowerCase() : name;
     for (const p of order) {
@@ -1203,7 +1196,7 @@ export class GhostKbd {
       b.type = 'button';
       b.tabIndex = -1;
       b.className = `gk-key gk-k-${key.type}` + (key.functional ? ' gk-fn' : '') +
-        (key.type === 'enter' || key.type === 'space' || key.type === 'emoji' || (key.type === 'mode' && key.pill) ? ' gk-pill' : '');
+        (key.type === 'enter' || key.type === 'space' || (key.type === 'mode' && key.pill) ? ' gk-pill' : '');
       b.style.cssText = `left:${rect.x.toFixed(2)}px;top:${(rect.y - keysTop).toFixed(2)}px;width:${rect.w.toFixed(2)}px;height:${rect.h.toFixed(2)}px`;
       b.innerHTML = `<span class="gk-face"><span class="gk-cap"><span class="gk-legend"></span>${key.hint ? `<span class="gk-hint">${esc(key.hint)}</span>` : ''}</span></span>`;
       e.legend = b.querySelector('.gk-legend');
@@ -1266,7 +1259,7 @@ export class GhostKbd {
         el.classList.toggle('is-on', this.shift !== 'off');
         el.classList.toggle('is-locked', this.shift === 'locked');
         el.setAttribute('aria-pressed', String(this.shift !== 'off'));
-      } else if (key.type === 'delete' || key.type === 'enter' || key.type === 'mic' || key.type === 'emoji') {
+      } else if (key.type === 'delete' || key.type === 'enter' || key.type === 'mic') {
         if (!legend.firstChild) legend.innerHTML = icon(key.type);
       }
       el.setAttribute('aria-label', label);
@@ -1578,7 +1571,7 @@ export class GhostKbd {
     if (type === 'delete') {
       this._apply('delete', '\b', t.e, t.downX, t.downY, 'pointer');
       t.repeat = setTimeout(() => { t.repeat = setInterval(() => { this._feedback(t.key); this._apply('delete', '\b', t.e, t.downX, t.downY, 'pointer', { repeat: true }); }, 50); }, 400);
-    } else if (type === 'char' || type === 'space' || type === 'shift' || (type === 'mode' && t.key.label === '{ }')) {
+    } else if (type === 'char' || type === 'space' || type === 'shift' || type === 'mic' || (type === 'mode' && t.key.label === '{ }')) {
       t.long = setTimeout(() => this._longPress(t), this.opts.longPressMs);
     }
     this._sync();
@@ -1648,6 +1641,12 @@ export class GhostKbd {
       if (!panel) return;
       t.panel = panel;
       t.longPressed = true;
+    } else if (type === 'mic') {
+      // Where the full stop was: its long-press is the full stop's, the full stop first.
+      const panel = this._makePanel(t.key, t.rect);
+      if (!panel) return;
+      t.panel = panel;
+      t.longPressed = true;
     }
     this._sync();
   }
@@ -1683,7 +1682,6 @@ export class GhostKbd {
       case 'shift': this._tapShift(); this._keyEvent('shift', '', e, x, y, source); break;
       case 'mode': this._keyEvent('mode', key.label, e, x, y, source); this.setPage(key.page || 'letters'); break;
       case 'mic': this._keyEvent('mic', '', e, x, y, source); this._emit('mic', {}); break;
-      case 'emoji': this._keyEvent('emoji', '', e, x, y, source); this._emit('emoji', {}); break;
       case 'delete': if (source !== 'pointer') this._apply('delete', '\b', e, x, y, source); break;
     }
   }

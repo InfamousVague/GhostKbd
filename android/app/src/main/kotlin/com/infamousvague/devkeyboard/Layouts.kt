@@ -3,7 +3,10 @@ package com.infamousvague.devkeyboard
 import java.util.Locale
 import kotlin.math.abs
 
-/** What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them); EMOJI opens the emoji plugin's panel. */
+/**
+ * What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them); MIC starts or
+ * ends a dictation (long-press: the full stop it stands in for, and that key's punctuation).
+ */
 enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE, EMOJI }
 
 /** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
@@ -26,8 +29,8 @@ data class Key(
     val page: Page? = null,
     val pill: Boolean = true,
 ) {
-    /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123, its emoji key and the like. */
-    val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE || type == KeyType.EMOJI
+    /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123 and the like. */
+    val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE
 }
 
 /** A row of keys, [inset] key units of space before and after it (Gboard's middle letter row sits half a key in). */
@@ -83,38 +86,59 @@ class LayoutSpec(
 }
 
 object Layouts {
-    /** The dictation plugin's mic key, beside the space bar, which gives it a key's width. */
+    /**
+     * The dictation plugin's mic key (Matt, 2026-11-12: "when dictation is enabled replace the period key next to the
+     * enter key"): on the letters page it stands where the full stop was, next to enter, and the space bar keeps its
+     * whole width. The full stop is not lost with its key: it leads the mic key's long-press, with the full stop's own
+     * punctuation after it, and shows in the key's corner as a letter's hint does; a double space still types one.
+     *
+     * The other pages have no { } key and come back as they were, full stop and all: numbers are typed there, and
+     * need it. So does a letters page with no full stop before enter to take the place of.
+     *
+     * The letters page is known by its { } key, or by the emoji key that has taken that key's place ([withEmoji]).
+     */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
-        val keys = last.keys.flatMap { if (it.type == KeyType.SPACE) listOf(Key(KeyType.MIC), it.copy(width = it.width - 1f)) else listOf(it) }
-        return rows.dropLast(1) + KeyRow(keys, last.inset)
+        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.DEV || it.type == KeyType.EMOJI }) return rows
+        val at = last.keys.indexOfFirst { it.type == KeyType.ENTER } - 1
+        val stop = last.keys.getOrNull(at)?.takeIf { it.type == KeyType.CHAR && it.text.isNotEmpty() } ?: return rows
+        val mic = Key(KeyType.MIC, hint = stop.text, alts = (listOf(stop.text) + stop.alts).distinct())
+        return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = mic }, last.inset)
     }
 
     /** The least the space bar is left with, in key widths, whatever stands beside it. */
     const val LEAST_BAR = 3f
 
     /**
-     * The emoji plugin's key (Matt, 2026-11-11: "Move the emoji button to the left of the spacebar and to the right of
-     * the code toggle, make it the gray color"): straight after the { } key on the letters page, before the globe
-     * and the mic, with a key's width taken from the space bar. Other pages have no { } key and come back as they
-     * were. So do the letters where the bar would be left under [LEAST_BAR] key widths, [mic] counted too (a board
-     * ten across with both the globe and the mic key): there the emoji button stays in the row above the keys.
-     * [hasEmojiKey] says which it was.
+     * The emoji plugin's key (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is. And make it the
+     * same as the dictation where it's just the icon no background. And move the code button up to where the emoji
+     * button used to be in the toolbar"): on the letters page it stands in the { } key's place, between ?123 and
+     * the space bar, and is drawn as the mic key is, its icon alone. The { } key is then a button in the row above
+     * the keys (DevKeyboardService.everyday).
+     *
+     * Where there is no row to hold that button ([keepCode]: the row is hidden, or nothing is in it), the { } key
+     * keeps a key on the board, straight after the emoji key, with a key's width taken from the space bar, so the
+     * code keys can still be reached. That is not done where it would leave the bar under [LEAST_BAR] key widths:
+     * there the board keeps its { } key as it was, and has no emoji key.
+     *
+     * Its third time on the board: it was a key between { } and the space bar from 0.12.1 to 0.15.0, and a button in
+     * the row in 0.16. Pages with no { } key come back as they were.
      */
-    fun withEmoji(rows: List<KeyRow>, mic: Boolean): List<KeyRow> {
+    fun withEmoji(rows: List<KeyRow>, keepCode: Boolean): List<KeyRow> {
         val last = rows.last()
         val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
-        val space = last.keys.firstOrNull { it.type == KeyType.SPACE }
-        if (at < 0 || space == null || space.width - 1f - (if (mic) 1f else 0f) < LEAST_BAR) return rows
+        if (at < 0) return rows
+        val emoji = Key(KeyType.EMOJI, pill = false)
+        if (!keepCode) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = emoji }, last.inset)
+        val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
+        if (space.width - 1f < LEAST_BAR) return rows
         val keys = ArrayList<Key>(last.keys.size + 1)
-        last.keys.forEachIndexed { i, key ->
+        last.keys.forEach { key ->
+            if (key === last.keys[at]) keys += emoji
             keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
-            if (i == at) keys += Key(KeyType.EMOJI)
         }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }
-
-    fun hasEmojiKey(rows: List<KeyRow>): Boolean = rows.last().keys.any { it.type == KeyType.EMOJI }
 
     private val accents = mapOf(
         "a" to listOf("à", "á", "â", "ä", "æ", "ã", "å", "ā"),
@@ -217,8 +241,8 @@ object Layouts {
      */
     fun letters(spec: LayoutSpec, numberRow: Boolean, extras: Map<String, List<String>> = emptyMap(), globe: Boolean = false): List<KeyRow> {
         val cells = spec.rows.map { row -> row.map { it.split(' ') } }
-        // A board with a key of its own beside the space bar is at least eleven across, so the bar keeps three key
-        // widths with the mic and the globe key there too.
+        // A board with a key of its own beside the space bar is at least eleven across, so the bar keeps four key
+        // widths with the globe key there too.
         val units = maxOf(if (spec.bottomExtra != null) 11 else 10, cells.maxOf { it.size }).toFloat()
         fun key(cell: List<String>, hint: String?, also: String? = null) =
             Key(KeyType.CHAR, cell[0], hint = hint, alts = (listOfNotNull(hint, also) + cell.drop(1) + extras[cell[0]].orEmpty()).distinct())

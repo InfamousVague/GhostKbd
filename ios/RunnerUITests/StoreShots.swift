@@ -91,17 +91,17 @@ extension KeyboardUITests {
     /// them on a 440-point-wide phone, as fractions of the screen.
     func testShots6_Settings() {
         let app = ghost
-        app.launch()
-        sleep(3)
-        tap(CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.392))
-        sleep(2)
-        shot("08-look-and-feel")
-        app.terminate()
-        app.launch()
-        sleep(3)
-        tap(CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.232))
-        sleep(2)
-        shot("09-setup")
+        for (name, y) in [("08-look-and-feel", 0.392), ("09-setup", 0.232)] {
+            app.terminate()
+            app.launch()
+            sleep(3)
+            tap(CGPoint(x: screenSize.width / 2, y: screenSize.height * y))
+            sleep(2)
+            // The keyboard up in the page's own "Try the keyboard here" field, as on every other picture.
+            let field = app.textFields.firstMatch
+            if field.waitForExistence(timeout: 5) { field.tap(); sleep(2) }
+            shot(name)
+        }
     }
 
     /// A picture of iOS's own keyboard in the app's field, on a Simulator that has not had Ghost Keyboard added: what
@@ -118,5 +118,13 @@ extension KeyboardUITests {
         sleep(2)
         if app.buttons["Continue"].exists { app.buttons["Continue"].tap(); sleep(1) }
         shot("stock")
+    }
+
+    /// The condensed keys, for comparing with the normal height (not a store picture).
+    func testLook_Condensed() {
+        set(base + "&key_height=condensed")
+        openField()
+        shot("condensed")
+        set(base + "&key_height=normal")
     }
 }

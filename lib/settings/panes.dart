@@ -75,7 +75,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
       if (!isIOS)
         SettingsSection(id: statsPageId, label: 'Stats', icon: _icon(LucideMore.chartColumn), hue: 'mint', group: 'start', summary: statsPageSummary, page: statsPage),
       // One switch for every connection the app can make, on the list itself: the row's own switch turns it on and off.
-      SettingsSection(
+      // Not on iOS: its keyboard has its own rule for the network (Allow Full Access, and the AI consent), not this list.
+      if (!isIOS) SettingsSection(
         id: 'offline',
         label: 'Offline',
         icon: _icon(Lucide.wifiOff),
@@ -111,6 +112,10 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('rewrite'))
         SettingsSection(id: 'rewrite', label: 'Rewrite', icon: _icon(Lucide.penLine), hue: 'mint', group: 'plugins', summary: _rewriteSummary, page: _rewritePage, parts: (s) => [_aiProviderPart()]),
+      if (store.pluginOn('connectors') && pluginHere('connectors'))
+        SettingsSection(id: 'connectors', label: 'Connectors', icon: _icon(Lucide.network), hue: 'cyan', group: 'plugins', summary: _connectorsSummary, page: _connectorsPage, parts: _connectorsParts),
+      if (store.pluginOn('enhance') && pluginHere('enhance'))
+        SettingsSection(id: 'enhance', label: 'Prompt enhancer', icon: _icon(LucideMore.wandSparkles), hue: 'coral', group: 'plugins', summary: _enhanceSummary, page: _enhancePage, parts: (s) => [_aiProviderPart()]),
       if (store.pluginOn('ghostmd') && pluginHere('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
@@ -205,6 +210,8 @@ String _leavesSummary(SettingsStore s) {
 String _pathHosts(Map<Object?, Object?> path) {
   final hosts = [for (final h in (path['hosts'] as List? ?? const [])) hostWords('$h')];
   if (path['ownServer'] == true) return hosts.isEmpty ? 'To the AI server you choose in Settings › Your AI.' : 'To ${hosts.first}, the AI you chose.';
+  // A connector's path has no servers of its own: the ones added in Settings › Connectors, and no other.
+  if (path['personal'] == true) return hosts.isEmpty ? 'To the servers you add in Settings › Connectors, and no other. None is added.' : 'To ${joinAnd(hosts)}: the servers you added in Settings › Connectors, and no other.';
   return 'To ${joinAnd(hosts)}.';
 }
 
@@ -528,7 +535,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
       glyph: AppIcon(Lucide.mic, size: 24),
       title: phase == 'ready' ? (mic ? 'Ready' : 'Allow the microphone') : (phase == 'downloading' ? 'Downloading' : 'Not ready'),
       meta: Text(switch (phase) {
-        'ready' => 'Tap the mic beside the space bar, talk, and tap again. ${active?['name'] ?? ''}.',
+        'ready' => 'Tap the mic next to Enter, talk for as long as you like, and tap again: your words appear at each pause. It stands where the full stop was: hold it for the full stop, or type two spaces. ${active?['name'] ?? ''}.',
         'downloading' => '${active?['name'] ?? 'The speech model'}, ${_megabytes(d['bytes'])}, once. ${(progress * 100).round()}%',
         'failed' => d['error'] as String? ?? 'The model did not download.',
         _ => 'The speech model is not on this phone yet.',
@@ -546,6 +553,43 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
           value: Text(mic ? 'Allowed' : 'Allow'),
           onPress: mic ? null : store.requestMicrophone,
         ),
+      ],
+    ),
+    PaneSection(
+      title: 'As you speak',
+      footer: const Text('The words are written down on this phone again and again while you talk, which uses some battery for as long as you do. Off, they arrive at each pause, and all at the end if you never pause.'),
+      children: [
+        _toggle(store, 'dictation_live', 'Show words as I speak', 'They are in the field while you are still talking, about a second behind. The last word or two can change until you pause.'),
+      ],
+    ),
+    PaneSection(
+      title: 'Long takes',
+      children: const [
+        SettingRow(label: 'No time limit', hint: Text('A take is written down for good a piece at a time, each ending at a pause, however long you speak.')),
+        SettingRow(label: 'It stops by itself', hint: Text('After 45 seconds with nobody speaking, and at 30 minutes whatever is said. A mic left open does not listen for ever.')),
+      ],
+    ),
+    PaneSection(
+      title: 'Your words',
+      footer: const Text('Names, products, repositories: up to 60, with commas between. The speech model is told to expect them, which makes it likelier, not certain, to spell them your way. They stay on this phone unless you tap Tidy. Press enter to keep them.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('dictation-words-${store.choice('dictation_words')}'),
+            defaultValue: store.choice('dictation_words'),
+            placeholder: 'Ghost.md, Mockingbird, attack.fm',
+            ariaLabel: 'Your words for dictation',
+            autoCorrect: false,
+            onSubmitted: (text) => store.set('dictation_words', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'After a take',
+      footer: Text('Tidy takes out the ums, the false starts and what was misheard, and changes nothing else. It sends the words that take put in, and your words above, to the AI you chose in Settings › AI, and only when you tap it. ${store.ai['ready'] == true ? '' : 'It shows once an AI key is set. '}${store.pluginOn('enhance') ? 'As a prompt, beside it, makes a clear prompt of them (Prompt enhancer).' : 'With the Prompt enhancer plugin added, As a prompt shows beside it.'}'),
+      children: [
+        _toggle(store, 'dictation_tidy', 'Offer Tidy in the row', 'A chip above the keys straight after a take, until the next key you press.'),
       ],
     ),
     PaneSection(
@@ -590,7 +634,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
         for (final m in models)
           if (m['installed'] == true && m['id'] != activeId)
             SettingRow(label: 'Delete ${m['name']}', hint: Text('Frees ${_megabytes(m['bytes'])}.'), onPress: () => store.deleteModelId(m['id'] as String)),
-        if (phase == 'ready') SettingRow(label: 'Delete the model in use', hint: const Text('The mic key goes until a model is downloaded again.'), onPress: store.deleteModel),
+        if (phase == 'ready') SettingRow(label: 'Delete the model in use', hint: const Text('The mic key goes, and the full stop has its key back, until a model is downloaded again.'), onPress: store.deleteModel),
         SettingRow(label: 'Remove Dictation', onPress: () => store.setPlugin('dictation', false)),
       ],
     ),
@@ -698,7 +742,7 @@ bool _profileOutdated(SettingsStore s) => s.ai['profile'] is Map && (s.ai['profi
 
 String _ghostwriterSummary(SettingsStore s) => s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
-const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
+const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito'];
 
 String _rowSummary(SettingsStore s) {
   final ids = _rowIds.where(pluginHere);
@@ -714,6 +758,7 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
           _plugin(store, 'autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'),
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
           _plugin(store, 'adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
+          if (!isIOS) _plugin(store, 'shortcuts', 'Text shortcuts', 'A few letters that type a phrase: omw and a space becomes On my way!'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
           _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines. Hold it first and it never types a space. Off: holding it opens the keyboard picker.'),
           _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
@@ -728,8 +773,10 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => [s.flag('autocorrect') ? 'Corrects as you type' : 'Suggests only', if (s.flag('next_word')) 'next words', if (s.flag('slang')) 'slang'].join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
         _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys nudged, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+      if (!isIOS && store.pluginOn('shortcuts'))
+        _part('shortcuts', 'Text shortcuts', Lucide.replace, 'mint', (s) => s.shortcuts.isEmpty ? 'None yet' : (s.shortcuts.length == 1 ? '1 shortcut' : '${s.shortcuts.length} shortcuts'), _shortcutsPart),
       if (!isIOS) _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
-      _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
+      _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } button', _typingMorePart),
     ];
 
 /// What the Next word card says under its rows: which of the languages that are on start with word pairs counted
@@ -787,6 +834,62 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
       children: [
         SettingRowBox(child: GlacierInput(key: ValueKey('learn-${learned.length}'), placeholder: 'Add a word', ariaLabel: 'Add a learned word', onSubmitted: (text) => store.setLearned(text, true))),
         for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
+      ],
+    ),
+  ];
+}
+
+// --- Text shortcuts -------------------------------------------------------------------------------------------------
+
+/// Settings › Typing › Text shortcuts (android Shortcuts.kt, docs/text-shortcuts.md): the shortcuts kept, each
+/// removable, and a form of two fields for a new one. The keyboard decides what may be a shortcut and says why not.
+List<Widget> _shortcutsPart(BuildContext context, SettingsStore store) {
+  String shown(String text) {
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return line.length > 80 ? '${line.substring(0, 79)}…' : line;
+  }
+
+  return [
+    PaneSection(
+      footer: const Text('Type a shortcut as a word of its own, whatever its capitals: the row above the keys offers what it stands for. Never in a password field.'),
+      children: [
+        _toggle(store, 'shortcuts_auto', 'Expand when I press space', 'Space or enter straight after a shortcut puts its phrase in. Backspace straight after puts your letters back. Off: only a tap on the phrase in the row puts it in.'),
+      ],
+    ),
+    PaneSection(
+      title: 'Your shortcuts',
+      footer: const Text('Kept on this phone only. Tap one to remove it.'),
+      children: [
+        if (store.shortcuts.isEmpty) const SettingRow(label: 'None yet', hint: Text('omw for On my way!, @@ for your e-mail address, ;sig for a sign-off.')),
+        for (final s in store.shortcuts) SettingRow(label: s.shortcut, hint: Text(shown(s.text)), value: const Text('Remove'), onPress: () => store.removeShortcut(s.shortcut)),
+      ],
+    ),
+    PaneSection(
+      title: 'Add a shortcut',
+      footer: const Text('A shortcut is one word of 2 to 24 characters with no space. In the phrase, \\n starts a new line, and {date}, {time} and {clipboard} become today’s date, the time and your newest clip. A shortcut you already have is changed.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('shortcut-${store.shortcutForm}'),
+            defaultValue: store.shortcutDraft,
+            placeholder: 'Shortcut, like omw',
+            ariaLabel: 'Shortcut',
+            autoCorrect: false,
+            onChange: (text) => store.shortcutDraft = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('shortcut-text-${store.shortcutForm}'),
+            defaultValue: store.shortcutTextDraft,
+            placeholder: 'What it stands for, like On my way!',
+            ariaLabel: 'What the shortcut stands for',
+            onChange: (text) => store.shortcutTextDraft = text,
+            onSubmitted: (_) => store.addShortcut(),
+          ),
+        ),
+        SettingRow(label: 'Add the shortcut', icon: AppIcon(LucideMore.circlePlus, size: 18), onPress: store.addShortcut),
+        if (store.shortcutMessage != null) SettingRow(label: store.shortcutMessage!),
       ],
     ),
   ];
@@ -896,9 +999,9 @@ List<Widget> _typingMorePart(BuildContext context, SettingsStore store) => [
         _choice(store, 'long_press', 'Long-press delay', const {'fast': 'Fast', 'normal': 'Normal', 'slow': 'Slow'}),
       ]),
       PaneSection(
-        title: 'The { } key',
-        footer: const Text('Pairs leave the cursor inside; long-press a key on the { } page for its compounds (== !== => ->…).'),
-        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Beside space'))],
+        title: 'The { } button',
+        footer: const Text('In the row above the keys, where the emoji button was; with emoji off, or the row hidden, it is a key beside the space bar. Pairs leave the cursor inside; long-press a key on the { } page for its compounds (== !== => ->…).'),
+        children: [SettingRow(label: 'Code symbols, pairs and snippets', icon: AppIcon(Lucide.braces, size: 18), value: const Text('Above the keys'))],
       ),
     ];
 
@@ -925,8 +1028,8 @@ List<Widget> _keysPart(BuildContext context, SettingsStore store) => [
         _toggle(store, 'hints', 'Symbol hints', 'Each key’s long-press character in its corner.'),
         _toggle(store, 'key_popup', 'Popup on key press', 'The key you’re pressing, large above your finger.'),
         _toggle(store, 'key_borders', 'Key borders'),
-        _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Long-press { } opens settings either way.'),
-        _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Long-press { } still opens settings.'),
+        _toggle(store, 'toolbar', 'Toolbar', 'Settings and hide above the keys. Holding the key beside ?123 opens settings either way.'),
+        _toggle(store, 'hide_row', 'Hide the row above the keys', 'No suggestions, tools or toolbar: only the keys. Holding the key beside ?123 still opens settings.'),
       ]),
       PaneSection(
         footer: const Text('Room under the bottom row for Android’s own hide and switch-keyboard buttons. Auto keeps the keys clear of them; choose More if they still crowd the keys on your phone, or None for only what Android asks for.'),
@@ -1099,6 +1202,8 @@ List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
       _toggle(store, 'ghostwriter_memory', 'My past messages', mb ? 'Your samples that share the request’s words.' : 'Needs Learn my style.'),
       _toggle(store, 'ghostwriter_web', 'The web', const {'anthropic', 'openai', 'gemini', 'openrouter'}.contains(store.choice('ai_provider')) ? 'Public facts, with your provider’s own search.' : 'Your provider has no web search.'),
       _toggle(store, 'ghostwriter_clipboard', 'My recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies.' : 'Needs Clipboard history in Row tools.'),
+      if (!isIOS && store.pluginOn('connectors'))
+        _toggle(store, 'ghostwriter_connectors', 'My connectors', (store.connectorsState['on'] as int? ?? 0) == 0 ? 'No tool is switched on yet: Settings › Connectors.' : 'Your AI may call the tools you switched on, and writes from what they answer.'),
     ]),
     if (!isIOS)
     PaneSection(
@@ -1177,15 +1282,16 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
       footer: const Text('Buttons in the row above the keys, whenever you aren’t mid-word.'),
       children: [
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
-        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
+        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
-        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, where the { } key was, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),
         _plugin(store, 'terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows, in terminal apps.', Lucide.terminal),
         if (store.pluginOn('terminal')) _toggle(store, 'terminal_everywhere', 'Terminal keys in every app', null, Lucide.globe),
+        _plugin(store, 'agent', 'Agent keys', 'For a coding agent in a terminal: Shift+Tab, Esc twice, Ctrl+C, a new line that doesn’t send, / @ ! and Ctrl+R. In AI chat apps: a new line, a code block, / and @.', Lucide.bot),
         _plugin(store, 'incognito', 'Incognito switch', 'Type without the keyboard learning or keeping anything.', Lucide.eyeOff),
       ],
     ),
@@ -1197,7 +1303,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
           _toggle(store, 'emoji_suggest', 'Emoji for the word you type', null, LucideMore.smile),
         ],
       ),
-    if (store.pluginOn('clipboard')) PaneSection(children: [SettingRow(label: 'Clear clipboard history', icon: AppIcon(LucideMore.trash2, size: 18), value: Text('${store.clipCount} saved'), onPress: store.clipCount == 0 ? null : store.clearClipboard)]),
+    if (store.pluginOn('clipboard')) ..._clipboardSections(store),
     if (store.pluginOn('gifs'))
       ..._more(store, 'rowtools', [
         PaneSection(
@@ -1206,6 +1312,50 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
           children: [SettingRowBox(child: GlacierInput(key: ValueKey('giphy-$own'), defaultValue: own, placeholder: 'Your GIPHY API key (optional)', ariaLabel: 'GIPHY API key', onSubmitted: (text) => store.set('giphy_key', text.trim())))],
         ),
       ]),
+  ];
+}
+
+/// The clipboard's pinned clips and its Clear (android ClipHistory.kt, ClipList.kt; docs/clipboard-pins.md). A clip is
+/// pinned by holding it in the keyboard's clipboard list, or written here; a pinned clip leads that list, is not one
+/// of the 25 copies and stays when the history is cleared. Here each can be removed, which is for good.
+List<Widget> _clipboardSections(SettingsStore store) {
+  final pins = store.clipPins;
+  final copies = store.clipCount - pins.length;
+  String shown(String text) {
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return line.length > 60 ? '${line.substring(0, 59)}…' : line;
+  }
+
+  return [
+    PaneSection(
+      title: 'Pinned clips',
+      footer: const Text('Hold a clip in the keyboard’s clipboard list to pin it, and hold it again to let it go. Pinned clips lead the list, are not counted among your 25 copies and stay when the history is cleared. Up to 25, kept on this phone.'),
+      children: [
+        if (pins.isEmpty) const SettingRow(label: 'Nothing pinned yet', hint: Text('An address, a link, a reply you send often: pin it once and it is always a tap away.')),
+        for (final pin in pins) SettingRow(label: shown(pin), icon: AppIcon(Lucide.pin, size: 18), value: const Text('Remove'), onPress: () => store.removeClip(pin)),
+        SettingRowBox(
+          child: GlacierInput(
+            // A new field once a pin is kept, so what was written does not stay in it.
+            key: ValueKey('clip-pin-${pins.length}'),
+            placeholder: 'Write a clip to pin, then press enter',
+            ariaLabel: 'A clip to pin',
+            onSubmitted: (text) => store.addClipPin(text),
+          ),
+        ),
+        if (store.clipMessage != null) SettingRow(label: store.clipMessage!),
+      ],
+    ),
+    PaneSection(
+      children: [
+        SettingRow(
+          label: 'Clear clipboard history',
+          hint: pins.isEmpty ? null : const Text('Pinned clips stay.'),
+          icon: AppIcon(LucideMore.trash2, size: 18),
+          value: Text('$copies saved'),
+          onPress: copies <= 0 ? null : store.clearClipboard,
+        ),
+      ],
+    ),
   ];
 }
 
@@ -1572,6 +1722,7 @@ const List<(String, String, String)> _profileFields = [
   ('number_row', 'Number row', 'Digits above the letters.'),
   ('autocorrect', 'Correct on its own', 'Off: autocorrect only suggests in this app.'),
   ('terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows in the row.'),
+  ('agent', 'Agent keys', 'Shift+Tab, Esc twice, Ctrl+C and a new line that doesn’t send, for a coding agent.'),
   ('markdown', 'Markdown buttons', 'Bold, code, links and lists in the row.'),
 ];
 
@@ -1591,7 +1742,7 @@ List<Widget> _appsPage(BuildContext context, SettingsStore store) {
     PaneHero(
       glyph: AppIcon(Lucide.smartphone, size: 24),
       title: 'Per-app profiles',
-      meta: const Text('The number row, autocorrect, terminal keys, markdown buttons and incognito, set for one app. Whatever a profile leaves alone follows your settings.'),
+      meta: const Text('The number row, autocorrect, terminal keys, agent keys, markdown buttons and incognito, set for one app. Whatever a profile leaves alone follows your settings.'),
       status: PaneHeroStatus(n == 0 ? 'None yet' : (n == 1 ? '1 app' : '$n apps')),
     ),
     PaneSection(
@@ -1696,5 +1847,215 @@ List<Widget> _rewritePage(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Remove Rewrite', onPress: () => store.setPlugin('rewrite', false))]),
+  ];
+}
+
+// --- Prompt enhancer (0.16.0) ---------------------------------------------------------------------------------------
+
+String _enhanceSummary(SettingsStore s) =>
+    s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : (s.choice('enhance_style') == 'thorough' ? 'Clearer prompts, set out in full' : 'Clearer prompts, no longer than yours');
+
+/// Settings › Prompt enhancer (android Enhance.kt, docs/prompt-enhancer.md): how much a rewrite may add, a few words
+/// about the person that go with each prompt, and what it does and never does.
+List<Widget> _enhancePage(BuildContext context, SettingsStore store) {
+  final ready = store.ai['ready'] == true;
+  final notes = store.choice('enhance_notes');
+  return [
+    PaneHero(
+      glyph: AppIcon(LucideMore.wandSparkles, size: 24),
+      title: ready ? 'Ready' : 'Add an AI key',
+      meta: const Text('Type what you want from an AI, tap Enhance in the row above the keys, and a clearer prompt takes its place. It works on what you selected, or on the whole field.'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (ready ? 'On' : 'Waiting')),
+    ),
+    PaneSection(
+      children: [
+        _choice(store, 'enhance_style', 'How much it writes', const {'tight': 'Tight', 'thorough': 'Thorough'}, 'Tight: about as long as yours, only clearer. Thorough: the goal, the context, the limits and what done looks like, each as far as you gave it.'),
+      ],
+    ),
+    PaneSection(
+      title: 'About you and your work',
+      footer: const Text('Optional, up to 600 characters: your stack, how you like changes made, who you write for. It is sent with each prompt you enhance and used only where it bears on it. Press enter to keep it.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('enhance-notes-$notes'),
+            defaultValue: notes,
+            placeholder: 'Kotlin and Flutter. Small changes, with tests.',
+            ariaLabel: 'About you and your work',
+            maxLength: 600,
+            onSubmitted: (text) => store.set('enhance_notes', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    const PaneSection(
+      title: 'How it works',
+      children: [
+        SettingRow(label: 'What you want comes first', hint: Text('Then what the AI needs to know to do it.')),
+        SettingRow(label: 'Your particulars are kept', hint: Text('Names, paths, commands, numbers, code and links stay exactly as you wrote them.')),
+        SettingRow(label: 'Nothing is added', hint: Text('No requirement, fact or step you did not give. It does not answer the prompt, and a short clear ask stays short.')),
+        SettingRow(label: 'Where it leads the row', hint: Text('In AI chat apps, and in terminals with Agent keys on. Elsewhere it waits among the row’s tools.')),
+        SettingRow(label: 'Never', hint: Text('In password fields, while incognito, or with Offline on.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Prompt enhancer', onPress: () => store.setPlugin('enhance', false))]),
+  ];
+}
+
+// --- Connectors (0.16.0) --------------------------------------------------------------------------------------------
+
+String _connectorsSummary(SettingsStore s) {
+  if (s.offline) return 'Offline is on';
+  final n = s.connectors.length;
+  if (n == 0) return 'Add an MCP server';
+  final on = s.connectorsState['on'] as int? ?? 0;
+  return '${n == 1 ? '1 connector' : '$n connectors'}, ${on == 1 ? '1 tool on' : '$on tools on'}';
+}
+
+String _connectorSummary(Map<Object?, Object?> c) {
+  if (c['error'] != null) return '${c['error']}';
+  final tools = [for (final t in (c['tools'] as List? ?? const [])) if (t is Map) t];
+  if ((c['checkedAt'] as num? ?? 0) == 0) return 'Its tools have not been read yet';
+  final on = tools.where((t) => t['on'] == true).length;
+  return '${tools.length == 1 ? '1 tool' : '${tools.length} tools'}, $on on';
+}
+
+/// Settings › Connectors (android Connectors.kt, McpClient.kt; docs/connectors.md): the connectors added, each a page
+/// of its own, and a form of three fields for a new one. What a connector is, who talks to whom and what is not built
+/// (signing in through a browser) are said here, where the address is typed.
+List<Widget> _connectorsPage(BuildContext context, SettingsStore store) {
+  final list = store.connectors;
+  final on = store.connectorsState['on'] as int? ?? 0;
+  final offered = store.connectorsState['offered'] as int? ?? 0;
+  final maxOffered = store.connectorsState['maxOffered'] as int? ?? 16;
+  final note = store.connectorsState['note'] as String?;
+  return [
+    PaneHero(
+      glyph: AppIcon(Lucide.network, size: 24),
+      title: list.isEmpty ? 'No connectors yet' : (list.length == 1 ? '1 connector' : '${list.length} connectors'),
+      meta: const Text('A connector is an MCP server: a service that answers an AI’s questions about your calendar, your issues, your documents. Add one, switch on the tools you want, and Ghostwriter can ask it while it writes.'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (on > 0 ? 'On' : 'Waiting')),
+    ),
+    if (list.isNotEmpty)
+      PaneSection(
+        footer: Text(on > maxOffered
+            ? '$on tools are on, and your AI is given $offered of them with a request: the first in this order. Each tool costs words on every request, so switch off the ones you do not use.'
+            : 'Your AI is given the tools that are on with each Ghostwriter request, up to $maxOffered, and may call 6 of them. Each one’s page is in the list below.'),
+        children: [
+          SettingRow(label: 'Tools switched on', value: Text('$on')),
+          if (note != null) SettingRow(label: 'Last trouble', hint: Text(note), icon: AppIcon(Lucide.triangleAlert, size: 18)),
+        ],
+      ),
+    PaneSection(
+      title: 'Add a connector',
+      footer: const Text('The address is the server’s MCP address and starts with https://. A token is sent to that server as its bearer token, and to nowhere else; leave it empty where the server wants none. A server that can only be signed in to through a browser cannot be added yet. Kept on this phone.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-name-${store.connectorForm}'),
+            defaultValue: store.connectorName,
+            placeholder: 'Name, like Calendar',
+            ariaLabel: 'Connector name',
+            onChange: (text) => store.connectorName = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-url-${store.connectorForm}'),
+            defaultValue: store.connectorUrl,
+            placeholder: 'https://mcp.example.com/mcp',
+            ariaLabel: 'Connector address',
+            autoCorrect: false,
+            onChange: (text) => store.connectorUrl = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-token-${store.connectorForm}'),
+            type: GlacierInputType.password,
+            defaultValue: store.connectorToken,
+            placeholder: 'Token, if the server wants one',
+            ariaLabel: 'Connector token',
+            autoCorrect: false,
+            onChange: (text) => store.connectorToken = text,
+          ),
+        ),
+        SettingRow(
+          label: store.connectorBusy ? 'Asking the server…' : 'Add it and read its tools',
+          icon: AppIcon(LucideMore.circlePlus, size: 18),
+          onPress: store.connectorBusy ? null : store.addConnector,
+          disabledReason: store.offlineReason,
+        ),
+        if (store.connectorMessage != null) SettingRow(label: store.connectorMessage!),
+      ],
+    ),
+    const PaneSection(
+      title: 'Who talks to whom',
+      children: [
+        SettingRow(label: 'Your phone asks the connector', hint: Text('With its token. Nothing goes through a Ghost server: there is none.')),
+        SettingRow(label: 'What a tool answers goes to your AI', hint: Text('To the provider you chose in Settings › AI, as your notes and commits do, so it can write from it.')),
+        SettingRow(label: 'Keys and tokens stay apart', hint: Text('Your AI key never goes to a connector, and a connector’s token never goes to your AI or to another connector.')),
+        SettingRow(label: 'Only when you ask', hint: Text('A tool is called only while Ghostwriter writes a <<request>> you made, and only a tool you switched on.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Connectors', hint: const Text('The connectors you added are kept for when it is added again.'), onPress: () => store.setPlugin('connectors', false))]),
+  ];
+}
+
+List<SettingsSection> _connectorsParts(SettingsStore store) => [
+      for (final c in store.connectors)
+        _part('connector-${c['id']}', '${c['name']}', Lucide.network, 'cyan', (s) => _connectorSummary(s.connectors.where((x) => x['id'] == c['id']).firstOrNull ?? c), (context, store) => _connectorPage(context, store, '${c['id']}')),
+    ];
+
+/// One connector: its server, its tools with their switches, Refresh and Remove.
+List<Widget> _connectorPage(BuildContext context, SettingsStore store, String id) {
+  final c = store.connectors.where((x) => x['id'] == id).firstOrNull;
+  if (c == null) return [const PaneSection(children: [SettingRow(label: 'This connector was removed')])];
+  final tools = [for (final t in (c['tools'] as List? ?? const [])) if (t is Map) t];
+  final read = (c['checkedAt'] as num? ?? 0) != 0;
+  String mark(Map<Object?, Object?> t) => switch (t['readOnly']) {
+        true => 'Its server marks it read-only.',
+        false => 'Its server says it can change things.',
+        _ => 'Its server does not say whether it changes anything.',
+      };
+  return [
+    PaneSection(
+      children: [
+        SettingRow(label: 'Server', hint: Text('${c['url']}'), value: Text(c['hasToken'] == true ? 'With a token' : 'No token')),
+        if (c['error'] != null) SettingRow(label: 'It could not be read', hint: Text('${c['error']}'), icon: AppIcon(Lucide.triangleAlert, size: 18)),
+        SettingRow(
+          label: store.connectorBusy ? 'Asking the server…' : (read ? 'Refresh its tools' : 'Read its tools'),
+          hint: read ? Text('Last read ${_when(c['checkedAt'])}. Each tool keeps its switch.') : null,
+          icon: AppIcon(Lucide.refreshCw, size: 18),
+          onPress: store.connectorBusy ? null : () => store.refreshConnector(id),
+          disabledReason: store.offlineReason,
+        ),
+      ],
+    ),
+    if (tools.isNotEmpty)
+      PaneSection(
+        title: 'Its tools',
+        footer: const Text('A tool that is on may be called by your AI while Ghostwriter writes, with arguments it makes from your request and the text around it. A tool the server marks read-only starts on; every other starts off. The mark is the server’s own word, not a promise: switch on only what you would let an AI use unasked.'),
+        children: [
+          for (final t in tools)
+            SettingRow(
+              label: '${(t['title'] as String? ?? '').isEmpty ? t['name'] : t['title']}',
+              hint: Text('${'${t['description'] ?? ''}'.trim().isEmpty ? '' : '${'${t['description']}'.trim()}\n'}${mark(t)}'),
+              control: GlacierSwitch(checked: t['on'] == true, onCheckedChange: (v) => store.setConnectorTool(id, '${t['name']}', v), ariaLabel: '${t['name']}'),
+            ),
+        ],
+      ),
+    PaneSection(
+      children: [
+        SettingRow(
+          label: 'Remove this connector',
+          hint: const Text('Its address, its token and its tools’ switches are deleted from this phone.'),
+          onPress: () {
+            store.removeConnector(id);
+            Navigator.of(context).maybePop();
+          },
+        ),
+      ],
+    ),
   ];
 }

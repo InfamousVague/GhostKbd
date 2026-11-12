@@ -23,8 +23,8 @@ object TrainerSim {
     const val H = 136f
     val board: Map<Char, Pair<Float, Int>> = Layouts.QWERTY.positions
     private val rows: List<List<Char>> = (0..2).map { r -> board.filter { it.value.second == r }.keys.sortedBy { board.getValue(it).first } }
-    /** The space bar, four keys wide between the emoji key and the full stop (Layouts.withEmoji), in key widths. */
-    const val BAR_LEFT = 3.5f
+    /** The space bar, five keys wide between the { } key and the full stop (or the mic key in its place), in key widths. */
+    const val BAR_LEFT = 2.5f
     const val BAR_RIGHT = 7.5f
     private val space = floatArrayOf(BAR_LEFT * W, 3f * H, BAR_RIGHT * W, 4f * H)
 

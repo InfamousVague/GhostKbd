@@ -6,6 +6,12 @@ project(devkeyboard_whisper C CXX)
 set(CMAKE_CXX_STANDARD 17)
 include(FetchContent)
 
+# A debug build of the app still gets whisper built for speed: at the toolchain's -O0 it is about ten times slower,
+# which on an emulator made a two-second take wait six seconds or more, and makes dictation's words as they are
+# spoken (LiveWords.kt) impossible to try there. Release builds are as they were.
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O3")
+
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
