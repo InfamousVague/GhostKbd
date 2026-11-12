@@ -8,7 +8,9 @@
  * (onDictated). A take ended inside a quarter of a second writes nothing, and one ended part-way writes what had been
  * said by then (Dictation.start: the whole take is transcribed).
  *
- * A take ends on the SECOND TAP, or at 60 seconds (Dictation.MAX_SECONDS); the app does not stop for silence. So the
+ * A take ends on the SECOND TAP. Since 0.16.0 it has no time limit, its words arrive a piece at each pause, and it
+ * ends by itself only after 45 seconds with nobody speaking (Dictation.IDLE_STOP_MS). This sample is a short take:
+ * its words still come all at once, as a short take's do. So the
  * loop plays that second tap on the listening panel, and a visitor who starts a sample and never taps again is told,
  * in the line itself, that the sample has ended and why, rather than shown a take that ends itself.
  *
@@ -31,7 +33,7 @@ const IDLE = 0, LISTENING = 1, TRANSCRIBING = 2;
 const TICK = 100;       // the phone reads the microphone a tenth of a second at a time, and says how loud each was
 const SHORTEST = 250;   // a take under a quarter of a second is nothing (Dictation.start)
 const QUIET = 2400;     // a visitor who does not tap again: this long after the sample's last word, the sample is ended for them
-const OVER = 'Sample over. On the phone it listens until you tap again, for up to 60 seconds.';
+const OVER = 'Sample over. On the phone it listens until you tap again, and writes your words down at each pause.';
 const THINK = 1100;     // "Writing it down…"
 const REST = 3200;      // a sentence stays this long before the key taps itself again
 

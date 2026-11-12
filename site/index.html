@@ -180,14 +180,14 @@
         </div>
         <div>
           <h3>More to draw on</h3>
-          <p>Each source has its own switch. Past messages, Ghost.md notes and web lookups are on to start, GitHub once you add a token, the clipboard only if you turn it on.</p>
+          <p>Each source has its own switch. Past messages, Ghost.md notes and web lookups are on to start, GitHub once you add a token, the clipboard only if you turn it on. Add a connector, an MCP server by its address, and Ghostwriter can ask a service of your own too.</p>
         </div>
         <div>
           <h3>In my voice, and Rewrite</h3>
-          <p>Select something stiff and tap <strong>In my voice</strong>. Or fix, shorten, restyle or translate what you wrote, in place.</p>
+          <p>Select something stiff and tap <strong>In my voice</strong>. Or fix, shorten, restyle or translate what you wrote, in place. <strong>Enhance</strong> turns what you typed for an AI into a clearer prompt.</p>
         </div>
       </div>
-      <p class="story__note">Ghostwriter, Mockingbird and Rewrite are plugins you add in the app, and never run in password fields or while incognito. <a href="#faq-leaves">Everything that leaves your phone.</a></p>
+      <p class="story__note">Ghostwriter, Mockingbird, Rewrite, the Prompt enhancer and Connectors are plugins you add in the app, and never run in password fields or while incognito. <a href="#faq-leaves">Everything that leaves your phone.</a></p>
     </div>
   </section>
 
@@ -255,7 +255,7 @@
         </div>
         <div>
           <h3>Swipe and dictation</h3>
-          <p>Draw a word across the letters and lift. Add Dictation and whisper turns speech into text on the phone, in takes of up to 60 seconds.</p>
+          <p>Draw a word across the letters and lift. Add Dictation and whisper turns speech into text on the phone, for as long as you talk: your words appear at each pause.</p>
         </div>
       </div>
     </div>
@@ -296,8 +296,8 @@
 
       <div class="features features--3 story__points">
         <div>
-          <h3>Sticky modifiers</h3>
-          <p>Tap Ctrl, then C. One thumb is enough. Hold an arrow to keep moving.</p>
+          <h3>Sticky modifiers, agent keys</h3>
+          <p>Tap Ctrl, then C. One thumb is enough. Hold an arrow to keep moving. Agent keys, a switch in Settings &rsaquo; Row tools, add Shift+Tab, Esc twice, Ctrl+C and a new line that does not send, for a coding agent in a terminal.</p>
         </div>
         <div>
           <h3>A <code>{ }</code> page, a markdown row</h3>
@@ -327,7 +327,7 @@
       <div class="features features--3">
         <div>
           <h3>Dictation on the phone</h3>
-          <p>whisper turns speech into text on the device. The network is used only to download the speech model.</p>
+          <p>whisper turns speech into text on the device. The network is used only to download the speech model. After a take a Tidy chip can have your AI take out the ums: that sends the words, never the sound, and only if you tap it.</p>
         </div>
         <div>
           <h3>No analytics library</h3>
@@ -378,11 +378,11 @@
         </div>
         <div>
           <h3>Clipboard history, incognito</h3>
-          <p>Your last 25 copies, a tap away, with no timer. Never what a password manager copied, and nothing at all while the incognito switch is on. With a switch you turn on, a sign-in code that arrives by text shows above the keys in a colour of its own, a tap to type it.</p>
+          <p>Your last 25 copies, a tap away, with no timer. Hold one to pin it, and it stays. Never what a password manager copied, and nothing at all while the incognito switch is on. With a switch you turn on, a sign-in code that arrives by text shows above the keys in a colour of its own, a tap to type it.</p>
         </div>
         <div>
-          <h3>Emoji and GIFs</h3>
-          <p>Emoji 18.0 with search and :shortcodes. GIF search goes to GIPHY, which sees what you search for.</p>
+          <h3>Emoji, GIFs, text shortcuts</h3>
+          <p>Emoji 18.0 with search and :shortcodes. GIF search goes to GIPHY, which sees what you search for. Text shortcuts turn a few letters into a phrase: <code>omw</code> and a space types &ldquo;On my way!&rdquo;.</p>
         </div>
         <div>
           <h3>Password-manager logins</h3>
@@ -405,7 +405,7 @@
     <div class="wrap">
       <header class="section-head section-head--split">
         <h2 class="h2" id="compare-h">Next to Gboard and SwiftKey.</h2>
-        <p class="lead">Ghost Keyboard beside Gboard and SwiftKey, from their vendors&rsquo; pages and Play listings where we could, and from the press where the notes say so, as of 2026-11-09; our own column is as of version 0.15.0. Two of these rows go against us.</p>
+        <p class="lead">Ghost Keyboard beside Gboard and SwiftKey, from their vendors&rsquo; pages and Play listings where we could, and from the press where the notes say so, as of 2026-11-09; our own column is as of version 0.16.0. Two of these rows go against us.</p>
       </header>
 
       <div class="compare-wrap" role="region" aria-labelledby="compare-h" tabindex="0">
@@ -439,7 +439,7 @@
             </tr>
             <tr>
               <th scope="row">Dictation<sup><a href="#n4" aria-label="Note 4">4</a></sup></th>
-              <td class="is-us">On the phone; takes of up to 60 seconds</td>
+              <td class="is-us">On the phone; takes of any length, written down at each pause; a tidy-up with your own AI</td>
               <td>Voice typing; AI tidy-up (Rambler) on Pixel 11 only</td>
               <td>English only, or Google voice typing</td>
             </tr>
@@ -451,7 +451,7 @@
             </tr>
             <tr>
               <th scope="row">Clipboard history<sup><a href="#n6" aria-label="Note 6">6</a></sup></th>
-              <td class="is-us">Last 25 copies, no timer, no pins</td>
+              <td class="is-us">Last 25 copies, no timer; clips can be pinned</td>
               <td>Unpinned copies go after about an hour</td>
               <td>Unpinned clips expire after an hour; clips can be pinned</td>
             </tr>
@@ -501,7 +501,8 @@
           <li>Next-word prediction is new, and not yet measured against theirs</li>
           <li>37 autocorrect languages to their hundreds, and outside the first six no native reader has checked the corrections</li>
           <li>No Chinese, Japanese, Hindi, Bengali or Tamil</li>
-          <li>Dictation stops at 60 seconds, and shows text after you stop</li>
+          <li>Dictation&rsquo;s text comes a sentence or two behind your voice, not word by word</li>
+          <li>Connectors cannot sign in through a browser yet, so a service that offers no token cannot be added</li>
           <li>No floating mode, stickers or handwriting</li>
           <li>Typing accuracy not yet measured against Gboard or SwiftKey</li>
           <li>The AI needs a key you get from a provider yourself</li>
@@ -515,7 +516,7 @@
           <li id="n1">SwiftKey&rsquo;s Play listing still advertises Copilot; Microsoft&rsquo;s support FAQ says the Copilot and Compose integration was removed. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/topic/faqs-for-copilot-changes-in-swiftkey-c02289e6-c5b3-401c-af8d-f6c88409a2d2" rel="noopener">Microsoft, FAQs for Copilot changes in SwiftKey</a>.</li>
           <li id="n2">&ldquo;Not documented&rdquo; means we found no mention in the vendor&rsquo;s own pages; it is not a statement by the vendor. Ghost Keyboard is not the only keyboard that takes your own key: LeanType, a small open-source keyboard, does too. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-access-toolbar-in-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, the SwiftKey toolbar</a> (read 2026-11-09: no mention of a choice of model or of a key of your own).</li>
           <li id="n3">Microsoft&rsquo;s toolbar help page names four tones (Professional, Casual, Polite, Social Post) and may predate the Copilot removal. Ghost Keyboard sends samples of your writing to the provider you chose to train the profile. Sources: <a href="https://support.google.com/gboard/answer/16515540" rel="noopener">Google, Gboard help: writing tools</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-access-toolbar-in-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, the SwiftKey toolbar</a>.</li>
-          <li id="n4">Google says Rambler needs an internet connection for full features and has usage limits. Ghost Keyboard shows the text after you stop, not while you speak, and has no AI tidy-up. Sources: <a href="https://support.google.com/gboard/answer/17468539" rel="noopener">Google, Gboard help: Rambler</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-use-voice-to-text-with-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, voice to text in SwiftKey</a>.</li>
+          <li id="n4">Google says Rambler needs an internet connection for full features and has usage limits. Ghost Keyboard writes a take down a piece at a time, at each pause, not word by word; its Tidy sends the words of a take (never the sound) to the AI provider you chose, and only when you tap it. Sources: <a href="https://support.google.com/gboard/answer/17468539" rel="noopener">Google, Gboard help: Rambler</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-use-voice-to-text-with-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, voice to text in SwiftKey</a>.</li>
           <li id="n5">The absences are what we did not find in the documentation we read in November 2026, not statements by Google or Microsoft, and we have not checked either keyboard on a phone or a foldable for this row. The Gboard Tab key is from a 2022 press report of its tablet layout. In Ghost Keyboard Terminal keys is a switch in Settings &rsaquo; Row tools, off to start; on, the keys show in terminal apps, or in every app if you choose. Sources: <a href="https://9to5google.com/2022/10/10/gboard-android-tablet/" rel="noopener">9to5Google, Gboard&rsquo;s tablet layout</a>; <a href="https://support.microsoft.com/en-us/swiftkey-keyboard/how-do-i-enable-disable-arrow-keys-on-my-microsoft-swiftkey-keyboard" rel="noopener">Microsoft, arrow keys in SwiftKey</a>.</li>
           <li id="n6">The Gboard figure is as reported by Android Authority in August 2026; Google does not publish it. A longer-duration setting was seen in a Gboard beta and is not confirmed shipped. Sources: <a href="https://androidauthority.com/gboard-clipboard-duration-slider-apk-teardown-3698099" rel="noopener">Android Authority, Gboard clipboard duration</a>; <a href="https://support.microsoft.com/en-us/topic/how-does-the-clipboard-work-with-microsoft-swiftkey-keyboard-322f9977-dab7-4edb-a7aa-e1c0611cf7eb" rel="noopener">Microsoft, how the SwiftKey clipboard works</a>.</li>
           <li id="n7">Google says federated learning sends what it learns, not your text, and can be turned off. SwiftKey works with no account. In Ghost Keyboard the touch model and learned words are not sent anywhere by the app, and Android&rsquo;s own backup is turned off for it. Anonymous typing reports, off unless you turn them on, send counts and some common mistyped words (see &ldquo;What leaves my phone?&rdquo;). Mockingbird&rsquo;s writing samples go to your AI provider when it trains (note 3). Sources: <a href="https://support.google.com/gboard/answer/12373137" rel="noopener">Google, Gboard help: federated learning</a>; <a href="https://support.microsoft.com/en-US/SwiftKey-Keyboard/account" rel="noopener">Microsoft, SwiftKey and your account</a>.</li>
@@ -554,17 +555,12 @@
           <span class="chip chip--soon">Coming</span>
         </li>
         <li>
-          <strong>Ramble to tidy</strong>
-          <p>Dictate a messy voice note and get a clean message in your style.</p>
-          <span class="chip chip--soon">Coming</span>
-        </li>
-        <li>
           <strong>Cool-off</strong>
           <p>Offers to delay or soften an unusually angry message before it goes.</p>
           <span class="chip chip--soon">Coming</span>
         </li>
       </ul>
-      <p class="story__note">Also planned: Translate as you, Your phrases, Clipboard actions, a PR and commit writer, Typing Wrapped, and profile sync through Ghost.md.</p>
+      <p class="story__note">Also planned: Translate as you, Clipboard actions, a PR and commit writer, Typing Wrapped, and profile sync through Ghost.md.</p>
     </div>
   </section>
 
@@ -592,9 +588,10 @@
           <ul class="ticks">
             <li><strong>Ghostwriter.</strong> When you close a request, your AI provider gets the request, the text around it in the field (up to 1,500 characters before and 400 after), the app&rsquo;s name, today&rsquo;s date, your style profile, the past messages that share its words and your latest few from the same app, and the Ghost.md notes that match. Your clipboard goes only if you switch that on. With a GitHub token, the request&rsquo;s keywords go to GitHub, and the commits found (date, repository, message) go to your AI provider with the request. Web lookups are your provider&rsquo;s own search.</li>
             <li><strong>Mockingbird.</strong> A selection of your writing samples goes to your AI provider when it trains your style profile, and again when it retrains by itself, about once a day at most. No request has to be typed for that.</li>
-            <li><strong>In my voice and Rewrite.</strong> The text you chose goes to your AI provider; In my voice sends your style profile and a few similar samples with it.</li>
+            <li><strong>In my voice, Rewrite and Enhance.</strong> The text you chose goes to your AI provider; In my voice sends your style profile and a few similar samples with it, and Enhance sends which kind of app you are typing in and, if you wrote any, your few words about your work.</li>
             <li><strong>GIFs.</strong> Your search goes to GIPHY.</li>
-            <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from ghostkbd.com or huggingface.co.</li>
+            <li><strong>Dictation.</strong> Speech is turned into text on the phone. The network is used only to download the speech model, from ghostkbd.com or huggingface.co. Tidy, a chip offered after a take, sends the words that take put in, and the words you told dictation to expect, to your AI provider, only when you tap it.</li>
+            <li><strong>Connectors.</strong> Only if you add the Connectors plugin and a server. Your phone then asks that server for its tools, with the token you gave it. While Ghostwriter writes, your AI may call the tools you switched on, with arguments it makes from your request and the text around it, and what they answer goes to your AI provider. A connector&rsquo;s token goes only to its own server.</li>
             <li><strong>Updates.</strong> The app asks ghostkbd.com for the current version when it opens and up to twice a day.</li>
             <li><strong>Ghost.md online.</strong> If you have signed in to Ghost.md and no note on the phone matches a request, its keywords go to ghostmarkdown.com.</li>
             <li><strong>Typing reports.</strong> Only if you turn on &ldquo;Share anonymous typing reports&rdquo; in Settings &rsaquo; Typing &rsaquo; Typing stats; it is off to start. Then, at most once a day, ghostkbd.com gets counts of what happened (words typed and swiped, fixes made and undone), where taps land on their keys with no letters, and up to 60 words you mistyped with the word you meant and 12 swipe strokes, only from the few thousand commonest words of the app&rsquo;s own word lists, and nothing from password fields, addresses, searches, terminals or incognito. No account and no device id, and Settings shows the exact report before it goes.</li>
@@ -707,7 +704,7 @@
     </div>
     <div class="footer__legal">
       <span>Source public on GitHub. Other products are named for comparison only and belong to their owners.</span>
-      <span>Other keyboards last checked 2026-11-09; our own, 2026-11-11 (version 0.15.0).</span>
+      <span>Other keyboards last checked 2026-11-09; our own, 2026-11-12 (version 0.16.0).</span>
     </div>
   </div>
 </footer>
