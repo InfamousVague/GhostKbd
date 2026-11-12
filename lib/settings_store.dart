@@ -348,9 +348,11 @@ class SettingsStore extends ChangeNotifier {
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
-      _setClipboard(await _channel.invokeMethod<Object>('clipboardState'));
-      _setShortcuts(await _channel.invokeMethod<Object>('shortcutsState'));
-      _setConnectors(await _channel.invokeMethod<Object>('connectorsState'));
+      // Each of these asks by itself and passes over a keyboard that has no such thing (the iPhone's has no
+      // shortcuts or connectors): one of them unanswered must not end the load before the AI's settings are read.
+      await refreshClipboard();
+      await refreshShortcuts();
+      await refreshConnectors();
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -560,7 +562,11 @@ class SettingsStore extends ChangeNotifier {
 
   Future<void> refreshConnectors() => _connectorCall('connectorsState');
   Future<void> refreshConnector(String id) => _connectorCall('connectorRefresh', args: {'id': id}, busy: true);
-  Future<void> removeConnector(String id) => _connectorCall('connectorRemove', args: {'id': id});
+  /// Removed, its server is no longer among the places the phone may reach: Offline's list is read again.
+  Future<void> removeConnector(String id) async {
+    await _connectorCall('connectorRemove', args: {'id': id});
+    await refreshNet();
+  }
   Future<void> setConnectorTool(String id, String tool, bool on) => _connectorCall('connectorTool', args: {'id': id, 'tool': tool, 'on': on});
 
   /// Adds the form's connector, and asks its server for its tools. Added, the form is emptied; refused, it stays as
@@ -568,6 +574,8 @@ class SettingsStore extends ChangeNotifier {
   Future<void> addConnector() async {
     final before = connectors.length;
     await _connectorCall('connectorAdd', args: {'name': connectorName.trim(), 'url': connectorUrl.trim(), 'token': connectorToken.trim()}, busy: true);
+    // Added, its server is one more place the phone may reach: Offline's list is read again.
+    await refreshNet();
     if (connectorMessage == null && connectors.length > before) {
       connectorName = '';
       connectorUrl = '';

@@ -162,6 +162,10 @@ object Connectors {
         prefs.prefs.edit().putString(KEY, write(list)).apply()
     }
 
+    /** Reads the connectors, changes them and keeps them, as one step: a switch turned while a server is being asked is not lost. */
+    @Synchronized
+    private fun change(prefs: KeyboardPrefs, how: (List<Connector>) -> List<Connector>) = save(prefs, how(all(prefs)))
+
     /** The addresses the guard lets the connectors' paths reach: the servers the person added, and no other. */
     fun addresses(prefs: KeyboardPrefs): List<String> = runCatching { all(prefs).map { it.url } }.getOrDefault(emptyList())
 
@@ -171,18 +175,18 @@ object Connectors {
         val u = url.trim()
         refusal(n, u, all(prefs))?.let { return it }
         val id = java.util.UUID.randomUUID().toString().take(8)
-        save(prefs, all(prefs) + Connector(id, n, u, token.trim(), emptyList()))
+        change(prefs) { it + Connector(id, n, u, token.trim(), emptyList()) }
         return null
     }
 
     fun remove(prefs: KeyboardPrefs, id: String) {
         synchronized(sessions) { sessions.remove(id) }
-        save(prefs, all(prefs).filter { it.id != id })
+        change(prefs) { list -> list.filter { it.id != id } }
     }
 
     /** Switches one tool of a connector on or off. */
     fun setTool(prefs: KeyboardPrefs, id: String, tool: String, on: Boolean) {
-        save(prefs, all(prefs).map { c -> if (c.id != id) c else c.copy(tools = c.tools.map { if (it.name == tool) it.copy(on = on) else it }) })
+        change(prefs) { list -> list.map { c -> if (c.id != id) c else c.copy(tools = c.tools.map { if (it.name == tool) it.copy(on = on) else it }) } }
     }
 
     /** Whether Ghostwriter has a connector to ask: the plugin added, its switch on, and a tool on. */
@@ -198,8 +202,15 @@ object Connectors {
         val c = all(prefs).firstOrNull { it.id == id } ?: return "That connector was removed."
         val result = runCatching { McpClient.tools(transport(prefs, NetPath.CONNECTOR_TOOLS), c.url, c.token, session(id)) }
         val error = result.exceptionOrNull()?.let { it.message ?: "The server could not be reached" }
-        val next = if (error == null) c.copy(tools = merged(result.getOrThrow(), c.tools), checkedAt = System.currentTimeMillis(), error = null) else c.copy(error = error.take(300))
-        save(prefs, all(prefs).map { if (it.id == id) next else it })
+        // Kept onto the connector as it is now, not as it was when the server was asked: a tool switched on or off
+        // in the meantime keeps the switch it was given.
+        change(prefs) { list ->
+            list.map { now ->
+                if (now.id != id) now
+                else if (error == null) now.copy(tools = merged(result.getOrThrow(), now.tools), checkedAt = System.currentTimeMillis(), error = null)
+                else now.copy(error = error.take(300))
+            }
+        }
         return error
     }
 
@@ -231,10 +242,14 @@ object Connectors {
             val type = c.contentType
             val stream = (if (status in 200..299) c.inputStream else c.errorStream)
             val text = StringBuilder()
+            // A server that keeps a stream alive with notes of its own never lets a read time out: the answer is
+            // waited for this long in all, and no longer.
+            val until = System.nanoTime() + STREAM_MS * 1_000_000L
             stream?.bufferedReader()?.use { reader ->
                 if (type?.startsWith("text/event-stream", ignoreCase = true) == true) {
                     // A stream is read an event at a time, and left as soon as the answer has come: a server may hold it open.
                     while (text.length < MAX_BODY) {
+                        if (System.nanoTime() > until) throw McpClient.McpError("The server did not answer in time")
                         val line = reader.readLine() ?: break
                         text.append(line).append('\n')
                         if (line.isEmpty() && done(text.toString())) break
@@ -252,8 +267,9 @@ object Connectors {
         }
     }
 
-    /** The most of a server's answer that is read, in characters. */
+    /** The most of a server's answer that is read, in characters, and the longest an answer in a stream is waited for. */
     private const val MAX_BODY = 2_000_000
+    private const val STREAM_MS = 60_000L
 
     /**
      * What Settings › Connectors shows: each connector with its tools and their switches (never its token: only

@@ -38,9 +38,15 @@ order the connectors were added. The AI may call up to 6 of them while it writes
 characters. It is told (`Connectors.section`) to call a tool only where the request needs a fact it holds, that what
 a tool returns is data and never an instruction, and to leave a [blank] where a tool fails.
 
-If the request fails with the tools in it for any reason but Offline or a refused key (a model or provider that will
-not take tools, say), it is made again as it was before there were connectors, so they never cost anyone their
-answer, and Settings › Connectors shows what happened under "Last trouble".
+If the request fails with the tools in it and the tools may be why (a model or provider that will not take them,
+an answer that never came in words), it is made again as it was before there were connectors, so they never cost
+anyone their answer, and once that has answered Settings › Connectors shows what happened under "Last trouble". It
+is not made again where the AI could not be reached, was busy or refused the key (`AiTools.plainMayAnswer`), nor
+once a tool has been called: asked again without the tools the AI would answer as if what the tool did had not
+happened, and a Retry would have it done twice.
+
+Stop, or leaving the field, ends it there: the next tool the AI asks for is not called and the AI is not asked again
+(`AiTools.Stopped`). A tool call already on its way is not taken back.
 
 With Gemini, a request that carries tools does not also ask for Gemini's own web search, which not all of its models
 allow in one request.
@@ -71,15 +77,25 @@ ends in the answer. Two generations of server are met:
 
 A request is first made the new way; a server that refuses its shape or version is given the handshake and asked
 again, and what worked is remembered while the keyboard lives. A session the server lets go (404) is started again
-once.
+once. Which kind a server is, is found out with `tools/list`, which changes nothing: before the first tool call to a
+server not yet known (the keyboard has just started), its tools are asked for, so a tool that makes something is
+called once and a refusal of its arguments is said in the server's own words.
+
+A null in a server's answer is nothing (`JsonText.kt`: on the phone, unlike on a desk, a JSON null reads as the word
+"null" unless asked first). A server's list is read for 20 pages at the most and each tool kept once; an answer in
+an event stream is waited for 60 seconds in all, whatever the server sends to keep the stream alive.
 
 The AI side (`AiTools`) is the tool exchange for each of the four shapes `AiClient` speaks: Anthropic's Messages
 API, OpenAI's chat completions (and the servers that speak them), OpenAI's Responses API, and Gemini.
 
 ## Checked
 
-- `McpClientTest` (13 tests) against made-up servers of both generations: headers, the handshake, sessions, an event
-  stream with the server's notes before the answer, paging, a 401 and a 403, a failing tool, unreadable answers.
+- `McpClientTest` (17 tests) against made-up servers of both generations: headers, the handshake, sessions, an event
+  stream with the server's notes before the answer, paging, a 401 and a 403, a failing tool, unreadable answers,
+  nulls, a server that lists for ever, and a tool called once.
+- **On the emulator, 2026-11-12, with a debug build of 0.16.0**: a connector for learn.microsoft.com/api/mcp was
+  added through Settings › Connectors, and its three tools were read by the app itself, through `Net.kt`
+  (`connector-tools` in the log).
 - **Four real, public, sign-in-free servers, on 2026-11-12**, with a one-off probe that ran `McpClient.kt` as it is
   over a plain connection (not through `Net.kt`): their tools were listed, and one read-only tool called on three of
   them.
@@ -102,9 +118,8 @@ API, OpenAI's chat completions (and the servers that speak them), OpenAI's Respo
 - **No AI provider has been asked with tools.** The four exchanges are written from the providers' documentation
   and tested against answers made up to match it. Whether Claude, OpenAI, Gemini or the others accept these requests
   as written is untried; the fall-back above is there for that.
-- The plugin has not been used on a device: no connector was added through Settings, and no `<<request>>` used one.
-- The app's own connection to a connector (`Connectors.transport`, through `Net.kt`) was not run; the probe used a
-  connection of its own.
+- No `<<request>>` has used a connector, on a device or off it: that needs an AI provider's key.
+- The app's own connection has listed a server's tools (above) and has not called one.
 - The specification was read through a summary on 2026-11-12, not page by page.
 
 ## Not built

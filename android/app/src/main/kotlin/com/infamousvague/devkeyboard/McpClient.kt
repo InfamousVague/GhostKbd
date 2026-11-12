@@ -36,8 +36,9 @@ object McpClient {
     /** The legacy versions a server may answer `initialize` with and be understood. */
     val LEGACY_VERSIONS = listOf("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 
-    /** The most tools read from one server, and the longest an answer kept from a tool, in characters. */
+    /** The most tools read from one server, the most pages of them asked for, and the longest an answer kept from a tool, in characters. */
     const val MAX_TOOLS = 200
+    const val MAX_PAGES = 20
     const val MAX_RESULT = 6000
 
     /** What went wrong, in words for the person. [signIn] says the server wants a sign-in this client cannot do. */
@@ -72,22 +73,26 @@ object McpClient {
     fun tools(transport: Transport, url: String, token: String, session: Session): List<Tool> {
         val out = ArrayList<Tool>()
         var cursor: String? = null
+        var pages = 0
         do {
             val result = request(transport, url, token, session, "tools/list", JSONObject().apply { cursor?.let { put("cursor", it) } }, null)
             val list = result.optJSONArray("tools") ?: JSONArray()
             for (i in 0 until list.length()) {
                 val t = list.optJSONObject(i) ?: continue
-                val name = t.optString("name")
-                if (name.isBlank()) continue
+                val name = t.str("name")
+                // A tool is known by its name: one a server lists twice (a page sent again) is kept once.
+                if (name.isBlank() || out.any { it.name == name }) continue
                 val hints = t.optJSONObject("annotations")
                 out += Tool(
-                    name, t.optString("title").ifBlank { hints?.optString("title").orEmpty() }, t.optString("description"),
+                    name, t.str("title").ifBlank { hints?.str("title").orEmpty() }, t.str("description"),
                     t.optJSONObject("inputSchema") ?: JSONObject().put("type", "object"),
-                    if (hints != null && hints.has("readOnlyHint")) hints.optBoolean("readOnlyHint") else null,
+                    if (hints != null && hints.has("readOnlyHint") && !hints.isNull("readOnlyHint")) hints.optBoolean("readOnlyHint") else null,
                 )
             }
-            cursor = result.optString("nextCursor").takeIf { it.isNotBlank() && it != cursor }
-        } while (cursor != null && out.size < MAX_TOOLS)
+            // A null cursor is the last page (and not a page called "null"); a server that keeps naming another
+            // page is asked for [MAX_PAGES] at the most.
+            cursor = result.str("nextCursor").takeIf { it.isNotBlank() && it != cursor }
+        } while (cursor != null && out.size < MAX_TOOLS && ++pages < MAX_PAGES)
         return out.take(MAX_TOOLS)
     }
 
@@ -96,6 +101,10 @@ object McpClient {
      * is an [McpError] with its own words: the AI is told, and can say so or try another way.
      */
     fun call(transport: Transport, url: String, token: String, session: Session, name: String, args: JSONObject): String {
+        // Which kind of server this is, is found out with a request that changes nothing. A tool call sent to find
+        // out could be refused for its own reasons (its arguments), be taken for an older server's refusal, and be
+        // sent a second time after the handshake: a tool that makes something must be called once.
+        if (session.legacy == null) runCatching { request(transport, url, token, session, "tools/list", JSONObject(), null) }
         val result = request(transport, url, token, session, "tools/call", JSONObject().put("name", name).put("arguments", args), name)
         val text = text(result)
         if (result.optBoolean("isError")) throw McpError(text.ifBlank { "The tool failed" }.take(400))
@@ -108,15 +117,15 @@ object McpClient {
         val content = result.optJSONArray("content")
         if (content != null) for (i in 0 until content.length()) {
             val item = content.optJSONObject(i) ?: continue
-            when (item.optString("type")) {
-                "text" -> item.optString("text").takeIf { it.isNotBlank() }?.let { parts += it }
-                "resource" -> item.optJSONObject("resource")?.optString("text")?.takeIf { it.isNotBlank() }?.let { parts += it }
-                "resource_link" -> parts += "[${item.optString("name").ifBlank { "a link" }}: ${item.optString("uri")}]"
+            when (item.str("type")) {
+                "text" -> item.str("text").takeIf { it.isNotBlank() }?.let { parts += it }
+                "resource" -> item.optJSONObject("resource")?.str("text")?.takeIf { it.isNotBlank() }?.let { parts += it }
+                "resource_link" -> parts += "[${item.str("name").ifBlank { "a link" }}: ${item.str("uri")}]"
                 "image" -> parts += "[a picture]"
                 "audio" -> parts += "[a recording]"
             }
         }
-        if (parts.isEmpty()) result.opt("structuredContent")?.let { parts += it.toString() }
+        if (parts.isEmpty() && !result.isNull("structuredContent")) result.opt("structuredContent")?.let { parts += it.toString() }
         return parts.joinToString("\n").trim()
     }
 
@@ -178,7 +187,7 @@ object McpClient {
         )
         val reply = post(transport, url, token, emptyMap(), body, id)
         val result = try { answer(reply, id) } catch (e: Refused) { throw McpError(e.message ?: "The server refused to start") }
-        val version = result.optString("protocolVersion")
+        val version = result.str("protocolVersion")
         if (version !in LEGACY_VERSIONS) throw McpError("The server speaks a version of the protocol this keyboard does not (${version.ifBlank { "it did not say which" }.take(20)})")
         session.legacy = true
         session.version = version
@@ -227,7 +236,7 @@ object McpClient {
         if (error != null) {
             val supported = error.optJSONObject("data")?.optJSONArray("supported")
             val versions = if (supported == null) emptyList() else (0 until supported.length()).map { supported.optString(it) }.filter { it.isNotBlank() }
-            throw Refused("The server said: ${error.optString("message").ifBlank { "error ${error.optInt("code")}" }.take(200)}", reply.status, versions)
+            throw Refused("The server said: ${error.str("message").ifBlank { "error ${error.optInt("code")}" }.take(200)}", reply.status, versions)
         }
         if (reply.status !in 200..299) throw Refused("The server said no (${reply.status})", reply.status)
         return message?.optJSONObject("result") ?: throw Refused("The server's answer was not one this keyboard can read", reply.status)

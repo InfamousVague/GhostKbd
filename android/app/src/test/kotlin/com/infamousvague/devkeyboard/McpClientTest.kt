@@ -102,8 +102,13 @@ class McpClientTest {
         val session = McpClient.Session()
         val text = McpClient.call(modern(seen), url, " secret-token ", session, "list_events", JSONObject().put("from", "2026-11-12"))
         assertEquals("Thursday 10:00 Standup", text)
-        val call = seen.single()
+        // Nothing was known of the server: it is first asked for its tools, which changes nothing, then the call.
+        assertEquals(listOf("tools/list", "tools/call"), seen.map { it.method })
+        val call = seen.last()
         assertEquals("tools/call", call.headers["Mcp-Method"])
+        // Once its kind is known, a call is the call alone.
+        McpClient.call(modern(seen), url, "", session, "list_events", JSONObject())
+        assertEquals(3, seen.size)
         assertEquals("list_events", call.headers["Mcp-Name"])
         assertEquals("Bearer secret-token", call.headers["Authorization"])
         assertEquals("list_events", call.body.getJSONObject("params").getString("name"))
@@ -272,5 +277,81 @@ class McpClientTest {
                 assertTrue(e.message!!.isNotBlank())
             }
         }
+    }
+
+    @Test fun `a null in a server's answer is nothing, not the word null`() {
+        // The phone's own JSON reads a null as the word "null" unless it is asked first (JsonText.kt).
+        val o = JSONObject("{\"title\":null,\"name\":\"search\",\"n\":3}")
+        assertEquals("", o.str("title"))
+        assertEquals("", o.str("missing"))
+        assertEquals("search", o.str("name"))
+        assertEquals("3", o.str("n"))
+        var asked = 0
+        val server = McpClient.Transport { _, _, body, _ ->
+            asked++
+            val t = JSONObject().put("name", "search").put("title", JSONObject.NULL).put("description", JSONObject.NULL).put("annotations", JSONObject().put("readOnlyHint", JSONObject.NULL))
+            McpClient.Reply(200, ok(JSONObject(body).opt("id"), JSONObject().put("tools", JSONArray().put(t)).put("nextCursor", JSONObject.NULL)))
+        }
+        val found = McpClient.tools(server, url, "", McpClient.Session())
+        // A null cursor is the last page: the server is asked once.
+        assertEquals(1, asked)
+        assertEquals("", found.single().title)
+        assertEquals("", found.single().description)
+        assertNull(found.single().readOnly)
+        // And a tool that answers with no structured content says nothing, not "null".
+        assertEquals("", McpClient.text(JSONObject().put("content", JSONArray()).put("structuredContent", JSONObject.NULL)))
+    }
+
+    @Test fun `a server that sends its list again under a new cursor each time is asked a few pages, and each tool kept once`() {
+        var asked = 0
+        val looping = McpClient.Transport { _, _, body, _ ->
+            asked++
+            McpClient.Reply(200, ok(JSONObject(body).opt("id"), JSONObject().put("tools", tools).put("nextCursor", "page-$asked")))
+        }
+        val found = McpClient.tools(looping, url, "", McpClient.Session())
+        assertEquals(listOf("list_events", "create_event", "search"), found.map { it.name })
+        assertEquals(McpClient.MAX_PAGES, asked)
+    }
+
+    /** A server that takes requests with or without the handshake, as many do, and counts the tool calls that reached it. */
+    private class Lenient(val answerCall: (Int, Any?) -> McpClient.Reply) {
+        var calls = 0
+        val methods = ArrayList<String>()
+        val transport = McpClient.Transport { _, _, body, _ ->
+            val o = JSONObject(body)
+            val id = o.opt("id")
+            methods += o.optString("method")
+            when (o.optString("method")) {
+                "initialize" -> McpClient.Reply(200, JSONObject().put("jsonrpc", "2.0").put("id", id).put("result", JSONObject().put("protocolVersion", "2025-06-18")).toString())
+                "notifications/initialized" -> McpClient.Reply(202, "")
+                "tools/list" -> McpClient.Reply(200, JSONObject().put("jsonrpc", "2.0").put("id", id).put("result", JSONObject().put("tools", JSONArray().put(JSONObject().put("name", "create_event")))).toString())
+                else -> { calls++; answerCall(calls, id) }
+            }
+        }
+    }
+
+    @Test fun `a tool that makes something is called once, though its answer cannot be read`() {
+        // The keyboard has just started: nothing is known of the server. Its answer to the call is cut short.
+        val server = Lenient { _, _ -> McpClient.Reply(200, "event: message\ndata: {\"jsonrpc\":\"2.0\",") }
+        try {
+            McpClient.call(server.transport, url, "", McpClient.Session(), "create_event", JSONObject().put("title", "Dentist"))
+            fail("an answer that cannot be read is an error")
+        } catch (e: McpClient.McpError) {
+            assertTrue(e.message!!, e.message!!.contains("not one this keyboard can read"))
+        }
+        // Asked which kind of server it is with a request that changes nothing, then the call, once.
+        assertEquals(1, server.calls)
+        assertEquals(listOf("tools/list", "tools/call"), server.methods)
+    }
+
+    @Test fun `a tool refused for its arguments says so in the server's words, on a server not yet known`() {
+        val server = Lenient { _, id -> McpClient.Reply(200, error(id, -32602, "Invalid arguments: title is required")) }
+        try {
+            McpClient.call(server.transport, url, "", McpClient.Session(), "create_event", JSONObject())
+            fail("a refused call is an error")
+        } catch (e: McpClient.McpError) {
+            assertEquals("The server said: Invalid arguments: title is required", e.message)
+        }
+        assertEquals(1, server.calls)
     }
 }

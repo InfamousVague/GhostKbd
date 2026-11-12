@@ -27,9 +27,40 @@ object AiTools {
 
     private const val STUCK = "The AI kept asking for tools and never answered"
 
+    /**
+     * Thrown by [call] to end the whole exchange there: the person stopped the request, or left its field. No more
+     * tools are called and the AI is not asked again. Every other failure of a tool is the AI's to hear about.
+     */
+    class Stopped : RuntimeException("Stopped")
+
+    /**
+     * Whether a request that failed with [message] while it carried tools is worth making again without them. Only
+     * where the tools may be why (a provider or a model that will not take them, an answer that never came in
+     * words): not where the AI could not be reached, was busy, or would not take the key, which a second request
+     * meets the same way a moment later.
+     */
+    fun plainMayAnswer(message: String?): Boolean = message != null && NOT_THE_TOOLS.none { message.startsWith(it) }
+
+    private val NOT_THE_TOOLS = listOf(
+        "Couldn't reach", "The key was refused", "Too many requests", "The AI's server had a problem", "That model isn't available",
+        "Offline is on", "Add your", "Pick a model", "The server's address",
+    )
+
     /** What [call] says for [name] and [args], or why it could not: the second is whether it failed. */
     private fun run(call: (String, JSONObject) -> String, name: String, args: JSONObject): Pair<String, Boolean> =
-        runCatching { call(name, args) to false }.getOrElse { ("The tool could not be used: ${it.message ?: "it failed"}").take(400) to true }
+        try { call(name, args) to false } catch (e: Stopped) { throw e } catch (e: Throwable) { ("The tool could not be used: ${e.message ?: "it failed"}").take(400) to true }
+
+    /**
+     * A tool's JSON Schema as OpenAI's two shapes take it: an object, with its `properties` written out even where
+     * it has none (a schema of `{"type":"object"}` alone, which is also what a tool with no schema is given, is
+     * refused there).
+     */
+    fun openAiSchema(schema: JSONObject): JSONObject {
+        val out = JSONObject(schema.toString())
+        if (out.str("type").isBlank()) out.put("type", "object")
+        if (out.str("type") == "object" && out.optJSONObject("properties") == null) out.put("properties", JSONObject())
+        return out
+    }
 
     private fun args(raw: Any?): JSONObject = when (raw) {
         is JSONObject -> raw
@@ -80,10 +111,11 @@ object AiTools {
     /** [body] is a chat completions request (model, messages, a token limit). */
     fun openAi(body: JSONObject, tools: List<Tool>, call: (String, JSONObject) -> String, post: (JSONObject) -> JSONObject): String {
         val all = JSONArray()
-        tools.forEach { all.put(JSONObject().put("type", "function").put("function", JSONObject().put("name", it.name).put("description", it.description).put("parameters", it.schema))) }
+        tools.forEach { all.put(JSONObject().put("type", "function").put("function", JSONObject().put("name", it.name).put("description", it.description).put("parameters", openAiSchema(it.schema)))) }
         body.put("tools", all)
         val messages = body.getJSONArray("messages")
-        repeat(MAX_ROUNDS) {
+        // One ask more than the tools it may call: the last is for its answer in words.
+        repeat(MAX_ROUNDS + 1) {
             val o = post(body)
             val message = o.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message") ?: throw AiClient.AiError("The AI sent back nothing")
             val calls = message.optJSONArray("tool_calls")
@@ -109,16 +141,18 @@ object AiTools {
      */
     fun openAiResponses(body: JSONObject, tools: List<Tool>, call: (String, JSONObject) -> String, post: (JSONObject) -> JSONObject): String {
         val all = body.optJSONArray("tools") ?: JSONArray().also { body.put("tools", it) }
-        tools.forEach { all.put(JSONObject().put("type", "function").put("name", it.name).put("description", it.description).put("parameters", it.schema)) }
+        // Not strict: a connector's schema is its server's own, with arguments that may be left out, and this API
+        // takes a function for strict (every argument required, nothing else allowed) unless told otherwise.
+        tools.forEach { all.put(JSONObject().put("type", "function").put("name", it.name).put("description", it.description).put("parameters", openAiSchema(it.schema)).put("strict", false)) }
         val input = JSONArray().put(JSONObject().put("role", "user").put("content", body.optString("input")))
         body.put("input", input)
-        repeat(MAX_ROUNDS) {
+        repeat(MAX_ROUNDS + 1) {
             val o = post(body)
             val output = o.optJSONArray("output") ?: JSONArray()
             val items = (0 until output.length()).mapNotNull { output.optJSONObject(it) }
             val calls = items.filter { it.optString("type") == "function_call" }
             if (calls.isEmpty()) {
-                o.optString("output_text").takeIf { it.isNotBlank() }?.let { return it }
+                o.str("output_text").takeIf { it.isNotBlank() }?.let { return it }
                 return items.filter { it.optString("type") == "message" }.flatMap { m -> m.optJSONArray("content").let { a -> if (a == null) emptyList() else (0 until a.length()).mapNotNull { a.optJSONObject(it) } } }
                     .filter { it.optString("type") == "output_text" }.joinToString("") { it.optString("text") }
             }
@@ -144,7 +178,7 @@ object AiTools {
         }
         body.put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)))
         val contents = body.getJSONArray("contents")
-        repeat(MAX_ROUNDS) {
+        repeat(MAX_ROUNDS + 1) {
             val o = post(body)
             val candidate = o.optJSONArray("candidates")?.optJSONObject(0)
                 ?: throw AiClient.AiError(o.optJSONObject("promptFeedback")?.optString("blockReason")?.let { "Gemini blocked it ($it)" } ?: "Gemini sent back nothing")

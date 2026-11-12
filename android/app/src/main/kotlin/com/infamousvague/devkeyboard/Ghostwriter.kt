@@ -47,7 +47,8 @@ object Ghostwriter {
     /** Starts filling [request]; [done] runs on the main thread unless the job is cancelled first. */
     fun start(context: Context, prefs: KeyboardPrefs, request: String, tag: String, before: String, after: String, app: String?, done: (Job) -> Unit): Job {
         val appContext = context.applicationContext
-        return launch(prefs, Job(ids.incrementAndGet(), request, tag), done) {
+        val job = Job(ids.incrementAndGet(), request, tag)
+        return launch(prefs, job, done) {
             val (system, user) = prompt(appContext, prefs, request, before, after, app)
             // Debug builds only: the key "debug-echo" answers without any AI, to try the typing and the row.
             if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
@@ -65,17 +66,23 @@ object Ghostwriter {
             var calls = 0
             try {
                 AiClient.complete(prefs, NetPath.GHOSTWRITER, system + Connectors.section(offered), user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb, tools = tools) { name, args ->
+                    // Stopped, or its field left: no tool is called for an answer nobody is waiting for, and the AI
+                    // is not asked again.
+                    if (job.cancelled) throw AiTools.Stopped()
                     val tool = offered.firstOrNull { it.aiName == name } ?: return@complete "There is no tool called $name."
                     if (++calls > Connectors.MAX_CALLS) return@complete "No more tools may be called for this request: answer with what you have."
                     Connectors.call(prefs, tool, args)
                 }.also { Connectors.note(prefs, null) }
             } catch (e: AiClient.AiError) {
-                // Offline, or a key refused, is said as it is. Anything else may be the tools themselves (a provider
-                // or model that will not take them): the request is made again as it was before there were
-                // connectors, so they never cost anyone their answer, and Settings › Connectors says what happened.
-                if (Net.offline(prefs) || e.message?.startsWith("The key was refused") == true) throw e
-                Connectors.note(prefs, "${java.time.LocalDate.now()}: your AI answered without the connectors. ${e.message}")
+                // Offline, an AI that could not be reached or would not take the key, is said as it is. So is any
+                // failure after a tool has been called: asked again without the tools, the AI would answer as if
+                // what the tool did had not happened, and a Retry would have it done twice. Anything else may be
+                // the tools themselves (a provider or model that will not take them): the request is made again as
+                // it was before there were connectors, so they never cost anyone their answer, and once that has
+                // answered, Settings › Connectors says what happened.
+                if (job.cancelled || calls > 0 || Net.offline(prefs) || !AiTools.plainMayAnswer(e.message)) throw e
                 AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+                    .also { Connectors.note(prefs, "${java.time.LocalDate.now()}: your AI answered without the connectors. ${e.message}") }
             }
         }
     }

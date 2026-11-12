@@ -248,4 +248,73 @@ class AiToolsTest {
         assertNull(AiTools.geminiSchema(JSONObject().put("type", "object"), top = true))
         assertNull(AiTools.geminiSchema(JSONObject().put("type", "object").put("properties", JSONObject()), top = true))
     }
+
+    // --- what both reviews of 0.16.0 found ---------------------------------------------------------------------------
+
+    private fun chatAsks(n: Int) = JSONObject().put("choices", JSONArray().put(JSONObject().put("message", JSONObject().put("role", "assistant").put("content", JSONObject.NULL)
+        .put("tool_calls", JSONArray().put(JSONObject().put("id", "call_$n").put("type", "function").put("function", JSONObject().put("name", "c1_list_events").put("arguments", "{\"from\":\"2026-11-1$n\"}")))))))
+    private fun chatSays(words: String) = JSONObject().put("choices", JSONArray().put(JSONObject().put("message", JSONObject().put("role", "assistant").put("content", words))))
+
+    @Test fun `a model that calls its tools one at a time is still heard after the last of them`() {
+        // Six rounds of one call each, the most there may be, and then its answer in words: a seventh ask.
+        val rounds = (1..AiTools.MAX_ROUNDS).map { chatAsks(it) }.toTypedArray()
+        val chat = Provider(*rounds, chatSays("A full week."))
+        val calendar = Calendar()
+        assertEquals("A full week.", AiTools.openAi(chatBody(), tools, calendar.call, chat.post))
+        assertEquals(AiTools.MAX_ROUNDS, calendar.asked.size)
+        assertEquals(AiTools.MAX_ROUNDS + 1, chat.sent.size)
+
+        fun geminiAsks() = JSONObject().put("candidates", JSONArray().put(JSONObject().put("content", JSONObject().put("role", "model").put("parts", JSONArray().put(JSONObject().put("functionCall", JSONObject().put("name", "c1_list_events").put("args", JSONObject().put("from", "2026-11-12"))))))))
+        val geminiSays = JSONObject().put("candidates", JSONArray().put(JSONObject().put("content", JSONObject().put("role", "model").put("parts", JSONArray().put(JSONObject().put("text", "A full week."))))))
+        val gemini = Provider(*(1..AiTools.MAX_ROUNDS).map { geminiAsks() }.toTypedArray(), geminiSays)
+        val body = JSONObject().put("systemInstruction", JSONObject()).put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "my week")))))
+        assertEquals("A full week.", AiTools.gemini(body, tools, Calendar().call, gemini.post))
+
+        fun responsesAsks(n: Int) = JSONObject().put("output", JSONArray().put(JSONObject().put("type", "function_call").put("call_id", "call_$n").put("name", "c1_list_events").put("arguments", "{}")))
+        val responsesSays = JSONObject().put("output", JSONArray().put(JSONObject().put("type", "message").put("content", JSONArray().put(JSONObject().put("type", "output_text").put("text", "A full week.")))))
+        val responses = Provider(*(1..AiTools.MAX_ROUNDS).map { responsesAsks(it) }.toTypedArray(), responsesSays)
+        assertEquals("A full week.", AiTools.openAiResponses(JSONObject().put("model", "gpt-5.5").put("input", "my week"), tools, Calendar().call, responses.post))
+    }
+
+    @Test fun `a request that was stopped calls no more tools and asks the AI no more`() {
+        // The person tapped Stop while the AI was thinking: the tool it then asks for is not called, and nothing is sent back.
+        val stopped: (String, JSONObject) -> String = { _, _ -> throw AiTools.Stopped() }
+        val claude = Provider(claudeAsks, claudeAnswers)
+        try { AiTools.anthropic(claudeBody(), tools, stopped, claude.post); fail("a stopped request ends there") } catch (e: AiTools.Stopped) { }
+        assertEquals(1, claude.sent.size)
+        val chat = Provider(chatAsks(1), chatSays("never read"))
+        try { AiTools.openAi(chatBody(), tools, stopped, chat.post); fail("a stopped request ends there") } catch (e: AiTools.Stopped) { }
+        assertEquals(1, chat.sent.size)
+    }
+
+    @Test fun `OpenAI is given a schema it takes, and the Responses shape is told the tool is not strict`() {
+        // A tool whose server gave no schema, or an object with nothing said of its properties.
+        val bare = listOf(AiTools.Tool("c1_ping", "[Status] Says whether it is up.", JSONObject().put("type", "object")))
+        val chat = Provider(chatSays("Up."))
+        AiTools.openAi(chatBody(), bare, Calendar().call, chat.post)
+        val function = chat.sent[0].getJSONArray("tools").getJSONObject(0).getJSONObject("function")
+        assertEquals("object", function.getJSONObject("parameters").getString("type"))
+        assertEquals(0, function.getJSONObject("parameters").getJSONObject("properties").length())
+        val responses = Provider(JSONObject().put("output", JSONArray().put(JSONObject().put("type", "message").put("content", JSONArray().put(JSONObject().put("type", "output_text").put("text", "Up."))))))
+        AiTools.openAiResponses(JSONObject().put("model", "gpt-5.5").put("input", "is it up"), bare + tools, Calendar().call, responses.post)
+        val told = items(responses.sent[0].getJSONArray("tools"))
+        assertEquals(listOf(false, false), told.map { it.getBoolean("strict") })
+        assertEquals(0, told[0].getJSONObject("parameters").getJSONObject("properties").length())
+        // A schema that says its properties goes as it came: nothing of the server's own is changed.
+        assertEquals(keys(schema), keys(told[1].getJSONObject("parameters")))
+        // And the tool's own schema object is not written on.
+        assertFalse(bare[0].schema.has("properties"))
+    }
+
+    @Test fun `only a failure the tools may be behind is tried again without them`() {
+        assertTrue(AiTools.plainMayAnswer("The AI said no (400): tools.0.custom.input_schema: unsupported"))
+        assertTrue(AiTools.plainMayAnswer("The AI kept asking for tools and never answered"))
+        assertTrue(AiTools.plainMayAnswer("The AI sent back nothing"))
+        assertFalse(AiTools.plainMayAnswer("Couldn't reach the AI: timeout"))
+        assertFalse(AiTools.plainMayAnswer("The key was refused: invalid x-api-key"))
+        assertFalse(AiTools.plainMayAnswer("Too many requests, or out of credit"))
+        assertFalse(AiTools.plainMayAnswer("The AI's server had a problem: overloaded"))
+        assertFalse(AiTools.plainMayAnswer("Offline is on"))
+        assertFalse(AiTools.plainMayAnswer(null))
+    }
 }
