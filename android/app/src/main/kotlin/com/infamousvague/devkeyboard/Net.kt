@@ -235,7 +235,8 @@ object Net {
         fun on(id: String) = Plugins.isOn(prefs, id)
         return when (path) {
             NetPath.GHOSTWRITER -> on(Plugins.GHOSTWRITER) && ai
-            NetPath.REWRITE -> on(Plugins.REWRITE) && ai
+            // With a model on the phone and its switch on, Rewrite asks no server.
+            NetPath.REWRITE -> on(Plugins.REWRITE) && ai && !LocalAi.serves(context, prefs)
             NetPath.ENHANCE -> on(Plugins.ENHANCE) && ai
             NetPath.TIDY -> on(Plugins.DICTATION) && ai && prefs.dictationTidy
             NetPath.MY_VOICE, NetPath.TRAIN -> on(Plugins.MOCKINGBIRD) && ai
@@ -247,6 +248,7 @@ object Net {
             NetPath.GHOST_SIGN_OUT -> GhostOnline.signedIn(context)
             NetPath.GIF_SEARCH, NetPath.GIF_IMAGE -> on(Plugins.GIFS) && Giphy.key(prefs).isNotBlank()
             NetPath.MODEL -> on(Plugins.DICTATION)
+            NetPath.LOCAL_MODEL -> on(Plugins.REWRITE) && LocalAi.built(context)
             NetPath.UPDATE_CHECK, NetPath.UPDATE_DOWNLOAD -> !Updater.isDebuggable(context)
             NetPath.REPORT -> prefs.shareReports
             NetPath.CONNECTOR_TOOLS -> on(Plugins.CONNECTORS) && Connectors.all(prefs).isNotEmpty()
@@ -276,8 +278,13 @@ object Net {
             offline(prefs) -> "No speech model is on this phone yet, and none can be fetched while Offline is on."
             else -> "Once a speech model is on the phone. None is yet."
         }
+        // A build with no on-phone language model in it (LocalAi.built) says nothing of fetching one, or of what
+        // one would do.
+        val local = LocalAi.built(context)
+        val features = NetFeature.values().filter { local || it != NetFeature.LOCAL_MODELS }
+        val paths = NetPath.values().filter { local || it != NetPath.LOCAL_MODEL }
         val plugins = LinkedHashMap<String, LinkedHashSet<String>>()
-        for (p in NetPath.values()) for (id in p.plugins) {
+        for (p in paths) for (id in p.plugins) {
             // The Market says whose server the AI's is: the one chosen, not a provider the plugin is tied to.
             val hosts = when {
                 p.ownServer -> listOf(hostsNow(prefs, p).firstOrNull()?.let { "$it (the AI you chose)" } ?: "the AI server you choose")
@@ -290,15 +297,15 @@ object Net {
         return mapOf(
             "offline" to offline(prefs),
             "message" to OFFLINE_MESSAGE,
-            "features" to NetFeature.values().map { mapOf("id" to it.id, "title" to it.title, "stops" to it.stops, "sections" to it.sections) },
-            "sections" to NetFeature.values().flatMap { it.sections }.distinct(),
-            "paths" to NetPath.values().map { p ->
+            "features" to features.map { mapOf("id" to it.id, "title" to it.title, "stops" to it.stops, "sections" to it.sections) },
+            "sections" to features.flatMap { it.sections }.distinct(),
+            "paths" to paths.map { p ->
                 mapOf(
                     "id" to p.id, "feature" to p.feature.id, "title" to p.title, "hosts" to hostsNow(prefs, p), "ownServer" to p.ownServer, "personal" to p.personal,
                     "trigger" to p.trigger, "sends" to p.sends, "armed" to runCatching { armed(context, prefs, p) }.getOrDefault(false),
                 )
             },
-            "works" to NetLedger.WORKS.map { mapOf("id" to it.id, "title" to it.title, "line" to if (it.id == "dictation") dictation else it.line) },
+            "works" to NetLedger.WORKS.filter { local || it.id != "rewrite-local" }.map { mapOf("id" to it.id, "title" to it.title, "line" to if (it.id == "dictation") dictation else it.line) },
             "hosts" to plugins.mapValues { it.value.toList() },
         )
     }

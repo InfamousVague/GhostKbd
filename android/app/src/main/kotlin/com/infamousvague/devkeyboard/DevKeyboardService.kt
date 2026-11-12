@@ -2075,7 +2075,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         // Rewrite: the selection, or the whole field when nothing is selected, fixed, shortened, restyled or translated.
         if (Plugins.isOn(prefs, Plugins.REWRITE) && aiAllowed() && fieldHasText()) {
-            items += netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
+            // On the phone's own model Rewrite needs no network: its chip is as it always is, Offline on or off.
+            items += if (LocalAi.serves(this, prefs)) RowItem("rewrite", label = "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd, chip = true) { showingRewrite = true; scheduleRow() }
+                else netItem("rewrite", "Rewrite", icon = RowIcon.WAND, tint = RowTint.AI, bold = selStart != selEnd) { showingRewrite = true; scheduleRow() }
         }
         // Prompt enhancer: the selection, or the whole field, as a clearer prompt. It leads the row where what is
         // typed is a prompt (an AI chat app, or an app the agent keys show in) and with a selection; elsewhere it
@@ -2513,7 +2515,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The Rewrite plugin: [mode] done to the selection, or to everything in the field when nothing is selected. */
     private fun rewriteWith(mode: Rewrite.Mode) {
         showingRewrite = false
-        if (offlineOn) { sayOffline(); return }
+        if (offlineOn && !LocalAi.serves(this, prefs)) { sayOffline(); return }
         val ic = currentInputConnection
         if (ic == null || !aiAllowed()) { scheduleRow(); return }
         var selected = ic.getSelectedText(0)?.toString().orEmpty()
@@ -2530,9 +2532,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     private fun startRewrite(selected: String, mode: Rewrite.Mode) {
-        if (offlineOn) { sayOffline(); return }
+        if (offlineOn && !LocalAi.serves(this, prefs)) { sayOffline(); return }
         aiJob?.cancelled = true
-        aiJob = Ghostwriter.rewriteAs(prefs, selected, mode) { onAiDone(it) }
+        aiJob = Ghostwriter.rewriteAs(this, prefs, selected, mode) { onAiDone(it) }
         scheduleRow()
     }
 

@@ -69,6 +69,13 @@
         </activity>
 
         <!-- The keyboard itself: a native input method, so it is fast and needs no Flutter engine. -->
+        <!-- The on-phone language model (Rewrite › On this phone), in a process of its own: a model is gigabytes of
+             memory held by native code, and when Android takes that back, or that code fails, the keyboard is still
+             here (LlmService.kt). Only this app binds to it. -->
+        <service
+            android:name=".LlmService"
+            android:process=":llm"
+            android:exported="false" />
         <service
             android:name=".DevKeyboardService"
             android:label="Ghost Keyboard"

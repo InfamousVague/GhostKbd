@@ -156,6 +156,14 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   comma too. With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and
   the emoji key stands beside it; the comma is then on the full stop's long press, as before.
 
+## Rewrite on this phone (written, not yet built into the app)
+
+Rewrite and its Fix on a language model that runs on the phone: Settings › AI › Rewrite › On this phone, Ghost.md's
+Qwen3.5 2B and 4B files, a process of its own for the model, worked examples in what the model is shown, and a check
+on what it writes before that replaces anything. `LocalAi.kt`, `LocalModels.kt`, `LocalRewrite.kt`, `LlmService.kt`,
+`android/llm` (llama.cpp v0.9.0) and `tool/local_ai_try`. The native library is not part of the build yet, so no
+version has any of it: [docs/local-ai.md](docs/local-ai.md) says where it stands and how to finish it.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's

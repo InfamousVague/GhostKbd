@@ -96,8 +96,12 @@ object Ghostwriter {
     }
 
     /** The Rewrite plugin: the [selected] text rewritten as [mode] asks, to replace the selection. */
-    fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
-        launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
+    fun rewriteAs(context: Context, prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        val job = Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id)
+        // On the phone's own model it asks no server, so Offline does not stop it; and stopping the job stops the model.
+        return launch(prefs, job, done, local = LocalAi.serves(appContext, prefs)) { Rewrite.run(appContext, prefs, mode, selected) { job.cancelled } }
+    }
 
     /**
      * The Prompt enhancer plugin: the [selected] text rewritten as a clearer prompt, to replace the selection.
@@ -131,10 +135,11 @@ object Ghostwriter {
     /**
      * Runs [work] on the worker and hands [job] back on the main thread. With Offline on the work is never started
      * (no notes read, no commits searched): the job ends with "Offline is on", which the row shows as its error.
+     * Unless it is [local]: work done on the phone itself, which Offline has nothing to stop.
      */
-    private fun launch(prefs: KeyboardPrefs, job: Job, done: (Job) -> Unit, work: () -> String): Job {
+    private fun launch(prefs: KeyboardPrefs, job: Job, done: (Job) -> Unit, local: Boolean = false, work: () -> String): Job {
         worker.execute {
-            runCatching { if (Net.offline(prefs)) throw AiClient.AiError(Net.OFFLINE_MESSAGE) else work() }
+            runCatching { if (!local && Net.offline(prefs)) throw AiClient.AiError(Net.OFFLINE_MESSAGE) else work() }
                 .onSuccess { job.result = clean(it) }.onFailure { job.error = it.message ?: "Couldn't write it" }
             main.post { if (!job.cancelled) done(job) }
         }

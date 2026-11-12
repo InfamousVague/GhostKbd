@@ -95,6 +95,14 @@ class KeyboardPrefs(context: Context) {
     /** The Rewrite plugin: the language its Translate goes to, as the person wrote it. */
     val rewriteLanguage: String get() = prefs.getString(REWRITE_LANGUAGE, DEFAULTS[REWRITE_LANGUAGE] as String)!!
 
+    /**
+     * Settings › AI › Rewrite › On this phone: Rewrite and its Fix run on a language model on the phone itself where
+     * one is here (LocalAi.kt), in place of the AI provider; and which model, where more than one is here
+     * (LocalModels.kt; "": whichever is).
+     */
+    val rewriteLocal: Boolean get() = bool(REWRITE_LOCAL)
+    val localModel: String get() = prefs.getString(LOCAL_MODEL, DEFAULTS[LOCAL_MODEL] as String)!!
+
     /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
     val backlight: Boolean get() = bool(BACKLIGHT)
     val backlightEffect: String get() = prefs.getString(BACKLIGHT_EFFECT, "reactive")!!
@@ -395,6 +403,8 @@ class KeyboardPrefs(context: Context) {
         const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
+        const val REWRITE_LOCAL = "rewrite_local"
+        const val LOCAL_MODEL = "local_model"
         const val ENHANCE_STYLE = "enhance_style"
         const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
@@ -485,6 +495,8 @@ class KeyboardPrefs(context: Context) {
             BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",
+            REWRITE_LOCAL to true,
+            LOCAL_MODEL to "",
             ENHANCE_STYLE to "tight",
             ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,

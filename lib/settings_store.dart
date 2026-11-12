@@ -13,6 +13,7 @@ class SettingsStore extends ChangeNotifier {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
       if (call.method == 'dictationChanged') _setDictation(call.arguments);
+      if (call.method == 'localAiChanged') _setLocalAi(call.arguments);
       if (call.method == 'smsCodesChanged') _setSmsCodes(call.arguments);
       if (call.method == 'profileDone' && call.arguments is Map) {
         final r = call.arguments as Map;
@@ -123,6 +124,7 @@ class SettingsStore extends ChangeNotifier {
     'dictation_words': '',
     'dictation_tidy': true,
     'dictation_live': true,
+    'rewrite_local': true,
     'enhance_style': 'tight',
     'enhance_notes': '',
     'preview_open': false,
@@ -354,6 +356,7 @@ class SettingsStore extends ChangeNotifier {
       await refreshClipboard();
       await refreshShortcuts();
       await refreshConnectors();
+      await refreshLocalAi();
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -562,6 +565,32 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> refreshConnectors() => _connectorCall('connectorsState');
+
+  /// Rewrite on this phone (android LocalAi.kt, LocalModels.kt): `built` (this build can run a model; where it
+  /// cannot, Settings shows none of it), `on` (the switch), `serves` (Rewrite runs on the phone as things stand),
+  /// `active` (the model in use) and `models`, each with `installed`, `downloading`, `progress` and `error`.
+  Map<String, Object?> localAi = const {'built': false, 'on': true, 'serves': false, 'models': <Object?>[]};
+
+  Future<void> refreshLocalAi() => _localAiCall('localAiState', const {});
+
+  /// A model that is on the phone is chosen; one that is not is downloaded.
+  Future<void> useLocalModel(String id) => _localAiCall('useLocalModel', {'id': id});
+  Future<void> cancelLocalModel() => _localAiCall('cancelLocalModel', const {});
+  Future<void> deleteLocalModel(String id) => _localAiCall('deleteLocalModel', {'id': id});
+
+  Future<void> _localAiCall(String method, Map<String, Object> args) async {
+    try {
+      _setLocalAi(await _channel.invokeMethod<Object>(method, args));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  void _setLocalAi(Object? raw) {
+    if (raw is! Map) return;
+    localAi = raw.map((k, v) => MapEntry('$k', v as Object?));
+    notifyListeners();
+  }
   Future<void> refreshConnector(String id) => _connectorCall('connectorRefresh', args: {'id': id}, busy: true);
   /// Removed, its server is no longer among the places the phone may reach: Offline's list is read again.
   Future<void> removeConnector(String id) async {
