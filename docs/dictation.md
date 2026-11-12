@@ -28,8 +28,9 @@ Where a piece ends (`SpeechCuts`):
 Each piece is given the end of the piece before it (up to 160 characters), which is what keeps the pieces reading as
 one text.
 
-A take ends when the mic is tapped again; by itself after 45 seconds with nobody speaking; and at 30 minutes whatever
-is said. The sound of each piece is let go as soon as it is written down.
+A take ends when the mic is tapped again; when the keyboard is hidden (`onFinishInputView`), so a mic is never left
+open behind another app; by itself after 45 seconds with nobody speaking; and at 30 minutes whatever is said. The
+sound of each piece is let go as soon as it is written down.
 
 ## Your words
 
