@@ -191,6 +191,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Adaptive keys: the touches of the word being typed, in order (null where a letter came another way), and the
      *  last one backspace took away, with when. */
     private val wordTouches = ArrayList<KeyboardView.Typed?>()
+
+    /**
+     * The word the space bar's last tap ended, kept until the next word ends or a second space comes: that tap may
+     * have been one of the word's own letters, landed on the top of the bar, and the word is then put together
+     * again ([rejoined], Autocorrect.rejoin). [typed] is the word as typed and [stood] what the space left standing
+     * for it; [touches] are its taps and [tap] the bar's own. Never kept across a field or a moved cursor.
+     */
+    private class Cut(val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val tap: KeyboardView.Typed, val field: EditorInfo?)
+    private var cut: Cut? = null
+    /** The space bar's tap, while [space] deals with it; null for a space that came any other way. */
+    private var spaceTouch: KeyboardView.Typed? = null
     private var takenTouch: Pair<KeyboardView.Typed, Long>? = null
 
     /** Ghostwriter typing an answer out: the text and how far it has got. */
@@ -884,7 +895,50 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * The word just before the cursor, corrected and followed by [separator], if autocorrect has a better one. True
      * when it typed the separator itself. Words in code-shaped text (after @ # / . _ - or a digit) are left alone.
      */
+    /**
+     * Where the fingers landed for letters with the space bar's own tap among them: [before]'s, the bar's, [after]'s.
+     * Null where the letters' keys are not known.
+     */
+    private fun tapsAcross(before: List<KeyboardView.Typed?>, bar: KeyboardView.Typed, after: List<KeyboardView.Typed?>): Taps? {
+        val (keys, keyW, space) = keyboard?.tapKeys() ?: return null
+        val all = before + listOf<KeyboardView.Typed?>(bar) + after
+        return Taps(FloatArray(all.size) { all[it]?.x ?: Float.NaN }, FloatArray(all.size) { all[it]?.y ?: Float.NaN }, keys, keyW, space)
+    }
+
+    /**
+     * Puts a word together again that a tap on the space bar cut in two, where its taps say that tap was a letter
+     * (Autocorrect.rejoin): [word] is what has been typed since the bar's tap (nothing, where a second space has
+     * just come), and [separator] what ends it. True when the field now has the one word and its separator.
+     */
+    private fun rejoined(ic: InputConnection, word: String, separator: String): Boolean {
+        val c = cut ?: return false
+        cut = null
+        if (c.field !== currentInputEditorInfo || c.touches.size != c.typed.length || wordTouches.size != word.length) return false
+        if (!autocorrectAllowed() || !(profile?.flag("autocorrect") ?: prefs.autocorrect)) return false
+        val standing = if (word.isEmpty()) c.stood + " " else c.stood + " " + word
+        val before = ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString() ?: return false
+        if (!before.endsWith(standing)) return false
+        // The scrap before the bar's tap starts a word of its own: nothing it would be the tail of.
+        val head = before.dropLast(standing.length)
+        if (head.isNotEmpty() && (head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) return false
+        val after = ic.getTextAfterCursor(1, 0)
+        if (!after.isNullOrEmpty() && (after[0].isDigit() || isWordChar(after[0]))) return false
+        val taps = tapsAcross(c.touches, c.tap, wordTouches) ?: return false
+        val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
+            NextWordText.place(head, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
+        }.getOrNull()
+        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps) ?: return false
+        if (!editor.replaceBefore(standing, whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty()) "" else separator)) return false
+        stats { TypingStats.correction(this) }
+        // Backspace straight after puts the two scraps back, as it puts back any word a fix replaced.
+        lastCorrection = Triple(standing, whole, separator)
+        return true
+    }
+
     private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean {
+        // The word the bar's last tap ended is this call's to put together or to let go: never a later one's.
+        val pending = cut
+        cut = null
         if (!autocorrectAllowed() || !(profile?.flag("autocorrect") ?: prefs.autocorrect)) return false
         val before = ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString() ?: return false
         // As far back as it always looked: a run of letters longer than that is no word to mend. The word starts at
@@ -900,6 +954,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // In the middle of a word (the cursor moved back into it): the word goes on past the cursor, leave it.
         val after = ic.getTextAfterCursor(1, 0)
         if (!after.isNullOrEmpty() && (after[0].isDigit() || isWordChar(after[0]))) return false
+        // The word before this one ended at a tap on the space bar that may have been a letter: the two are one word.
+        if (pending != null) { cut = pending; if (rejoined(ic, word, separator)) return true }
         // The words before it help choose between corrections that would each do (never whether to correct at all).
         // Working that out must not cost the key press: any failure and the word is corrected as it always was.
         val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
@@ -929,6 +985,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val found = autocorrect.correct(word, scorer, taps)
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
+        // Ended by the bar's own tap: kept, in case that tap was this word's next letter.
+        spaceTouch?.takeIf { separator == " " }?.let { cut = Cut(word, stands, wordTouches.toList(), it, currentInputEditorInfo) }
         if (prior != null) retyped(prior, stands, opens)
         swipedThenTyped(head, stands, now)
         noteEnd(lower, stands, head, now)
@@ -1094,6 +1152,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val tail = fixed + separator
         if (!editor.replaceBefore(tail, if (keepSeparator) typed + separator else typed, Kind.CORRECTION)) return false
         lastSpaceAt = 0L
+        // Two scraps put back where a word had been put together ([rejoined]): they are no word to keep or to learn from.
+        if (' ' in typed) { learner.unhold(fixed.lowercase(locale)); scheduleRow(); return true }
         // The fix was never meant, so it is never counted; the word put back is the one that was typed.
         learner.unhold(fixed.lowercase(locale))
         learner.word(typed.length)
@@ -1191,7 +1251,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = false
         said = null
         finishTyping()
-        try { space() } finally { endWord() }
+        spaceTouch = keyboard?.takeSpace()
+        try { space() } finally { endWord(); spaceTouch = null }
     }
 
     private fun space() {
@@ -1211,11 +1272,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (prefs.doubleSpacePeriod && now - lastSpaceAt < 1000) {
             // Gboard's double-space full stop: "word␣" + space becomes "word.␣" (the layout's own full stop: Urdu's is ۔).
             val before = ic.getTextBeforeCursor(2, 0)
-            if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit() &&
-                editor.replaceBefore(" ", language.spec.fullStop + " ", Kind.CORRECTION, typedFirst = " ")
-            ) {
-                lastSpaceAt = 0L
-                return
+            if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
+                // Unless the space before this one was the word's own last letter, landed on the bar ("o " for
+                // "on"): then this is the word's space, and no full stop.
+                if (rejoined(ic, "", " ")) { lastSpaceAt = now; return }
+                if (editor.replaceBefore(" ", language.spec.fullStop + " ", Kind.CORRECTION, typedFirst = " ")) {
+                    lastSpaceAt = 0L
+                    return
+                }
             }
         }
         // A shortcut by itself before the cursor becomes what it stands for, before autocorrect sees its letters.
@@ -1351,7 +1415,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onDeleteWord() {
         toolsHeld = false
         finishTyping()
-        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null
+        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null; cut = null
         if (gifMode == GifMode.TYPING) { gifQuery = gifQuery.trimEnd().substringBeforeLast(' ', ""); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery = emojiQuery.trimEnd().substringBeforeLast(' ', ""); scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -1382,7 +1446,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onCursorLine(lines: Int) {
         toolsHeld = false
         finishTyping()
-        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null; learner.moved()
+        wordTouches.clear(); takenTouch = null; lastCorrection = null; lastSwipe = null; cut = null; learner.moved()
         repeat(abs(lines)) { sendKey(if (lines < 0) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN) }
     }
 
@@ -2660,7 +2724,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun arrow(code: Int) {
         toolsHeld = false
         finishTyping()
-        wordTouches.clear(); takenTouch = null; lastSwipe = null; lastCorrection = null; learner.moved()
+        wordTouches.clear(); takenTouch = null; lastSwipe = null; lastCorrection = null; cut = null; learner.moved()
         keyFeedback(KeyType.CHAR)
         sendKey(code)
     }

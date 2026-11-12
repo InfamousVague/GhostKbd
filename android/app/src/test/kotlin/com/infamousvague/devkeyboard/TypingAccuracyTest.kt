@@ -110,6 +110,51 @@ class TypingAccuracyTest {
         assertEquals("the", ac.correct("thr", null, taps("thr")))
     }
 
+    /** [first], a tap on the space bar under the key [under], [down] of the bar's height below its top edge, then [second]. */
+    private fun cut(first: String, second: String, under: Char, down: Float): Taps {
+        val a = taps(first)
+        val b = taps(second)
+        val bar = floatArrayOf(space[1] + down * (space[3] - space[1]))
+        return Taps(a.xs + floatArrayOf(centres.getValue(under).first) + b.xs, a.ys + bar + b.ys, centres, W, space)
+    }
+
+    @Test fun aWordCutInTwoByATapOnTheBarIsPutTogether() {
+        // "being" with its n landed just under the top edge of the bar: "bei g" in the field, and one word by its taps.
+        assertEquals("being", ac.rejoin("bei", "g", "bei", null, cut("bei", "g", 'n', 0.07f)))
+        assertEquals("have", ac.rejoin("ha", "e", "ha", null, cut("ha", "e", 'v', 0.07f)))
+        assertEquals("wouldn't", ac.rejoin("would", "t", "would", null, cut("would", "t", 'n', 0.07f)))
+        // The scrap before the tap may have been mended at the space: what stands is held against the one word.
+        assertEquals("practicing", ac.rejoin("practici", "g", "practice", null, cut("practici", "g", 'n', 0.07f)))
+        // A capital the first scrap had is the word's.
+        assertEquals("Being", ac.rejoin("Bei", "g", "Bei", null, cut("Bei", "g", 'n', 0.07f)))
+        // Two scraps that could be two words are one only by a tap near the bar's top edge: "a out" is "about" there,
+        // and stands where the tap was in the bar's middle.
+        assertEquals("about", ac.rejoin("a", "out", "a", null, cut("a", "out", 'b', 0.07f)))
+        assertNull(ac.rejoin("a", "out", "a", null, cut("a", "out", 'b', 0.5f)))
+        // Two that are no words at all give way to the one word wherever on the bar the tap was.
+        assertEquals("being", ac.rejoin("bei", "g", "bei", null, cut("bei", "g", 'n', 0.5f)))
+    }
+
+    @Test fun aWordWhoseLastLetterLandedOnTheBarIsPutTogetherAtTheNextSpace() {
+        // "on" typed as "o" and a tap on the bar under n: with nothing after it (the next tap is the space itself,
+        // which used to make a full stop of the two).
+        assertEquals("on", ac.rejoin("o", "", "o", null, cut("o", "", 'n', 0.07f)))
+        assertEquals("tragic", ac.rejoin("tragi", "", "tragi", null, cut("tragi", "", 'c', 0.07f)))
+        // A word that stands by itself is not made a longer one: "the" and two spaces is a full stop, not "then".
+        assertNull(ac.rejoin("the", "", "the", null, cut("the", "", 'n', 0.07f)))
+        assertNull(ac.rejoin("see", "", "see", null, cut("see", "", 'n', 0.07f)))
+        assertNull(ac.rejoin("o", "", "o", null, cut("o", "", 'n', 0.5f)))
+    }
+
+    @Test fun twoWordsThatAreTwoWordsStand() {
+        // However high on the bar the space was tapped.
+        for ((a, b) in listOf("is" to "a", "to" to "go", "in" to "the", "it" to "was", "we" to "can", "a" to "man", "be" to "nice")) {
+            for (under in "cvbnm") assertNull("$a $b under $under", ac.rejoin(a, b, a, null, cut(a, b, under, 0.03f)))
+        }
+        // No taps for the scraps, or none for the bar: nothing to go by, nothing done.
+        assertNull(ac.rejoin("bei", "g", "bei", null, Taps(FloatArray(5) { Float.NaN }, FloatArray(5) { Float.NaN }, centres, W, space)))
+    }
+
     @Test fun twoWordsRunTogetherAreParted() {
         assertEquals("in the", ac.correct("inthe", null, taps("inthe")))
         assertEquals("see you", ac.correct("seeyou", null, taps("seeyou")))

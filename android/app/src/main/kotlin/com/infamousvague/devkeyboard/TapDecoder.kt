@@ -152,6 +152,27 @@ class TapDecoder(
         nearCost = Array(n) { EMPTY_COSTS }
         for (i in 0 until n) {
             val t = tk[i]
+            // A tap that typed a space, in letters a stray one may have cut in two ([Autocorrect.rejoin]): read as a
+            // letter, it costs by how much nearer the bar's middle line it landed than that letter's key. A tap just
+            // under the bar's top edge is as near the key above it as the bar; one in the bar's middle was the bar.
+            if (lower[i] == ' ') {
+                val bar = taps?.space
+                if (taps != null && taps.has(i) && bar != null) {
+                    val x = taps.xs[i]; val y = taps.ys[i]
+                    val mid = (bar[1] + bar[3]) / 2
+                    val d0 = (y - mid) * (y - mid) / w2
+                    val chars = ArrayList<Char>(6)
+                    val costs = ArrayList<Float>(6)
+                    for ((k, c) in taps.keys) {
+                        val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
+                        val cost = SPATIAL * (d - d0)
+                        if (cost < far) { chars += k; costs += cost.coerceAtLeast(0f) }
+                    }
+                    nearCh[i] = chars.toCharArray()
+                    nearCost[i] = costs.toFloatArray()
+                }
+                continue
+            }
             val at = if (taps != null && taps.has(i)) taps.keys[t] else null
             if (taps == null || at == null) {
                 // No tap of its own: the keys beside it are a slip away, as they always were.
@@ -197,6 +218,8 @@ class TapDecoder(
 
     /** What it costs to take tap [i] as one too many. */
     private fun insert(i: Int): Float {
+        // The space bar's own tap is a space or a letter that missed its key, never nothing at all.
+        if (tk[i] == ' ') return Float.POSITIVE_INFINITY
         if (i == 0) return INSERT_FIRST
         val c = tk[i]
         val before = tk[i - 1]
