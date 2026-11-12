@@ -133,16 +133,28 @@ object LocalModels {
             errors.remove(spec.id)
             changed()
             var lastError: String? = null
-            for (url in spec.mirrors) {
-                if (cancelled) break
-                try {
-                    fetch(ctx, prefs, spec, url)
-                    lastError = null
-                    break
-                } catch (e: Exception) {
-                    lastError = e.message ?: e.javaClass.simpleName
-                    // Offline switched on part-way: say so, keep the part for later, and try no other mirror.
-                    if (Net.offline(prefs)) { lastError = Net.OFFLINE_MESSAGE; break }
+            var resumed = 0
+            mirrors@ for (url in spec.mirrors) {
+                while (true) {
+                    if (cancelled) break@mirrors
+                    val before = if (part.exists()) part.length() else 0L
+                    try {
+                        fetch(ctx, prefs, spec, url)
+                        lastError = null
+                        break@mirrors
+                    } catch (e: Exception) {
+                        lastError = broke(e)
+                        // Offline switched on part-way: say so, keep the part for later, and try no other mirror.
+                        if (Net.offline(prefs)) { lastError = Net.OFFLINE_MESSAGE; break@mirrors }
+                        if (cancelled) break@mirrors
+                        // A download of a gigabyte or more breaks off (seen on the emulator, 2026-11-12: "Software
+                        // caused connection abort" at 16% of 533 MB). What has come is kept, so it is taken up where
+                        // it stopped, at the same address, for as long as each try gets further; a try that got
+                        // nowhere (no such file there, a wrong hash) goes on to the next address.
+                        val now = if (part.exists()) part.length() else 0L
+                        if (e !is java.io.IOException || now <= before || now >= spec.bytes || ++resumed > RESUMES) break
+                        runCatching { Thread.sleep(RESUME_PAUSE_MS) }
+                    }
                 }
             }
             if (!cancelled && !isReady(ctx, spec)) errors[spec.id] = lastError ?: "The model could not be downloaded."
@@ -154,6 +166,17 @@ object LocalModels {
     }
 
     fun cancel() { cancelled = true }
+
+    /** How often one download is taken up again after breaking off, and the pause before each (ms). */
+    private const val RESUMES = 40
+    private const val RESUME_PAUSE_MS = 2_000L
+
+    /** Why a download stopped, in words for the model's line in Settings: never a network library's own. */
+    private fun broke(e: Exception): String = when (e) {
+        is Net.Refused -> e.message ?: Net.OFFLINE_MESSAGE
+        is java.io.IOException -> "The download broke off. Tap Get to carry on from where it stopped."
+        else -> e.message ?: "The model could not be downloaded."
+    }
 
     fun delete(context: Context, spec: Spec) {
         if (downloading == spec.id) cancelled = true
@@ -261,7 +284,7 @@ object LocalModels {
                     }
                 }
             }
-            if (part.length() != spec.bytes) throw IllegalStateException("The download stopped short. Tap Download to carry on.")
+            if (part.length() != spec.bytes) throw java.io.IOException("The download stopped short.")
             val digest = MessageDigest.getInstance("SHA-256")
             part.inputStream().use { input ->
                 val buf = ByteArray(1024 * 1024)

@@ -173,15 +173,16 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   read), and Settings says what it found under the keys. Not seen on a Galaxy, and one of the settings' names is a
   guess; where anything cannot be read the keys stay where they were.
 
-## Rewrite on this phone (written, not yet built into the app)
+## Rewrite on this phone (in the build, not in a release yet)
 
 Rewrite and its Fix on a language model that runs on the phone: Settings › AI › Rewrite › On this phone, Ghost.md's
 Qwen3.5 2B and 4B files, a process of its own for the model, worked examples in what the model is shown, and a check
 on what it writes before that replaces anything. `LocalAi.kt`, `LocalModels.kt`, `LocalRewrite.kt`, `LlmService.kt`,
 `android/llm` (llama.cpp v0.9.0) and `tool/local_ai_try`. Any other GGUF model on Hugging Face can be added by its
 link (Settings › AI › Rewrite › Another model; `ModelLinks.kt`): Hugging Face is asked for the file's size and SHA-256
-and the download is held to them. The native library is not part of the build yet, so no version has any of it:
-[docs/local-ai.md](docs/local-ai.md) says where it stands and how to finish it.
+and the download is held to them. The library is part of the Android build since 2026-11-12 (Matt: "build in the llm
+as long as it's not too large"): 4.3 MB in the APK, against 3.0 MB of speech library for other processors that came
+out of it, so the app grows from 39.9 MB to about 41.3. 0.16.3 does not have it. [docs/local-ai.md](docs/local-ai.md) has the whole account, its size included.
 
 ## Releases and auto-update
 

@@ -4,12 +4,12 @@ Rewrite, with its Fix, can run on a language model on the phone itself (Matt, 20
 models to work in the keyboard", and of what for: "please support them for rewriting and grammar checking"). No key,
 no connection, nothing of what is written leaving the phone, and it works with Offline on.
 
-**Where this stands (2026-11-12).** Everything below is written, and tried as far as it can be without a phone: the
-model's own code on a desk against the real models, the rules and the settings page by tests. **The model's library
-has not been built for Android or run on a device**: building llama.cpp into the app was stopped by the permission
-system of the session that wrote this, as code from outside, and waits on Matt's word. Until `android/llm` is part of
-the build (see "Finishing it"), the app has no such library in it, `LocalAi.built` is false, and Settings, the row and
-the Offline page show nothing of any of this.
+**Where this stands (2026-11-12, evening).** The model's library is part of the Android build (5799e1b), 4.3 MB in
+the app, and has run: on the emulator a model added by its link was downloaded, checked against its hash and used,
+and Rewrite's Fix on it changed the text in the field ("Seen on the emulator", below). **It is in no release yet**
+(0.16.3 does not have it), and it has not run on a phone: how long a rewrite takes on one, and how the two models
+the keyboard offers behave there, are not known. Until this morning's word from Matt ("build in the llm as long as
+it's not too large") the build had been stopped by the permission system of the session that wrote it.
 
 ## What it is
 
@@ -118,23 +118,90 @@ What that does and does not make of "all popular models":
 - None of this has run on a phone: it waits on the library as everything here does. `ModelLinksTest` (7) tries the
   links, Hugging Face's answers and the list off the phone; `test/local_ai_settings_test.dart` tries the Settings rows.
 
-## Finishing it
+## What it costs in the app's size
 
-1. `android/settings.gradle.kts`: `id("com.android.library") version "9.3.1" apply false` among the plugins, and
-   `include(":llm")`.
-2. `android/app/build.gradle.kts`: `implementation(project(":llm"))`.
-3. Build. CMake fetches llama.cpp at v0.9.0 and refuses any other commit than cd959ba. (`android/llm` has never been
-   configured or compiled: expect to mend it.)
-4. On a device: download the 2B model in Settings, then Rewrite › Fix in a field, with Offline on; stop one half way;
-   delete the model while it is in use; see the `:llm` process go three minutes after.
-5. Time it on a phone, and decide from that whether the request's fixed opening (the instructions and examples, about
-   260 tokens) should be kept in the model's memory between requests rather than read again each time.
+Matt, 2026-11-12: "build in the llm as long as it's not too large we don't want to bloat the app size if possible."
+
+An APK stores its native libraries as they are, not compressed, so a library's stripped size is what it adds to
+the download.
+
+| | bytes |
+| --- | ---: |
+| 0.16.3 as published | 39,907,840 |
+| `libdevkeyboard_llm.so` as first built (a debug build's, stripped) | + 4,682,528 |
+| the same with llama.cpp's own code built for size (`-Os` on the `llama` target) | + 4,427,600 |
+| the same in a release build | + 4,322,776 |
+| the speech library for 32-bit ARM and x86_64, which every APK up to 0.16.3 carried | − 2,979,636 |
+| so the next release, about | 41,260,000 (+ 1.35 MB, 3.4%) |
+
+A release build of the whole branch made on this Mac on 2026-11-12 (signed with the debug key, only to be measured)
+is 41,660,012 bytes. 401,512 of that is this Mac's older Flutter, whose engine is that much larger than the one CI
+builds with; taking that and the two libraries' changes away leaves a few kilobytes for everything else that is new
+in the branch (the mail codes, the strip, the settings pages).
+
+- **The model's library is 4.3 MB.** A third of it is ggml's arithmetic (1.4 MB of compiled code) and two thirds
+  llama.cpp's own (3.2 MB): reading a model, its vocabulary, sampling, and the wiring of every architecture it
+  knows, in pieces of a hundred to three hundred kilobytes with no one of them the bulk. Building llama.cpp's own
+  code for size took 5% off the whole; the arithmetic keeps its speed.
+- **3.0 MB of the app was no use to anyone.** Flutter's own libraries are in the APK for arm64 alone, so the app
+  cannot start on another kind of processor; but whisper was in it three times, because `ndk.abiFilters +=
+  listOf("arm64-v8a")` adds to a list that Flutter's plugin also adds to. `externalNativeBuild.cmake.abiFilters` is
+  the native build's own list, and now says arm64.
+- Not done, and what each would take: leaving out the architectures the keyboard's models do not use (a patch to
+  llama.cpp to carry); link-time optimisation (a longer build for perhaps a tenth); packing every library compressed
+  (the download would fall by a third, and every phone would then keep a second, unpacked copy).
+
+The models themselves are not in the app: 1.3 or 2.7 GB each, fetched when asked for (see above).
+
+## Building it
+
+`android/llm` is a module of the Android build (`android/settings.gradle.kts`) and the app depends on it. CMake
+fetches llama.cpp at v0.9.0 from GitHub and refuses any other commit than cd959ba. It compiled for Android at the
+first try on 2026-11-12, once Matt had said to build it in (the session's permission system had refused that command
+twice before, as code from outside).
+
+## Seen on the emulator (2026-11-12)
+
+emulator-5584: a Pixel image, Android 16, 3 GB of memory, on a Mac whose load average was 150 to 450 at the time. A
+debug build of `plugins-six` with the library in it.
+
+- Settings › AI › Rewrite shows On this phone: the switch, Qwen3.5 4B (2.7 GB) and 2B (1.3 GB) each with Get, and
+  Another model. (In 0.16.3, which has no library, none of it shows.)
+- **A model by its link.** `https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/blob/main/Qwen3.5-0.8B-Q4_K_M.gguf`
+  pasted into Another model, enter: the field emptied and the list had "Qwen3.5-0.8B-Q4_K_M · Added by you, from
+  unsloth/Qwen3.5-0.8B-GGUF on Hugging Face. Not one the keyboard was tried with. 533 MB · Get" and its Remove row.
+  That model because the emulator's 3 GB would not hold the 2B; it is the one the desk trials found too weak to
+  offer.
+- **The download.** About a megabyte a second from Hugging Face. It broke off twice ("Software caused connection
+  abort", at 16% and at 90%) and a tap on Get took it up each time from where it had stopped (17%, 94%). At the end
+  the file was 532,517,120 bytes under its own id (`own-a8ad4403-Qwen3.5-0.8B-Q4_K_M.gguf`), the `.part` gone, the
+  row "In use": size and SHA-256 as Hugging Face had named them. Since then a download that breaks off takes
+  itself up again while each try gets further (`LocalModels.download`), and says "The download broke off" in place
+  of the network library's own words; that change was compiled, not yet seen working.
+- **Fix.** In the app's own Try field, "i has went to the store yesterday and buyed some apple." Rewrite in the
+  row (a plain chip, not an Offline one), then Fix: the text was selected, the row showed the quill and "Fix…" with
+  a stop button, and 157 seconds later the field read "i has gone to the store yesterday and bought some apple."
+  with Undo in the row. So the whole path works: the request across to the model's own process, llama.cpp reading
+  the file and writing, the answer back, the check on it, the field. The 0.8B mended one slip of four, which is
+  what the desk trials said of it; the check let it through because it is the same sentence with two words changed.
+- The model's process held 1.1 GB while it worked (a 533 MB file: llama.cpp makes its own copy of the weights in
+  the order its arithmetic wants), and was gone when I looked six minutes after, as it should be three minutes
+  after the last request. Whether it left by itself or Android took it, I did not see.
+- 157 seconds says nothing of a phone: an emulator with three threads on a Mac that was out of memory. A second
+  request, to time the model once it is already read, could not be made: the emulator stopped taking typed input.
+
+Not seen: either of the keyboard's own two models running on Android; a stop half way; deleting a model while it
+is in use; Offline on with the model here (the chip was a plain one, which is the code's way of saying it would
+run); anything on a phone.
 
 ## Not done
 
 - Nothing but Rewrite uses the phone's model: Ghostwriter, Enhance, Tidy and Mockingbird still need the AI provider.
-- The keyboard's own two models are not checked against the phone's memory before they are downloaded (a model added
-  by its link is). A phone with 6 GB will be short for the 4B.
+- The time a rewrite takes on a phone, and whether the request's fixed opening (the instructions and examples,
+  about 260 tokens) should be kept in the model's memory between requests rather than read again each time.
+- A model's memory: about twice its file while it works. The 4B is then some 5.5 GB, which a phone with 8 GB will
+  not give it; nothing checks that for the keyboard's own two (a model added by its link is checked against seven
+  tenths of the phone's memory, by its file's size, which is too kind by half).
 - A model file that is already on the phone (fetched by another app, or one from behind a sign-in) cannot be brought
   in: only a link can.
 - Hugging Face only. No other server's models, and no account there.
