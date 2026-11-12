@@ -715,21 +715,23 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val script = now.board.script
         val decoder = tapDecoder(now, taps)
         decoder.load(lower, taps)
-        fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_TAPS)
         val common = known != null && known >= COMMON
+        val rare = known != null && !common
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
+        val longer = (lower.length - UNKNOWN_FROM.toInt()).coerceAtLeast(0)
         val unknown = when {
             known != null -> UNKNOWN
-            lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
-            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
+            lower.length >= 4 && odd(lower) -> (UNKNOWN_ODD - UNKNOWN_LETTER * longer).coerceAtLeast(UNKNOWN_LEAST)
+            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG - UNKNOWN_LETTER_LONG * longer
             else -> UNKNOWN
         }
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
         val bar = when {
             known == null -> unknown
-            !common -> Float.NEGATIVE_INFINITY
+            !common -> if (RARE_WORTH > 0f) known + lift(stands, known) + MARGIN_RARE else Float.POSITIVE_INFINITY
             else -> known + lift(stands, known) + MARGIN_COMMON
         }
         var bestWord: String? = null
@@ -738,26 +740,51 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             if (word == lower || word == stands || score < least || score <= bestScore) return
             bestWord = word; bestScore = score
         }
+        val trace = TRACE
+        trace?.invoke("typed $lower: " + (if (known == null) "in no list" else "listed at $known" + (if (common) ", common" else ", rare")) + ", bar $bar" + (if (known != null) " (itself lifted ${lift(stands, known)})" else ""))
+        if (trace != null) TRACE_MEANT?.let { m -> trace("  meant $m: frequency ${words[m]}, lifted ${words[m]?.let { z -> lift(m, z) }} (uncapped ${words[m]?.let { z -> scorer?.boost(m, z) }}), slips ${decoder.align(m, 0, 99f)}") }
+        // What a reading must be worth: a rare word gives way to its misspelling's word whatever that is worth, a
+        // listed word with an ending of its own (chanced, dueled) is a word and only a far likelier reading takes it.
+        fun needs(word: String, zipf: Float, cost: Float): Float = when {
+            rare -> if (zipf >= known!! + RARE_GAP && cost <= RARE_BUDGET) Float.NEGATIVE_INFINITY else bar
+            known == null && unknown < UNKNOWN && inflected(words, lower, word) -> UNKNOWN
+            else -> bar
+        }
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
-        val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
-        val floor = if (known != null && !common) known + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
-        for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
+        val budget = when { common -> LISTED_BUDGET; known != null -> if (RARE_WORTH > 0f) LISTED_BUDGET else RARE_BUDGET; else -> TapDecoder.BUDGET }
+        val reach = if (scorer == null) 0f else CONTEXT_PICK
+        val floor = if (rare) minOf(known!! + RARE_GAP - RARE_BUDGET, bar - reach) else bar - reach
+        for (h in decoder.search(floor, budget, 0, slipsOnly = common && COMMON_EDITS <= 0f, few = common)) {
             val word = lex.sorted[h.index]
-            if (known != null && !common && lex.sortedZipf[h.index] < known + RARE_GAP) continue
             // Typed plainly with a slip: the plain word where there is one (esra is esta, not está).
             val plain = script.plain(word)
             if (plain != word && words.containsKey(plain)) continue
             val zipf = lex.sortedZipf[h.index]
-            // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
-            val least = if (known == null && unknown < UNKNOWN && inflected(words, lower, word)) UNKNOWN else bar
+            val least = needs(word, zipf, h.cost)
+            trace?.invoke("  $word: frequency $zipf, lifted ${lift(word, zipf)} (uncapped ${scorer?.boost(word, zipf) ?: 0f}), slips ${h.cost}, worth ${zipf + lift(word, zipf) - h.cost}, needs $least")
             offer(word, zipf + lift(word, zipf) - h.cost, least)
+        }
+        // The words the sentence makes likely here, each held up against the taps.
+        if (scorer != null && CONTEXT_READ > 0f) scorer.likely { word, _ ->
+            val zipf = words[word] ?: return@likely
+            if (word == lower || word == stands || kotlin.math.abs(word.length - lower.length) > 2) return@likely
+            val up = lift(word, zipf)
+            val room = zipf + up - maxOf(if (rare) bar else needs(word, zipf, 0f), bestScore)
+            if (room < 0f) return@likely
+            val cost = decoder.align(word, 0, minOf(if (known != null) LISTED_BUDGET else TapDecoder.BUDGET, room))
+            if (cost.isInfinite()) return@likely
+            val plain = script.plain(word)
+            if (plain != word && words.containsKey(plain)) return@likely
+            val least = needs(word, zipf, cost)
+            trace?.invoke("  $word: frequency $zipf, lifted $up (uncapped ${scorer.boost(word, zipf)}), slips $cost, worth ${zipf + up - cost}, needs $least, likely here")
+            offer(word, zipf + up - cost, least)
         }
         // The person's own words: never in the trie, so each is held up against the taps.
         for (l in learned + own) {
             if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
             if (known != null && LEARNED_ZIPF < known + RARE_GAP) continue
-            val cost = decoder.align(l, 0, budget)
-            if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
+            val cost = decoder.align(l, 0, if (rare) RARE_BUDGET else budget)
+            if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost, if (rare) Float.NEGATIVE_INFINITY else bar)
         }
         // What the person has put this very word right to before (a common word typed for another: form for from):
         // held up against the taps like their own words, and worth [REMEMBERED] more for having been meant before.
@@ -765,11 +792,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val m = meant.lowercase(now.board.locale)
             val zipf = words[m] ?: if (kept(m)) LEARNED_ZIPF else return@let
             val cost = decoder.align(m, 0, TapDecoder.BUDGET)
-            if (!cost.isInfinite()) offer(meant, zipf + lift(m, zipf) + REMEMBERED - cost)
+            if (!cost.isInfinite()) offer(meant, zipf + lift(m, zipf) + REMEMBERED - cost, if (rare) Float.NEGATIVE_INFINITY else bar)
         }
         // Two words run together, where what was typed is no common word.
         if (!common && lower.length >= 3 && JOINS) {
-            val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + MARGIN_RARE
+            val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + JOIN_RARE
             val sorted = lex.sorted
             val zipfs = lex.sortedZipf
             // The least share a first word's row lists: a second word the row does not list follows it less often
@@ -797,10 +824,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             )
             for (j in joins) {
                 val a = sorted[j.first]; val b = sorted[j.second]
-                val first = zipfs[j.first] + lift(a, zipfs[j.first])
+                val first = zipfs[j.first] + (if (scorer == null) 0f else minOf(scorer.boost(a, zipfs[j.first]), CONTEXT_PICK))
+                trace?.invoke("  $a $b: first $first, second there ${worth(j.first, j.second)}, slips ${j.cost}, worth ${first + worth(j.first, j.second) - 9f - j.cost}, needs $joinBar")
                 offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - j.cost, joinBar)
             }
         }
+        trace?.invoke("  chosen: ${bestWord ?: "none, it stands"}")
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
     }
 
@@ -1085,6 +1114,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     companion object {
+        /**
+         * Told what [byTaps] weighed for a word, a reading a line: for tool/versus/why.py, which asks why a word was
+         * left or changed. Null on a phone, where nothing is ever made to tell it.
+         */
+        @JvmField var TRACE: ((String) -> Unit)? = null
+        /** The word that was meant, where [TRACE]'s listener knows: what its slips cost is told too, chosen or not. */
+        @JvmField var TRACE_MEANT: String? = null
         /** Reading a word by where its taps landed ([byTaps]), and two words run together: off only for the benchmark's comparisons. */
         @JvmField var TAPS = true
         @JvmField var JOINS = true
@@ -1104,6 +1140,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */
         @JvmField var MARGIN_RARE = 0.6f
         @JvmField var MARGIN_COMMON = 1.6f
+        @JvmField var JOIN_RARE = 0.6f
+        @JvmField var CONTEXT_TAPS = 1.5f
+        @JvmField var CONTEXT_READ = 0f
+        @JvmField var COMMON_EDITS = 0f
+        @JvmField var RARE_WORTH = 0f
+        @JvmField var UNKNOWN_LETTER = 0f
+        @JvmField var UNKNOWN_FROM = 6f
+        @JvmField var UNKNOWN_LEAST = -9f
+        @JvmField var UNKNOWN_LETTER_LONG = 0f
         /** The most the slips may cost that turn one listed word into another. */
         @JvmField var LISTED_BUDGET = 3.4f
         /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */

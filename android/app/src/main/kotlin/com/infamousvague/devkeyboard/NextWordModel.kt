@@ -1040,6 +1040,9 @@ class Scorer(
         return out
     }
 
+    /** Every word that may come next here, in lower case, with how likely (above 0, to 1): for a reader of taps to hold each up against them. */
+    fun likely(visit: (lower: String, share: Float) -> Unit) { for (c in cands.values) if (c.share > 0f) visit(c.lower, c.share) }
+
     /** The person's own words that begin with [prefix]: lower case, as shown, and how common their use makes each. */
     fun personal(prefix: String): List<Next> = lookup.starting(prefix).mapNotNull { (w, n) ->
         val z = personalZipf(n, lookup.isWord(w))

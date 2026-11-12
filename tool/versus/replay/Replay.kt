@@ -283,6 +283,8 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     var unhandled = 0
     /** What autocorrect did, a word at a time: "typed>stood" where it changed one. */
     val fixes = ArrayList<String>()
+    /** Told each word autocorrect was asked about, the text before it and what it made of it (null: left): for `why`. */
+    var asked: ((word: String, before: String, fixed: String?) -> Unit)? = null
 
     private fun isWordChar(c: Char) = Words.isWordChar(c, joiners)
 
@@ -394,7 +396,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             if (prev.isLetterOrDigit() || prev in "@#/._-\\:\$`") return false
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-        val fixed = decoder.ac.correct(word, scorer, tapsFor(word)) ?: return false
+        val fixed = decoder.ac.correct(word, scorer, tapsFor(word)).also { asked?.invoke(word, before.dropLast(word.length), it) } ?: return false
         fixes += "$word>$fixed"
         text.setLength(text.length - word.length)
         text.append(fixed).append(separator)
@@ -501,6 +503,52 @@ fun replay(root: File, all: List<String>) {
     System.err.println("replayed $n sentences")
 }
 
+/**
+ * `why`: replay's lines in, each with a word that was meant after a second tab ("<id> TAB <events> TAB <meant>"),
+ * and out, for every word of the sentence autocorrect was asked about, what Autocorrect.byTaps weighed
+ * (Autocorrect.TRACE): a line "<id> TAB <typed> TAB <what stands> TAB <the text before>", then a line a reading,
+ * each begun with a tab, the meant word's own among them whether or not the search came by it. tool/versus/why.py
+ * picks out the word it asked about.
+ */
+fun why(root: File, all: List<String>) {
+    val args = ArrayList<String>()
+    var recorded: File? = null
+    var i = 0
+    while (i < all.size) {
+        when {
+            all[i] == "--set" -> { dial(all[i + 1]); i++ }
+            all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
+            !all[i].startsWith("--") -> args += all[i]
+        }
+        i++
+    }
+    val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
+    val decoder = Decoder(root)
+    val told = ArrayList<String>()
+    Autocorrect.TRACE = { told += it }
+    var line = readLine()
+    while (line != null) {
+        val f = line.split('\t')
+        if (f.size >= 2) {
+            Autocorrect.TRACE_MEANT = f.getOrNull(2)?.takeIf { it.isNotEmpty() }
+            val typist = Typist(b, decoder)
+            typist.asked = { word, before, fixed ->
+                println(f[0] + "\t" + word + "\t" + (fixed ?: word) + "\t" + before)
+                told.forEach { println("\t" + it) }
+                told.clear()
+            }
+            for (e in f[1].split(' ')) {
+                val g = e.split(':')
+                when (g.getOrNull(0)) {
+                    "T" -> typist.tap(g[1].toFloat(), g[2].toFloat(), g[3].toLong())
+                    "M" -> typist.mark(e.substring(2, 3)[0])
+                }
+            }
+        }
+        line = readLine()
+    }
+}
+
 fun main(args: Array<String>) {
     val root = File(args.getOrNull(0) ?: ".")
     val rest = args.drop(2)
@@ -508,6 +556,7 @@ fun main(args: Array<String>) {
         "geometry" -> geometry(root, rest)
         "probes" -> probes(root, rest)
         "replay" -> replay(root, rest)
-        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay ..."); kotlin.system.exitProcess(2) }
+        "why" -> why(root, rest)
+        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay|why ..."); kotlin.system.exitProcess(2) }
     }
 }
