@@ -161,20 +161,24 @@ const List<PluginManifest> catalogue = [
     name: 'Dictation',
     line: 'Speak instead of typing: whisper, running on your phone.',
     description:
-        'A microphone key next to Enter, where the full stop was. Tap it, talk, and tap again: whisper turns what you '
-        'said into text on your phone, with nothing sent anywhere. Hold the key for the full stop and its punctuation; '
-        'two spaces type a full stop too. It starts with Ghost.md\'s English model, base.en; models that hear '
-        'about a hundred languages (tiny, base, small, large v3 turbo) can be downloaded in its settings.',
+        'A microphone key next to Enter, where the full stop was. Tap it, talk for as long as you like, and tap again: '
+        'whisper turns what you said into text on your phone, a piece at each pause, so your words appear while you '
+        'are still talking. Nothing you say is sent anywhere. Give it your own words (names, products, repositories) '
+        'and it is likelier to spell them your way. After a take the row offers Tidy, which has your AI take out the '
+        'ums and false starts: that sends the words, never the sound, and only when you tap it. Hold the key for the '
+        'full stop and its punctuation; two spaces type a full stop too. It starts with Ghost.md\'s English model, '
+        'base.en; models that hear about a hundred languages (tiny, base, small, large v3 turbo) can be downloaded in '
+        'its settings.',
     category: PluginCategory.voice,
     hue: 'rose',
     icon: Lucide.mic,
-    adds: ['A mic key next to Enter, in the full stop’s place', 'Speech to text on your phone, offline', 'Models for English or about a hundred languages'],
+    adds: ['A mic key next to Enter, in the full stop’s place', 'Speech to text on your phone, offline', 'Takes of any length, written down as you talk', 'Your own words, for names it would misspell', 'Tidy after a take, with your AI', 'Models for English or about a hundred languages'],
     permissions: [
       PluginPermission(Permission.microphone, 'To hear you while you hold the mic open, and only then.'),
       PluginPermission(Permission.download, 'Its speech model: 60 MB to start; bigger and multilingual models if you choose them.'),
-      PluginPermission(Permission.network, 'Only to download the model.'),
+      PluginPermission(Permission.network, 'To download the model. And, only when you tap Tidy after a take, to send those words to the AI you choose.'),
     ],
-    hosts: ['ghostkbd.com', 'huggingface.co', '*.huggingface.co', '*.hf.co'],
+    hosts: ['ghostkbd.com', 'huggingface.co', '*.huggingface.co', '*.hf.co', 'the AI provider you choose'],
     hasPage: true,
     ios: false,
     iosWhy: 'iOS doesn’t let a keyboard use the microphone. The dictation key under the keyboard still works.',

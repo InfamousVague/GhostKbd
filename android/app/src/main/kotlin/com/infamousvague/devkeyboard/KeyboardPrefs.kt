@@ -110,6 +110,12 @@ class KeyboardPrefs(context: Context) {
     /** The dictation plugin's chosen model (WhisperModel.SPECS' ids) and the language it expects ("auto" detects). */
     val whisperModel: String get() = prefs.getString(WHISPER_MODEL, "base.en")!!
     val dictationLanguage: String get() = prefs.getString(DICTATION_LANGUAGE, "auto")!!
+    /**
+     * Dictation's "Your words" (DictationWords.kt): names and terms whisper is told to expect, parted by commas, and
+     * whether the row offers Tidy after a take (it sends nothing until it is tapped).
+     */
+    val dictationWords: String get() = prefs.getString(DICTATION_WORDS, "")!!
+    val dictationTidy: Boolean get() = bool(DICTATION_TIDY)
 
     /**
      * The languages that are on: codes from Languages.ALL, comma-separated, in the order they were turned on
@@ -352,6 +358,8 @@ class KeyboardPrefs(context: Context) {
         const val SOUND_VOLUME = "sound_volume"
         const val STOCK_SOUND = "stock_sound"
         const val DICTATION_LANGUAGE = "dictation_language"
+        const val DICTATION_WORDS = "dictation_words"
+        const val DICTATION_TIDY = "dictation_tidy"
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
@@ -435,6 +443,8 @@ class KeyboardPrefs(context: Context) {
             SOUND_VOLUME to "35",
             STOCK_SOUND to "bamboo",
             DICTATION_LANGUAGE to "auto",
+            DICTATION_WORDS to "",
+            DICTATION_TIDY to true,
             "theme_tint" to "#51FCFB",
             "theme_accent" to "",
             "theme_mode" to "dark",

@@ -531,7 +531,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
       glyph: AppIcon(Lucide.mic, size: 24),
       title: phase == 'ready' ? (mic ? 'Ready' : 'Allow the microphone') : (phase == 'downloading' ? 'Downloading' : 'Not ready'),
       meta: Text(switch (phase) {
-        'ready' => 'Tap the mic next to Enter, talk, and tap again. It stands where the full stop was: hold it for the full stop, or type two spaces. ${active?['name'] ?? ''}.',
+        'ready' => 'Tap the mic next to Enter, talk for as long as you like, and tap again: your words appear at each pause. It stands where the full stop was: hold it for the full stop, or type two spaces. ${active?['name'] ?? ''}.',
         'downloading' => '${active?['name'] ?? 'The speech model'}, ${_megabytes(d['bytes'])}, once. ${(progress * 100).round()}%',
         'failed' => d['error'] as String? ?? 'The model did not download.',
         _ => 'The speech model is not on this phone yet.',
@@ -549,6 +549,36 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
           value: Text(mic ? 'Allowed' : 'Allow'),
           onPress: mic ? null : store.requestMicrophone,
         ),
+      ],
+    ),
+    PaneSection(
+      title: 'Long takes',
+      children: const [
+        SettingRow(label: 'No time limit', hint: Text('A take is written down a piece at a time, each ending at a pause, so the words arrive a sentence or two behind your voice.')),
+        SettingRow(label: 'It stops by itself', hint: Text('After 45 seconds with nobody speaking, and at 30 minutes whatever is said. A mic left open does not listen for ever.')),
+      ],
+    ),
+    PaneSection(
+      title: 'Your words',
+      footer: const Text('Names, products, repositories: up to 60, with commas between. The speech model is told to expect them, which makes it likelier, not certain, to spell them your way. They stay on this phone unless you tap Tidy. Press enter to keep them.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('dictation-words-${store.choice('dictation_words')}'),
+            defaultValue: store.choice('dictation_words'),
+            placeholder: 'Ghost.md, Mockingbird, attack.fm',
+            ariaLabel: 'Your words for dictation',
+            autoCorrect: false,
+            onSubmitted: (text) => store.set('dictation_words', text.trim()),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'After a take',
+      footer: Text('Tidy takes out the ums, the false starts and what was misheard, and changes nothing else. It sends the words that take put in, and your words above, to the AI you chose in Settings › AI, and only when you tap it. ${store.ai['ready'] == true ? '' : 'It shows once an AI key is set. '}${store.pluginOn('enhance') ? 'As a prompt, beside it, makes a clear prompt of them (Prompt enhancer).' : 'With the Prompt enhancer plugin added, As a prompt shows beside it.'}'),
+      children: [
+        _toggle(store, 'dictation_tidy', 'Offer Tidy in the row', 'A chip above the keys straight after a take, until the next key you press.'),
       ],
     ),
     PaneSection(

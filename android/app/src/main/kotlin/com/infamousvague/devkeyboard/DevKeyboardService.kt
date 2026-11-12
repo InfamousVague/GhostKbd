@@ -86,6 +86,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var lastShortcut: Triple<String, String, String>? = null
 
     /**
+     * What the dictation that has just ended put in the field, exactly as it went in (every piece, with the spaces
+     * between), while it still stands just before the cursor and no key has been pressed since: the row then offers
+     * to tidy it, or to make a prompt of it. [saying] is the same for the take still going on.
+     */
+    private var said: String? = null
+    private val saying = StringBuilder()
+
+    /**
      * A shortcut's letters that were just said to be meant as typed (their own chip tapped, or their phrase taken
      * back with backspace): the next space leaves them alone, once.
      */
@@ -684,6 +692,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // A key typed after a shortcut's phrase lets it stand, and letters typed on are no longer the letters kept.
         lastShortcut = null
         keptShortcut = null
+        said = null
         if (jamo != null) { typeHangul(ic, jamo); return }
         hangul = Hangul.State()
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
@@ -1348,6 +1357,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         view.dictation = DictationPhase.LISTENING
+        said = null
+        saying.setLength(0)
         dictation.start(this)
     }
 
@@ -1355,9 +1366,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onTranscribing() { keyboard?.dictation = DictationPhase.TRANSCRIBING; updateWorking() }
 
+    /** Words written down while the take goes on (a piece that ended at a pause): they go in at once, and the mic stays open. */
+    override fun onHeard(text: String) = speak(text)
+
+    /** The take is over: its last words go in, and what it put in altogether can be tidied from the row. */
     override fun onDictated(text: String) {
         keyboard?.dictation = DictationPhase.OFF
         updateWorking()
+        speak(text)
+        said = saying.toString().takeIf { it.isNotBlank() }
+        saying.setLength(0)
+        scheduleRow()
+    }
+
+    /** Puts dictated [text] in at the cursor, and keeps it as part of what this take has said. */
+    private fun speak(text: String) {
         if (text.isEmpty()) return
         toolsHeld = false
         finishTyping()
@@ -1366,6 +1389,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
         val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
         editor.insert(lead + text, Kind.DICTATION)
+        saying.append(lead).append(text)
         lastCorrection = null
         // Spoken words are whisper's guess at them, not typing: they are not counted for next-word prediction.
         notTyped()
@@ -1374,6 +1398,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onError(message: String) {
         keyboard?.dictation = DictationPhase.OFF
+        saying.setLength(0)
         updateWorking()
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
@@ -1640,7 +1665,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
     private fun leads(item: RowItem): Boolean =
-        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
+        item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || item.id.startsWith("said-") || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
 
     /**
      * The tools reached for in every app: undo and redo, the clipboard, emoji, GIFs. They lead the row (Matt,
@@ -1705,6 +1730,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val app = AppContext.kind(currentInputEditorInfo?.packageName)
         val ghost = Plugins.isOn(prefs, Plugins.GHOSTMD)
         val inGhost = AppContext.isGhostMd(currentInputEditorInfo?.packageName)
+        // Straight after a dictation: what the take put in, tidied, or made a prompt of. Each sends those words to
+        // the person's own AI, and only when tapped; with no AI set up, or Offline on, there is nothing to offer.
+        if (Plugins.isOn(prefs, Plugins.DICTATION) && said != null && aiAllowed() && !offlineOn && selStart == selEnd && AiClient.ready(prefs)) {
+            if (prefs.dictationTidy) items += netItem("said-tidy", "Tidy", icon = RowIcon.WAND, tint = RowTint.AI, bold = true) { tidySaid(prompt = false) }
+            if (Plugins.isOn(prefs, Plugins.ENHANCE)) items += netItem("said-prompt", "As a prompt", icon = RowIcon.SPARKLE, tint = RowTint.AI, bold = true) { tidySaid(prompt = true) }
+        }
         // Mockingbird: the selection rewritten as you.
         if (Plugins.isOn(prefs, Plugins.MOCKINGBIRD) && aiAllowed() && selStart != selEnd) {
             currentInputConnection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }?.let { selected ->
@@ -2191,10 +2222,45 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         startEnhance(selected)
     }
 
-    private fun startEnhance(selected: String) {
+    private fun startEnhance(selected: String, spoken: Boolean = false) {
         if (offlineOn) { sayOffline(); return }
         aiJob?.cancelled = true
-        aiJob = Ghostwriter.enhance(this, prefs, selected, currentInputEditorInfo?.packageName) { onAiDone(it) }
+        aiJob = Ghostwriter.enhance(this, prefs, selected, currentInputEditorInfo?.packageName, spoken) { onAiDone(it) }
+        scheduleRow()
+    }
+
+    /**
+     * Tidy or As a prompt, straight after a dictation: the words that take put in are selected, exactly those and no
+     * others, and the answer takes their place (undo puts them back, with the cursor where it was). Where they no
+     * longer stand just before the cursor (something else was typed, the cursor was moved, the app changed them)
+     * nothing is selected and nothing is sent.
+     */
+    private fun tidySaid(prompt: Boolean) {
+        val text = said
+        said = null
+        if (offlineOn) { sayOffline(); return }
+        val ic = currentInputConnection
+        if (text == null || ic == null || !aiAllowed() || selStart != selEnd || selEnd < text.length) { scheduleRow(); return }
+        if (ic.getTextBeforeCursor(text.length, 0)?.toString() != text) { scheduleRow(); return }
+        val was = editor.selectionNow()
+        ic.setSelection(selEnd - text.length, selEnd)
+        editor.sent()
+        val selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected != text) {
+            // The app did not select what was asked for: the cursor goes back, and nothing is sent.
+            ic.setSelection(selEnd, selEnd)
+            editor.sent()
+            scheduleRow()
+            return
+        }
+        editor.rememberRewrite(selected, was)
+        if (prompt) startEnhance(selected, spoken = true) else startTidy(selected)
+    }
+
+    private fun startTidy(selected: String) {
+        if (offlineOn) { sayOffline(); return }
+        aiJob?.cancelled = true
+        aiJob = Ghostwriter.tidy(this, prefs, selected) { onAiDone(it) }
         scheduleRow()
     }
 
@@ -2422,6 +2488,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** What the row says the AI is doing for [job]: writing the request, rewriting as asked, or in the person's voice. */
     private fun doing(job: Ghostwriter.Job): String {
         if (job.mode == Enhance.MODE) return "Enhancing your prompt…"
+        if (job.mode == Enhance.SAID) return "Making it a prompt…"
+        if (job.mode == DictationWords.TIDY) return "Tidying what you said…"
         Rewrite.mode(prefs, job.mode)?.let { return "${it.label}…" }
         if (job.selection) return "Rewriting in your voice…"
         return "Writing \u201C${preview(job.request)}\u201D…"
@@ -2452,7 +2520,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("ai-retry-${job.id}", label = "Retry", icon = RowIcon.RETRY, bold = true, chip = true) {
                     aiJob = null
                     val mode = Rewrite.mode(prefs, job.mode)
-                    if (job.mode == Enhance.MODE) startEnhance(job.tag) else if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
+                    if (job.mode == DictationWords.TIDY) startTidy(job.tag) else if (job.mode == Enhance.SAID) startEnhance(job.tag, spoken = true) else if (job.mode == Enhance.MODE) startEnhance(job.tag) else if (mode != null) startRewrite(job.tag, mode) else if (job.selection) rewriteSelection(job.tag) else fillAtCursor()
                     scheduleRow()
                 }
                 items += dismiss

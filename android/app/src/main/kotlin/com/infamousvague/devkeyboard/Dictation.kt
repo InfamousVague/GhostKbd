@@ -14,22 +14,39 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * The dictation plugin's work: record from the microphone at whisper's 16 kHz, then transcribe the whole take with
- * whisper.cpp on a background thread and hand the words back. One take at a time; the model stays loaded between
- * takes while the keyboard lives.
+ * The dictation plugin's work: record from the microphone at whisper's 16 kHz and write down what is said with
+ * whisper.cpp, on the phone. One take at a time; the model stays loaded between takes while the keyboard lives.
+ *
+ * A take has no time limit (Matt, 2026-11-12: "I like prompt dictation…"; until then a take ended at 60 seconds and
+ * its words came only once it was over). It is heard as a row of pieces, each cut at a pause ([SpeechCuts]) and
+ * written down on a thread of its own while the next is being spoken, so the words arrive a sentence or two behind
+ * the voice ([Listener.onHeard]). Each piece is given the end of the piece before it and the person's own words
+ * ([DictationWords.hint]), so the pieces read as one and names are likelier spelled their way.
+ *
+ * A take ends when the mic is tapped again, after [IDLE_STOP_MS] with nobody speaking (a mic left open), or at
+ * [MAX_MINUTES]. What is said is never kept: each piece's sound is let go as soon as it is written down.
  */
 class Dictation(private val context: Context) {
     interface Listener {
         /** How loud it is now, 0..1, a few times a second while listening. */
         fun onLevel(level: Float)
+        /** Words written down while the take goes on: a piece that ended at a pause. */
+        fun onHeard(text: String)
+        /** The mic has closed and the last words are being written down. */
         fun onTranscribing()
+        /** The take is over. [text] is its last words: empty where the last piece had none, or everything was heard already. */
         fun onDictated(text: String)
         fun onError(message: String)
     }
 
     private val main = Handler(Looper.getMainLooper())
+    /** Listens: reads the microphone and cuts the take into pieces. */
     private val worker = Executors.newSingleThreadExecutor()
+    /** Writes the pieces down, in the order they were said, while [worker] goes on listening. */
+    private val writer = Executors.newSingleThreadExecutor()
     @Volatile private var recording = false
+    /** A piece could not be written down: the take's other pieces are let go, and the mic closes. */
+    @Volatile private var failed = false
     private var record: AudioRecord? = null
     private var model = 0L
     private var modelPath: String? = null
@@ -50,16 +67,27 @@ class Dictation(private val context: Context) {
         if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) { listener.onError("The microphone could not be opened."); return }
         record = rec
         recording = true
+        failed = false
         rec.startRecording()
+        // The settings are read once, as the take begins: the words to expect and the language do not change mid-sentence.
+        val take = Take(listener, DictationWords.parse(KeyboardPrefs(context).dictationWords))
         worker.execute {
-            val chunks = ArrayList<ShortArray>()
+            val cuts = SpeechCuts(RATE)
+            val pending = Samples()
             val buf = ShortArray(RATE / 10)
-            var total = 0
-            while (recording && total < RATE * MAX_SECONDS) {
+            var total = 0L
+            var queued = 0
+            while (recording && !failed && total < RATE.toLong() * 60 * MAX_MINUTES && cuts.idleMs < IDLE_STOP_MS) {
                 val n = rec.read(buf, 0, buf.size)
                 if (n <= 0) continue
-                chunks += buf.copyOf(n)
+                pending.add(buf, n)
                 total += n
+                // A piece ended (a pause, or the longest a piece may be): it is written down while the take goes on.
+                // A stretch with nobody speaking is let go unheard.
+                cuts.heard(buf, n)?.let { cut ->
+                    val piece = pending.take(cut.samples)
+                    if (cut.speech) { queued++; write(take, piece, last = false) }
+                }
                 var peak = 0
                 for (i in 0 until n) peak = max(peak, abs(buf[i].toInt()))
                 val level = (peak / 32768f).coerceIn(0f, 1f)
@@ -69,20 +97,42 @@ class Dictation(private val context: Context) {
             runCatching { rec.stop() }
             rec.release()
             record = null
-            if (total < RATE / 4) { main.post { listener.onDictated("") }; return@execute }
+            // A piece that could not be written down has ended the take already, and said why.
+            if (failed) return@execute
             main.post { listener.onTranscribing() }
-            val samples = FloatArray(total)
-            var at = 0
-            for (chunk in chunks) for (s in chunk) samples[at++] = s / 32768f
-            val text = runCatching { transcribe(samples) }.getOrElse { e -> main.post { listener.onError(e.message ?: "Transcription failed.") }; return@execute }
-            main.post { listener.onDictated(text) }
+            // What is left is written down where there is speech in it; and a short take that was never taken for
+            // speech at all is written down anyway, as every take was before there were pieces: nobody's quiet word
+            // is thrown away on a guess.
+            val rest = pending.take(pending.size)
+            val heard = rest.size >= RATE / 4 && (cuts.rest() || (queued == 0 && !cuts.spokeEver))
+            write(take, if (heard) rest else ShortArray(0), last = true)
         }
     }
 
-    /** Ends the take: what was heard is transcribed. */
+    /** Ends the take: what was heard and not yet written down is, and then [Listener.onDictated] says it is over. */
     fun stop() { recording = false }
 
-    private fun transcribe(samples: FloatArray): String {
+    /** One take: who hears its words, the person's own words for whisper, and the end of what has been written down so far. */
+    private class Take(val listener: Listener, val words: List<String>) { var before = "" }
+
+    /** Queues [piece] to be written down after the pieces before it. The [last] one ends the take, with or without sound in it. */
+    private fun write(take: Take, piece: ShortArray, last: Boolean) {
+        writer.execute {
+            if (failed) return@execute
+            val text = if (piece.isEmpty()) "" else try {
+                transcribe(piece, take)
+            } catch (e: Throwable) {
+                failed = true
+                recording = false
+                main.post { take.listener.onError(e.message ?: "Transcription failed.") }
+                return@execute
+            }
+            if (text.isNotEmpty()) take.before = text
+            main.post { if (last) take.listener.onDictated(text) else if (text.isNotEmpty()) take.listener.onHeard(text) }
+        }
+    }
+
+    private fun transcribe(piece: ShortArray, take: Take): String {
         if (!Whisper.load()) throw IllegalStateException("Speech to text is not in this build.")
         val spec = WhisperModel.active(context)
         val path = WhisperModel.file(context, spec).path
@@ -95,24 +145,46 @@ class Dictation(private val context: Context) {
         }
         // English-only models hear English; the others listen for the language set, or work it out.
         val language = if (!spec.multilingual) "en" else KeyboardPrefs(context).dictationLanguage.ifBlank { "auto" }
-        // The developer's-words hint is English: given to another language, it pulls the words toward English.
-        val prompt = if (language == "en") PROMPT else null
+        val prompt = DictationWords.hint(language == "en", take.words, take.before)
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 6)
+        val samples = FloatArray(piece.size) { piece[it] / 32768f }
         return Whisper.nativeTranscribe(model, samples, threads, prompt, language).trim()
             // whisper's way of saying it heard nothing.
-            .takeUnless { it == "[BLANK_AUDIO]" || it.startsWith("(") && it.endsWith(")") } ?: ""
+            .takeUnless { it == "[BLANK_AUDIO]" || it.startsWith("(") && it.endsWith(")") || it.startsWith("[") && it.endsWith("]") } ?: ""
     }
 
     fun release() {
         recording = false
-        worker.execute { if (model != 0L) { Whisper.nativeFree(model); model = 0L } }
+        writer.execute { if (model != 0L) { Whisper.nativeFree(model); model = 0L } }
+    }
+
+    /** The samples heard and not yet taken as a piece: a row of them that grows at its end and is taken from its start. */
+    private class Samples {
+        private var data = ShortArray(RATE * 4)
+        var size = 0
+            private set
+
+        fun add(from: ShortArray, count: Int) {
+            if (size + count > data.size) data = data.copyOf(max(data.size * 2, size + count))
+            System.arraycopy(from, 0, data, size, count)
+            size += count
+        }
+
+        /** The first [count] samples, taken out: what follows them moves up to the start. */
+        fun take(count: Int): ShortArray {
+            val n = count.coerceIn(0, size)
+            val out = data.copyOf(n)
+            System.arraycopy(data, n, data, 0, size - n)
+            size -= n
+            return out
+        }
     }
 
     companion object {
         const val RATE = 16_000
-        const val MAX_SECONDS = 60
-
-        /** A hint of a programmer's words, so whisper spells them as written (npm, Kotlin, async). */
-        private const val PROMPT = "Dictation from a developer: npm, git, Kotlin, Flutter, JSON, async, API, GitHub."
+        /** A take ends by itself after this long with nobody speaking: a mic left open does not listen for ever. */
+        const val IDLE_STOP_MS = 45_000L
+        /** The longest a take may be, whatever is said. */
+        const val MAX_MINUTES = 30
     }
 }

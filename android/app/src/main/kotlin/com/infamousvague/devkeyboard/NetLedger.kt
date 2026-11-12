@@ -78,7 +78,7 @@ object NetLedger {
  * pages ([sections], by their ids in lib/settings/panes.dart) that say "Offline is on" at their top while it is.
  */
 enum class NetFeature(val id: String, val title: String, val stops: String, val sections: List<String>) {
-    AI("ai", "AI", "Ghostwriter, Rewrite, Enhance, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite", "enhance")),
+    AI("ai", "AI", "Ghostwriter, Rewrite, Enhance, Tidy after a dictation, In my voice, Mockingbird’s training, Test it and Load models.", listOf("ai", "ai-provider", "mockingbird", "ai-style", "ghostwriter", "ai-filling", "rewrite", "enhance")),
     GITHUB("github", "GitHub commit search", "Ghostwriter’s search of your commits, and Check the token.", listOf("ai-sources")),
     GHOST_ONLINE("ghost-online", "Ghost.md online", "Signing in, searching your notes online, and signing out.", listOf("ai-sources")),
     GIFS("gifs", "GIFs", "GIPHY’s trending and search, and loading or sending a GIF.", listOf("rowtools")),
@@ -118,7 +118,12 @@ enum class NetPath(
     ENHANCE(
         NetFeature.AI, "enhance", "Prompt enhancer", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("enhance"),
         trigger = "Tapping Enhance in the row above the keys.",
-        sends = "Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters).",
+        sends = "Your key and model, the selection or the whole field (up to 6,000 characters), which kind of app you are typing in (a terminal, an AI chat, or another), and what you wrote under “About you and your work” (up to 600 characters). “As a prompt”, after a dictation, sends the words that take put in instead.",
+    ),
+    TIDY(
+        NetFeature.AI, "tidy", "Tidy after a dictation", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("dictation"),
+        trigger = "Tapping Tidy in the row above the keys, straight after a dictation. Speech itself is turned into text on the phone and is never sent.",
+        sends = "Your key and model, the words that take put in (up to 6,000 characters), and the words under “Your words” in Dictation’s settings.",
     ),
     MY_VOICE(
         NetFeature.AI, "my-voice", "In my voice", NetLedger.AI_HOSTS, ownServer = true, plugins = listOf("mockingbird"),

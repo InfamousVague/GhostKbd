@@ -78,6 +78,12 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
   terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
   per-app profile can turn them on or off for one app.
+- **Dictation without a time limit** (`Dictation.kt`, `SpeechCuts.kt`, `DictationWords.kt`;
+  [docs/dictation.md](docs/dictation.md)): a take is cut into pieces at its pauses and written down while it goes on,
+  so the words arrive as you talk (it was 60 seconds, and words only after). Your own words for the speech model
+  (Settings › Dictation › Your words), and after a take a Tidy chip that has your AI take out the ums, with As a
+  prompt beside it where the Prompt enhancer is added. Speech never leaves the phone; Tidy sends the words, only when
+  tapped (`NetPath.TIDY`).
 - **Prompt enhancer** (the `enhance` plugin, `Enhance.kt`; a Market add-on; [docs/prompt-enhancer.md](docs/prompt-enhancer.md)):
   an Enhance chip in the row. What was typed for an AI is rewritten as a clearer prompt, in place: what is wanted
   first, every particular kept, nothing added. Tight or thorough, with a few words about you and your work if you

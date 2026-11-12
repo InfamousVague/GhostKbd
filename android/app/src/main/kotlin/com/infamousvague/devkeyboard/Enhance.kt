@@ -20,6 +20,9 @@ object Enhance {
     /** The id an enhancing job carries (Ghostwriter.Job.mode), so the row can say what it is doing and try it again. */
     const val MODE = "enhance"
 
+    /** The same for a prompt made of what was just dictated ("As a prompt", after a take): [system] is told it was spoken. */
+    const val SAID = "enhance-said"
+
     /** The longest text taken, in characters, as Rewrite's is. */
     const val MAX_CHARS = Rewrite.MAX_CHARS
 
@@ -51,8 +54,10 @@ object Enhance {
      * much may be added ([style]) and what the person wrote about themselves and their work ([notes], cut to
      * [MAX_NOTES]), to be used only where it bears on the prompt.
      */
-    fun system(kind: AppKind, style: String, notes: String): String = buildString {
+    fun system(kind: AppKind, style: String, notes: String, spoken: Boolean = false): String = buildString {
         append(RULES)
+        // A prompt that was dictated: what speech adds is taken out on the way, as Tidy would take it out.
+        if (spoken) append("\n\nIT WAS SPOKEN: they dictated this and speech-to-text wrote it down. Leave out the ums, the false starts and what was said twice, and mend what was plainly misheard. What they meant is still all that goes in.")
         append("\n\nWHERE IT IS GOING: ")
         append(
             when (kind) {
@@ -73,10 +78,10 @@ object Enhance {
         }
     }
 
-    /** [text] as a clearer prompt, for an app of [app]'s kind. Blocking: run it off the main thread. */
-    fun run(prefs: KeyboardPrefs, text: String, app: String?): String {
+    /** [text] as a clearer prompt, for an app of [app]'s kind; [spoken] where it was dictated. Blocking: run it off the main thread. */
+    fun run(prefs: KeyboardPrefs, text: String, app: String?, spoken: Boolean = false): String {
         if (text.length > MAX_CHARS) throw AiClient.AiError("That's too long to enhance at once: select a part of it")
         val style = if (prefs.enhanceStyle == THOROUGH) THOROUGH else TIGHT
-        return AiClient.complete(prefs, NetPath.ENHANCE, system(AppContext.kind(app), style, prefs.enhanceNotes), text, maxTokens = 4000, effort = "low")
+        return AiClient.complete(prefs, NetPath.ENHANCE, system(AppContext.kind(app), style, prefs.enhanceNotes, spoken), text, maxTokens = 4000, effort = "low")
     }
 }

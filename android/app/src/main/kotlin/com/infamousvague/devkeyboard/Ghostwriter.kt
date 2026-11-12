@@ -73,17 +73,32 @@ object Ghostwriter {
     fun rewriteAs(prefs: KeyboardPrefs, selected: String, mode: Rewrite.Mode, done: (Job) -> Unit): Job =
         launch(prefs, Job(ids.incrementAndGet(), mode.label, selected, selection = true, mode = mode.id), done) { Rewrite.run(prefs, mode, selected) }
 
-    /** The Prompt enhancer plugin: the [selected] text rewritten as a clearer prompt, to replace the selection. */
-    fun enhance(context: Context, prefs: KeyboardPrefs, selected: String, app: String?, done: (Job) -> Unit): Job {
+    /**
+     * The Prompt enhancer plugin: the [selected] text rewritten as a clearer prompt, to replace the selection.
+     * [spoken] where it is what a dictation just put in ("As a prompt").
+     */
+    fun enhance(context: Context, prefs: KeyboardPrefs, selected: String, app: String?, spoken: Boolean = false, done: (Job) -> Unit): Job {
         val appContext = context.applicationContext
-        return launch(prefs, Job(ids.incrementAndGet(), "Enhance", selected, selection = true, mode = Enhance.MODE), done) {
+        return launch(prefs, Job(ids.incrementAndGet(), "Enhance", selected, selection = true, mode = if (spoken) Enhance.SAID else Enhance.MODE), done) {
             // Debug builds only, as for a <<request>>: the key "debug-echo" answers without any AI, saying where the
             // prompt was going, so the chip, the row and the undo can be tried on an emulator.
             if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
                 Thread.sleep(800)
-                return@launch "Enhanced (debug, ${AppContext.kind(app).name.lowercase()}): ${selected.trim().take(120)}"
+                return@launch "Enhanced (debug, ${AppContext.kind(app).name.lowercase()}${if (spoken) ", spoken" else ""}): ${selected.trim().take(120)}"
             }
-            Enhance.run(prefs, selected, app)
+            Enhance.run(prefs, selected, app, spoken)
+        }
+    }
+
+    /** Dictation's Tidy: the words a take put in ([selected]), with what speech adds taken out, to replace them. */
+    fun tidy(context: Context, prefs: KeyboardPrefs, selected: String, done: (Job) -> Unit): Job {
+        val appContext = context.applicationContext
+        return launch(prefs, Job(ids.incrementAndGet(), "Tidy", selected, selection = true, mode = DictationWords.TIDY), done) {
+            if (Updater.isDebuggable(appContext) && prefs.aiKey(prefs.aiProvider) == "debug-echo") {
+                Thread.sleep(800)
+                return@launch "Tidied (debug): ${selected.trim().take(120)}"
+            }
+            DictationWords.tidy(prefs, selected)
         }
     }
 
