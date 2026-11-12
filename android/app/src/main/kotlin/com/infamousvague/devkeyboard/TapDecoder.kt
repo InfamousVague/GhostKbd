@@ -228,9 +228,10 @@ class TapDecoder(
         visits = 0
         only = slipsOnly
         finishing = false
-        // A short word changed in most of its letters is another word, not a slip of this one.
+        // A short word changed in most of its letters is another word, not a slip of this one. In hundredths of a
+        // change: a letter read as the key its tap all but landed on counts for less than one ([counts]).
         val len = n - from
-        changes = if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 }
+        changes = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
         for ((index, cost) in hits) if (zipfs[index] - cost >= floor) out += Hit(index, cost)
@@ -249,7 +250,7 @@ class TapDecoder(
         visits = 0
         only = false
         finishing = true
-        changes = when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
+        changes = 100 * when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
         walk(0, 0, 0f, 0, 0, 0.toChar(), budget, 0)
         finishing = false
         val out = ArrayList<Hit>(hits.size)
@@ -257,15 +258,24 @@ class TapDecoder(
         return out
     }
 
-    /** [search]'s bounds: only slips of the thumb (no letter missed, added or swapped, no misspelling), and how many changes at most. */
+    /**
+     * [search]'s bounds: only slips of the thumb (no letter missed, added or swapped, no misspelling), and how many
+     * changes at most, in hundredths of a change.
+     */
     private var only = false
-    private var changes = 4
+    private var changes = 400
+
+    /**
+     * What a letter read as another key for [s] counts against [changes], in hundredths: a whole change from
+     * [WHOLE_CHANGE] up, and its share of one below that. A letter missed, added or swapped is always a whole one.
+     */
+    private fun counts(s: Float): Int = if (s >= WHOLE_CHANGE) 100 else (s / WHOLE_CHANGE * 100f).toInt()
     /** [finish] is asking: where the taps run out, the commonest word under the node is taken, whether or not a word ends there. */
     private var finishing = false
 
     private fun walk(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, last: Char, budget: Float, changed: Int) {
         if (trie.best[node] - cost < floor || cost > budget || ++visits > MAX_VISITS) return
-        val more = changed < changes
+        val more = changed + 100 <= changes
         if (i == n) {
             if (finishing) { val w = trie.bestWord[node]; if (w >= 0) offer(w, cost); return }
             val w = trie.word[node]
@@ -276,7 +286,7 @@ class TapDecoder(
                 val c = trie.ch[q]
                 val free = c == '\'' || c == '’'
                 if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-                else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 1)
+                else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 100)
                 q = trie.next[q]
             }
             return
@@ -296,19 +306,20 @@ class TapDecoder(
                 val s = sub(i, c)
                 // The same key under another letter (é for e) is no change; a misspelling is not a slip of the thumb.
                 val same = s == 0f && key(c) == tk[i]
-                if (cost + s <= budget && (same || (more && !(only && s >= far)))) walk(q, i + 1, cost + s, omits, inserts, c, budget, if (same) changed else changed + 1)
+                val w = if (same) 0 else counts(s)
+                if (cost + s <= budget && (same || (changed + w <= changes && !(only && s >= far)))) walk(q, i + 1, cost + s, omits, inserts, c, budget, changed + w)
             }
             // An apostrophe is nearly free and is not counted as a letter missed.
             val free = c == '\'' || c == '’'
             if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-            else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 1)
+            else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 100)
             q = trie.next[q]
         }
         if (only || !more) return
-        if (inserts < MAX_INSERTS) walk(node, i + 1, cost + insert(i), omits, inserts + 1, last, budget, changed + 1)
+        if (inserts < MAX_INSERTS) walk(node, i + 1, cost + insert(i), omits, inserts + 1, last, budget, changed + 100)
         if (i + 1 < n && typed[i] != typed[i + 1]) {
             val a = trie.child(node, typed[i + 1])
-            if (a >= 0) { val b = trie.child(a, typed[i]); if (b >= 0) walk(b, i + 2, cost + SWAP, omits, inserts, typed[i], budget, changed + 1) }
+            if (a >= 0) { val b = trie.child(a, typed[i]); if (b >= 0) walk(b, i + 2, cost + SWAP, omits, inserts, typed[i], budget, changed + 100) }
         }
     }
 
@@ -447,6 +458,22 @@ class TapDecoder(
         @JvmField var BUDGET = 5.5f
         /** The most the slips so far may cost for a word half typed to be finished by them ([finish]). */
         @JvmField var FINISH_BUDGET = 2.6f
+        /**
+         * What a letter read as another key must cost to count as a whole change against a search's bound on them
+         * ([search]: one change in a word of three letters or fewer, two up to five, three up to eight, four
+         * beyond). One that costs less counts for its share: two taps each just over the line to the next key are
+         * a fraction of a change between them, two in the middles of far keys are two. The bound used to count
+         * letters whatever their taps said, and "it" typed "ur" or "the" typed "tbr" was never read at all: 89 of
+         * the 326 words Gboard got and this did not on 2026-11-11 (docs/versus.md).
+         *
+         * Set on tool/typing_bench.sh tune, whose measure is words right less four for every right word spoiled:
+         * 93.02 at 0.5, 93.45 at 1, 93.63 at 1.5, 93.76 at 2, 93.80 at 2.5, 93.84 at 4. Taken at 2, where the curve
+         * flattens. On 12,000 of the bench's words that takes the sloppy thumb's words right from 82.7% to 85.7% and
+         * the normal one's from 91.6% to 92.3% (the careful one's stay at 96.4%); right words spoiled go from 1.1 to
+         * 1.5 in a thousand for the normal thumb, and the right words no list has that are spoiled from 2.4% to 4.3%
+         * (6.0% to 7.1% for the sloppy one, 1.5% either way for the careful one).
+         */
+        @JvmField var WHOLE_CHANGE = 2.0f
         /** Readings this far under the best one found are let go. */
         @JvmField var KEEP = 3f
         const val MAX_OMITS = 2

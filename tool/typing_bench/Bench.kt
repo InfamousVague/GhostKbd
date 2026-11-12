@@ -345,6 +345,7 @@ fun tune(root: File) {
     }
     val grid = linkedMapOf(
         "T.SPATIAL" to listOf(1.2f, 1.5f, 1.9f, 2.3f, 2.8f),
+        "T.WHOLE_CHANGE" to listOf(0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f),
         "A.UNKNOWN" to listOf(1.6f, 2.0f, 2.4f, 2.8f, 3.2f),
         "A.UNKNOWN_ODD" to listOf(0.6f, 1.0f, 1.4f, 1.8f, 2.2f),
         "A.UNKNOWN_LONG" to listOf(0.8f, 1.2f, 1.6f, 2.0f, 2.6f, 3.2f),
@@ -381,6 +382,7 @@ fun tune(root: File) {
                 if (v == was) continue
                 setCost(name, v)
                 val w = worth(train, oov, 7)
+                if (System.getProperty("curve") == "true") println(String.format("    %-18s %4.2f   %.3f", name, v, w))
                 if (w > best + 0.005) { best = w; keep = v }
             }
             setCost(name, keep)

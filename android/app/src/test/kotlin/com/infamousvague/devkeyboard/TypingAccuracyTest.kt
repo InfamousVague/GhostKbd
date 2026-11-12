@@ -97,6 +97,19 @@ class TypingAccuracyTest {
         assertEquals("work", ac.correct("wirk", null, taps("wirk", 1 to (0.45f to 0f))))
     }
 
+    @Test fun twoTapsJustOverTheirLinesAreOneChangeBetweenThem() {
+        // "the" with the h tapped just under its line (on the b below it) and the e just over its line (on the r
+        // beside it): three letters, two of them another key's, and still "the". The search's bound on changes
+        // counts each by how far its tap was from the key it is read as (TapDecoder.WHOLE_CHANGE).
+        assertEquals("the", ac.correct("tbr", null, taps("tbr", 1 to (0f to -0.45f), 2 to (-0.45f to 0f))))
+        assertEquals("he", ac.correct("jr", null, taps("jr", 0 to (-0.45f to 0f), 1 to (-0.45f to 0f))))
+        // Both in the middles of the wrong keys, the same letters are another word, or no word: they are left.
+        assertNull(ac.correct("tbr", null, taps("tbr")))
+        assertNull(ac.correct("jr", null, taps("jr")))
+        // One tap in the middle of the wrong key is one change, as it always was.
+        assertEquals("the", ac.correct("thr", null, taps("thr")))
+    }
+
     @Test fun twoWordsRunTogetherAreParted() {
         assertEquals("in the", ac.correct("inthe", null, taps("inthe")))
         assertEquals("see you", ac.correct("seeyou", null, taps("seeyou")))
