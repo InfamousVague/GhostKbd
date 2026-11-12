@@ -25,6 +25,10 @@ import kotlin.math.max
  *
  * A take ends when the mic is tapped again, after [IDLE_STOP_MS] with nobody speaking (a mic left open), or at
  * [MAX_MINUTES]. What is said is never kept: each piece's sound is let go as soon as it is written down.
+ *
+ * A take can also be let go ([cancel]): the mic closes, the pieces not yet written down are dropped unheard, and its
+ * listener is told nothing more. That is for a take whose field is gone (its words must not be typed into the next
+ * one), and for a person who will not wait for a long take's last pieces.
  */
 class Dictation(private val context: Context) {
     interface Listener {
@@ -50,8 +54,13 @@ class Dictation(private val context: Context) {
     private var record: AudioRecord? = null
     private var model = 0L
     private var modelPath: String? = null
+    /** The take being heard or written down, until its end has been said or it is let go. Read and set on the main thread. */
+    private var current: Take? = null
 
     val listening get() = recording
+
+    /** Whether a take is open or still being written down. */
+    val active get() = current != null
 
     fun hasPermission() = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
@@ -71,13 +80,14 @@ class Dictation(private val context: Context) {
         rec.startRecording()
         // The settings are read once, as the take begins: the words to expect and the language do not change mid-sentence.
         val take = Take(listener, DictationWords.parse(KeyboardPrefs(context).dictationWords))
+        current = take
         worker.execute {
             val cuts = SpeechCuts(RATE)
             val pending = Samples()
             val buf = ShortArray(RATE / 10)
             var total = 0L
             var queued = 0
-            while (recording && !failed && total < RATE.toLong() * 60 * MAX_MINUTES && cuts.idleMs < IDLE_STOP_MS) {
+            while (recording && !failed && !take.cancelled && total < RATE.toLong() * 60 * MAX_MINUTES && cuts.idleMs < IDLE_STOP_MS) {
                 val n = rec.read(buf, 0, buf.size)
                 if (n <= 0) continue
                 pending.add(buf, n)
@@ -91,15 +101,16 @@ class Dictation(private val context: Context) {
                 var peak = 0
                 for (i in 0 until n) peak = max(peak, abs(buf[i].toInt()))
                 val level = (peak / 32768f).coerceIn(0f, 1f)
-                main.post { listener.onLevel(level) }
+                main.post { if (!take.cancelled) listener.onLevel(level) }
             }
-            recording = false
+            // Only this take's own flag and microphone: a take let go may already have another after it.
+            if (!take.cancelled) recording = false
             runCatching { rec.stop() }
             rec.release()
-            record = null
-            // A piece that could not be written down has ended the take already, and said why.
-            if (failed) return@execute
-            main.post { listener.onTranscribing() }
+            if (record === rec) record = null
+            // A piece that could not be written down has ended the take already, and said why. A take let go says nothing.
+            if (failed || take.cancelled) return@execute
+            main.post { if (!take.cancelled) listener.onTranscribing() }
             // What is left is written down where there is speech in it; and a short take that was never taken for
             // speech at all is written down anyway, as every take was before there were pieces: nobody's quiet word
             // is thrown away on a guess.
@@ -112,23 +123,46 @@ class Dictation(private val context: Context) {
     /** Ends the take: what was heard and not yet written down is, and then [Listener.onDictated] says it is over. */
     fun stop() { recording = false }
 
-    /** One take: who hears its words, the person's own words for whisper, and the end of what has been written down so far. */
-    private class Take(val listener: Listener, val words: List<String>) { var before = "" }
+    /**
+     * Lets the take go, from the main thread: the mic closes, what was heard and not yet written down is dropped, and
+     * its listener hears nothing more of it (not even its end: whoever lets it go puts their own panel right).
+     */
+    fun cancel() {
+        val take = current ?: return
+        take.cancelled = true
+        current = null
+        recording = false
+    }
+
+    /**
+     * One take: who hears its words, the person's own words for whisper, the end of what has been written down so
+     * far, and whether it was let go ([cancel]).
+     */
+    private class Take(val listener: Listener, val words: List<String>) {
+        var before = ""
+        @Volatile var cancelled = false
+    }
 
     /** Queues [piece] to be written down after the pieces before it. The [last] one ends the take, with or without sound in it. */
     private fun write(take: Take, piece: ShortArray, last: Boolean) {
         writer.execute {
-            if (failed) return@execute
+            // A take that was let go has nothing more written down: its pieces pass unheard.
+            if (failed || take.cancelled) return@execute
             val text = if (piece.isEmpty()) "" else try {
                 transcribe(piece, take)
             } catch (e: Throwable) {
+                if (take.cancelled) return@execute
                 failed = true
                 recording = false
-                main.post { take.listener.onError(e.message ?: "Transcription failed.") }
+                main.post { if (!take.cancelled) { if (current === take) current = null; take.listener.onError(e.message ?: "Transcription failed.") } }
                 return@execute
             }
             if (text.isNotEmpty()) take.before = text
-            main.post { if (last) take.listener.onDictated(text) else if (text.isNotEmpty()) take.listener.onHeard(text) }
+            main.post {
+                // Let go while this piece was being written down: its words are not typed.
+                if (take.cancelled) return@post
+                if (last) { if (current === take) current = null; take.listener.onDictated(text) } else if (text.isNotEmpty()) take.listener.onHeard(text)
+            }
         }
     }
 
@@ -154,8 +188,11 @@ class Dictation(private val context: Context) {
     }
 
     fun release() {
+        cancel()
         recording = false
-        writer.execute { if (model != 0L) { Whisper.nativeFree(model); model = 0L } }
+        // After the listening thread has ended its take and queued whatever it had: a piece queued behind the free
+        // would load the model again, and nothing would let that one go.
+        worker.execute { writer.execute { if (model != 0L) { Whisper.nativeFree(model); model = 0L } } }
     }
 
     /** The samples heard and not yet taken as a piece: a row of them that grows at its end and is taken from its start. */

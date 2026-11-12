@@ -116,7 +116,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
     var dictation = DictationPhase.OFF
-        set(value) { field = value; if (value == DictationPhase.OFF) level = 0f; invalidate() }
+        set(value) {
+            if (value == DictationPhase.TRANSCRIBING && field != value) writingSince = android.os.SystemClock.uptimeMillis()
+            field = value
+            if (value == DictationPhase.OFF) level = 0f
+            invalidate()
+        }
+
+    /**
+     * When a take's last words began to be written down. That is a moment for most takes; after [WRITING_WAIT_MS]
+     * of it (a long take, a slow phone) the panel says a tap stops it there, and a tap does (the service lets the
+     * rest of the take go and keeps what it has typed).
+     */
+    private var writingSince = 0L
+    private fun writingLong() = dictation == DictationPhase.TRANSCRIBING && android.os.SystemClock.uptimeMillis() - writingSince >= WRITING_WAIT_MS
 
     /** How loud the microphone hears it, 0..1, eased. */
     var level = 0f
@@ -965,7 +978,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             canvas.drawArc(arcBox, 360f * t - 90f, 70f, false, stroke)
             stroke.color = theme.accent
             canvas.drawArc(arcBox, 360f * t + 90f, 70f, false, stroke)
-            if (animationsOn()) postInvalidateOnAnimation()
+            // Drawn again while it writes: for the arcs, and so the words change once it has been at it a while.
+            if (animationsOn()) postInvalidateOnAnimation() else postInvalidateDelayed(500)
         } else {
             fill.color = theme.accent
             fill.alpha = 60
@@ -978,7 +992,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         label.typeface = medium
         label.textSize = sp(15f)
         label.color = theme.text
-        val words = if (dictation == DictationPhase.LISTENING) "Listening… tap to finish" else "Writing it down…"
+        val words = if (dictation == DictationPhase.LISTENING) "Listening… tap to finish" else if (writingLong()) "Still writing it down… tap to stop here" else "Writing it down…"
         drawCentered(canvas, words, cx, cy + r + dp(30f))
     }
 
@@ -1090,22 +1104,22 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * would not (Vietnamese's o has twenty-two), the lines are made as long as the board is wide, and if they still
      * do not fit their cells are made shorter, so the panel never comes down over the key the finger is on.
      */
-    private fun makePanel(key: Key, rect: RectF): Panel? {
+    private fun makePanel(key: Key, rect: RectF, home: Boolean = false): Panel? {
         if (key.alts.isEmpty()) return null
-        val choices = key.alts.map { display(it) }
+        val first = key.alts.map { display(it) }
         val f = face(rect)
         val cellW = f.width() + keyPadX * 2
         val pad = dp(6f)
         val bottom = f.top - dp(2f)
         val room = (bottom - pad * 2).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
         var cellH = f.height()
-        var cols = min(choices.size, 8)
-        var lines = ceil(choices.size / cols.toFloat()).toInt()
+        var cols = min(first.size, 8)
+        var lines = ceil(first.size / cols.toFloat()).toInt()
         if (lines * cellH > room) {
             val across = floor((width - dp(4f) - pad * 2) / cellW).toInt().coerceAtLeast(cols)
             val fit = floor(room / cellH).toInt().coerceAtLeast(1)
-            cols = min(choices.size, ceil(choices.size / fit.toFloat()).toInt().coerceIn(cols, across))
-            lines = ceil(choices.size / cols.toFloat()).toInt()
+            cols = min(first.size, ceil(first.size / fit.toFloat()).toInt().coerceIn(cols, across))
+            lines = ceil(first.size / cols.toFloat()).toInt()
             if (lines * cellH > room) cellH = (room / lines).coerceAtLeast(dp(PANEL_CELL_MIN_DP))
         }
         val w = cols * cellW + pad * 2
@@ -1116,13 +1130,19 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         if (left < dp(2f)) left = dp(2f)
         val top = (bottom - h).coerceAtLeast(0f)
         val bounds = RectF(left, top, left + w, top + h)
+        // The mic key's panel ([home]): its first choice, the full stop, stands in the cell over the key itself even
+        // where the panel had to come in from the screen's edge, and starts chosen, so a hold and a lift types it
+        // (the finger chooses the cell it is under: on the phone that was the colon). Every other panel keeps the
+        // order it has always had.
+        val at = if (home) PanelOrder.home(f.centerX(), left + pad, cellW, cols, first.size) else 0
+        val choices = PanelOrder.withFirstAt(first, at)
         val cells = choices.indices.map { i ->
             // The first line is the one nearest the key, as Gboard fills its panels.
             val line = lines - 1 - i / cols
             val col = i % cols
             RectF(left + pad + col * cellW, top + pad + line * cellH, left + pad + (col + 1) * cellW, top + pad + (line + 1) * cellH)
         }
-        return Panel(choices, cells, bounds, cols)
+        return Panel(choices, cells, bounds, cols).also { it.selected = at }
     }
 
     private fun drawPanel(canvas: Canvas, panel: Panel) {
@@ -1325,7 +1345,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     return true
                 }
                 if (dictation != DictationPhase.OFF) {
-                    if (dictation == DictationPhase.LISTENING && event.actionMasked == MotionEvent.ACTION_DOWN) listener.onMic()
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN && (dictation == DictationPhase.LISTENING || writingLong())) listener.onMic()
                     return true
                 }
                 if (event.actionMasked == MotionEvent.ACTION_DOWN && (x < areaLeft - dp(DOCK_SLACK_DP) || x > areaRight + dp(DOCK_SLACK_DP))) {
@@ -1499,7 +1519,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             // The mic key, where the full stop was: its long-press is the full stop's, the full stop first, so a hold
             // and a lift types one and a slide reaches the rest.
             KeyType.MIC -> {
-                val panel = makePanel(t.key, t.rect) ?: return
+                val panel = makePanel(t.key, t.rect, home = true) ?: return
                 t.panel = panel
                 t.longPressed = true
                 performHapticFeedback(LONG_PRESS)
@@ -1603,6 +1623,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
 
         /** The least height a long-press panel's cell is squeezed to, so a choice can still be read and hit. */
         private const val PANEL_CELL_MIN_DP = 30f
+        /** How long a take's last words are written down before a tap may stop it there. */
+        const val WRITING_WAIT_MS = 3000L
         /** The strip Android draws its collapse and switch-keyboard buttons in, with gesture navigation (dp). */
         const val NAV_BUTTONS_DP = 48f
         /** What "More" adds under the keys (dp). */

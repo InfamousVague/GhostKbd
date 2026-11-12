@@ -29,8 +29,13 @@ Each piece is given the end of the piece before it (up to 160 characters), which
 one text.
 
 A take ends when the mic is tapped again; when the keyboard is hidden (`onFinishInputView`), so a mic is never left
-open behind another app; by itself after 45 seconds with nobody speaking; and at 30 minutes whatever is said. The
-sound of each piece is let go as soon as it is written down.
+open behind another app; when the phone is turned or unfolded; by itself after 45 seconds with nobody speaking; and
+at 30 minutes whatever is said. The sound of each piece is let go as soon as it is written down.
+
+A take's words are for the field it was started in. In another field, or once that field is gone, what has not been
+written down yet is let go and never typed (`Dictation.cancel`, `DevKeyboardService.dropTake`). And where the last
+words take more than three seconds to write down (a long take on a slow phone), the panel says so and a tap stops
+it there: what the take has typed already stays.
 
 ## Your words
 

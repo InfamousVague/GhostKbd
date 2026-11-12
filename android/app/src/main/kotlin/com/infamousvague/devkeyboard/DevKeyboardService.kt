@@ -94,6 +94,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private val saying = StringBuilder()
 
     /**
+     * A dictation take is open or still being written down, and the field it was started in: its words are for that
+     * field alone. In any other field, or once that one is gone, what is not yet written down is let go ([dropTake])
+     * rather than typed where it was not said.
+     */
+    private var takeOpen = false
+    private var takeField: FieldKey? = null
+
+    /**
      * A shortcut's letters that were just said to be meant as typed (their own chip tapped, or their phrase taken
      * back with backspace): the next space leaves them alone, once.
      */
@@ -401,6 +409,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val key = attribute?.let {
                 FieldKey(it.fieldId, it.packageName, it.inputType, it.imeOptions, it.hintText?.toString(), it.fieldName, it.label?.toString(), it.privateImeOptions)
             }
+            if (takeOpen && key != takeField) dropTake()
             if (attribute == null) { fieldKey = null; editor.detach(); return@runCatching }
             undoOn = Plugins.isOn(prefs, Plugins.UNDO)
             if (restarting && key == fieldKey) { editor.restarted(attribute.initialSelStart, attribute.initialSelEnd); return@runCatching }
@@ -412,6 +421,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The field is gone, and its history with it. */
     override fun onFinishInput() {
         super.onFinishInput()
+        dropTake()
         runCatching { AccuracyLog.flush(this); AccuracyLog.clearTaps() }
         fieldKey = null
         editor.detach()
@@ -522,6 +532,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
+        // Turned or unfolded mid-take: Android may build the keys again, without their listening panel, while the
+        // mic is still open. The take ends here, and what it heard is written down.
+        if (takeOpen && dictation.listening) dictation.stop()
         super.onConfigurationChanged(newConfig)
         applySettings()
     }
@@ -696,13 +709,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = false
         finishTyping()
         val jamo = text.singleOrNull()?.takeIf { caretBack == 0 && language.spec.script == Script.HANGUL && Hangul.isJamo(it) }
-        if (gifMode == GifMode.TYPING) { gifQuery = if (jamo != null) hangulOnto(gifQuery, jamo) else gifQuery + text; scheduleRow(); return }
-        if (emojiMode == GifMode.TYPING) { emojiQuery = if (jamo != null) hangulOnto(emojiQuery, jamo) else emojiQuery + text; scheduleRow(); return }
-        val ic = currentInputConnection ?: return
-        // A key typed after a shortcut's phrase lets it stand, and letters typed on are no longer the letters kept.
+        // A key typed after a shortcut's phrase lets it stand, and letters typed on are no longer the letters kept:
+        // a key typed into a GIF or emoji search too, so a backspace long after cannot take the phrase back.
         lastShortcut = null
         keptShortcut = null
         said = null
+        if (gifMode == GifMode.TYPING) { gifQuery = if (jamo != null) hangulOnto(gifQuery, jamo) else gifQuery + text; scheduleRow(); return }
+        if (emojiMode == GifMode.TYPING) { emojiQuery = if (jamo != null) hangulOnto(emojiQuery, jamo) else emojiQuery + text; scheduleRow(); return }
+        val ic = currentInputConnection ?: return
         if (jamo != null) { typeHangul(ic, jamo); return }
         hangul = Hangul.State()
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
@@ -1032,6 +1046,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         finishTyping()
         keyboard?.takeTyped()
         takenTouch = wordTouches.removeLastOrNull()?.let { it to System.currentTimeMillis() }
+        // The shortcut just expanded, for this backspace alone: whatever this one does, the next is plain backspace.
+        val shortcut = lastShortcut
+        lastShortcut = null
         if (gifMode == GifMode.TYPING) { hangul = Hangul.State(); gifQuery = gifQuery.dropLast(1); scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { hangul = Hangul.State(); if (emojiQuery.isEmpty()) browseEmoji() else emojiQuery = emojiQuery.dropLast(1); scheduleRow(); return }
         val ic = currentInputConnection ?: return
@@ -1060,8 +1077,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Backspace straight after a shortcut's phrase puts back the letters that were typed, and the next space
         // leaves them be. Only the very next key: where the phrase is no longer just before the cursor, or another key
         // came between, backspace is backspace.
-        lastShortcut?.let { (typed, text, separator) ->
-            lastShortcut = null
+        shortcut?.let { (typed, text, separator) ->
             if (editor.replaceBefore(text + separator, typed, Kind.SNIPPET)) {
                 keptShortcut = typed
                 lastSpaceAt = 0L
@@ -1164,12 +1180,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         ) { fillAtCursor(); return }
         // Enter straight after a shortcut puts its phrase in first, as a space would, and then does what enter does:
         // the phrase stands, with no backspace to take it back once the line or the message has gone.
-        runCatching { expandShortcut(ic, "") }
+        val kept = keptShortcut
+        val expanded = runCatching { expandShortcut(ic, "") }.getOrDefault(false)
         lastShortcut = null
+        // The phrase a shortcut stands for is not autocorrect's to mend, and nor are letters kept as typed in place
+        // of their phrase (as a space leaves both alone).
+        val settled = expanded || (kept != null && keptShortcut == null)
         // Enter finishes a message's last word as a space would have: it is mended too, where enter sends a message
         // or starts a new line of one (never a search, a form's one-word field, or the first word of anything).
         atSwipe = lastSwipe?.word
-        if (endsProse(info, ic)) runCatching { correctLastWord(ic, "") }
+        if (!settled && endsProse(info, ic)) runCatching { correctLastWord(ic, "") }
         lastSpaceAt = 0L
         lastCorrection = null
         swipeStood()
@@ -1363,6 +1383,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onMic() {
         val view = keyboard ?: return
         if (dictation.listening) { dictation.stop(); return }
+        // Still writing the last take down (the keys ask only after a few seconds of it: a long take on a slow
+        // phone): a tap lets the rest of it go, and what it has typed already stays.
+        if (takeOpen) { dictation.cancel(); onDictated(""); return }
         if (view.dictation == DictationPhase.TRANSCRIBING) return
         if (!dictation.hasPermission()) {
             // An input method cannot ask for a permission itself: the settings app asks, on Dictation's page.
@@ -1373,6 +1396,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         said = null
         saying.setLength(0)
         dictation.start(this)
+        takeOpen = dictation.active
+        takeField = fieldKey
+    }
+
+    /** Lets a take go whose field is gone: the mic closes, nothing more of it is typed, and the keys come back. */
+    private fun dropTake() {
+        if (!takeOpen) return
+        takeOpen = false
+        dictation.cancel()
+        keyboard?.dictation = DictationPhase.OFF
+        saying.setLength(0)
+        said = null
+        updateWorking()
     }
 
     override fun onLevel(level: Float) { keyboard?.level = level }
@@ -1384,6 +1420,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** The take is over: its last words go in, and what it put in altogether can be tidied from the row. */
     override fun onDictated(text: String) {
+        takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
         updateWorking()
         speak(text)
@@ -1405,14 +1442,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val before = ic.getTextBeforeCursor(1, 0)?.toString().orEmpty()
         val lead = if (before.isNotEmpty() && !before[0].isWhitespace() && before[0] !in "([{\"'`") " " else ""
         editor.insert(lead + text, Kind.DICTATION)
-        saying.append(lead).append(text)
+        // What the take has said, for Tidy to replace: its words, and not the space that parts them from what stood
+        // before (an answer comes back trimmed, and "the update. Um can you" must not become "the update.Can you").
+        if (saying.isNotEmpty()) saying.append(lead)
+        saying.append(text)
         lastCorrection = null
+        // A word swiped before the take is done with: the row is the take's now (its Tidy chip), not that word's others.
+        swipeStood()
+        lastSwipe = null
         // Spoken words are whisper's guess at them, not typing: they are not counted for next-word prediction.
         notTyped()
         autoSpaced = false
     }
 
     override fun onError(message: String) {
+        takeOpen = false
         keyboard?.dictation = DictationPhase.OFF
         saying.setLength(0)
         updateWorking()
@@ -1938,13 +1982,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * just kept as typed, or where the cursor stands inside a longer run of characters.
      */
     private fun expandShortcut(ic: InputConnection, separator: String): Boolean {
-        if (!shortcutsHere() || !prefs.shortcutsAuto) return false
+        if (!shortcutsHere()) return false
         val entries = Shortcuts.all(prefs)
         if (entries.isEmpty()) return false
         val before = ic.getTextBeforeCursor(Shortcuts.MAX_SHORTCUT + 1, 0)?.toString() ?: return false
         val entry = Shortcuts.find(entries, before) ?: return false
         val typed = Shortcuts.token(before)
+        // Letters kept as typed are let be, once, whether or not a space would have expanded them: the caller sees
+        // they were, and keeps autocorrect off them too.
         if (typed.equals(keptShortcut, ignoreCase = true)) { keptShortcut = null; return false }
+        if (!prefs.shortcutsAuto) return false
         val after = ic.getTextAfterCursor(1, 0)
         if (!after.isNullOrEmpty() && !after[0].isWhitespace()) return false
         val text = shortcutText(entry)
