@@ -334,13 +334,21 @@ const List<PluginManifest> catalogue = [
         'answers, dictation) and takes each back the same way in every app, a word or an action at a time, with the '
         'cursor put back where it was. The list is kept in memory for that one field, never saved, and never kept in a '
         'password field. If the text changed some other way, or the keyboard cannot read the field, it forgets its list '
-        'rather than guess and asks the app to undo instead. An arrow dims when there is nothing for it to do.',
+        'rather than guess and asks the app to undo instead. An arrow is in the row only while there is something for it to do.',
     category: PluginCategory.tools,
     hue: 'blue',
     icon: Lucide.undo2,
     adds: ['Undo and Redo in the row', 'The same in every app', 'A word, a paste, a fix or an AI answer per step'],
     hasPage: true,
     iosLine: 'Take back what this keyboard typed, or put it back.',
+    // The iPhone's keyboard keeps both arrows in its row and dims the one with nothing to do.
+    iosDescription:
+        'Undo and Redo arrows in the row. The keyboard keeps its own list of what it did in the field you are in (words '
+        'typed, deletions, autocorrect’s fixes, swiped words, pastes, emoji, markdown, snippets, Ghostwriter and Rewrite '
+        'answers, dictation) and takes each back the same way in every app, a word or an action at a time, with the '
+        'cursor put back where it was. The list is kept in memory for that one field, never saved, and never kept in a '
+        'password field. If the text changed some other way, or the keyboard cannot read the field, it forgets its list '
+        'rather than guess and asks the app to undo instead. An arrow dims when there is nothing for it to do.',
   ),
   PluginManifest(
     id: 'incognito',

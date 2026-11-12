@@ -1528,8 +1528,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /**
      * What the row shows, the first that applies: the GIF search; a password manager's logins; a swiped word's
      * alternatives; autocorrect's suggestions for the word being typed (or the word a fix replaced, to keep it);
-     * after a space, the three likeliest next words with the tools scrolling after them; and with nothing to
-     * suggest, the plugins' own buttons. [before] is the text before the cursor as [tick] read it, and [place] where
+     * after a space, the three likeliest next words; and with nothing to suggest, the plugins' own buttons. Words
+     * are about three at a time, with the tools after them in the strip ([showWords]). [before] is the text before the cursor as [tick] read it, and [place] where
      * that puts the cursor for next-word prediction.
      */
     private fun refreshRow(before: String?, place: NextWordText.Place?) {
@@ -1593,8 +1593,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         lastSwipe?.let { swipe ->
-            swipe.choices.forEachIndexed { i, w -> items += RowItem("swipe-$i-$w", label = w, bold = w == swipe.word, wide = true) { replaceSwipe(w) } }
-            strip.setItems(middleBold(items), everyday())
+            // About three, as every row of words is: the word it was read as is always one of them.
+            val shown = swipe.choices.take(WORDS).let { if (swipe.word in it) it else listOf(swipe.word) + it.take(WORDS - 1) }
+            shown.forEachIndexed { i, w -> items += RowItem("swipe-$i-$w", label = w, bold = w == swipe.word, wide = true) { replaceSwipe(w) } }
+            showWords(strip, items)
             return
         }
         if (!toolsHeld) currentInputConnection?.let { ic -> if (selStart == selEnd && contextual(ic, before, items)) { strip.setItems(items); return } }
@@ -1644,10 +1646,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     s.words.forEachIndexed { i, w ->
                         items += RowItem("s-$i-$w", label = w, bold = i == 0 && (s.fix != null || s.typedIsWord), wide = true) { pickSuggestion(word, w) }
                     }
-                    // pizza → 🍕: an emoji for the word, tapped in after it.
+                    // About three words, the likeliest (Matt, 2026-11-12: "only show about three of them"): the word as
+                    // typed, where it is offered, is one of the three.
+                    while (items.size > WORDS) items.removeAt(items.size - 1)
+                    // pizza → 🍕: an emoji for the word, tapped in after it. A small chip after the words, not one of them.
                     if (Plugins.isOn(prefs, Plugins.EMOJI) && prefs.emojiSuggest) Emoji.forWord(word).forEach { e ->
                         val shown = e.toned(prefs.emojiSkin)
-                        items += RowItem("se-$shown", label = shown, wide = true) { editor.insert(" $shown", Kind.EMOJI); Emoji.used(this, shown); scheduleRow() }
+                        items += RowItem("se-$shown", label = shown, chip = true) { editor.insert(" $shown", Kind.EMOJI); Emoji.used(this, shown); scheduleRow() }
                     }
                 }
             }
@@ -1666,7 +1671,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             strip.setItems(first + tools.filter { it !in first }, everyday(), first.size)
             return
         }
-        strip.setItems(middleBold(items), everyday())
+        showWords(strip, items)
+    }
+
+    /**
+     * The row with words in it (Matt, 2026-11-12: "Center the auto complete words and only show about three of them
+     * reserve some space on the right to show at least one toolbar icon"): the words, the pick in the middle, then
+     * whatever small chips came with them (an emoji for the word), then the tools, so the first of the tools is in
+     * view at the row's end and the rest are a slide away ([PluginRow.setItems] centres the words and keeps that
+     * room). The tools about this very moment are not among them: they come back when the word is done.
+     */
+    private fun showWords(strip: PluginRow, items: List<RowItem>) {
+        val shown = middleBold(items.filter { it.wide }) + items.filter { !it.wide }
+        strip.setItems(shown + tools().filter { !leads(it) }, everyday(), shown.size)
     }
 
     /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
@@ -1685,11 +1702,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun everyday(): List<RowItem> {
         val items = ArrayList<RowItem>(5)
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
-            // Lit: the keyboard's own last step, or the app's undo where it has none. Dim: nothing to do.
-            val canUndo = editor.canUndo
-            val canRedo = editor.canRedo
-            items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", dim = !canUndo, onTap = if (canUndo) ({ undoTap(redo = false) }) else null)
-            items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", dim = !canRedo, onTap = if (canRedo) ({ undoTap(redo = true) }) else null)
+            // Each is there only while it has something to do (Matt, 2026-11-12: "only show undo and redo when an undo
+            // and redo is available"): the keyboard's own last step, or the app's undo where it has none. They were
+            // always there, and dim with nothing to do.
+            if (editor.canUndo) items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo") { undoTap(redo = false) }
+            if (editor.canRedo) items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo") { undoTap(redo = true) }
         }
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
         if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
@@ -2999,6 +3016,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
         /** How much text before the cursor each look reads: enough for the row's own patterns and the last few words. */
         private const val CONTEXT_CHARS = 200
+        /** How many words the row suggests at once: Gboard's three. */
+        private const val WORDS = 3
         /** How many strokes may wait to be read, and how much of the text before the cursor must be as it was for a reading to be typed. */
         private const val MAX_STROKES = 4
         /** How many of a field's latest autocorrections are remembered, and for how long a word typed again where one stood counts as meant. */

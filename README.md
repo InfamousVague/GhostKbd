@@ -46,7 +46,7 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   InputConnection, the same in every app, with the cursor put back. Before anything is taken out it is read back and
   compared; if the text changed some other way the history is dropped and the app is asked to undo instead (its edit
   menu's Undo, then Ctrl+Z). In memory only, 100 steps and 200,000 characters at most, never in password fields. An
-  arrow dims when there is nothing for it to do. A history is one field's: where an app only starts its input again
+  arrow is in the row only while it has something to do (since 0.16.0; before, it dimmed). A history is one field's: where an app only starts its input again
   (which is also how another input on the same web page or Flutter screen arrives) it is kept only if its newest step
   is found in the text. A new word typed straight after the last step waits on no read of the field, and a field that
   answers reads slowly is not recorded. The history has no Android in it and is checked off the device:
@@ -101,6 +101,9 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **Clipboard pins** (`ClipList.kt`, `ClipHistory.kt`; [docs/clipboard-pins.md](docs/clipboard-pins.md)): hold a clip
   in the clipboard's list to pin it. A pinned clip leads the list, is not one of the 25 copies, and stays when the
   history is cleared; Settings › Row tools lists the pins, removes them and takes one written by hand.
+- **The row** (`PluginRow.WordRoom`, `Quill`): about three suggested words, in the row's middle, with room kept at
+  its end for the first of the tools; Undo and Redo are there only while each has something to do; and while the AI
+  writes or rewrites, a feather quill scribbles in the row's busy chip.
 - **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
   the mic key stands where the full stop was (`Layouts.withMic`).
 
@@ -151,9 +154,11 @@ about how well any of them is corrected.
 ## Next-word prediction
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
-words; a tap types one with a space and offers the next three. The tools scroll in after the words, the first one
-peeking in at the row's end: undo and redo, the clipboard, emoji and GIFs first, and on a row wide enough for them
-and three words (a foldable's inner screen, a tablet) pinned at its start instead. Emoji was a key between the { } key
+words; a tap types one with a space and offers the next three. Whenever the row shows words (next words, a word's
+completions, a swipe's other readings) it shows about three, in the row's middle, and the tools follow them with the
+first tool whole in view at the row's end (`PluginRow.WordRoom`): undo and redo while each has something to do, the
+clipboard, emoji and GIFs first, and on a row wide enough for them and three words (a foldable's inner screen, a
+tablet) pinned at its start instead. Emoji was a key between the { } key
 and the space bar from 0.12.1 to 0.15.0 and is a button in the row again, beside the clipboard. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop

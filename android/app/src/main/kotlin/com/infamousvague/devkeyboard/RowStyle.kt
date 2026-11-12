@@ -41,9 +41,51 @@ enum class RowTint(private val light: Int, private val dark: Int) {
 internal fun animationsOn() = ValueAnimator.areAnimatorsEnabled()
 
 /**
+ * How the quill moves while the AI writes ([ThinkingView]): one line of its scribble takes [CYCLE_MS]. For the first
+ * [WRITE] of that the nib writes the line from left to right, slow at its ends and quick in its middle; for the rest
+ * the pen lifts and goes back to where the line began, while what it wrote fades. Then it writes again.
+ *
+ * No Android in it, so the motion can be read and tested off the phone (QuillTest). Every value is for [p], how far
+ * through the cycle it is, from 0 to 1.
+ */
+object Quill {
+    const val CYCLE_MS = 1800L
+
+    /** The share of a cycle spent writing; the rest is the pen going back. */
+    const val WRITE = 0.7f
+
+    /** The line it writes, as its humps' heights (shares of the tallest): a word in a hurried hand. */
+    val HUMPS = floatArrayOf(1f, 0.55f, 0.8f, 0.5f)
+
+    private fun ease(x: Float): Float = ((1 - kotlin.math.cos(x.coerceIn(0f, 1f) * Math.PI)) / 2).toFloat()
+
+    /** How much of the line is written, 0 to 1. */
+    fun written(p: Float): Float = if (p >= WRITE) 1f else ease(p / WRITE)
+
+    /** How strongly the line shows, 0 to 1: whole while it is being written, fading as the pen goes back. */
+    fun ink(p: Float): Float = if (p < WRITE) 1f else (1f - (p - WRITE) / (1f - WRITE)).coerceIn(0f, 1f)
+
+    /** Where the nib is along the line, 0 to 1: at the end of what it has written, then back to the start. */
+    fun at(p: Float): Float = if (p < WRITE) written(p) else 1f - ease((p - WRITE) / (1f - WRITE))
+
+    /** How far the nib is lifted off the line, 0 to 1: down while it writes, up and down again on its way back. */
+    fun lift(p: Float): Float = if (p < WRITE) 0f else kotlin.math.sin((p - WRITE) / (1f - WRITE) * Math.PI).toFloat().coerceIn(0f, 1f)
+
+    /** The quill's lean in degrees, about its nib: it rocks with each hump of the line, and stands still off it. */
+    fun lean(p: Float): Float = if (p < WRITE) (5f * kotlin.math.sin(written(p) * HUMPS.size * 2 * Math.PI)).toFloat() else 0f
+
+    /** Standing still (animations off): the line written whole, the nib at its end. */
+    const val STILL = WRITE - 0.001f
+}
+
+/**
  * The row while the AI works (Matt, 2026-11-09: "clean up the UI for when the AI is thinking"): a violet pill with a
- * sparkle that breathes and turns, a small star that twinkles beside it, and the words with a light passing over them.
- * It animates only while it is on screen, at about 30 frames a second, and stands still with animations off.
+ * feather quill scribbling a line in it, again and again (Matt, 2026-11-12: "When the AI is writing or rewriting show
+ * a feather quill scribbling"; it was a sparkle that breathed), and the words with a light passing over them. The
+ * same for Ghostwriter, Rewrite, In my voice, Enhance, Tidy and an answer being typed out: every one of them is the
+ * row's busy chip.
+ * It animates only while it is on screen, at about 30 frames a second, and stands still with animations off: the
+ * line written, the quill at its end.
  */
 @SuppressLint("ViewConstructor")
 class ThinkingView(context: Context, private val words: CharSequence, private val theme: KeyboardTheme) : View(context) {
@@ -58,6 +100,19 @@ class ThinkingView(context: Context, private val words: CharSequence, private va
     private val box = RectF()
     private val start = SystemClock.uptimeMillis()
 
+    /** The line the quill writes, the part of it written so far, and where the nib is on it. */
+    private val line = android.graphics.Path()
+    private val drawn = android.graphics.Path()
+    private val measure = android.graphics.PathMeasure()
+    private val nib = FloatArray(2)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.6f, resources.displayMetrics)
+        color = ink
+    }
+
     init {
         contentDescription = words
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -70,7 +125,7 @@ class ThinkingView(context: Context, private val words: CharSequence, private va
         set(value) { field = value; requestLayout() }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val want = (dp(12f + 20f + 8f + 14f) + text.measureText(words, 0, words.length)).toInt().coerceAtMost(maxWidth)
+        val want = (dp(12f + QUILL_DP + 14f) + text.measureText(words, 0, words.length)).toInt().coerceAtMost(maxWidth)
         setMeasuredDimension(resolveSize(want, widthMeasureSpec), resolveSize(dp(36f).toInt(), heightMeasureSpec))
     }
 
@@ -81,24 +136,35 @@ class ThinkingView(context: Context, private val words: CharSequence, private va
         box.set(0f, 0f, width.toFloat(), h)
         canvas.drawRoundRect(box, h / 2, h / 2, ground)
 
-        // The sparkle: breathing between 85% and 100%, turning a little either way.
-        val size = dp(19f)
-        val cx = dp(12f) + size / 2
-        val cy = h / 2
-        val breathe = 0.925f + 0.075f * kotlin.math.sin(t * 2f * Math.PI.toFloat() / 1.4f)
+        // The quill. Its line: a row of humps along a baseline a little under the pill's middle.
+        val x0 = dp(12f)
+        val base = h / 2 + dp(6f)
+        val step = dp(LINE_DP) / Quill.HUMPS.size
+        line.reset()
+        line.moveTo(x0, base)
+        // A hump is a curve whose handle stands twice as high as the hump comes to.
+        Quill.HUMPS.forEachIndexed { i, share -> line.quadTo(x0 + step * (i + 0.5f), base - 2 * dp(HUMP_DP) * share, x0 + step * (i + 1), base) }
+        val p = if (moving) ((SystemClock.uptimeMillis() - start) % Quill.CYCLE_MS) / Quill.CYCLE_MS.toFloat() else Quill.STILL
+        measure.setPath(line, false)
+        val length = measure.length
+        // What it has written so far, fading once the pen has left it.
+        drawn.reset()
+        measure.getSegment(0f, length * Quill.written(p), drawn, true)
+        stroke.alpha = (255 * Quill.ink(p)).toInt()
+        canvas.drawPath(drawn, stroke)
+        // The quill itself: Phosphor's feather, whose nib is at its lower left, set down where the line ends.
+        measure.getPosTan(length * Quill.at(p), nib, null)
+        val size = dp(FEATHER_DP)
+        val px = nib[0]
+        val py = nib[1] - dp(LIFT_DP) * Quill.lift(p)
         canvas.save()
-        canvas.translate(cx, cy)
-        canvas.rotate(10f * kotlin.math.sin(t * 2f * Math.PI.toFloat() / 2.8f))
-        canvas.scale(breathe, breathe)
-        canvas.translate(-size / 2, -size / 2)
-        IconDrawable.drawGlyph(canvas, RowIcons.icon(RowIcon.SPARKLE), size, ink, iconPaint)
+        canvas.rotate(Quill.lean(p), px, py)
+        canvas.translate(px - size * NIB_X, py - size * NIB_Y)
+        IconDrawable.drawGlyph(canvas, RowIcons.icon(RowIcon.FEATHER), size, ink, iconPaint)
         canvas.restore()
-        // The small star: up and to the right, fading in and out out of step with the sparkle.
-        val twinkle = if (moving) (0.5f + 0.5f * kotlin.math.sin(t * 2f * Math.PI.toFloat() / 1.1f + 1.3f)) else 1f
-        drawStar(canvas, cx + size * 0.55f, cy - size * 0.42f, dp(3.2f) * (0.6f + 0.4f * twinkle), ink, (255 * (0.35f + 0.65f * twinkle)).toInt())
 
         // The words, cut to fit, with a light passing over them every 1.6 s.
-        val x = dp(12f) + size + dp(8f)
+        val x = dp(12f + QUILL_DP)
         val room = width - x - dp(14f)
         if (room > 0) {
             val shown = TextUtils.ellipsize(words, text, room, TextUtils.TruncateAt.END)
@@ -114,23 +180,17 @@ class ThinkingView(context: Context, private val words: CharSequence, private va
         if (moving && isShown) postInvalidateDelayed(33)
     }
 
-    private val star = android.graphics.Path()
-
-    /** A four-pointed star of radius [r]: the AI's small spark. */
-    private fun drawStar(canvas: Canvas, cx: Float, cy: Float, r: Float, color: Int, alpha: Int) {
-        val k = r * 0.28f
-        star.reset()
-        star.moveTo(cx, cy - r)
-        star.quadTo(cx + k, cy - k, cx + r, cy)
-        star.quadTo(cx + k, cy + k, cx, cy + r)
-        star.quadTo(cx - k, cy + k, cx - r, cy)
-        star.quadTo(cx - k, cy - k, cx, cy - r)
-        star.close()
-        iconPaint.style = Paint.Style.FILL
-        iconPaint.color = color
-        iconPaint.alpha = alpha
-        canvas.drawPath(star, iconPaint)
-        iconPaint.alpha = 255
+    private companion object {
+        /** The line the quill writes: how long it is and how tall its tallest hump, in dp. */
+        const val LINE_DP = 16f
+        const val HUMP_DP = 6f
+        /** The feather: its size, how far its nib lifts off the line on the way back, and where in its square the nib is. */
+        const val FEATHER_DP = 18f
+        const val LIFT_DP = 3.5f
+        const val NIB_X = 0.12f
+        const val NIB_Y = 0.88f
+        /** What the quill and its line take of the pill before the words: the line, the feather beyond its nib, and a gap. */
+        const val QUILL_DP = LINE_DP + FEATHER_DP * (1f - NIB_X) + 6f
     }
 }
 
