@@ -42,7 +42,6 @@ class TrainerKeysTest {
         override fun onOpenSettings() { asked += "settings" }
         override fun onHideKeyboard() { asked += "hide" }
         override fun onMic() { asked += "mic" }
-        override fun onEmoji() { asked += "emoji" }
         override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) { asked += "swipe" }
         override fun onDeleteWord() { text = text.trimEnd().substringBeforeLast(' ', "").let { if (it.isEmpty()) "" else "$it " } }
         override fun onCursorLine(lines: Int) { asked += "line $lines" }
@@ -80,11 +79,11 @@ class TrainerKeysTest {
         type("hi"); keys.onSpace(); keys.onDelete(); keys.onEnter(); keys.onDeleteWord()
         keys.onSwipe(emptyList(), emptyMap(), 1f)
         // And the calls it has no part in, which a class that only stood in the way would swallow: the ones the
-        // keyboard's listener gives a body of its own (a stroke, the emoji key, a layout) most of all.
-        keys.onCursor(2); keys.onShiftChanged(); keys.onShowPicker(); keys.onOpenSettings(); keys.onHideKeyboard(); keys.onMic(); keys.onEmoji(); keys.onCursorLine(-1); keys.onDock("left", true); keys.onLayout("azerty")
+        // keyboard's listener gives a body of its own (a stroke, a layout) most of all.
+        keys.onCursor(2); keys.onShiftChanged(); keys.onShowPicker(); keys.onOpenSettings(); keys.onHideKeyboard(); keys.onMic(); keys.onCursorLine(-1); keys.onDock("left", true); keys.onLayout("azerty")
         keys.onKeyFeedback(Key(KeyType.SPACE, " "), true)
         assertEquals("", service.text)
-        assertEquals(listOf("enter", "swipe", "cursor 2", "shift", "picker", "settings", "hide", "mic", "emoji", "line -1", "dock left", "layout azerty", "feedback"), service.asked)
+        assertEquals(listOf("enter", "swipe", "cursor 2", "shift", "picker", "settings", "hide", "mic", "line -1", "dock left", "layout azerty", "feedback"), service.asked)
         assertEquals("the field is not looked at when no run is on", 0, reads)
         keys.look()
         assertEquals(0, reads)
@@ -131,6 +130,17 @@ class TrainerKeysTest {
         assertTrue("typed in another app: none of it is the run's", s.recorder.steps.isEmpty())
         assertEquals(0, reads)
         assertNull(Trainer.heightFor("another.app", "own"))
+    }
+
+    /** The mic key gives the full stop its key back for a run (DevKeyboardService.applySettings): a story is typed, not spoken. */
+    @Test fun aRunIsBeingTypedOnlyInThisAppsOwnFieldAndOnlyWhileItIsOn() {
+        assertFalse("no run is on", Trainer.typing("own", "own"))
+        run("the cat.")
+        assertTrue(Trainer.typing("own", "own"))
+        assertFalse("never in another app", Trainer.typing("com.whatsapp", "own"))
+        assertFalse(Trainer.typing(null, "own"))
+        Trainer.hold(null)
+        assertFalse("the run is over", Trainer.typing("own", "own"))
     }
 
     @Test fun aTrialLayoutAndAFixAreWornOnlyByTheirRunInThisAppsOwnField() {

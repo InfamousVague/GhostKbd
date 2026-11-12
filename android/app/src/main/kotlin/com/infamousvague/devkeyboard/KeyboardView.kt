@@ -36,8 +36,6 @@ interface KeyboardListener {
     fun onHideKeyboard()
     /** The mic key, or a tap on the listening panel: starts or ends a dictation. */
     fun onMic()
-    /** The emoji key beside the space bar was tapped. */
-    fun onEmoji() {}
     /** Swipe typing: the finger's [path] over the letters, each letter's key centre, and a key's width. */
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
     /** Cursor control: a slide left from backspace takes the word before the cursor. */
@@ -69,7 +67,6 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onOpenSettings() = guard("onOpenSettings") { inner.onOpenSettings() }
     override fun onHideKeyboard() = guard("onHideKeyboard") { inner.onHideKeyboard() }
     override fun onMic() = guard("onMic") { inner.onMic() }
-    override fun onEmoji() = guard("onEmoji") { inner.onEmoji() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
@@ -111,17 +108,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var keyBorders = false
         set(value) { field = value; invalidate() }
 
-    /** The dictation plugin is added and its model is here: the mic key stands beside the space bar. */
+    /**
+     * The dictation plugin is added, its model is here and the field is one to speak into: on the letters page the
+     * mic key stands where the full stop was, next to enter ([Layouts.withMic]).
+     */
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
-
-    /** The emoji plugin is added: its key stands between { } and the space bar on the letters page, where the bar has the room ([Layouts.withEmoji]). */
-    var emojiKey = false
-        set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
-
-    /** Whether the letters page has the emoji key as things stand (the plugin, the layout, the globe, the mic). Where it has not, the row keeps its emoji button. */
-    var showsEmojiKey = false
-        private set
 
     var dictation = DictationPhase.OFF
         set(value) { field = value; if (value == DictationPhase.OFF) level = 0f; invalidate() }
@@ -402,10 +394,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
         }
-        // The emoji key is the letters page's, and whether it has one is asked of that page whichever is showing.
-        showsEmojiKey = emojiKey && Layouts.hasEmojiKey(Layouts.withEmoji(letters, micKey))
-        val keyed = if (emojiKey) Layouts.withEmoji(base, micKey) else base
-        rows = if (micKey) Layouts.withMic(keyed) else keyed
+        rows = if (micKey) Layouts.withMic(base) else base
         layoutKeys()
     }
 
@@ -784,8 +773,6 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             when (key.type) {
                 KeyType.ENTER -> { fill.color = if (pressed) theme.accentPressed else theme.accent; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.SPACE -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
-                // The emoji key is a pill of the same grey as ?123 and the space bar beside it.
-                KeyType.EMOJI -> { fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill) }
                 KeyType.MODE -> if (key.pill) {
                     fill.color = if (pressed) theme.keyPressed else theme.key; canvas.drawRoundRect(p, pill, pill, fill)
                 } else if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
@@ -802,11 +789,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 label.color = theme.text
                 fitText(text, f.width() - dp(4f))
                 drawCentered(canvas, text, cx, cy)
-                if (showHints && key.hint != null) {
-                    label.textSize = sp(10.5f) * labelScale
-                    label.color = theme.hint
-                    canvas.drawText(key.hint, f.right - dp(if (condensed) 6f else 7f), f.top + dp(if (condensed) 11f else 13f), label)
-                }
+                drawHint(canvas, key, f)
             }
             KeyType.MODE -> {
                 label.typeface = medium
@@ -817,13 +800,21 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             }
             KeyType.SPACE -> drawSpaceLabel(canvas, f)
             KeyType.GLOBE -> drawGlobe(canvas, cx, cy)
-            KeyType.MIC -> drawMic(canvas, cx, cy, theme.text)
-            // In the keys' own colour, not the row's yellow: one of the board's keys.
-            KeyType.EMOJI -> drawPackIcon(canvas, RowIcon.EMOJI, cx, cy, dp(22f), theme.text)
+            // The full stop whose place it took is in its corner, as a letter's long-press character is.
+            KeyType.MIC -> { drawMic(canvas, cx, cy, theme.text); drawHint(canvas, key, f) }
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
         }
+    }
+
+    /** A key's long-press character, small in its corner, where Symbol hints are on. */
+    private fun drawHint(canvas: Canvas, key: Key, f: RectF) {
+        if (!showHints || key.hint == null) return
+        label.typeface = regular
+        label.textSize = sp(10.5f) * labelScale
+        label.color = theme.hint
+        canvas.drawText(key.hint, f.right - dp(if (condensed) 6f else 7f), f.top + dp(if (condensed) 11f else 13f), label)
     }
 
     /**
@@ -1373,6 +1364,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 timer.postDelayed(repeatDelete, 400)
             }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT, KeyType.GLOBE -> timer.postDelayed(longPress, longPressMs)
+            // The mic key holds the full stop it stands in for; not while it is listening, when a touch only ends the take.
+            KeyType.MIC -> if (dictation == DictationPhase.OFF) timer.postDelayed(longPress, longPressMs)
             KeyType.MODE -> if (t.key.label == "{ }") timer.postDelayed(longPress, longPressMs)
             else -> Unit
         }
@@ -1503,6 +1496,15 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 performHapticFeedback(LONG_PRESS)
                 invalidate()
             }
+            // The mic key, where the full stop was: its long-press is the full stop's, the full stop first, so a hold
+            // and a lift types one and a slide reaches the rest.
+            KeyType.MIC -> {
+                val panel = makePanel(t.key, t.rect) ?: return
+                t.panel = panel
+                t.longPressed = true
+                performHapticFeedback(LONG_PRESS)
+                invalidate()
+            }
             else -> Unit
         }
     }
@@ -1540,7 +1542,6 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)
                 KeyType.MIC -> listener.onMic()
-                KeyType.EMOJI -> listener.onEmoji()
                 KeyType.GLOBE -> nextLayout()?.let { listener.onLayout(it) }
                 KeyType.DELETE -> Unit
             }

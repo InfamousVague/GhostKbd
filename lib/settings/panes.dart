@@ -529,7 +529,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
       glyph: AppIcon(Lucide.mic, size: 24),
       title: phase == 'ready' ? (mic ? 'Ready' : 'Allow the microphone') : (phase == 'downloading' ? 'Downloading' : 'Not ready'),
       meta: Text(switch (phase) {
-        'ready' => 'Tap the mic beside the space bar, talk, and tap again. ${active?['name'] ?? ''}.',
+        'ready' => 'Tap the mic next to Enter, talk, and tap again. It stands where the full stop was: hold it for the full stop, or type two spaces. ${active?['name'] ?? ''}.',
         'downloading' => '${active?['name'] ?? 'The speech model'}, ${_megabytes(d['bytes'])}, once. ${(progress * 100).round()}%',
         'failed' => d['error'] as String? ?? 'The model did not download.',
         _ => 'The speech model is not on this phone yet.',
@@ -591,7 +591,7 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
         for (final m in models)
           if (m['installed'] == true && m['id'] != activeId)
             SettingRow(label: 'Delete ${m['name']}', hint: Text('Frees ${_megabytes(m['bytes'])}.'), onPress: () => store.deleteModelId(m['id'] as String)),
-        if (phase == 'ready') SettingRow(label: 'Delete the model in use', hint: const Text('The mic key goes until a model is downloaded again.'), onPress: store.deleteModel),
+        if (phase == 'ready') SettingRow(label: 'Delete the model in use', hint: const Text('The mic key goes, and the full stop has its key back, until a model is downloaded again.'), onPress: store.deleteModel),
         SettingRow(label: 'Remove Dictation', onPress: () => store.setPlugin('dictation', false)),
       ],
     ),
@@ -1181,7 +1181,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
-        _plugin(store, 'emoji', 'Emoji', 'A key beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
+        _plugin(store, 'emoji', 'Emoji', 'A button in the row beside the clipboard, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
         _plugin(store, 'markdown', 'Markdown', 'Bold, code, links and lists, in notes apps.', LucideMore.squareM),
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),

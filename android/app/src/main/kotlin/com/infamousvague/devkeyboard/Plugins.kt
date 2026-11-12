@@ -7,7 +7,8 @@ package com.infamousvague.devkeyboard
  *
  * - `autocorrect` (Autocorrect.kt): fixes a misspelled word as it is finished. On by default, with swipe, clipboard, undo and emoji.
  * - `dictation` (Dictation.kt, Whisper.kt, WhisperModel.kt): whisper.cpp speech to text on the phone, from a mic
- *   key beside the space bar. Adding it downloads its model and asks for the microphone.
+ *   key next to enter, where the full stop was (Layouts.withMic). Adding it downloads its model and asks for the
+ *   microphone.
  * - `themes` (KeyboardTheme.kt): preset colour themes, and one of the person's own.
  * - `swipe` (Autocorrect.swipe, KeyboardView): glide across the letters to spell a word.
  * - `passwords` (DevKeyboardService's inline suggestions): the autofill service's logins in the plugin row.

@@ -118,8 +118,7 @@
         <div class="setk__row"><div class="setk__text"><div class="setk__title">Key borders</div><div class="setk__sub">Off is the app as installed: only ?123, space and enter have a shape.</div></div><button class="switch" role="switch" aria-checked="false" data-opt="borders" aria-label="Key borders"></button></div>
         <div class="setk__row"><div class="setk__text"><div class="setk__title">Number row</div></div><button class="switch" role="switch" aria-checked="false" data-opt="numberRow" aria-label="Number row"></button></div>
         <div class="setk__row"><div class="setk__text"><div class="setk__title">Arrow keys in the row</div></div><button class="switch" role="switch" aria-checked="false" data-opt="arrows" aria-label="Arrow keys"></button></div>
-        <div class="setk__row"><div class="setk__text"><div class="setk__title">Mic key</div></div><button class="switch" role="switch" aria-checked="false" data-opt="mic" aria-label="Mic key"></button></div>
-        <div class="setk__row"><div class="setk__text"><div class="setk__title">Emoji key</div><div class="setk__sub">After { }, as the app has it since 0.12.1. A tap fires 'emoji'; the phone opens its emoji panel.</div></div><button class="switch" role="switch" aria-checked="true" data-opt="emojiKey" aria-label="Emoji key"></button></div>
+        <div class="setk__row"><div class="setk__text"><div class="setk__title">Mic key</div><div class="setk__sub">In the full stop's place on the letters page, as the app has it with dictation on since 0.16.0. Hold it for the full stop and its punctuation.</div></div><button class="switch" role="switch" aria-checked="false" data-opt="mic" aria-label="Mic key"></button></div>
         <div class="setk__row"><div class="setk__text"><div class="setk__title">Swipe typing</div><div class="setk__sub">Slide across the letters: the trail is drawn and a 'swipe' event carries the path.</div></div><button class="switch" role="switch" aria-checked="true" data-opt="swipe" aria-label="Swipe typing"></button></div>
         <div class="setk__row"><div class="setk__text"><div class="setk__title">Key sound</div><div class="setk__sub">WebAudio, made here; nothing is fetched.</div></div><button class="switch" role="switch" aria-checked="false" data-opt="sound" aria-label="Key sound"></button></div>
         <div class="setk__row"><div class="setk__text"><div class="setk__title">The row above the keys</div></div><button class="switch" role="switch" aria-checked="true" data-opt="row" aria-label="Row"></button></div>
@@ -192,7 +191,6 @@ kbd.on('row', (e) => log(`row   ${e.id}`));
 kbd.on('settings', () => log('settings (the cog, or a long press on { })'));
 kbd.on('arrow', (e) => log(`arrow ${e.dir}`));
 kbd.on('mic', () => { log('mic'); kbd.setDictation(null); });
-kbd.on('emoji', () => log('emoji'));
 kbd.on('swipe', (e) => {
   log(`swipe ${e.source} ${e.word || ''} letters=${e.letters}`);
   // A page's own decoder goes here; this bench takes the first and last letters it passed.
