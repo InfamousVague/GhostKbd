@@ -767,9 +767,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val cost = decoder.align(m, 0, TapDecoder.BUDGET)
             if (!cost.isInfinite()) offer(meant, zipf + lift(m, zipf) + REMEMBERED - cost)
         }
-        // Two words run together, where what was typed is no common word.
+        // Two or three words run together, where what was typed is no common word.
         if (!common && lower.length >= 3 && JOINS) {
             val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + MARGIN_RARE
+            // Where a tap is read as the bar, a string no list has is worth less the longer it is: see [JOIN_FALL].
+            val barred = if (known == null) joinBar - JOIN_FALL * (lower.length - JOIN_LONG).coerceAtLeast(0f) else joinBar
             val sorted = lex.sorted
             val zipfs = lex.sortedZipf
             // The least share a first word's row lists: a second word the row does not list follows it less often
@@ -787,7 +789,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 return minOf(unseen, floor)
             }
             val joins = decoder.joins(
-                joinBar,
+                joinBar, barred, JOIN_FIRST,
                 firsts = { i -> zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER) },
                 second = ::worth,
                 followers = { a ->
@@ -797,8 +799,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             )
             for (j in joins) {
                 val a = sorted[j.first]; val b = sorted[j.second]
-                val first = zipfs[j.first] + lift(a, zipfs[j.first])
-                offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - j.cost, joinBar)
+                var text = capitalI(now, a) + " " + capitalI(now, b)
+                var score = zipfs[j.first] + lift(a, zipfs[j.first]) + worth(j.first, j.second) - 9f - j.cost
+                if (j.third >= 0) { text += " " + capitalI(now, sorted[j.third]); score += worth(j.second, j.third) - 9f }
+                offer(text, score, if (j.bars > 0) barred else joinBar)
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
@@ -1099,6 +1103,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var RARE_BUDGET = 2.2f
         /** The least two words run together must be worth to replace a word no list has. */
         @JvmField var JOIN_BAR = 0f
+        /**
+         * Where one of the spaces was a tap that landed on a letter above the bar, that bar falls by this much for
+         * every letter the typed string has over [JOIN_LONG].
+         */
+        @JvmField var JOIN_FALL = 0f
+        @JvmField var JOIN_LONG = 7f
         /** The least a word must be worth to be offered as what a half-typed word with a slip in it was the start of. */
         @JvmField var FINISH_LEAST = 2.5f
         /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */
