@@ -54,6 +54,31 @@ def front():
     return m.group(1) if m else ""
 
 
+def press_wait():
+    """Presses Wait on Android's "isn't responding" dialogs, one after another, and says how many there were. A
+    starved emulator puts them up (System UI, the system itself) and they take the screen from the field. Only
+    ever Wait: Close app would end what is being measured. Nothing else on the screen is touched."""
+    import xml.etree.ElementTree as ET
+    pressed = 0
+    for _ in range(6):
+        if "Application Not Responding" not in sh("dumpsys window | grep -m1 mCurrentFocus", check=False):
+            break
+        try:
+            root = ET.fromstring(windows_dump())
+        except ET.ParseError:
+            time.sleep(2)
+            continue
+        wait = [n.get("bounds", "") for n in root.iter("node") if n.get("package") == "android" and n.get("text", "").strip().lower() == "wait"]
+        m = re.match(r"\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]", wait[0]) if wait else None
+        if not m:
+            break
+        l, t, r, b = [int(v) for v in m.groups()]
+        tap((l + r) / 2.0, (t + b) / 2.0)
+        pressed += 1
+        time.sleep(2)
+    return pressed
+
+
 def current_ime():
     return sh("settings get secure default_input_method").strip()
 

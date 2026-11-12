@@ -10,6 +10,17 @@ cd "$(dirname "$0")/../.."
 src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
 jar=build/versus/replay.jar
 sources="$src/Languages.kt $src/Layouts.kt $src/Hangul.kt $src/Autocorrect.kt $src/SwipeDecoder.kt $src/TapDecoder.kt $src/MistakeMemory.kt $src/SampleCleaner.kt $src/NextWordModel.kt tool/lang_check/stubs/android/graphics/PointF.kt tool/versus/replay/Replay.kt"
+# A change to try without making it in the tree: VERSUS_OVERLAY=<folder> compiles any file of that folder in place
+# of the tree's file of the same name, into a jar of its own (tool/versus/experiments/ has the ones tried so far).
+overlay="${VERSUS_OVERLAY:-}"
+if [ -n "$overlay" ]; then
+  jar="build/versus/replay-$(basename "$overlay").jar"
+  picked=""
+  for f in $sources; do
+    if [ -f "$overlay/$(basename "$f")" ]; then picked="$picked $overlay/$(basename "$f")"; else picked="$picked $f"; fi
+  done
+  sources="$picked"
+fi
 stale=0
 [ -f "$jar" ] || stale=1
 for f in $sources; do [ "$f" -nt "$jar" ] && stale=1; done

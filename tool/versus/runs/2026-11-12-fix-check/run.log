@@ -1,0 +1,44 @@
+15:44:18 Ghost Keyboard 0.16.2 on emulator-5584: 300 sentences x 3 thumbs, 66 to type (0 already there)
+15:44:21   before the first sentence: the emulator is not keeping time (a 70 ms sleep 43 ms late at the ninth in ten, 80 at the worst); waiting
+15:44:34   the emulator keeps time again (after 16 s)
+15:44:46   careful-90031: a touch took 537 ms from going down to lifting; again
+15:45:34   careful-90031: a touch took 1447 ms from going down to lifting; again
+15:45:52   careful-90045: a touch took 351 ms from going down to lifting; again
+15:46:03   careful-90045: a touch took 707 ms from going down to lifting; again
+15:46:37   careful-90100: a touch took 345 ms from going down to lifting; again
+15:47:05   careful-90104: a touch took 585 ms from going down to lifting; again
+15:47:24   careful-90144: a touch took 259 ms from going down to lifting; again
+15:47:55   careful-90182: a touch took 1194 ms from going down to lifting; again
+15:48:03   careful-90182: the emulator is not keeping time (a 70 ms sleep 28 ms late at the ninth in ten, 1080 at the worst); waiting
+15:49:08   the emulator keeps time again (after 71 s)
+15:49:26   careful-90185: a touch took 397 ms from going down to lifting; again
+15:49:34   careful-90185: the emulator is not keeping time (a 70 ms sleep 223 ms late at the ninth in ten, 677 at the worst); waiting
+15:50:05   the emulator keeps time again (after 37 s)
+15:50:25   careful-90185: a touch took 1168 ms from going down to lifting; again
+15:50:39   careful-90185: the emulator is not keeping time (a 70 ms sleep 738 ms late at the ninth in ten, 1253 at the worst); waiting
+15:52:15   the emulator keeps time again (after 108 s)
+15:52:39   careful-90185: a touch took 291 ms from going down to lifting; again
+15:52:54   careful-90185: a touch took 315 ms from going down to lifting; again
+15:53:28   careful-90185: a touch took 6456 ms from going down to lifting; again
+15:53:41   careful-90185: the emulator is not keeping time (a 70 ms sleep 700 ms late at the ninth in ten, 1288 at the worst); waiting
+15:54:07   the emulator keeps time again (after 36 s)
+15:54:33   careful-90185: a touch took 2622 ms from going down to lifting, six times over; recorded as stalled, and left out of the score
+15:55:11   careful-90193: a touch took 3776 ms from going down to lifting; again
+15:55:19   careful-90193: the emulator is not keeping time (a 70 ms sleep 259 ms late at the ninth in ten, 503 at the worst); waiting
+15:56:34   the emulator keeps time again (after 81 s)
+15:56:55   careful-90193: a touch took 3035 ms from going down to lifting; again
+15:57:00   careful-90193: the emulator is not keeping time (a 70 ms sleep 42 ms late at the ninth in ten, 234 at the worst); waiting
+15:57:46 Ghost Keyboard 0.16.2 on emulator-5584: 300 sentences x 3 thumbs, 25 to type (8 already there)
+15:58:06   before the first sentence: the emulator is not keeping time (a 70 ms sleep 1225 ms late at the ninth in ten, 3653 at the worst); waiting
+15:58:18   the emulator keeps time again (after 32 s)
+15:58:40   sloppy-90110: a touch took 2843 ms from going down to lifting; again
+15:58:47   sloppy-90110: the emulator is not keeping time (a 70 ms sleep 164 ms late at the ninth in ten, 259 at the worst); waiting
+15:59:13   the emulator keeps time again (after 31 s)
+15:59:20   sloppy-90110: a touch took 259 ms from going down to lifting; again
+15:59:32   sloppy-90110: a touch took 890 ms from going down to lifting; again
+15:59:39   sloppy-90110: the emulator is not keeping time (a 70 ms sleep 187 ms late at the ninth in ten, 337 at the worst); waiting
+16:00:22   the emulator keeps time again (after 48 s)
+16:01:10   sloppy-90110: a touch took 9259 ms from going down to lifting; again
+16:01:16   sloppy-90110: the emulator is not keeping time (a 70 ms sleep 125 ms late at the ninth in ten, 398 at the worst); waiting
+16:02:59   the emulator keeps time again (after 107 s)
+16:03:11   sloppy-90234: a touch took 347 ms from going down to lifting; again

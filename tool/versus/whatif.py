@@ -17,7 +17,10 @@ emulator, and for asking things the emulator run did not:
   --set NAME=VALUE
                   one of the decoder's own dials for this run, any number of times: TapDecoder.BUDGET=8,
                   Autocorrect.UNKNOWN_LONG=0, Autocorrect.MARGIN_COMMON=1.0 (the numbers tool/typing_bench.sh tunes)
-  --changed FILE  with either of the two above: writes the typings whose text the change alters, a
+  --overlay DIR   a change to the decoder's own source, tried without being made: any file of DIR is compiled in
+                  place of the tree's file of the same name (tool/versus/experiments/*.sh write such folders).
+                  --java "-Dname=value" passes the JVM what the changed source reads
+  --changed FILE  with any of the above: writes the typings whose text the change alters, a
                   "<thumb> <line>" a line, for typing just those on the emulator (tool/versus/run.py --only FILE)
 
 It scores as score.py does (words wrong, left wrong, spoiled), with the same resampling interval. With
@@ -51,6 +54,8 @@ def main():
     ap.add_argument("--show", type=int, default=0, help="print this many of the words left wrong")
     ap.add_argument("--marks-without-taps", action="store_true")
     ap.add_argument("--changed", metavar="FILE")
+    ap.add_argument("--overlay", metavar="DIR")
+    ap.add_argument("--java", metavar="OPTS")
     ap.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
     args = ap.parse_args()
     geo = json.load(open(args.geometry))
@@ -70,8 +75,8 @@ def main():
                 records.append({"thumb": t.name, "line": s.line_no, "target": s.text, "words": s.words, "touches": board.place(taps, aim), "slips": slips})
         # The taps are laid on the keys of [--geometry] and read on the same keys, whatever this tree's are now.
         keys = score.board_file(args.geometry)
-        out = score.replay(records, size, board=keys, flags=["--marks-without-taps"] if args.marks_without_taps else [], dials=args.set)
-        changed = args.marks_without_taps or args.set
+        out = score.replay(records, size, board=keys, flags=["--marks-without-taps"] if args.marks_without_taps else [], dials=args.set, overlay=args.overlay, java=args.java)
+        changed = args.marks_without_taps or args.set or args.overlay
         as_it_is = score.replay(records, size, board=keys) if changed else None
         if changed and args.changed:
             moved = [k for k in sorted(out) if out[k][0] != as_it_is[k][0]]

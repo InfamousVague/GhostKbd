@@ -17,6 +17,8 @@ Two ways of knowing, the first exact and the second for records made before the 
                  its time and was never caught up is a stop that long, in a hold or between touches (which of the
                  two it cannot say, nor anything of a sentence's first touch).
 
+    tool/versus/timing.py --calm                     is the emulator keeping time just now? Asks it to sleep 70 ms
+                                                     thirty times and says how late it woke (nothing is touched)
     tool/versus/timing.py <run folder>               says which sentences are doubted, a keyboard at a time
     tool/versus/timing.py <run folder> --set-aside   and moves them out of <keyboard>.jsonl into
                                                      <keyboard>.stalled.jsonl, for run.py to type again
@@ -97,6 +99,24 @@ def late(record):
     return None
 
 
+def calm(samples=30):
+    """How well the emulator is keeping time just now: (late at the middle, late at the ninth in ten, the worst), in
+    ms, of [samples] sleeps of 70 ms timed by its own clock. Touches nothing on the screen. A calm emulator wakes
+    10 ms late or so; one whose Mac is busy wakes hundreds late, and a touch held through that is a long-press."""
+    import device
+    out = device.sh("i=0; while [ $i -lt %d ]; do a=$EPOCHREALTIME; sleep 0.07; echo \"$a $EPOCHREALTIME\"; i=$((i+1)); done" % samples, timeout=600)
+    late = sorted(1000 * (float(f[1]) - float(f[0])) - 70 for f in (line.split() for line in out.splitlines()) if len(f) == 2)
+    if not late:
+        return (9999.0, 9999.0, 9999.0)
+    return (late[len(late) // 2], late[int(0.9 * (len(late) - 1))], late[-1])
+
+
+def is_calm(measure):
+    """Calm enough to type a sentence on: nine sleeps in ten woke within 40 ms, and none 150 ms late (a touch is
+    doubted at 250 ms from going down to lifting, of which up to 95 are the hold asked for)."""
+    return measure[1] < 40 and measure[2] < 150
+
+
 def doubt(record):
     """Why a record is to be typed again, or None. A record with the emulator's own clock in it is judged by that
     alone; an older one by the field's times, and by a character no tap of the thumb can type (a long-press of a
@@ -110,6 +130,10 @@ def doubt(record):
 
 
 def main():
+    if sys.argv[1:] == ["--calm"]:
+        m = calm()
+        print("a sleep of 70 ms came %.0f ms late at the middle, %.0f at the ninth in ten, %.0f at the worst: %s" % (m + ("calm enough to type on" if is_calm(m) else "not calm enough to type on",)))
+        raise SystemExit(0 if is_calm(m) else 1)
     args = [a for a in sys.argv[1:] if a != "--set-aside"]
     if len(args) != 1:
         raise SystemExit(__doc__)

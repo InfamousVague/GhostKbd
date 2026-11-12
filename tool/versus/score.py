@@ -144,15 +144,23 @@ def board_file(geometry):
     return path
 
 
-def replay(records, size, board=None, flags=(), dials=()):
+def replay(records, size, board=None, flags=(), dials=(), overlay=None, java=None):
     """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes)}.
     [board]: the keys as they were when the touches were made ([board_file]); without it, as this tree lays them out.
     [flags]: Replay.kt's own, "--marks-without-taps" for a run typed on a build from before 2026-11-12 (a word
     ended from the ?123 page was read without its taps then). [dials]: the decoder's own numbers for this run, as
-    "TapDecoder.BUDGET=8" (Replay.kt's --set)."""
+    "TapDecoder.BUDGET=8" (Replay.kt's --set). [overlay]: a folder of source files to compile in place of the tree's
+    of the same name (replay.sh's VERSUS_OVERLAY), and [java] options for the JVM that runs them: a change tried
+    without being made."""
     lines = ["%s/%d\t%s" % (r["thumb"], r["line"], events_line(r)) for r in records]
     extra = (["--board", board] if board else []) + list(flags) + [x for dial in dials for x in ("--set", dial)]
-    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + [str(v) for v in size] + extra, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    env = dict(os.environ)
+    env.pop("VERSUS_OVERLAY", None)
+    if overlay:
+        env["VERSUS_OVERLAY"] = overlay
+    if java:
+        env["JAVA_OPTS"] = java
+    p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "replay"] + [str(v) for v in size] + extra, input="\n".join(lines) + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=env)
     if p.returncode != 0:
         raise SystemExit("score: replay.sh failed: " + p.stderr[-600:])
     out = {}

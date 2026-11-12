@@ -144,11 +144,16 @@ were always kept by the service, and only the keys to read them against were let
 lines to the source, and that the page is changed in no third place. Through the decoder on the JVM, the 900
 sentence-typings of 2026-11-11 now leave 2.6%, 7.4% and 15.2% of words wrong where 0.15.0 left 2.7%, 7.7% and
 16.1%: 25 words mended and 2 broken, 23 of them among the 326 (`whatif.py --marks-without-taps` types as before).
-Not yet typed on a device. A debug build of 0.16.2 with the fix was made and its 421 unit tests pass, but on
-2026-11-12 the emulator was another session's and this Mac's load average stood near 200, where injected taps
-stall. `whatif.py --marks-without-taps --changed build/versus/changed.txt` lists the typings the fix alters, and
-`run.py ghost --only build/versus/changed.txt` types just those: the emulator's text should be the tree's, and
-not 0.15.0's, in every one.
+**On a device**, as far as the Mac allowed (2026-11-12, a debug build of 0.16.2 with the fix on the emulator;
+records in `tool/versus/runs/2026-11-12-fix-check/`). `whatif.py --marks-without-taps --changed` listed the 26
+typings of 900 the fix alters on that build's keys, and `run.py --only` typed from that list and from 40 others.
+The Mac's load average stood between 200 and 1,000 all the while: single taps were held for up to nine seconds,
+21 typings were thrown away for it, and nine got through before the emulator was given back. In all nine the
+emulator's text is the tree's, character for character. Two of the nine are among the 26: "Are you committed?",
+which 0.15.0 left as "Are you committee?", and "Am I welcome?", which it left as "Am unwelcome?". The other 24 are
+not typed yet (`run.py ghost --only build/versus/only-altered.txt`, on a quiet Mac). That build's keys were not
+measured either, the emulator being too slow for it: the letters were taken to answer where 0.15.0's were
+measured, the space bar where the layout code puts it, and the nine sentences are what bears that out.
 
 ### What the decoder's own dials would buy
 
@@ -165,10 +170,13 @@ against the build that was measured:
 | taps kept, every bar and margin off | 3.8% | 6.5% | 11.6% | 7.3% | 151 | 70 |
 | Gboard, on the emulator | 1.8% | 3.2% | 6.4% | 3.8% | | |
 
-- **Letters that look like no word are held too dear.** With `UNKNOWN_ODD` at 0, so that any reading within reach
-  beats a string like "hkpelwss", 31 more words are mended and not one broken on these sentences. This is the
-  cheapest thing here. These sentences hold few odd-looking words that are right (names, codes), which is where
-  it would cost; the bench's unknown-word count is the check to run before believing it.
+- **Letters that look like no word are held dear for a reason.** With `UNKNOWN_ODD` at 0, so that any reading
+  within reach beats a string like "hkpelwss", 31 more words are mended and not one broken on these sentences. But
+  these sentences hold few right words that no list has (names, codes), which is where it costs, and the typing
+  bench, which mixes them in, says how much: `-Dset=A.UNKNOWN_ODD=0` spoils 10.6%, 15.2% and 17.9% of them for its
+  three thumbs where the decoder as it is spoils 1.5%, 2.4% and 6.0%, and right words spoiled go from about 1.2 in
+  a thousand to 3.8. All three numbers of the table's fourth row together: 16.7%, 20.1% and 23.8% of unknown words
+  spoiled, 6.4 to 7.0 right words in a thousand. Not as they stand.
 - **The cautious numbers are worth about 1.7 of the 5.0 points between the keyboards** (8.9% to 7.2%, against
   Gboard's 3.8%), and no more: with every bar off, the decoder mends 151 and breaks 70. The rest is not caution.
   It is the search's reach, the space, and how the readings are ranked.
@@ -176,6 +184,37 @@ against the build that was measured:
   assumed) mends 36 to 53 and breaks 18 to 29.
 - These are four hours of one thumb model on one set of sentences, and the dials were tuned on a bench with the
   same thumb. They say where to look, not what to ship.
+
+### One more letter of reach (an experiment, not a change)
+
+The search's reach is no dial, so it was tried as source: `tool/versus/experiments/reach.sh` writes a copy of
+`TapDecoder.kt` in which `changes` is one more than it is (two letters in a word of three or fewer, three up to
+five, four up to eight, five beyond), and `whatif.py --overlay` compiles it in place of the tree's, for the JVM
+only. On the 900 sentence-typings of 2026-11-11, on top of the fix above:
+
+| Decoder | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the tree (taps kept at marks) | 2.6% | 7.4% | 15.2% | 8.4% | | |
+| one more letter of reach | 2.6% | 6.0% | 11.8% | 6.8% | 88 | 3 |
+| as many as the cost allows | 2.5% | 6.0% | 11.6% | 6.7% | 93 | 4 |
+| one more, and `UNKNOWN_ODD` 0, `MARGIN_COMMON` 0.6, `UNKNOWN` 1.6 | 2.1% | 5.2% | 9.4% | 5.6% | 159 | 10 |
+| Gboard, on the emulator | 1.8% | 3.2% | 6.4% | 3.8% | | |
+
+One line is worth 1.6 of the 5.0 points: "jr" is "he" again, "tbr" and "yhd" are "the", "jluze" is "house",
+"kiztenws" is "listened". The three it breaks are a commoner word now in reach of a slip (towrr became "two"
+where it had become "tower", taw "at" for raw, gof "good" for God). The typing bench on its own sentences
+(12,000 words, the same copy compiled into it) agrees and says what it costs:
+
+| Bench thumb | Words right, as it is | one more letter | Right words spoiled per 1,000 | Unknown words spoiled |
+| --- | ---: | ---: | ---: | ---: |
+| careful | 96.4% | 96.4% | 1.2 to 1.6 | 1.5% to 3.0% |
+| normal | 91.6% | 92.4% | 1.1 to 1.5 | 2.4% to 4.3% |
+| sloppy | 82.7% | 85.8% | 1.5 to 1.7 | 6.0% to 8.3% |
+
+Of the 326 words lost to Gboard, 174 would still be lost with the last row of the first table, and they say
+what is next: 70 of the 75 that are the space (36 of the 37 cut in two, all 12 with no space typed), 38 where no
+word was typed and the reading is not ranked first, 30 with a letter left out, doubled or swapped. No dial and no
+reach touches a word cut in two.
 
 ### What the thumb had done
 
@@ -220,6 +259,9 @@ some slips in names as they were (Tmo, Rrom and Fom for Tom, Slgeria for Algeria
     tool/versus/whatif.py --set TapDecoder.SPATIAL=1.0   # all 5,205 words: what a change mends and what it breaks
     tool/versus/whatif.py --set ... --changed build/versus/changed.txt   # the typings a change alters, and then
     tool/versus/run.py ghost --out build/versus/runs/try --only build/versus/changed.txt   # just those, on the emulator
+    tool/versus/experiments/reach.sh && tool/versus/whatif.py --overlay build/versus/experiments/reach --java=-Dversus.reach=1
+                                                     # a change to the decoder's source, tried without being made
+    tool/versus/timing.py --calm                     # is the emulator keeping time just now? (three seconds, no taps)
 
 `fixtures.py` types each lost word's whole sentence through `Autocorrect` as it stands in the tree, by the taps
 the emulator was given, on the keys as they were that day (the list carries its keyboard with it,

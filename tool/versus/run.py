@@ -57,6 +57,26 @@ def geometry_for(keyboard):
     return geo
 
 
+def wait_calm(why, longest=1200):
+    """Waits until the emulator keeps time again (timing.calm), up to [longest] seconds: typing into a stall only
+    throws sentences away. Says so when it has to wait."""
+    began = time.time()
+    said = False
+    while True:
+        m = timing.calm()
+        if timing.is_calm(m):
+            if said:
+                log("  the emulator keeps time again (after %d s)" % (time.time() - began))
+            return True
+        if not said:
+            log("  %s: the emulator is not keeping time (a 70 ms sleep %.0f ms late at the ninth in ten, %.0f at the worst); waiting" % (why, m[1], m[2]))
+            said = True
+        if time.time() - began > longest:
+            log("  still not keeping time after %d s; going on all the same" % longest)
+            return False
+        time.sleep(10)
+
+
 def script(tag, touches, settle=0.7, after=0.45):
     """One shell command: a new field, the touches at their pace, and the field's record. Nothing is touched for
     [settle] seconds after the field is entered: a keyboard's keys take about 0.3 s to be where they will be.
@@ -144,6 +164,7 @@ def main():
     ap.add_argument("--file", default=th.HELD_OUT, help="the sentences, one a line (default build/typing-bench/en-heldout.txt)")
     ap.add_argument("--aim", default="answers", choices=["answers", "drawn"])
     ap.add_argument("--learn", action="store_true", help="let the keyboard learn from the field (it is asked not to by default)")
+    ap.add_argument("--geometry", help="the keyboard's keys, where they are not the file in tool/versus/geometry (calibrate.py --out)")
     ap.add_argument("--only", help="a file of \"<thumb> <line>\" lines: of the sentences and thumbs asked for, only these are typed")
     args = ap.parse_args()
     kb = d.KEYBOARDS[args.keyboard]
@@ -152,7 +173,11 @@ def main():
     where = d.front()
     if not (where.startswith(d.FIELD) or "launcher" in where.lower()):
         raise SystemExit("run: %s is in front on %s; not touching it" % (where, d.SERIAL))
-    geo = geometry_for(args.keyboard)
+    if args.geometry:
+        geo = json.load(open(args.geometry))
+        geo["_path"] = args.geometry
+    else:
+        geo = geometry_for(args.keyboard)
     board = th.Board(geo)
     sents, skipped = th.sentences(args.sentences, path=args.file, first=args.first)
     thumbs = [th.THUMBS[n] for n in args.thumbs.split(",")]
@@ -168,9 +193,13 @@ def main():
         for line in open(path):
             try:
                 r = json.loads(line)
-                done.add((r["thumb"], r["line"]))
+                # One that never got through is tried again when the run is taken up (score.py takes the later).
+                if not r.get("stalled"):
+                    done.add((r["thumb"], r["line"]))
             except ValueError:
                 pass
+    if d.press_wait():
+        log("an \"isn't responding\" dialog was up (the emulator has been starved); Wait pressed")
     d.set_ime(kb["ime"])
     version = d.version(kb["package"])
     stamp = d.install_stamp(kb["package"])
@@ -203,9 +232,12 @@ def main():
         f.write("\n")
     todo = [(t, s) for t in thumbs for s in sents if (t.name, s.line_no) not in done]
     if args.only:
-        wanted = {(f[0], int(f[1])) for f in (line.split() for line in open(args.only)) if len(f) >= 2 and f[1].isdigit()}
-        todo = [(t, s) for t, s in todo if (t.name, s.line_no) in wanted]
+        # In the file's own order: the ones that matter most can be put first.
+        wanted = [(f[0], int(f[1])) for f in (line.split() for line in open(args.only)) if len(f) >= 2 and f[1].isdigit()]
+        place = {k: i for i, k in reversed(list(enumerate(wanted)))}
+        todo = sorted([(t, s) for t, s in todo if (t.name, s.line_no) in place], key=lambda ts: place[(ts[0].name, ts[1].line_no)])
     log("%s %s on %s: %d sentences x %d thumbs, %d to type (%d already there)" % (kb["name"], version["versionName"], d.SERIAL, len(sents), len(thumbs), len(todo), len(done)))
+    wait_calm("before the first sentence")
     started = time.time()
     with open(path, "a") as out, open(os.path.join(args.out, args.keyboard + ".stalled.jsonl"), "a") as aside:
         for n, (t, s) in enumerate(todo):
@@ -235,7 +267,13 @@ def main():
                 if attempt >= (3 if why else 6):
                     break
                 log("  %s: %s; again" % (tag, why or stalled))
-                time.sleep(2 + 3 * min(attempt, 4))
+                if why and d.press_wait():
+                    log("  an \"isn't responding\" dialog had taken the screen; Wait pressed")
+                time.sleep(2)
+                if stalled:
+                    wait_calm(tag)
+                else:
+                    time.sleep(3 * min(attempt, 4))
                 if d.current_ime() != kb["ime"]:
                     raise SystemExit("run: stopped at %s: the keyboard in use is no longer %s" % (tag, kb["name"]))
                 d.ready("again", "plain", ime=kb["ime"])
