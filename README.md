@@ -109,6 +109,14 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
   the mic key stands where the full stop was (`Layouts.withMic`).
 
+## 0.16.1
+
+- **The row**: the clipboard, emoji, and undo and redo are at its start, before the suggested words, on a phone too
+  (`PluginRow.pins`, `DevKeyboardService.everyday`): in 0.16.0 they followed the words there, with one of them in
+  view at the row's end. The clipboard and emoji are first and never move; the arrows come and go after them. The words share what is left, about three of them, two where three would be too narrow to
+  read (`WordRoom.shown`); GIFs lead the tools that follow the words, so on a phone the GIF button is the one in
+  view at the row's end.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
@@ -156,13 +164,14 @@ about how well any of them is corrected.
 ## Next-word prediction
 
 After a space (and at the start of a field or sentence) the row above the keys offers the three likeliest next
-words; a tap types one with a space and offers the next three. Whenever the row shows words (next words, a word's
-completions, a swipe's other readings) it shows about three, in the row's middle, and the tools follow them with the
-first tool whole in view at the row's end (`PluginRow.WordRoom`): undo and redo while each has something to do, the
-clipboard, emoji and GIFs first, and on a row wide enough for them and three words (a foldable's inner screen, a
-tablet) pinned at its start instead; whether it is wide enough is asked as if both arrows were there, so the row
-keeps its shape as they come and go. A tap on an arrow keeps the row as it was, words and all, so the arrow stays
-under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
+words; a tap types one with a space and offers the next three. The clipboard, emoji, and undo and redo (while each has
+something to do) stand at the row's start, before the words, on every row but one made very narrow for one
+hand (since 0.16.1; in 0.16.0 only on a wide row). Whenever the row shows words (next words, a word's completions, a
+swipe's other readings) it shows about three, sharing what those tools leave (in the row's middle where the row is
+wide enough), two where three would be too narrow to read; the other tools follow the words, GIFs first, with the
+first of them whole in view at the row's end (`PluginRow.WordRoom`). Whether the tools are pinned is asked as if
+both arrows were there, so the row keeps its shape as they come and go. A tap on an arrow keeps the row as it was,
+words and all, so the arrow stays under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
 takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
 on") takes its room out of theirs. Emoji was a key between the { } key
 and the space bar from 0.12.1 to 0.15.0 and is a button in the row again, beside the clipboard. With dictation on,

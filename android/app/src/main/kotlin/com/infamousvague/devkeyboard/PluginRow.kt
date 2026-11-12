@@ -109,22 +109,22 @@ class TapGuard(private val holdMs: Long = HOLD_MS) {
  * hands the service its items and the service puts them here in order (DevKeyboardService.refreshRow). A hide button
  * is at its end when the old toolbar setting is on.
  *
- * The everyday tools (undo and redo, the clipboard, GIFs; emoji too where the board has no room for its key) lead the row (Matt, 2026-11-10: "the word
- * suggestion row is too long move things like the back forward clipboard emoji and gif stuff to the front of the
- * list and remove the settings cog from the toolbar"). Where the row is wide enough for them and three words in its
- * middle beside them (a foldable's inner screen, a tablet, a phone on its side) they are pinned at its start and stay
- * there while words are suggested; on a narrower row they are the first of the tools instead, straight after the
- * words. There is no
- * settings button: a long press on the { } key or the comma opens Settings, as it always has.
+ * The everyday tools (the clipboard, emoji, undo and redo) stand at the row's start, before the suggested words, and
+ * stay there whatever the row is suggesting (Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left
+ * aligned on the toolbar before the auto suggest"; and 2026-11-10: "the word suggestion row is too long move things
+ * like the back forward clipboard emoji and gif stuff to the front of the list and remove the settings cog from the
+ * toolbar"). Only on a row too narrow for them, two words and a tool's room ([pins]: a keyboard made small for one
+ * hand) are they the first of the tools after the words instead. There is no settings button: a long press on the
+ * { } key or the comma opens Settings, as it always has.
  *
  * Words (Matt, 2026-11-12: "Center the auto complete words and only show about three of them reserve some space on
- * the right to show at least one toolbar icon"): whenever the row suggests words it shows about three, a third each
- * of what is theirs, standing in the row's middle; the tools follow them in the strip, and room for one tool is kept
- * at the row's end, so the first of them is whole in view and the rest are a slide away ([WordRoom]). Undo and Redo
- * are among the everyday tools only while each has something to do, so which tool that is changes with the field: the
- * clipboard in an empty one, Undo once something has been typed. Whether the everyday tools are pinned is asked as if
- * both arrows were there ([setItems]'s most), so the row keeps its shape as they come and go; and what takes the place
- * of an arrow that its own tap took away takes no tap for a moment ([TapGuard]).
+ * the right to show at least one toolbar icon"): whenever the row suggests words it shows about three, sharing what
+ * the pinned tools leave (in the row's middle where it is wide enough for that); the other tools follow them in the
+ * strip, and room for one is kept at the row's end, so the first of them (GIFs, where they are on) is whole in view
+ * and the rest are a slide away ([WordRoom]). Where three words would each be too narrow to read, two are shown.
+ * Undo and Redo are among the everyday tools only while each has something to do. Whether the everyday tools are
+ * pinned is asked as if both arrows were there ([setItems]'s most), so the row keeps its shape as they come and go;
+ * and what takes the place of an arrow that its own tap took away takes no tap for a moment ([TapGuard]).
  *
  * The row's first tool keeps a little off the screen's edge ([EDGE_DP]; Matt, 2026-11-11: "We need a small bit of
  * padding to the left of the toolbar the undo button is right against the edge of the phone screen"): the pinned
@@ -230,13 +230,14 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - (if (showArrows) dp(36f) * arrowButtons.size else 0) - (if (showHide) dp(44f) else 0)
 
     /**
-     * Whether [count] everyday tools are pinned at the row's start as the row is now: only where three words still
-     * stand in the row's middle beside them, as much kept clear after the words as the tools take before them
-     * ([WordRoom.pins]). On a narrower row they are the first of the tools after the words instead, so the words
-     * are in the middle there too. (Until 0.16.0 they were pinned wherever three words of 92dp fitted beside them,
-     * which on a 475dp screen put the words off to one side.)
+     * Whether [count] everyday tools are pinned at the row's start as the row is now (Matt, 2026-11-12: "Clipboard,
+     * forward and back, and emoji should be left aligned on the toolbar before the auto suggest"): on every row that
+     * has room for them, two words and a tool's room at its end ([WordRoom.pins]), which is every phone. Only a very
+     * narrow row (a keyboard made small for one hand) has them after the words instead. In 0.16.0 they were pinned
+     * only beside words that could still stand in the row's middle, so on a phone they followed the words; before
+     * that, wherever three words of 92dp fitted beside them.
      */
-    fun pins(count: Int): Boolean = WordRoom.pins(shared(), count * dp(LEAD_DP) + dp(EDGE_DP), count, dp(WORD_MIN_DP))
+    fun pins(count: Int): Boolean = WordRoom.pins(shared(), count * dp(LEAD_DP) + dp(EDGE_DP), count, dp(END_DP), dp(WORD_MIN_DP))
 
     /**
      * Fills the row with [next]. [leading] are the everyday tools: pinned at the row's start where they and three
@@ -278,7 +279,10 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         // Off the screen's edge: the pinned tools carry the padding themselves; a strip that opens with a tool or a
         // chip carries it at its start. Either way the words beside or after them have that much less to share.
         val edge = if (front.isNotEmpty() || next.firstOrNull()?.wide == false) dp(EDGE_DP) else 0
-        val views = next.map { item -> item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item) }
+        // What is laid out: [next], less any word there is no room for (below).
+        var laid = next
+        var views = laid.map { item -> item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item) }
+        var toolsAt = at
         // A chip that stands before the words (a clip copied a moment ago, "Incognito on") takes its room out of
         // theirs, and so does one between them and the tools (an emoji for the word), so the tool at the row's end
         // is still in view; a long one is cut short at a third of the row.
@@ -286,18 +290,36 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
             val v = views[i]
             if (v is TextView) v.maxWidth = shared() / 3
             v.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(dp(36f), MeasureSpec.EXACTLY))
-            return v.measuredWidth + if (next[i].chip || next[i].view != null || next[i].busy) dp(8f) else 0
+            return v.measuredWidth + if (laid[i].chip || laid[i].view != null || laid[i].busy) dp(8f) else 0
         }
-        val firstWord = next.indexOfFirst { it.wide }
-        val lastWord = next.indexOfLast { it.wide }
-        val ahead = (0 until firstWord).sumOf { taken(it) }
-        val after = if (lastWord < 0) 0 else (lastWord + 1 until at).sumOf { taken(it) }
-        val words = WordRoom.of(
-            total = shared(), before = front.size * dp(LEAD_DP) + edge + ahead, words = next.count { it.wide }, firstWord = firstWord,
-            lastWord = lastWord, count = next.size, end = dp(END_DP), least = dp(WORD_MIN_DP), after = after,
-        )
+        fun wordRoom(): WordRoom {
+            val firstWord = laid.indexOfFirst { it.wide }
+            val lastWord = laid.indexOfLast { it.wide }
+            val ahead = (0 until firstWord).sumOf { taken(it) }
+            val after = if (lastWord < 0) 0 else (lastWord + 1 until toolsAt).sumOf { taken(it) }
+            // Whether the words stand in the row's middle is asked as if both arrows were pinned, as whether the
+            // tools are pinned is: on a phone, where they would not fit there with Undo and Redo beside them, they
+            // share what is left in every state, and the tool at the row's end keeps its place as the arrows come and go.
+            val pinnedMost = if (front.isEmpty()) 0 else maxOf(most, front.size) * dp(LEAD_DP)
+            return WordRoom.of(
+                total = shared(), before = front.size * dp(LEAD_DP) + edge + ahead, words = laid.count { it.wide }, firstWord = firstWord,
+                lastWord = lastWord, count = laid.size, end = dp(END_DP), least = dp(WORD_MIN_DP), after = after,
+                beforeMost = pinnedMost + edge + ahead,
+            )
+        }
+        var words = wordRoom()
+        // About three words: where the tools pinned before them leave no room for three that can be read, the last
+        // of them (the least likely: the pick stands first or in the middle) is left out, and the others share it.
+        val surplus = laid.count { it.wide } - words.shown
+        if (surplus > 0) {
+            val gone = laid.indices.filter { laid[it].wide }.takeLast(surplus).toSet()
+            views = views.filterIndexed { i, _ -> i !in gone }
+            laid = laid.filterIndexed { i, _ -> i !in gone }
+            if (toolsAt >= 0) toolsAt -= gone.count { it < toolsAt }
+            words = wordRoom()
+        }
         strip.setPadding((if (front.isEmpty()) edge else 0) + words.lead, 0, 0, 0)
-        for ((i, item) in next.withIndex()) {
+        for ((i, item) in laid.withIndex()) {
             val v = views[i]
             val lp = if (item.fill) LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f) else LinearLayout.LayoutParams(
                 if (item.wide) words.width else ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -313,10 +335,10 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         // A filling item (a search bar, the AI's words, an error) shares the row with the buttons beside it and is cut
         // short to leave them room: a long error no longer pushes Retry and the close button off the end.
         val room = shared() - front.size * dp(LEAD_DP) - edge
-        if (next.any { it.fill }) {
+        if (laid.any { it.fill }) {
             var others = 0
             for (i in 0 until strip.childCount) {
-                if (next.getOrNull(i)?.fill == true) continue
+                if (laid.getOrNull(i)?.fill == true) continue
                 val c = strip.getChildAt(i)
                 val lp = c.layoutParams as LinearLayout.LayoutParams
                 if (lp.width > 0) others += lp.width else {
@@ -325,9 +347,9 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
                 }
                 others += lp.leftMargin + lp.rightMargin
             }
-            val fills = next.count { it.fill }
+            val fills = laid.count { it.fill }
             val cap = ((room - others) / fills - dp(8f)).coerceAtLeast(room / 3)
-            for (i in 0 until strip.childCount) if (next.getOrNull(i)?.fill == true) when (val c = strip.getChildAt(i)) {
+            for (i in 0 until strip.childCount) if (laid.getOrNull(i)?.fill == true) when (val c = strip.getChildAt(i)) {
                 is TextView -> c.maxWidth = cap
                 is ThinkingView -> c.maxWidth = cap
             }
@@ -345,43 +367,51 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
      *
      * No Android in it, so the sums can be tried off the phone (WordRoomTest). All in pixels.
      */
-    class WordRoom(val width: Int, val lead: Int, val gap: Int, val first: Int, val last: Int) {
+    class WordRoom(val width: Int, val lead: Int, val gap: Int, val first: Int, val last: Int, val shown: Int = 0) {
         companion object {
             /** The most words that share the row; more than that and the rest slide. */
             const val MOST = 3
 
+            /** The narrowest a word is laid out: three quarters of what it is read in comfortably ([least]). */
+            fun floor(least: Int): Int = least * 3 / 4
+
             /**
-             * Whether [count] everyday tools, taking [before] of a row [total] wide, are pinned at its start: where
-             * three words of at least [least] each fit in the row's middle between them and as much again kept
-             * clear at the row's other end.
+             * Whether [count] everyday tools, taking [before] of a row [total] wide, are pinned at its start:
+             * wherever two words that can still be read fit between them and the room for one tool ([end]) kept
+             * at the row's other end.
              */
-            fun pins(total: Int, before: Int, count: Int, least: Int): Boolean = count > 0 && (total - 2 * before) / MOST >= least
+            fun pins(total: Int, before: Int, count: Int, end: Int, least: Int): Boolean = count > 0 && total - before - end >= 2 * floor(least)
 
             /**
              * [total] is the row's width for the strip and what is pinned before it; [before] what stands before the
              * words (the pinned tools, the edge, a chip that leads the strip); [words] how many of the strip's [count]
              * items are words, the first at [firstWord] and the last at [lastWord]; [end] the room one tool takes;
              * [least] the least a word is read in; [after] what stands between the words and the tools (an emoji for
-             * the word).
+             * the word). [shown] in what comes back is how many of the words there is room for: fewer than [words]
+             * where three would each be narrower than [floor], and the caller leaves the last of them out.
+             * [beforeMost] is what [before] comes to when every pinned tool is there (Undo and Redo both): the words
+             * stand in the row's middle only where they could then too, so a row is of one kind in all its states.
              */
-            fun of(total: Int, before: Int, words: Int, firstWord: Int, lastWord: Int, count: Int, end: Int, least: Int, after: Int = 0): WordRoom {
-                if (words == 0) return WordRoom(0, 0, 0, -1, -1)
+            fun of(total: Int, before: Int, words: Int, firstWord: Int, lastWord: Int, count: Int, end: Int, least: Int, after: Int = 0, beforeMost: Int = before): WordRoom {
+                if (words == 0) return WordRoom(0, 0, 0, -1, -1, 0)
                 // Tools after the words: one of them is kept in view, past whatever chip came with the words.
                 val keep = if (lastWord < count - 1) end + after else 0
                 // In the row's middle only where the words open the strip (a chip about this very moment may stand
                 // before them) and three still have room.
                 val side = maxOf(before, keep)
-                val centred = firstWord == 0 && (total - 2 * side) / MOST >= least
+                val centred = firstWord == 0 && (total - 2 * side) / MOST >= least && (total - 2 * maxOf(beforeMost, keep)) / MOST >= least
                 val area = if (centred) total - 2 * side else total - before - keep
                 // More than three (nothing gives the row more today): a third each, and the rest slide.
                 val third = area / MOST
-                if (third >= least) return WordRoom(third, if (centred) side - before else 0, if (words < MOST) (MOST - words) * third / 2 else 0, firstWord, lastWord)
-                // A tight row (a narrow screen, a chip before the words): one word or two are as wide as a word is
-                // read in, where that fits; three share what there is, down to three quarters of it. Narrower than
-                // that and the row slides: the words are read, and the tool is a slide away.
-                val shown = minOf(words, MOST)
-                val width = maxOf(third, minOf(least, area / shown), least * 3 / 4, 1)
-                return WordRoom(width, 0, ((area - shown * width) / 2).coerceAtLeast(0), firstWord, lastWord)
+                if (third >= least) return WordRoom(third, if (centred) side - before else 0, if (words < MOST) (MOST - words) * third / 2 else 0, firstWord, lastWord, words)
+                // A tight row (the tools pinned before the words on a phone, a chip before them): three share what
+                // there is, down to three quarters of what a word is read in; where they would be narrower than
+                // that, two share it, or one has it; and one word or two are as wide as a word is read in where
+                // that fits. A single word wider than the room slides.
+                var shown = minOf(words, MOST)
+                while (shown > 1 && area / shown < floor(least)) shown--
+                val width = maxOf(third, minOf(least, area / shown), floor(least), 1)
+                return WordRoom(width, 0, ((area - shown * width) / 2).coerceAtLeast(0), firstWord, lastWord, if (words > MOST) words else shown)
             }
         }
     }

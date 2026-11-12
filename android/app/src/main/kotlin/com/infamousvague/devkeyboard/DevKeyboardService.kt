@@ -1737,14 +1737,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
-     * Fills the row with [items], the everyday tools pinned before them where the row is wide, else put in at [at]
-     * ([PluginRow.setItems]). Whether they are pinned is asked as if both arrows were among them, so the row keeps its
+     * Fills the row with [items], the everyday tools pinned before them (on a row too narrow for that, put in at [at]:
+     * [PluginRow.setItems]). Whether they are pinned is asked as if both arrows were among them, so the row keeps its
      * shape as Undo and Redo come and go.
      */
     private fun fill(strip: PluginRow, items: List<RowItem>, at: Int) {
         val everyday = everyday()
         val missing = if (Plugins.isOn(prefs, Plugins.UNDO)) 2 - everyday.count { it.guard } else 0
-        strip.setItems(items, everyday, at, everyday.size + missing)
+        // GIFs lead the tools that follow the words (and the everyday ones too, on a row too narrow to pin those).
+        val gif = gifTool()
+        strip.setItems(if (gif == null) items else items.take(at) + gif + items.drop(at), everyday, at, everyday.size + missing)
     }
 
     /**
@@ -1764,16 +1766,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         item.id.startsWith("fresh-") || item.id == INCOGNITO_ON || item.id == "update" || item.id.startsWith("voice") || item.id == "ghost-save" || item.id.startsWith("said-") || ((item.id.startsWith("rewrite") || item.id.startsWith("enhance")) && item.bold)
 
     /**
-     * The tools reached for in every app: undo and redo, the clipboard, emoji, GIFs. They lead the row (Matt,
-     * 2026-11-10: "move things like the back forward clipboard emoji and gif stuff to the front of the list"): pinned
-     * at its start where it is wide enough, else the first of the tools ([PluginRow.setItems]). Icons only, so they
-     * take little more room than two words.
-     *
-     * Emoji was a key beside the space bar from 0.12.1 to 0.15.0 and is here again, straight after the clipboard
-     * (Matt, 2026-11-12: "Move the emoji back next to the clipboard icon in the toolbar").
+     * The tools reached for in every app: the clipboard, emoji, undo and redo. They stand at the row's start, before
+     * the suggested words (Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left aligned on the
+     * toolbar before the auto suggest"), on every row but one too narrow for them and two words ([PluginRow.pins]).
+     * Icons only. The clipboard and emoji come first, side by side (Matt, the same day: "Move the emoji back next to
+     * the clipboard icon in the toolbar"), because they are always there; the arrows, which are there only while
+     * each has something to do, come and go after them, so no button moves when one does. (His sentence names the
+     * arrows second: that order would part emoji from the clipboard whenever there is something to undo. My choice,
+     * said to him.) GIFs, which were among them until 0.16.0, lead the tools that follow the words ([gifTool]).
      */
     private fun everyday(): List<RowItem> {
-        val items = ArrayList<RowItem>(5)
+        val items = ArrayList<RowItem>(4)
+        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
+        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
         if (Plugins.isOn(prefs, Plugins.UNDO)) {
             // Each is there only while it has something to do (Matt, 2026-11-12: "only show undo and redo when an undo
             // and redo is available"): the keyboard's own last step, or the app's undo where it has none. They were
@@ -1783,12 +1788,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (editor.canUndo) items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", guard = true) { undoTap(redo = false) }
             if (editor.canRedo) items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", guard = true) { undoTap(redo = true) }
         }
-        if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
-        if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
-        // GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
-        if (Plugins.isOn(prefs, Plugins.GIFS)) items += if (offlineOn) RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
-            else RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
         return items
+    }
+
+    /**
+     * The GIF button, the first of the tools that follow the words: on a phone it is the tool in view at the row's
+     * end. GIFs need the network: with Offline on the chip stays, faint, and a tap says why.
+     */
+    private fun gifTool(): RowItem? = when {
+        !Plugins.isOn(prefs, Plugins.GIFS) -> null
+        offlineOn -> RowItem("gifs-offline", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs · Offline", dim = true) { sayOffline() }
+        else -> RowItem("gifs", icon = RowIcon.GIF_TEXT, tint = RowTint.GIFS, chip = true, description = "GIFs") { openGifs() }
     }
 
     /**

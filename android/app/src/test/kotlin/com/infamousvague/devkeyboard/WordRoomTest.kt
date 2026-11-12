@@ -130,15 +130,27 @@ class WordRoomTest {
         assertEquals(0, three.gap)
     }
 
-    @Test fun `words are never cut below three quarters of what a word is read in`() {
-        // A row with 150 left for three words: 50 each would be cut to a letter or two. They keep 60 and the row slides.
+    @Test fun `where three words would be too narrow to read, two are shown`() {
+        // A row with 150 left for three words: 50 each would be cut to a letter or two. Two share it, and the caller
+        // leaves the third out.
         val r = room(412, before = 214, firstWord = 1, lastWord = 3, count = 8)
-        assertEquals(60, r.width)
+        assertEquals(2, r.shown)
+        assertEquals(75, r.width)
         assertEquals(0, r.gap)
-        // And where what stands before them is wider than the row itself.
+        // Room for one only: it has the width a word is read in, in the middle of what there is.
+        val one = room(412, before = 264, firstWord = 1, lastWord = 3, count = 8)
+        assertEquals(1, one.shown)
+        assertEquals(80, one.width)
+        assertEquals(10, one.gap)
+        // And where what stands before them is wider than the row itself, one word still has its 60 and the row slides.
         val none = room(300, before = 400, firstWord = 2, lastWord = 4, count = 9)
+        assertEquals(1, none.shown)
         assertEquals(60, none.width)
         assertEquals(0, none.gap)
+        // Words that fit are all shown.
+        assertEquals(3, room(412, count = 7).shown)
+        assertEquals(2, room(412, words = 2, count = 6).shown)
+        assertEquals(0, room(412, words = 0, count = 4).shown)
     }
 
     @Test fun `an emoji that came with the word stands between the words and the tool, and the tool is still in view`() {
@@ -156,24 +168,51 @@ class WordRoomTest {
         assertEquals((690 - 200) / 3, wide.width)
     }
 
-    @Test fun `the everyday tools are pinned only where the words still stand in the middle beside them`() {
-        fun pins(total: Int, tools: Int) = PluginRow.WordRoom.pins(total, tools * 40 + 6, tools, least = 80)
-        // A phone, and a wide phone (475, where until 0.16.0 five were pinned and the words stood off to one side).
-        assertEquals(false, pins(412, 4))
-        assertEquals(false, pins(475, 5))
-        assertEquals(false, pins(475, 3))
-        // A foldable's inner screen and a tablet: all five, with three words of 80 or more in the middle.
-        assertEquals(true, pins(690, 5))
-        assertEquals(true, pins(800, 5))
-        // The least width for five: twice their 206 and three words of 80.
-        assertEquals(true, pins(2 * 206 + 240, 5))
-        assertEquals(false, pins(2 * 206 + 239, 5))
+    @Test fun `the everyday tools are pinned at the row's start on every phone`() {
+        // Matt, 2026-11-12: "Clipboard, forward and back, and emoji should be left aligned on the toolbar before the
+        // auto suggest". Four of them (the clipboard, Undo, Redo, emoji) take 4 x 40 and the edge.
+        fun pins(total: Int, tools: Int) = PluginRow.WordRoom.pins(total, tools * 40 + 6, tools, end = 48, least = 80)
+        assertEquals(true, pins(360, 4))
+        assertEquals(true, pins(412, 4))
+        assertEquals(true, pins(475, 4))
+        assertEquals(true, pins(800, 4))
+        // The least width for four: their 166, two words of 60 and a tool's 48.
+        assertEquals(true, pins(166 + 120 + 48, 4))
+        assertEquals(false, pins(166 + 119 + 48, 4))
+        // A keyboard made small for one hand: they follow the words there, as on every phone in 0.16.0.
+        assertEquals(false, pins(300, 4))
         // Nothing to pin is never pinned.
         assertEquals(false, pins(2000, 0))
-        // And where they are pinned the words are centred: the same sum WordRoom.of makes.
-        val r = room(690, before = 206, count = 7)
-        assertEquals(0, r.lead)
-        assertEquals((690 - 412) / 3, r.width)
-        assertTrue(r.width >= 80)
+    }
+
+    @Test fun `beside the pinned tools on a phone the words share what is left, and a tool keeps its room at the end`() {
+        // 412 across. An empty field: the clipboard and emoji (86). Three words of 80 would fit in the row's middle
+        // now, but not once Undo and Redo are there (166): so here too they share what is left, and the tool at the
+        // row's end stands where it will stand in every other state.
+        val empty = PluginRow.WordRoom.of(412, 86, 3, 0, 2, 6, end = 48, least = 80, beforeMost = 166)
+        assertEquals(3, empty.shown)
+        assertEquals((412 - 86 - 48) / 3, empty.width)
+        assertEquals(0, empty.lead)
+        assertTrue(412 - (86 + 3 * empty.width) in 48..50)
+        // Typing: Undo is there too (126). The words have what the tools and the end's room leave.
+        val typing = room(412, before = 126, count = 7)
+        assertEquals(3, typing.shown)
+        assertEquals((412 - 126 - 48) / 3, typing.width)
+        assertTrue(412 - (126 + 3 * typing.width) >= 48)
+        // After an undo: Redo as well (166). Three words of 66 can still be read.
+        val both = room(412, before = 166, count = 8)
+        assertEquals(3, both.shown)
+        assertEquals(66, both.width)
+        // On a 360 phone with all four, three words would have 48 each: two are shown, 73 each.
+        val small = room(360, before = 166, count = 8)
+        assertEquals(2, small.shown)
+        assertEquals(73, small.width)
+        assertTrue(360 - (166 + 2 * small.width) >= 48)
+        // On a foldable's inner screen the words are in the row's middle, as before, in every state.
+        val wide = room(800, before = 166, count = 8)
+        assertEquals((800 - 2 * 166) / 3, wide.width)
+        assertEquals(0, wide.lead)
+        val wideEmpty = PluginRow.WordRoom.of(800, 86, 3, 0, 2, 6, end = 48, least = 80, beforeMost = 166)
+        assertEquals((800 - 2 * 86) / 3, wideEmpty.width)
     }
 }
