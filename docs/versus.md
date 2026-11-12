@@ -239,10 +239,21 @@ scraps back and learns nothing from them.
 | after | 3.3% | 5.0% | 12.2% | 6.8% | 41 | 1 |
 
 The typing bench cannot see this (it types a word at a time), so the two sets of sentences are its only measure,
-through `Replay.kt`'s model of the service. Not yet typed on a device. Still cut in two: a word whose first letter
+through `Replay.kt`'s model of the service. Still cut in two: a word whose first letter
 landed on the bar (" egim" for "begin": the tap comes after the last word's own space, and makes a full stop of
 it), and scraps that were mended at the bar's tap into a word too good to give up ("eome" made "some", for
 "women").
+
+### The two changes on the emulator (2026-11-12)
+
+A debug build of the tree with both changes (0.16.3, commit 1594724) was put on emulator-5584 and given the taps of
+every typing the two changes alter against the tree before them (0668977), by the JVM's own account: 104 of the
+900. Forty typings they leave alone were typed with them (`tool/versus/device-check.sh`). The emulator's text was
+the JVM's for this tree in 104 of the 104, and the old tree's in none; and in 40 of the 40 others. So what
+`KeyboardView` and `DevKeyboardService` do with the bar's tap on a phone is what `Replay.kt`'s model of them does,
+on every sentence where it matters. The records are in `tool/versus/runs/2026-11-12-reach-rejoin-check`. (The Mac
+was restarted in the middle of the first attempt; the emulator was started again, the check run from its start,
+and the emulator put back as it had been found.)
 
 ### What the thumb had done
 

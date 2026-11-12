@@ -1,0 +1,53 @@
+{
+ "keyboard": "ghost",
+ "name": "Ghost Keyboard",
+ "version": {
+  "package": "com.infamousvague.devkeyboard",
+  "versionName": "0.16.3",
+  "versionCode": "85",
+  "lastUpdateTime": "2026-11-12 18:26:54",
+  "apk": "/data/app/~~Q8T_2HHj25HWJGJ3VGXfaw==/com.infamousvague.devkeyboard-uZxoaiC0S09lfSPwwvIAOw==/base.apk",
+  "sha256": "3c7ed0d8b52064cd45a44920e18f443e1a28f5ff48a0f7ed3d8cedca082ba89c"
+ },
+ "geometry": "ghost.geometry.json",
+ "geometry_measured": "2026-11-12T18:26:55-05:00",
+ "device": {
+  "serial": "emulator-5584",
+  "width": 1248,
+  "height": 1972,
+  "dpi": 420,
+  "model": "sdk_gphone64_arm64",
+  "android": "16"
+ },
+ "started": "2026-11-12T18:11:26-05:00",
+ "sentences": 300,
+ "file": "build/typing-bench/en-heldout.txt",
+ "first_line": 90000,
+ "skipped": {
+  "an apostrophe that is no listed contraction": 19,
+  "another character": 16,
+  "an acronym": 5,
+  "not one sentence with one closing mark": 3
+ },
+ "seed": "7",
+ "aim": "answers",
+ "learn": false,
+ "thumbs": {
+  "careful": "scatter 0.20 of a key across and 0.15 down, no lean",
+  "leaning": "scatter 0.20 of a key across and 0.15 down, leaning 0.24 of a key right and 0.18 down",
+  "sloppy": "scatter 0.34 of a key across and 0.25 down, no lean"
+ },
+ "taken_up_again": [
+  "2026-11-12T18:27:25-05:00"
+ ],
+ "finished": "2026-11-12T18:49:55-05:00",
+ "typings_thrown_away_for_a_stall": 21,
+ "version_at_end": {
+  "package": "com.infamousvague.devkeyboard",
+  "versionName": "0.16.3",
+  "versionCode": "85",
+  "lastUpdateTime": "2026-11-12 18:26:54",
+  "apk": "/data/app/~~Q8T_2HHj25HWJGJ3VGXfaw==/com.infamousvague.devkeyboard-uZxoaiC0S09lfSPwwvIAOw==/base.apk",
+  "sha256": "3c7ed0d8b52064cd45a44920e18f443e1a28f5ff48a0f7ed3d8cedca082ba89c"
+ }
+}
