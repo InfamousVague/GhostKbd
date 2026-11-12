@@ -715,6 +715,7 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
           _plugin(store, 'autocorrect', 'Autocorrect', 'Fixes a misspelled word as you finish it; backspace straight after puts yours back.'),
           _plugin(store, 'swipe', 'Swipe typing', 'Draw a word across the letters; its other guesses wait in the row.'),
           _plugin(store, 'adaptive', 'Adaptive keys', 'Nudges a key toward your slips, slowly, and lets it back as your aim comes right.'),
+          if (!isIOS) _plugin(store, 'shortcuts', 'Text shortcuts', 'A few letters that type a phrase: omw and a space becomes On my way!'),
           _toggle(store, 'auto_caps', 'Capitals at sentence starts'),
           _toggle(store, 'space_cursor', 'Slide the space bar to move the cursor', 'Sideways by characters; up or down by lines. Hold it first and it never types a space. Off: holding it opens the keyboard picker.'),
           _toggle(store, 'delete_swipe', 'Slide backspace to delete words', 'Slide left from backspace: each stretch takes a word.'),
@@ -729,6 +730,8 @@ List<SettingsSection> _typingParts(SettingsStore store) => [
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => [s.flag('autocorrect') ? 'Corrects as you type' : 'Suggests only', if (s.flag('next_word')) 'next words', if (s.flag('slang')) 'slang'].join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))
         _part('adaptive', 'Adaptive keys', LucideMore.target, 'coral', (s) => '${s.adaptive['keys'] ?? 0} keys nudged, ${s.adaptive['mistakes'] ?? 0} slips', _adaptivePart),
+      if (!isIOS && store.pluginOn('shortcuts'))
+        _part('shortcuts', 'Text shortcuts', Lucide.replace, 'mint', (s) => s.shortcuts.isEmpty ? 'None yet' : (s.shortcuts.length == 1 ? '1 shortcut' : '${s.shortcuts.length} shortcuts'), _shortcutsPart),
       if (!isIOS) _part('stats', 'Typing stats', Lucide.gauge, 'mint', _statsSummary, _statsPart),
       _part('typing-more', 'More typing', LucideMore.slidersHorizontal, 'slate', (s) => 'Full stops, long press, the { } key', _typingMorePart),
     ];
@@ -788,6 +791,62 @@ List<Widget> _autocorrectPart(BuildContext context, SettingsStore store) {
       children: [
         SettingRowBox(child: GlacierInput(key: ValueKey('learn-${learned.length}'), placeholder: 'Add a word', ariaLabel: 'Add a learned word', onSubmitted: (text) => store.setLearned(text, true))),
         for (final w in learned) SettingRow(label: w, hint: const Text('Tap to forget'), onPress: () => store.setLearned(w, false)),
+      ],
+    ),
+  ];
+}
+
+// --- Text shortcuts -------------------------------------------------------------------------------------------------
+
+/// Settings › Typing › Text shortcuts (android Shortcuts.kt, docs/text-shortcuts.md): the shortcuts kept, each
+/// removable, and a form of two fields for a new one. The keyboard decides what may be a shortcut and says why not.
+List<Widget> _shortcutsPart(BuildContext context, SettingsStore store) {
+  String shown(String text) {
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return line.length > 80 ? '${line.substring(0, 79)}…' : line;
+  }
+
+  return [
+    PaneSection(
+      footer: const Text('Type a shortcut as a word of its own, whatever its capitals: the row above the keys offers what it stands for. Never in a password field.'),
+      children: [
+        _toggle(store, 'shortcuts_auto', 'Expand when I press space', 'Space or enter straight after a shortcut puts its phrase in. Backspace straight after puts your letters back. Off: only a tap on the phrase in the row puts it in.'),
+      ],
+    ),
+    PaneSection(
+      title: 'Your shortcuts',
+      footer: const Text('Kept on this phone only. Tap one to remove it.'),
+      children: [
+        if (store.shortcuts.isEmpty) const SettingRow(label: 'None yet', hint: Text('omw for On my way!, @@ for your e-mail address, ;sig for a sign-off.')),
+        for (final s in store.shortcuts) SettingRow(label: s.shortcut, hint: Text(shown(s.text)), value: const Text('Remove'), onPress: () => store.removeShortcut(s.shortcut)),
+      ],
+    ),
+    PaneSection(
+      title: 'Add a shortcut',
+      footer: const Text('A shortcut is one word of 2 to 24 characters with no space. In the phrase, \\n starts a new line, and {date}, {time} and {clipboard} become today’s date, the time and your newest clip. A shortcut you already have is changed.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('shortcut-${store.shortcutForm}'),
+            defaultValue: store.shortcutDraft,
+            placeholder: 'Shortcut, like omw',
+            ariaLabel: 'Shortcut',
+            autoCorrect: false,
+            onChange: (text) => store.shortcutDraft = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('shortcut-text-${store.shortcutForm}'),
+            defaultValue: store.shortcutTextDraft,
+            placeholder: 'What it stands for, like On my way!',
+            ariaLabel: 'What the shortcut stands for',
+            onChange: (text) => store.shortcutTextDraft = text,
+            onSubmitted: (_) => store.addShortcut(),
+          ),
+        ),
+        SettingRow(label: 'Add the shortcut', icon: AppIcon(LucideMore.circlePlus, size: 18), onPress: store.addShortcut),
+        if (store.shortcutMessage != null) SettingRow(label: store.shortcutMessage!),
       ],
     ),
   ];

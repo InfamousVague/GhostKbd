@@ -205,6 +205,23 @@ const List<PluginManifest> catalogue = [
     hasPage: true,
   ),
   PluginManifest(
+    id: 'shortcuts',
+    name: 'Text shortcuts',
+    line: 'A few letters that type a phrase: omw becomes On my way!',
+    description:
+        'Give a phrase a shortcut: omw for On my way!, @@ for your e-mail address, ;sig for a sign-off of several lines. '
+        'Type the shortcut as a word of its own and the row above the keys offers what it stands for; press space and it '
+        'is put in for you. Backspace straight after puts your letters back, and the letters themselves are a tap away '
+        'in the row for when they are what you meant. A phrase can hold today’s date, the time or your newest clip '
+        '({date}, {time}, {clipboard}) and new lines (\\n). Kept on your phone only, and never used in a password field.',
+    category: PluginCategory.typing,
+    hue: 'mint',
+    icon: Lucide.replace,
+    adds: ['Shortcuts that expand at a space', 'What a shortcut stands for, in the row', 'Backspace to take one back', 'Today’s date, the time and your newest clip in a phrase'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'passwords',
     name: 'Password managers',
     line: 'Your password manager’s logins, a tap above the keys.',
@@ -496,7 +513,7 @@ const List<(String, String)> stockSounds = [
 /// rather than offered in the Market. Mockingbird and Ghostwriter stay Market plugins (Matt, 2026-11-09: "ghostwriter should be
 /// a plugin still", "mockingbird should be a plugin as well"), each with a page of its own once added.
 const Set<String> builtInPlugins = {
-  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito',
+  'autocorrect', 'swipe', 'adaptive', 'shortcuts', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito',
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.

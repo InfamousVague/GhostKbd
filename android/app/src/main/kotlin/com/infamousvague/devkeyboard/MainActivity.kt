@@ -259,6 +259,12 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                    "shortcutsState" -> result.success(Shortcuts.state(prefs))
+                    "shortcutAdd" -> {
+                        val error = Shortcuts.add(prefs, call.argument<String>("shortcut") ?: "", call.argument<String>("text") ?: "")
+                        result.success(Shortcuts.state(prefs) + mapOf("error" to error))
+                    }
+                    "shortcutRemove" -> { Shortcuts.remove(prefs, call.argument<String>("shortcut") ?: ""); result.success(Shortcuts.state(prefs)) }
                     "clipboardState" -> result.success(clipboardState())
                     "clipRemove" -> { ClipHistory.remove(this@MainActivity, call.argument<String>("text") ?: ""); result.success(clipboardState()) }
                     "clipPinAdd" -> {

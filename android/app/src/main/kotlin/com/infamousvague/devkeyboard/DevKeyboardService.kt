@@ -78,6 +78,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The last autocorrection, while backspace can still undo it: the word as typed, what replaced it, and the separator. */
     private var lastCorrection: Triple<String, String, String>? = null
 
+    /**
+     * The text shortcut a space has just put in (Shortcuts.kt), while backspace can still take it back: the letters
+     * as typed, what they became, and the separator. The very next key decides: backspace puts the letters back, and
+     * anything else lets the phrase stand.
+     */
+    private var lastShortcut: Triple<String, String, String>? = null
+
+    /**
+     * A shortcut's letters that were just said to be meant as typed (their own chip tapped, or their phrase taken
+     * back with backspace): the next space leaves them alone, once.
+     */
+    private var keptShortcut: String? = null
+
     // --- next-word prediction (NextWords.kt, NextWordModel.kt) -------------------------------------------------------
     //
     // The key handlers below only set the flags here: nothing of the model runs on a key press. The look at the text
@@ -668,6 +681,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (gifMode == GifMode.TYPING) { gifQuery = if (jamo != null) hangulOnto(gifQuery, jamo) else gifQuery + text; scheduleRow(); return }
         if (emojiMode == GifMode.TYPING) { emojiQuery = if (jamo != null) hangulOnto(emojiQuery, jamo) else emojiQuery + text; scheduleRow(); return }
         val ic = currentInputConnection ?: return
+        // A key typed after a shortcut's phrase lets it stand, and letters typed on are no longer the letters kept.
+        lastShortcut = null
+        keptShortcut = null
         if (jamo != null) { typeHangul(ic, jamo); return }
         hangul = Hangul.State()
         // Terminal keys: a sticky Ctrl or Alt goes with the next key, as a key press the terminal reads (Ctrl+C).
@@ -1021,6 +1037,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         // Backspace straight after an autocorrection puts back what was typed, as Gboard does.
         if (lastCorrection != null && undoCorrection(ic, keepSeparator = false)) return
+        // Backspace straight after a shortcut's phrase puts back the letters that were typed, and the next space
+        // leaves them be. Only the very next key: where the phrase is no longer just before the cursor, or another key
+        // came between, backspace is backspace.
+        lastShortcut?.let { (typed, text, separator) ->
+            lastShortcut = null
+            if (editor.replaceBefore(text + separator, typed, Kind.SNIPPET)) {
+                keptShortcut = typed
+                lastSpaceAt = 0L
+                scheduleRow()
+                return
+            }
+        }
         // Backspace straight after a swiped word takes the whole word, as Gboard does.
         lastSwipe?.let { swipe ->
             lastSwipe = null
@@ -1083,6 +1111,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 return
             }
         }
+        // A shortcut by itself before the cursor becomes what it stands for, before autocorrect sees its letters.
+        lastShortcut = null
+        val kept = keptShortcut
+        if (expandShortcut(ic, " ")) { lastSpaceAt = now; return }
+        // Letters that were kept as typed in place of their phrase are kept from autocorrect too: a plain space.
+        if (kept != null && keptShortcut == null) { lastCorrection = null; editor.type(" "); lastSpaceAt = now; return }
         if (correctLastWord(ic, " ")) { lastSpaceAt = now; return }
         lastCorrection = null
         editor.type(" ")
@@ -1106,6 +1140,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (Plugins.isOn(prefs, Plugins.GHOSTWRITER) && !offlineOn && aiAllowed() && aiJob?.running != true &&
             Ghostwriter.tagAt(ic.getTextBeforeCursor(2000, 0)?.toString().orEmpty(), ic.getTextAfterCursor(400, 0)?.toString().orEmpty()) != null
         ) { fillAtCursor(); return }
+        // Enter straight after a shortcut puts its phrase in first, as a space would, and then does what enter does:
+        // the phrase stands, with no backspace to take it back once the line or the message has gone.
+        runCatching { expandShortcut(ic, "") }
+        lastShortcut = null
         // Enter finishes a message's last word as a space would have: it is mended too, where enter sends a message
         // or starts a new line of one (never a search, a form's one-word field, or the first word of anything).
         atSwipe = lastSwipe?.word
@@ -1363,7 +1401,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT, Plugins.SHORTCUTS)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -1789,6 +1827,54 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
+    // --- text shortcuts (Shortcuts.kt) --------------------------------------------------------------------------------
+
+    /** Text shortcuts are read here: the plugin is added, and the field is not a password. */
+    private fun shortcutsHere(): Boolean = Plugins.isOn(prefs, Plugins.SHORTCUTS) && !isPassword(currentInputEditorInfo)
+
+    /** What [entry] types now: its text with today's date, the time and the newest clip put in where it asks for them. */
+    private fun shortcutText(entry: Shortcuts.Entry): String {
+        // The clipboard is read only where the phrase asks for it, and never while incognito or with its plugin off.
+        val clip = if ("{clipboard}" in entry.text && Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) ClipHistory.recent(this).firstOrNull()?.text else null
+        val now = java.time.LocalDateTime.now()
+        return Shortcuts.expanded(entry.text, now.toLocalDate().toString(), "%02d:%02d".format(now.hour, now.minute), clip)
+    }
+
+    /**
+     * A space or enter straight after a shortcut: its letters become what it stands for, followed by [separator].
+     * True when it did. Not where shortcuts wait for a tap ([KeyboardPrefs.shortcutsAuto] off), where the letters were
+     * just kept as typed, or where the cursor stands inside a longer run of characters.
+     */
+    private fun expandShortcut(ic: InputConnection, separator: String): Boolean {
+        if (!shortcutsHere() || !prefs.shortcutsAuto) return false
+        val entries = Shortcuts.all(prefs)
+        if (entries.isEmpty()) return false
+        val before = ic.getTextBeforeCursor(Shortcuts.MAX_SHORTCUT + 1, 0)?.toString() ?: return false
+        val entry = Shortcuts.find(entries, before) ?: return false
+        val typed = Shortcuts.token(before)
+        if (typed.equals(keptShortcut, ignoreCase = true)) { keptShortcut = null; return false }
+        val after = ic.getTextAfterCursor(1, 0)
+        if (!after.isNullOrEmpty() && !after[0].isWhitespace()) return false
+        val text = shortcutText(entry)
+        // One step in the history, after the separator as typed: undo gives back the letters and their space.
+        if (!editor.replaceBefore(typed, text + separator, Kind.SNIPPET, typedFirst = separator)) return false
+        lastShortcut = Triple(typed, text, separator)
+        lastCorrection = null
+        // A phrase put in whole was not typed word by word: next-word prediction does not count it.
+        notTyped()
+        return true
+    }
+
+    /** The row's chip for a shortcut was tapped: [typed], just before the cursor, becomes [text]. */
+    private fun useShortcut(typed: String, text: String) {
+        finishTyping()
+        if (!editor.replaceBefore(typed, text, Kind.SNIPPET)) { scheduleRow(); return }
+        lastCorrection = null
+        lastShortcut = null
+        notTyped()
+        scheduleRow()
+    }
+
     /** A clip was held in the clipboard's list: it is pinned, or let go back among the copies. */
     private fun pinClip(clip: ClipList.Clip) {
         if (!ClipHistory.pin(this, clip.text, !clip.pinned)) {
@@ -1953,6 +2039,17 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     }
                     return true
                 }
+            }
+        }
+        // A text shortcut standing by itself before the cursor: what it stands for, a tap away (and a space away,
+        // where shortcuts expand by themselves), with the letters themselves beside it for when they are what is meant.
+        if (shortcutsHere()) Shortcuts.find(Shortcuts.all(prefs), before)?.let { entry ->
+            val typed = Shortcuts.token(before)
+            if (!typed.equals(keptShortcut, ignoreCase = true)) {
+                val text = shortcutText(entry)
+                items += RowItem("shortcut-${entry.shortcut}", label = preview(text), bold = true, chip = true, fill = true, description = "Shortcut: ${preview(text)}") { useShortcut(typed, text) }
+                items += RowItem("shortcut-keep-$typed", label = "\u201C$typed\u201D", chip = true, description = "Keep $typed as typed") { keptShortcut = typed; scheduleRow() }
+                return true
             }
         }
         if (Plugins.isOn(prefs, Plugins.EMOJI)) {

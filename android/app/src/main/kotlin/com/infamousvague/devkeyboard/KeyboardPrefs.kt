@@ -218,6 +218,11 @@ class KeyboardPrefs(context: Context) {
     val smsCodes: Boolean get() = bool(SMS_CODES)
     /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
     val slang: Boolean get() = bool(SLANG)
+    /**
+     * Text shortcuts (Shortcuts.kt): a space or enter straight after a shortcut puts in what it stands for. Off, the
+     * row still offers it, and only a tap there puts it in.
+     */
+    val shortcutsAuto: Boolean get() = bool(SHORTCUTS_AUTO)
 
     /**
      * Swipe typing, the clipboard, undo and redo and emoji joined autocorrect as plugins on by default (0.8.5, Matt:
@@ -361,6 +366,7 @@ class KeyboardPrefs(context: Context) {
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
         const val SLANG = "slang"
+        const val SHORTCUTS_AUTO = "shortcuts_auto"
         const val WIDE_LAYOUT = "wide_layout"
         const val ONE_HANDED = "one_handed"
         const val DELETE_SWIPE = "delete_swipe"
@@ -444,6 +450,7 @@ class KeyboardPrefs(context: Context) {
             ARROW_KEYS to false,
             SMS_CODES to false,
             SLANG to true,
+            SHORTCUTS_AUTO to true,
             WIDE_LAYOUT to "split",
             ONE_HANDED to "off",
             DELETE_SWIPE to true,

@@ -112,6 +112,7 @@ class SettingsStore extends ChangeNotifier {
     'adaptive_map': false,
     'arrow_keys': false,
     'slang': true,
+    'shortcuts_auto': true,
     'wide_layout': 'split',
     'one_handed': 'off',
     'delete_swipe': true,
@@ -343,6 +344,7 @@ class SettingsStore extends ChangeNotifier {
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
       _setClipboard(await _channel.invokeMethod<Object>('clipboardState'));
+      _setShortcuts(await _channel.invokeMethod<Object>('shortcutsState'));
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -525,6 +527,50 @@ class SettingsStore extends ChangeNotifier {
 
   Future<void> askForTexts() => _call('askForTexts');
   Future<void> openAppInfo() => _call('openAppInfo');
+
+  /// Text shortcuts (android Shortcuts.kt): each shortcut and what it stands for, as the keyboard keeps them.
+  List<({String shortcut, String text})> shortcuts = const [];
+
+  /// Why a shortcut was not kept (no letters, a space in it, nothing to stand for…), in the keyboard's own words.
+  String? shortcutMessage;
+
+  /// The two fields of Settings › Typing › Text shortcuts' form as they are being written, and a count that gives the
+  /// form new fields once a shortcut is kept.
+  String shortcutDraft = '';
+  String shortcutTextDraft = '';
+  int shortcutForm = 0;
+
+  void _setShortcuts(Object? raw) {
+    if (raw is! Map) return;
+    shortcuts = [
+      for (final e in (raw['shortcuts'] as List? ?? const []))
+        if (e is Map) (shortcut: '${e['shortcut']}', text: '${e['text']}'),
+    ];
+    shortcutMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshShortcuts() => _shortcutCall('shortcutsState');
+  Future<void> removeShortcut(String shortcut) => _shortcutCall('shortcutRemove', {'shortcut': shortcut});
+
+  /// Keeps the form's shortcut. Kept, the form is emptied; refused, it stays as written with the reason under it.
+  Future<void> addShortcut() async {
+    await _shortcutCall('shortcutAdd', {'shortcut': shortcutDraft.trim(), 'text': shortcutTextDraft.trim()});
+    if (shortcutMessage == null && shortcuts.any((s) => s.shortcut.toLowerCase() == shortcutDraft.trim().toLowerCase())) {
+      shortcutDraft = '';
+      shortcutTextDraft = '';
+      shortcutForm++;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _shortcutCall(String method, [Map<String, Object>? args]) async {
+    try {
+      _setShortcuts(await _channel.invokeMethod<Object>(method, args));
+    } on MissingPluginException {
+      return;
+    }
+  }
 
   /// The clipboard plugin's history: how many clips it holds, the pinned ones among them (Android's ClipHistory.kt),
   /// and clearing it. Clearing takes the copies and leaves what is pinned.
