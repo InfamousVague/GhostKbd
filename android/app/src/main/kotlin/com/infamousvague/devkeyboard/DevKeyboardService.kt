@@ -1496,8 +1496,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             val codes = codeItems(fresh = false)
             items += codes
             if (clips.isEmpty() && codes.isEmpty()) items += RowItem("clips-none", label = "Nothing copied yet")
-            for (clip in clips) items += RowItem("clip-${clip.at}", label = preview(clip.text), chip = true) { pasteClip(clip.text) }
-            if (clips.isNotEmpty()) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear clipboard history") { ClipHistory.clear(this); scheduleRow() }
+            // How a clip is pinned, said until one has been: a hold is not something anyone finds by themselves.
+            if (clips.isNotEmpty() && !ClipHistory.pinnedOnce(this)) items += RowItem("clips-hint", label = "Hold a clip to pin it", icon = RowIcon.PIN, dim = true)
+            // The pinned lead the list, each with its pin; a hold pins a clip or lets it go, a tap pastes either.
+            for (clip in clips) items += RowItem(
+                "clip-${clip.at}-${clip.pinned}", label = preview(clip.text), icon = RowIcon.PIN.takeIf { clip.pinned }, tint = RowTint.CLIPBOARD.takeIf { clip.pinned }, chip = true,
+                description = "${if (clip.pinned) "Pinned. " else ""}${preview(clip.text)}. Hold to ${if (clip.pinned) "unpin" else "pin"}.",
+                onLong = { pinClip(clip) },
+            ) { pasteClip(clip.text) }
+            // Clearing takes the copies; what is pinned stays, so with nothing but pins there is nothing to clear.
+            if (clips.any { !it.pinned }) items += RowItem("clips-clear", icon = RowIcon.TRASH, chip = true, description = "Clear the copies. Pinned clips stay.") { ClipHistory.clear(this); scheduleRow() }
             strip.setItems(items)
             return
         }
@@ -1778,6 +1786,15 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = true
         showingClips = false
         SmsCodes.used(code)
+        scheduleRow()
+    }
+
+    /** A clip was held in the clipboard's list: it is pinned, or let go back among the copies. */
+    private fun pinClip(clip: ClipList.Clip) {
+        if (!ClipHistory.pin(this, clip.text, !clip.pinned)) {
+            android.widget.Toast.makeText(this, "${ClipList.MAX_PINS} clips are pinned already. Unpin one first.", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         scheduleRow()
     }
 

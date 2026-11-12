@@ -78,6 +78,9 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
   terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
   per-app profile can turn them on or off for one app.
+- **Clipboard pins** (`ClipList.kt`, `ClipHistory.kt`; [docs/clipboard-pins.md](docs/clipboard-pins.md)): hold a clip
+  in the clipboard's list to pin it. A pinned clip leads the list, is not one of the 25 copies, and stays when the
+  history is cleared; Settings › Row tools lists the pins, removes them and takes one written by hand.
 - **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
   the mic key stands where the full stop was (`Layouts.withMic`).
 

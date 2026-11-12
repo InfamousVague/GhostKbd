@@ -342,8 +342,7 @@ class SettingsStore extends ChangeNotifier {
       _setStatus(await _channel.invokeMethod<Object>('status'));
       _setUpdate(await _channel.invokeMethod<Object>('updateState'));
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
-      final clips = await _channel.invokeMapMethod<String, Object>('clipboardState');
-      clipCount = clips?['count'] as int? ?? 0;
+      _setClipboard(await _channel.invokeMethod<Object>('clipboardState'));
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -527,23 +526,48 @@ class SettingsStore extends ChangeNotifier {
   Future<void> askForTexts() => _call('askForTexts');
   Future<void> openAppInfo() => _call('openAppInfo');
 
-  /// The clipboard plugin's history: how many it holds, and clearing it.
+  /// The clipboard plugin's history: how many clips it holds, the pinned ones among them (Android's ClipHistory.kt),
+  /// and clearing it. Clearing takes the copies and leaves what is pinned.
   int clipCount = 0;
-  Future<void> refreshClipboard() async {
+  List<String> clipPins = const [];
+
+  /// Why a pin written in Settings was not kept (nothing written, too long, too many pinned), until the next change.
+  String? clipMessage;
+
+  void _setClipboard(Object? raw, {bool keepMessage = false}) {
+    if (raw is! Map) return;
+    clipCount = raw['count'] as int? ?? 0;
+    clipPins = [for (final p in (raw['pins'] as List? ?? const [])) '$p'];
+    if (!keepMessage) clipMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshClipboard() => _clipCall('clipboardState');
+
+  Future<void> clearClipboard() async {
     try {
-      final r = await _channel.invokeMapMethod<String, Object>('clipboardState');
-      clipCount = r?['count'] as int? ?? 0;
-      notifyListeners();
+      final r = await _channel.invokeMethod<Object>('clearClipboard');
+      // Android answers with what is left (the pinned clips). The iPhone's keyboard has no pins and answers nothing.
+      if (r is Map) {
+        _setClipboard(r);
+      } else {
+        clipCount = clipPins.length;
+        notifyListeners();
+      }
     } on MissingPluginException {
       return;
     }
   }
 
-  Future<void> clearClipboard() async {
+  /// Removes a pinned clip for good.
+  Future<void> removeClip(String text) => _clipCall('clipRemove', {'text': text});
+
+  /// Pins a clip written by hand in Settings.
+  Future<void> addClipPin(String text) => _clipCall('clipPinAdd', {'text': text});
+
+  Future<void> _clipCall(String method, [Map<String, Object>? args]) async {
     try {
-      await _channel.invokeMethod<Object>('clearClipboard');
-      clipCount = 0;
-      notifyListeners();
+      _setClipboard(await _channel.invokeMethod<Object>(method, args));
     } on MissingPluginException {
       return;
     }

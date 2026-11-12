@@ -139,7 +139,8 @@ object Ghostwriter {
         val kind = AppContext.kind(app)
         val memory = if (prefs.ghostwriterMemory) Mockingbird.relevant(context, "$request ${before.takeLast(300)}", app) else emptyList()
         val clips = if (prefs.ghostwriterClipboard && Plugins.isOn(prefs, Plugins.CLIPBOARD)) {
-            fitting(ClipHistory.all(context).take(6).map { it.text.take(1200) }, 2500) { it.length }
+            // The newest copies, whatever is pinned: a pin from last month is not "recent".
+            fitting(ClipHistory.recent(context).take(6).map { it.text.take(1200) }, 2500) { it.length }
         } else emptyList()
         // The work behind "<<posthog updates we made>>": the person's commits that match, from GitHub.
         var githubNote: String? = null

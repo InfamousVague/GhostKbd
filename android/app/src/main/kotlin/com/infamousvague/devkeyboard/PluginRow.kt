@@ -25,7 +25,7 @@ enum class RowIcon {
     // The tools' and states' own (RowIconsMore.kt).
     CLIPBOARD, EMOJI, GIF_TEXT, SPARKLE, WAND, FEATHER, GHOST, INCOGNITO, UNDO, REDO, BOLD, ITALIC, STRIKE, CODE, CODE_BLOCK,
     LINK, HEADING, LIST, TASK, QUOTE, WIKI, HASH, TODAY, CALLOUT, TABLE, MATH, DIAGRAM, DIVIDER, TRASH, CLOSE, WARNING,
-    RETRY, CHECK, NOTE,
+    RETRY, CHECK, NOTE, PIN,
 }
 
 /**
@@ -43,6 +43,8 @@ enum class RowIcon {
  *   still says why when tapped; Undo with nothing to undo, which has no [onTap] and so takes no tap).
  * - [code]: a one-time code from a text message, drawn as a CodeChip: a chip of its own, the [label] as the code in
  *   its groups, with the time it has left running round its edge.
+ * - [onLong]: what holding it does, where a tap is not all there is to it (a clip in the clipboard's list is pinned
+ *   or unpinned by a hold). The hold has its own, longer tick.
  */
 class RowItem(
     val id: String,
@@ -58,6 +60,7 @@ class RowItem(
     val description: String? = null,
     val dim: Boolean = false,
     val code: RowCode? = null,
+    val onLong: (() -> Unit)? = null,
     val onTap: (() -> Unit)? = null,
 )
 
@@ -279,6 +282,7 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
                 setOnClickListener { tap(item) }
                 if (item.dim) alpha = DIM
                 isClickable = item.onTap != null
+                holdable(this, item)
             }
         }
         return TextView(context).apply {
@@ -295,6 +299,7 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
             contentDescription = item.description
             setOnClickListener { tap(item) }
             isClickable = item.onTap != null
+            holdable(this, item)
             if (item.dim) alpha = DIM
             if (item.icon != null) {
                 setCompoundDrawablesRelative(IconDrawable(item.icon, item.tint?.ink(theme) ?: theme.toolbarIcon, dp(18f)), null, null, null)
@@ -307,6 +312,16 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         val action = item.onTap ?: return
         performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
         try { action() } catch (t: Throwable) { android.util.Log.e("GhostKeyboard", "row item ${item.id} failed", t) }
+    }
+
+    /** Gives [view] the item's hold, where it has one ([RowItem.onLong]): a longer tick, and the tap is not taken as well. */
+    private fun holdable(view: View, item: RowItem) {
+        val action = item.onLong ?: return
+        view.setOnLongClickListener {
+            performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            try { action() } catch (t: Throwable) { android.util.Log.e("GhostKeyboard", "row item ${item.id} hold failed", t) }
+            true
+        }
     }
 
     private fun pressable(chip: Boolean, tint: RowTint? = null): StateListDrawable {

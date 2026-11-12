@@ -285,16 +285,23 @@ const List<PluginManifest> catalogue = [
   PluginManifest(
     id: 'clipboard',
     name: 'Clipboard history',
-    line: 'Your last 25 copies, a tap away.',
+    line: 'Your last 25 copies, a tap away, and the ones you pin.',
     description:
         'Everything you copy while Ghost Keyboard is your keyboard, newest first, in the row: tap to paste. Something '
-        'you just copied waits as the row\'s first chip. Kept on your phone only, and never what Android marks sensitive '
-        '(password managers\' copies) or anything copied while incognito.',
+        'you just copied waits as the row\'s first chip. Hold a clip to pin it: a pinned clip leads the list, is not one '
+        'of the 25 and stays when you clear the history, until you unpin it. Kept on your phone only, and never what '
+        'Android marks sensitive (password managers\' copies) or anything copied while incognito.',
     category: PluginCategory.tools,
     hue: 'amber',
     icon: Lucide.clipboardPaste,
-    adds: ['A Clipboard button in the row', 'The last copy as a chip'],
+    adds: ['A Clipboard button in the row', 'The last copy as a chip', 'Clips you pin, which stay'],
     hasPage: true,
+    // The iPhone's keyboard keeps a history with no pins (ios/GhostCore ClipHistory.swift).
+    iosLine: 'Your last 25 copies, a tap away.',
+    iosDescription:
+        'Everything you copy while Ghost Keyboard is your keyboard, newest first, in the row: tap to paste. Something '
+        'you just copied waits as the row\'s first chip. Kept on your phone only, and never anything copied while incognito.',
+    iosAdds: ['A Clipboard button in the row', 'The last copy as a chip'],
   ),
   PluginManifest(
     id: 'undo',

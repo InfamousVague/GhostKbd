@@ -1178,7 +1178,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
       footer: const Text('Buttons in the row above the keys, whenever you aren’t mid-word.'),
       children: [
         _toggle(store, 'arrow_keys', 'Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.', LucideMore.move),
-        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away. Never a password manager’s.', Lucide.clipboardPaste),
+        _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
         _plugin(store, 'emoji', 'Emoji', 'A button in the row beside the clipboard, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
@@ -1199,7 +1199,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
           _toggle(store, 'emoji_suggest', 'Emoji for the word you type', null, LucideMore.smile),
         ],
       ),
-    if (store.pluginOn('clipboard')) PaneSection(children: [SettingRow(label: 'Clear clipboard history', icon: AppIcon(LucideMore.trash2, size: 18), value: Text('${store.clipCount} saved'), onPress: store.clipCount == 0 ? null : store.clearClipboard)]),
+    if (store.pluginOn('clipboard')) ..._clipboardSections(store),
     if (store.pluginOn('gifs'))
       ..._more(store, 'rowtools', [
         PaneSection(
@@ -1208,6 +1208,50 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
           children: [SettingRowBox(child: GlacierInput(key: ValueKey('giphy-$own'), defaultValue: own, placeholder: 'Your GIPHY API key (optional)', ariaLabel: 'GIPHY API key', onSubmitted: (text) => store.set('giphy_key', text.trim())))],
         ),
       ]),
+  ];
+}
+
+/// The clipboard's pinned clips and its Clear (android ClipHistory.kt, ClipList.kt; docs/clipboard-pins.md). A clip is
+/// pinned by holding it in the keyboard's clipboard list, or written here; a pinned clip leads that list, is not one
+/// of the 25 copies and stays when the history is cleared. Here each can be removed, which is for good.
+List<Widget> _clipboardSections(SettingsStore store) {
+  final pins = store.clipPins;
+  final copies = store.clipCount - pins.length;
+  String shown(String text) {
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return line.length > 60 ? '${line.substring(0, 59)}…' : line;
+  }
+
+  return [
+    PaneSection(
+      title: 'Pinned clips',
+      footer: const Text('Hold a clip in the keyboard’s clipboard list to pin it, and hold it again to let it go. Pinned clips lead the list, are not counted among your 25 copies and stay when the history is cleared. Up to 25, kept on this phone.'),
+      children: [
+        if (pins.isEmpty) const SettingRow(label: 'Nothing pinned yet', hint: Text('An address, a link, a reply you send often: pin it once and it is always a tap away.')),
+        for (final pin in pins) SettingRow(label: shown(pin), icon: AppIcon(Lucide.pin, size: 18), value: const Text('Remove'), onPress: () => store.removeClip(pin)),
+        SettingRowBox(
+          child: GlacierInput(
+            // A new field once a pin is kept, so what was written does not stay in it.
+            key: ValueKey('clip-pin-${pins.length}'),
+            placeholder: 'Write a clip to pin, then press enter',
+            ariaLabel: 'A clip to pin',
+            onSubmitted: (text) => store.addClipPin(text),
+          ),
+        ),
+        if (store.clipMessage != null) SettingRow(label: store.clipMessage!),
+      ],
+    ),
+    PaneSection(
+      children: [
+        SettingRow(
+          label: 'Clear clipboard history',
+          hint: pins.isEmpty ? null : const Text('Pinned clips stay.'),
+          icon: AppIcon(LucideMore.trash2, size: 18),
+          value: Text('$copies saved'),
+          onPress: copies <= 0 ? null : store.clearClipboard,
+        ),
+      ],
+    ),
   ];
 }
 
