@@ -6,9 +6,9 @@ no connection, nothing of what is written leaving the phone, and it works with O
 
 **Where this stands (2026-11-12, evening).** The model's library is part of the Android build (5799e1b), 4.3 MB in
 the app, and has run: on the emulator a model added by its link was downloaded, checked against its hash and used,
-and Rewrite's Fix on it changed the text in the field ("Seen on the emulator", below). **It is in no release yet**
-(0.16.3 does not have it), and it has not run on a phone: how long a rewrite takes on one, and how the two models
-the keyboard offers behave there, are not known. Until this morning's word from Matt ("build in the llm as long as
+and Rewrite's Fix on it changed the text in the field ("Seen on the emulator", below). **It is released in 0.16.4**
+(Matt, 2026-11-12: "Release 0.16.4"), and it has not run on a phone: how long a rewrite takes on one, and how the
+two models the keyboard offers behave there, are not known. Until this morning's word from Matt ("build in the llm as long as
 it's not too large") the build had been stopped by the permission system of the session that wrote it.
 
 ## What it is

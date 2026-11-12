@@ -158,6 +158,18 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   comma, a key's width off their space bar. In 0.16.2 those pages had no way to emoji but back through the letters.
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
+
+## 0.16.4
+
+- **Rewrite on this phone** (`LocalAi.kt`, `LocalModels.kt`, `android/llm`; Settings › AI › Rewrite › On this phone;
+  [docs/local-ai.md](docs/local-ai.md)): Rewrite and its Fix can run on a language model on the phone itself, with
+  no key, no connection and nothing of what is written leaving the phone. Two models are offered, Qwen3.5 2B (1.3 GB)
+  and 4B (2.7 GB), fetched only when tapped and held to their size and SHA-256; any other GGUF model on Hugging Face
+  can be added by its link (`ModelLinks.kt`). A download that breaks off takes itself up again from where it
+  stopped. Run on the emulator with a small model added by its link; not yet on a phone, where neither the time a
+  rewrite takes nor the two offered models have been tried.
+- **The app is 1.35 MB larger for it, not 4.3**: the model's library is 4.3 MB, and 3.0 MB of speech library for
+  32-bit ARM and x86_64, which the app cannot run on and every APK up to 0.16.3 carried, is gone.
 - **One-time codes from email** (`MailCodes.kt`; Settings › Row tools, off unless turned on;
   [docs/mail-codes.md](docs/mail-codes.md)): a sign-in code that arrives in Gmail, or another mail app, is a chip at
   the start of the row as a code from a text is, with an envelope on it. It is read from the mail app's own
@@ -173,7 +185,7 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   read), and Settings says what it found under the keys. Not seen on a Galaxy, and one of the settings' names is a
   guess; where anything cannot be read the keys stay where they were.
 
-## Rewrite on this phone (in the build, not in a release yet)
+## Rewrite on this phone (since 0.16.4)
 
 Rewrite and its Fix on a language model that runs on the phone: Settings › AI › Rewrite › On this phone, Ghost.md's
 Qwen3.5 2B and 4B files, a process of its own for the model, worked examples in what the model is shown, and a check
@@ -182,7 +194,8 @@ on what it writes before that replaces anything. `LocalAi.kt`, `LocalModels.kt`,
 link (Settings › AI › Rewrite › Another model; `ModelLinks.kt`): Hugging Face is asked for the file's size and SHA-256
 and the download is held to them. The library is part of the Android build since 2026-11-12 (Matt: "build in the llm
 as long as it's not too large"): 4.3 MB in the APK, against 3.0 MB of speech library for other processors that came
-out of it, so the app grows from 39.9 MB to about 41.3. 0.16.3 does not have it. [docs/local-ai.md](docs/local-ai.md) has the whole account, its size included.
+out of it, so the app grows from 39.9 MB to about 41.3. [docs/local-ai.md](docs/local-ai.md) has the whole account,
+its size included.
 
 ## Releases and auto-update
 
