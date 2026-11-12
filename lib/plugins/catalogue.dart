@@ -459,6 +459,30 @@ const List<PluginManifest> catalogue = [
         'It uses the AI provider you choose, with your own key, straight from your phone. Never while incognito.',
   ),
   PluginManifest(
+    id: 'connectors',
+    name: 'Connectors',
+    line: 'Let Ghostwriter ask the services you use: add an MCP server by its address.',
+    description:
+        'A connector is a Model Context Protocol (MCP) server: the way AI assistants are given your calendar, your issues '
+        'or your documents. Add one by its https address, with a token if the server wants one, and Ghost Keyboard reads '
+        'the tools it offers. Each tool has a switch: the ones the server marks read-only start on, every other starts off. '
+        'Then <<when am I free Thursday>> can read the real calendar: while Ghostwriter writes, your AI may call the tools '
+        'that are on, and writes from what they answer. Your phone asks the connector’s server itself; a connector’s token '
+        'goes to that server and nowhere else, and your AI key never goes to a connector. What the tools answer is sent to '
+        'your AI, as your notes and commits are. Servers that can only be signed in to through a browser cannot be added '
+        'yet. Up to 8 connectors; your AI is given up to 16 tools with a request and may call 6.',
+    category: PluginCategory.tools,
+    hue: 'cyan',
+    icon: Lucide.network,
+    adds: ['MCP servers, added by address', 'A switch for each of their tools', 'Ghostwriter answers from your own services', 'A token goes only to its own server'],
+    permissions: [
+      PluginPermission(Permission.network, 'To ask the servers you add for their tools, and to call the tools you switched on while Ghostwriter writes.'),
+    ],
+    hosts: ['the servers you add'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'enhance',
     name: 'Prompt enhancer',
     line: 'Turns what you typed for an AI into a clearer prompt, in place.',

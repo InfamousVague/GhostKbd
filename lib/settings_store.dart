@@ -109,6 +109,7 @@ class SettingsStore extends ChangeNotifier {
     'github_token': '',
     'ghostwriter_typing': true,
     'ghostwriter_notes': true,
+    'ghostwriter_connectors': true,
     'adaptive_map': false,
     'arrow_keys': false,
     'slang': true,
@@ -349,6 +350,7 @@ class SettingsStore extends ChangeNotifier {
       _setDictation(await _channel.invokeMethod<Object>('dictationState'));
       _setClipboard(await _channel.invokeMethod<Object>('clipboardState'));
       _setShortcuts(await _channel.invokeMethod<Object>('shortcutsState'));
+      _setConnectors(await _channel.invokeMethod<Object>('connectorsState'));
       _setAi(await _channel.invokeMethod<Object>('aiState'));
       await refreshAdaptive();
       await refreshNextWords();
@@ -531,6 +533,66 @@ class SettingsStore extends ChangeNotifier {
 
   Future<void> askForTexts() => _call('askForTexts');
   Future<void> openAppInfo() => _call('openAppInfo');
+
+  /// The Connectors plugin (android Connectors.kt): each connector with its tools and their switches, how many tools
+  /// are on and how many Ghostwriter is given, and the last trouble a request had with them. Never a token: only
+  /// whether a connector has one.
+  Map<String, Object?> connectorsState = const {'connectors': [], 'on': 0, 'offered': 0, 'max': 8, 'maxOffered': 16};
+
+  List<Map<Object?, Object?>> get connectors => [for (final c in (connectorsState['connectors'] as List? ?? const [])) if (c is Map) c];
+
+  /// Why a connector was not added, in the keyboard's own words; and whether its server is being asked right now.
+  String? connectorMessage;
+  bool connectorBusy = false;
+
+  /// The add form as it is being written, and a count that gives it new fields once a connector is added.
+  String connectorName = '';
+  String connectorUrl = '';
+  String connectorToken = '';
+  int connectorForm = 0;
+
+  void _setConnectors(Object? raw) {
+    if (raw is! Map) return;
+    connectorsState = {for (final e in raw.entries) '${e.key}': e.value};
+    connectorMessage = raw['error'] as String?;
+    notifyListeners();
+  }
+
+  Future<void> refreshConnectors() => _connectorCall('connectorsState');
+  Future<void> refreshConnector(String id) => _connectorCall('connectorRefresh', args: {'id': id}, busy: true);
+  Future<void> removeConnector(String id) => _connectorCall('connectorRemove', args: {'id': id});
+  Future<void> setConnectorTool(String id, String tool, bool on) => _connectorCall('connectorTool', args: {'id': id, 'tool': tool, 'on': on});
+
+  /// Adds the form's connector, and asks its server for its tools. Added, the form is emptied; refused, it stays as
+  /// written with the reason under it.
+  Future<void> addConnector() async {
+    final before = connectors.length;
+    await _connectorCall('connectorAdd', args: {'name': connectorName.trim(), 'url': connectorUrl.trim(), 'token': connectorToken.trim()}, busy: true);
+    if (connectorMessage == null && connectors.length > before) {
+      connectorName = '';
+      connectorUrl = '';
+      connectorToken = '';
+      connectorForm++;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _connectorCall(String method, {Map<String, Object>? args, bool busy = false}) async {
+    if (busy) {
+      connectorBusy = true;
+      notifyListeners();
+    }
+    try {
+      _setConnectors(await _channel.invokeMethod<Object>(method, args));
+    } on MissingPluginException {
+      // No keyboard behind the channel (a test, a desktop build): nothing to ask.
+    } on PlatformException catch (e) {
+      connectorMessage = e.message;
+    } finally {
+      if (busy) connectorBusy = false;
+      notifyListeners();
+    }
+  }
 
   /// Text shortcuts (android Shortcuts.kt): each shortcut and what it stands for, as the keyboard keeps them.
   List<({String shortcut, String text})> shortcuts = const [];

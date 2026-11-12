@@ -57,7 +57,26 @@ object Ghostwriter {
                     .filter { it.startsWith("--- ") }.joinToString("; ") { it.removePrefix("--- ") }
                 return@launch "Shipped the PostHog waitlist events today. (debug: notes ${notes.ifEmpty { "none" }})"
             }
-            AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            // The person's connectors (Connectors.kt): the tools of theirs that are switched on, for the AI to call
+            // where the request needs a fact one of them holds. With none on, the request is the one it always was.
+            val offered = if (Connectors.armed(prefs)) Connectors.offered(Connectors.all(prefs)) else emptyList()
+            if (offered.isEmpty()) return@launch AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            val tools = offered.map { AiTools.Tool(it.aiName, it.description, runCatching { org.json.JSONObject(it.tool.schema) }.getOrElse { org.json.JSONObject().put("type", "object") }) }
+            var calls = 0
+            try {
+                AiClient.complete(prefs, NetPath.GHOSTWRITER, system + Connectors.section(offered), user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb, tools = tools) { name, args ->
+                    val tool = offered.firstOrNull { it.aiName == name } ?: return@complete "There is no tool called $name."
+                    if (++calls > Connectors.MAX_CALLS) return@complete "No more tools may be called for this request: answer with what you have."
+                    Connectors.call(prefs, tool, args)
+                }.also { Connectors.note(prefs, null) }
+            } catch (e: AiClient.AiError) {
+                // Offline, or a key refused, is said as it is. Anything else may be the tools themselves (a provider
+                // or model that will not take them): the request is made again as it was before there were
+                // connectors, so they never cost anyone their answer, and Settings › Connectors says what happened.
+                if (Net.offline(prefs) || e.message?.startsWith("The key was refused") == true) throw e
+                Connectors.note(prefs, "${java.time.LocalDate.now()}: your AI answered without the connectors. ${e.message}")
+                AiClient.complete(prefs, NetPath.GHOSTWRITER, system, user, maxTokens = 4000, effort = "low", webSearch = prefs.ghostwriterWeb)
+            }
         }
     }
 

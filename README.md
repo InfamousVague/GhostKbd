@@ -78,6 +78,12 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
   terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
   per-app profile can turn them on or off for one app.
+- **Connectors** (the `connectors` plugin, `Connectors.kt`, `McpClient.kt`, `AiTools.kt`; a Market add-on;
+  [docs/connectors.md](docs/connectors.md)): add a Model Context Protocol server by its https address, with a token
+  where it wants one, and switch on the tools Ghostwriter may call while it writes (the ones a server marks read-only
+  start on, every other off). The phone asks the connector itself; a token goes only to its own server and the AI's
+  key never to a connector (`NetPath.CONNECTOR_TOOLS`, `CONNECTOR_CALL`: the servers the person added, and no other).
+  Signing in through a browser is not built yet.
 - **Dictation without a time limit** (`Dictation.kt`, `SpeechCuts.kt`, `DictationWords.kt`;
   [docs/dictation.md](docs/dictation.md)): a take is cut into pieces at its pauses and written down while it goes on,
   so the words arrive as you talk (it was 60 seconds, and words only after). Your own words for the speech model

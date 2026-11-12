@@ -224,6 +224,8 @@ class KeyboardPrefs(context: Context) {
     val ghostwriterTyping: Boolean get() = bool(GHOSTWRITER_TYPING)
     /** Ghostwriter searches Ghost.md's notes: Ghost.md on this phone, else the online connector once signed in. */
     val ghostwriterNotes: Boolean get() = bool(GHOSTWRITER_NOTES)
+    /** Ghostwriter may call the tools of the person's connectors that are switched on (Connectors.kt). */
+    val ghostwriterConnectors: Boolean get() = bool(GHOSTWRITER_CONNECTORS)
     /** Adaptive keys: draw the heatmap of mistakes and moved aims over the keys. */
     val adaptiveMap: Boolean get() = bool(ADAPTIVE_MAP)
     /** Arrow keys pinned at the end of the row above the keys, SwiftKey's way. */
@@ -378,6 +380,7 @@ class KeyboardPrefs(context: Context) {
         const val GITHUB_TOKEN = "github_token"
         const val GHOSTWRITER_TYPING = "ghostwriter_typing"
         const val GHOSTWRITER_NOTES = "ghostwriter_notes"
+        const val GHOSTWRITER_CONNECTORS = "ghostwriter_connectors"
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
@@ -466,6 +469,7 @@ class KeyboardPrefs(context: Context) {
             GITHUB_TOKEN to "",
             GHOSTWRITER_TYPING to true,
             GHOSTWRITER_NOTES to true,
+            GHOSTWRITER_CONNECTORS to true,
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
             SMS_CODES to false,

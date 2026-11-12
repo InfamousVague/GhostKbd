@@ -112,6 +112,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'ghostwriter', label: 'Ghostwriter', icon: _icon(LucideMore.wandSparkles), hue: 'indigo', group: 'plugins', summary: _ghostwriterSummary, page: _ghostwriterPage, parts: _ghostwriterParts),
       if (store.pluginOn('rewrite'))
         SettingsSection(id: 'rewrite', label: 'Rewrite', icon: _icon(Lucide.penLine), hue: 'mint', group: 'plugins', summary: _rewriteSummary, page: _rewritePage, parts: (s) => [_aiProviderPart()]),
+      if (store.pluginOn('connectors') && pluginHere('connectors'))
+        SettingsSection(id: 'connectors', label: 'Connectors', icon: _icon(Lucide.network), hue: 'cyan', group: 'plugins', summary: _connectorsSummary, page: _connectorsPage, parts: _connectorsParts),
       if (store.pluginOn('enhance') && pluginHere('enhance'))
         SettingsSection(id: 'enhance', label: 'Prompt enhancer', icon: _icon(LucideMore.wandSparkles), hue: 'coral', group: 'plugins', summary: _enhanceSummary, page: _enhancePage, parts: (s) => [_aiProviderPart()]),
       if (store.pluginOn('ghostmd') && pluginHere('ghostmd'))
@@ -208,6 +210,8 @@ String _leavesSummary(SettingsStore s) {
 String _pathHosts(Map<Object?, Object?> path) {
   final hosts = [for (final h in (path['hosts'] as List? ?? const [])) hostWords('$h')];
   if (path['ownServer'] == true) return hosts.isEmpty ? 'To the AI server you choose in Settings › Your AI.' : 'To ${hosts.first}, the AI you chose.';
+  // A connector's path has no servers of its own: the ones added in Settings › Connectors, and no other.
+  if (path['personal'] == true) return hosts.isEmpty ? 'To the servers you add in Settings › Connectors, and no other. None is added.' : 'To ${joinAnd(hosts)}: the servers you added in Settings › Connectors, and no other.';
   return 'To ${joinAnd(hosts)}.';
 }
 
@@ -1191,6 +1195,8 @@ List<Widget> _sourcesPart(BuildContext context, SettingsStore store) {
       _toggle(store, 'ghostwriter_memory', 'My past messages', mb ? 'Your samples that share the request’s words.' : 'Needs Learn my style.'),
       _toggle(store, 'ghostwriter_web', 'The web', const {'anthropic', 'openai', 'gemini', 'openrouter'}.contains(store.choice('ai_provider')) ? 'Public facts, with your provider’s own search.' : 'Your provider has no web search.'),
       _toggle(store, 'ghostwriter_clipboard', 'My recent clipboard', store.pluginOn('clipboard') ? 'Your last few copies.' : 'Needs Clipboard history in Row tools.'),
+      if (!isIOS && store.pluginOn('connectors'))
+        _toggle(store, 'ghostwriter_connectors', 'My connectors', (store.connectorsState['on'] as int? ?? 0) == 0 ? 'No tool is switched on yet: Settings › Connectors.' : 'Your AI may call the tools you switched on, and writes from what they answer.'),
     ]),
     if (!isIOS)
     PaneSection(
@@ -1886,5 +1892,163 @@ List<Widget> _enhancePage(BuildContext context, SettingsStore store) {
       ],
     ),
     PaneSection(children: [SettingRow(label: 'Remove Prompt enhancer', onPress: () => store.setPlugin('enhance', false))]),
+  ];
+}
+
+// --- Connectors (0.16.0) --------------------------------------------------------------------------------------------
+
+String _connectorsSummary(SettingsStore s) {
+  if (s.offline) return 'Offline is on';
+  final n = s.connectors.length;
+  if (n == 0) return 'Add an MCP server';
+  final on = s.connectorsState['on'] as int? ?? 0;
+  return '${n == 1 ? '1 connector' : '$n connectors'}, ${on == 1 ? '1 tool on' : '$on tools on'}';
+}
+
+String _connectorSummary(Map<Object?, Object?> c) {
+  if (c['error'] != null) return '${c['error']}';
+  final tools = [for (final t in (c['tools'] as List? ?? const [])) if (t is Map) t];
+  if ((c['checkedAt'] as num? ?? 0) == 0) return 'Its tools have not been read yet';
+  final on = tools.where((t) => t['on'] == true).length;
+  return '${tools.length == 1 ? '1 tool' : '${tools.length} tools'}, $on on';
+}
+
+/// Settings › Connectors (android Connectors.kt, McpClient.kt; docs/connectors.md): the connectors added, each a page
+/// of its own, and a form of three fields for a new one. What a connector is, who talks to whom and what is not built
+/// (signing in through a browser) are said here, where the address is typed.
+List<Widget> _connectorsPage(BuildContext context, SettingsStore store) {
+  final list = store.connectors;
+  final on = store.connectorsState['on'] as int? ?? 0;
+  final offered = store.connectorsState['offered'] as int? ?? 0;
+  final maxOffered = store.connectorsState['maxOffered'] as int? ?? 16;
+  final note = store.connectorsState['note'] as String?;
+  return [
+    PaneHero(
+      glyph: AppIcon(Lucide.network, size: 24),
+      title: list.isEmpty ? 'No connectors yet' : (list.length == 1 ? '1 connector' : '${list.length} connectors'),
+      meta: const Text('A connector is an MCP server: a service that answers an AI’s questions about your calendar, your issues, your documents. Add one, switch on the tools you want, and Ghostwriter can ask it while it writes.'),
+      status: PaneHeroStatus(store.offline ? 'Offline' : (on > 0 ? 'On' : 'Waiting')),
+    ),
+    if (list.isNotEmpty)
+      PaneSection(
+        footer: Text(on > maxOffered
+            ? '$on tools are on, and your AI is given $offered of them with a request: the first in this order. Each tool costs words on every request, so switch off the ones you do not use.'
+            : 'Your AI is given the tools that are on with each Ghostwriter request, up to $maxOffered, and may call 6 of them. Each one’s page is in the list below.'),
+        children: [
+          SettingRow(label: 'Tools switched on', value: Text('$on')),
+          if (note != null) SettingRow(label: 'Last trouble', hint: Text(note), icon: AppIcon(Lucide.triangleAlert, size: 18)),
+        ],
+      ),
+    PaneSection(
+      title: 'Add a connector',
+      footer: const Text('The address is the server’s MCP address and starts with https://. A token is sent to that server as its bearer token, and to nowhere else; leave it empty where the server wants none. A server that can only be signed in to through a browser cannot be added yet. Kept on this phone.'),
+      children: [
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-name-${store.connectorForm}'),
+            defaultValue: store.connectorName,
+            placeholder: 'Name, like Calendar',
+            ariaLabel: 'Connector name',
+            onChange: (text) => store.connectorName = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-url-${store.connectorForm}'),
+            defaultValue: store.connectorUrl,
+            placeholder: 'https://mcp.example.com/mcp',
+            ariaLabel: 'Connector address',
+            autoCorrect: false,
+            onChange: (text) => store.connectorUrl = text,
+          ),
+        ),
+        SettingRowBox(
+          child: GlacierInput(
+            key: ValueKey('connector-token-${store.connectorForm}'),
+            type: GlacierInputType.password,
+            defaultValue: store.connectorToken,
+            placeholder: 'Token, if the server wants one',
+            ariaLabel: 'Connector token',
+            autoCorrect: false,
+            onChange: (text) => store.connectorToken = text,
+          ),
+        ),
+        SettingRow(
+          label: store.connectorBusy ? 'Asking the server…' : 'Add it and read its tools',
+          icon: AppIcon(LucideMore.circlePlus, size: 18),
+          onPress: store.connectorBusy ? null : store.addConnector,
+          disabledReason: store.offlineReason,
+        ),
+        if (store.connectorMessage != null) SettingRow(label: store.connectorMessage!),
+      ],
+    ),
+    const PaneSection(
+      title: 'Who talks to whom',
+      children: [
+        SettingRow(label: 'Your phone asks the connector', hint: Text('With its token. Nothing goes through a Ghost server: there is none.')),
+        SettingRow(label: 'What a tool answers goes to your AI', hint: Text('To the provider you chose in Settings › AI, as your notes and commits do, so it can write from it.')),
+        SettingRow(label: 'Keys and tokens stay apart', hint: Text('Your AI key never goes to a connector, and a connector’s token never goes to your AI or to another connector.')),
+        SettingRow(label: 'Only when you ask', hint: Text('A tool is called only while Ghostwriter writes a <<request>> you made, and only a tool you switched on.')),
+      ],
+    ),
+    PaneSection(children: [SettingRow(label: 'Remove Connectors', hint: const Text('The connectors you added are kept for when it is added again.'), onPress: () => store.setPlugin('connectors', false))]),
+  ];
+}
+
+List<SettingsSection> _connectorsParts(SettingsStore store) => [
+      for (final c in store.connectors)
+        _part('connector-${c['id']}', '${c['name']}', Lucide.network, 'cyan', (s) => _connectorSummary(s.connectors.where((x) => x['id'] == c['id']).firstOrNull ?? c), (context, store) => _connectorPage(context, store, '${c['id']}')),
+    ];
+
+/// One connector: its server, its tools with their switches, Refresh and Remove.
+List<Widget> _connectorPage(BuildContext context, SettingsStore store, String id) {
+  final c = store.connectors.where((x) => x['id'] == id).firstOrNull;
+  if (c == null) return [const PaneSection(children: [SettingRow(label: 'This connector was removed')])];
+  final tools = [for (final t in (c['tools'] as List? ?? const [])) if (t is Map) t];
+  final read = (c['checkedAt'] as num? ?? 0) != 0;
+  String mark(Map<Object?, Object?> t) => switch (t['readOnly']) {
+        true => 'Its server marks it read-only.',
+        false => 'Its server says it can change things.',
+        _ => 'Its server does not say whether it changes anything.',
+      };
+  return [
+    PaneSection(
+      children: [
+        SettingRow(label: 'Server', hint: Text('${c['url']}'), value: Text(c['hasToken'] == true ? 'With a token' : 'No token')),
+        if (c['error'] != null) SettingRow(label: 'It could not be read', hint: Text('${c['error']}'), icon: AppIcon(Lucide.triangleAlert, size: 18)),
+        SettingRow(
+          label: store.connectorBusy ? 'Asking the server…' : (read ? 'Refresh its tools' : 'Read its tools'),
+          hint: read ? Text('Last read ${_when(c['checkedAt'])}. Each tool keeps its switch.') : null,
+          icon: AppIcon(Lucide.refreshCw, size: 18),
+          onPress: store.connectorBusy ? null : () => store.refreshConnector(id),
+          disabledReason: store.offlineReason,
+        ),
+      ],
+    ),
+    if (tools.isNotEmpty)
+      PaneSection(
+        title: 'Its tools',
+        footer: const Text('A tool that is on may be called by your AI while Ghostwriter writes, with arguments it makes from your request and the text around it. A tool the server marks read-only starts on; every other starts off. The mark is the server’s own word, not a promise: switch on only what you would let an AI use unasked.'),
+        children: [
+          for (final t in tools)
+            SettingRow(
+              label: '${(t['title'] as String? ?? '').isEmpty ? t['name'] : t['title']}',
+              hint: Text('${'${t['description'] ?? ''}'.trim().isEmpty ? '' : '${'${t['description']}'.trim()}\n'}${mark(t)}'),
+              control: GlacierSwitch(checked: t['on'] == true, onCheckedChange: (v) => store.setConnectorTool(id, '${t['name']}', v), ariaLabel: '${t['name']}'),
+            ),
+        ],
+      ),
+    PaneSection(
+      children: [
+        SettingRow(
+          label: 'Remove this connector',
+          hint: const Text('Its address, its token and its tools’ switches are deleted from this phone.'),
+          onPress: () {
+            store.removeConnector(id);
+            Navigator.of(context).maybePop();
+          },
+        ),
+      ],
+    ),
   ];
 }

@@ -259,6 +259,19 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                    "connectorsState" -> result.success(Connectors.state(prefs))
+                    // Adding one asks its server for its tools at once: what it has is what there is to switch on.
+                    "connectorAdd" -> background(result) {
+                        val refused = Connectors.add(prefs, call.argument<String>("name") ?: "", call.argument<String>("url") ?: "", call.argument<String>("token") ?: "")
+                        if (refused == null) Connectors.all(prefs).lastOrNull()?.let { Connectors.refresh(prefs, it.id) }
+                        Connectors.state(prefs) + mapOf("error" to refused)
+                    }
+                    "connectorRefresh" -> background(result) { Connectors.refresh(prefs, call.argument<String>("id") ?: ""); Connectors.state(prefs) }
+                    "connectorRemove" -> { Connectors.remove(prefs, call.argument<String>("id") ?: ""); result.success(Connectors.state(prefs)) }
+                    "connectorTool" -> {
+                        Connectors.setTool(prefs, call.argument<String>("id") ?: "", call.argument<String>("tool") ?: "", call.argument<Boolean>("on") == true)
+                        result.success(Connectors.state(prefs))
+                    }
                     "shortcutsState" -> result.success(Shortcuts.state(prefs))
                     "shortcutAdd" -> {
                         val error = Shortcuts.add(prefs, call.argument<String>("shortcut") ?: "", call.argument<String>("text") ?: "")
