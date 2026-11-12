@@ -36,6 +36,27 @@ the Offline page show nothing of any of this.
   `llm_core.cpp` is the request, `llm_jni.cpp` the way in). A module of its own because llama.cpp and whisper.cpp
   each bring their own ggml under the same target names. Text crosses as UTF-8 bytes, so an emoji stays an emoji.
 
+## The model file and Android's rules
+
+Matt, 2026-11-12: "Can we instead include the model in the app itself or download it in some way that adheres to
+androids rules?" Downloading it the way this does is within the rules, and putting it in the app is not practical.
+
+- **What Android and Google Play forbid is downloading code**: an app may not fetch executable code (dex, a native
+  library, a script it then runs) from anywhere but its store. A model file is not code. It is numbers that the
+  app's own code, which ships in the app, reads; the same as a speech model, a font or a map. Fetching one over
+  https on the person's tap, to the app's own folder, held to a known size and hash, is how apps with on-device models
+  do it, and is what `LocalModels.kt` does. Nothing in the file can run by itself.
+- **In the app itself** would mean an app of 1.3 to 2.7 GB where it is 40 MB now, fetched again in full by every
+  update (the updater replaces the whole APK), for a feature most people will not turn on. Google Play's own answer
+  for files this size is the same in other words: asset packs delivered on demand, apart from the app.
+- So the model is downloaded, only when asked for, and the app's network ledger says so (Settings › Offline, "What
+  leaves your phone": the request for the file, and nothing of what is typed). If the keyboard goes to Google Play,
+  the same download can be made through Play Asset Delivery without anything else here changing.
+
+What stopped the work on 2026-11-12 was nothing to do with Android: it was the permission system of the session
+writing this, which would not compile llama.cpp (the open-source program that runs the model, which is code, and
+which ships inside the app like whisper.cpp does) without Matt saying so in so many words.
+
 ## What a small model needs (`LocalRewrite.kt`)
 
 Tried on a desk with `tool/local_ai_try` (the same `llm_core.cpp`), thirteen requests a model: a message full of
