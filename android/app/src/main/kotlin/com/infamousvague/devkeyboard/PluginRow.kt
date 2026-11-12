@@ -273,18 +273,21 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
         val edge = if (front.isNotEmpty() || next.firstOrNull()?.wide == false) dp(EDGE_DP) else 0
         val views = next.map { item -> item.view?.also { (it.parent as? ViewGroup)?.removeView(it) } ?: makeView(item) }
         // A chip that stands before the words (a clip copied a moment ago, "Incognito on") takes its room out of
-        // theirs, so the tool at the row's end is still in view; a long one is cut short at a third of the row.
-        val firstWord = next.indexOfFirst { it.wide }
-        var ahead = 0
-        for (i in 0 until firstWord) {
+        // theirs, and so does one between them and the tools (an emoji for the word), so the tool at the row's end
+        // is still in view; a long one is cut short at a third of the row.
+        fun taken(i: Int): Int {
             val v = views[i]
             if (v is TextView) v.maxWidth = shared() / 3
             v.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(dp(36f), MeasureSpec.EXACTLY))
-            ahead += v.measuredWidth + if (next[i].chip || next[i].view != null || next[i].busy) dp(8f) else 0
+            return v.measuredWidth + if (next[i].chip || next[i].view != null || next[i].busy) dp(8f) else 0
         }
+        val firstWord = next.indexOfFirst { it.wide }
+        val lastWord = next.indexOfLast { it.wide }
+        val ahead = (0 until firstWord).sumOf { taken(it) }
+        val after = if (lastWord < 0) 0 else (lastWord + 1 until at).sumOf { taken(it) }
         val words = WordRoom.of(
             total = shared(), before = front.size * dp(LEAD_DP) + edge + ahead, words = next.count { it.wide }, firstWord = firstWord,
-            lastWord = next.indexOfLast { it.wide }, count = next.size, end = dp(END_DP), least = dp(WORD_MIN_DP),
+            lastWord = lastWord, count = next.size, end = dp(END_DP), least = dp(WORD_MIN_DP), after = after,
         )
         strip.setPadding((if (front.isEmpty()) edge else 0) + words.lead, 0, 0, 0)
         for ((i, item) in next.withIndex()) {
@@ -342,14 +345,15 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
 
             /**
              * [total] is the row's width for the strip and what is pinned before it; [before] what stands before the
-             * strip (the pinned tools, the edge); [words] how many of the strip's [count] items are words, the first
-             * at [firstWord] and the last at [lastWord]; [end] the room one tool takes; [least] the least a word is
-             * read in.
+             * words (the pinned tools, the edge, a chip that leads the strip); [words] how many of the strip's [count]
+             * items are words, the first at [firstWord] and the last at [lastWord]; [end] the room one tool takes;
+             * [least] the least a word is read in; [after] what stands between the words and the tools (an emoji for
+             * the word).
              */
-            fun of(total: Int, before: Int, words: Int, firstWord: Int, lastWord: Int, count: Int, end: Int, least: Int): WordRoom {
+            fun of(total: Int, before: Int, words: Int, firstWord: Int, lastWord: Int, count: Int, end: Int, least: Int, after: Int = 0): WordRoom {
                 if (words == 0) return WordRoom(0, 0, 0, -1, -1)
-                // Tools after the words: one of them is kept in view.
-                val keep = if (lastWord < count - 1) end else 0
+                // Tools after the words: one of them is kept in view, past whatever chip came with the words.
+                val keep = if (lastWord < count - 1) end + after else 0
                 // In the row's middle only where the words open the strip (a chip about this very moment may stand
                 // before them) and three still have room.
                 val side = maxOf(before, keep)

@@ -140,4 +140,19 @@ class WordRoomTest {
         assertEquals(60, none.width)
         assertEquals(0, none.gap)
     }
+
+    @Test fun `an emoji that came with the word stands between the words and the tool, and the tool is still in view`() {
+        // Three words, one emoji chip (52 with its margins), then the tools.
+        val r = PluginRow.WordRoom.of(412, 0, 3, 0, 2, 9, end = 48, least = 80, after = 52)
+        // In the middle each word would have 70: they are not squeezed for it, and share what the chip and the tool leave.
+        assertEquals(0, r.lead)
+        assertEquals((412 - 52 - 48) / 3, r.width)
+        assertTrue(412 - (3 * r.width + 52) >= 48)
+        // Two chips: the words give up that much more.
+        assertEquals((412 - 104 - 48) / 3, PluginRow.WordRoom.of(412, 0, 3, 0, 2, 10, end = 48, least = 80, after = 104).width)
+        // On a wide row the words keep to the middle, with as much clear before them as the chip and the tool take.
+        val wide = PluginRow.WordRoom.of(690, 0, 3, 0, 2, 9, end = 48, least = 80, after = 52)
+        assertEquals(100, wide.lead)
+        assertEquals((690 - 200) / 3, wide.width)
+    }
 }
