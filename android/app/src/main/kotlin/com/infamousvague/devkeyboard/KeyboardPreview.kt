@@ -62,10 +62,10 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
     private fun apply() {
         keys.theme = KeyboardTheme.resolve(keys.context, prefs)
         keys.micKey = Plugins.isOn(prefs, Plugins.DICTATION) && WhisperModel.isReady(app)
-        // The emoji key in the { } key's place, as on the keyboard itself. The preview has no row above its keys, so
-        // the { } key is shown beside it only where the keyboard would have no row either.
+        // The comma next to ?123 and the emoji key beside it, as on the keyboard itself. The preview has no row
+        // above its keys, so the { } key is shown in the comma's place only where the row is hidden.
         keys.emojiKey = Plugins.isOn(prefs, Plugins.EMOJI)
-        keys.codeKey = prefs.hideRow
+        keys.commaKey = !prefs.hideRow
         keys.configure(prefs.numberRow, prefs.keyHeight, prefs.toolbar && !prefs.hideRow)
         val language = prefs.languageState()
         keys.setLanguage(language.spec, language.extras, language.spaceLabel, language.spaceShort, prefs.globeKey && language.stops.size > 1, language.choices, language.locale)

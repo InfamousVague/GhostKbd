@@ -119,12 +119,17 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
      * mic key stands where the full stop was, next to enter ([Layouts.withMic]).
      */
     /**
-     * The emoji plugin is added: its key stands in the { } key's place on the letters page ([Layouts.withEmoji]).
-     * [codeKey]: there is no row above the keys to hold the { } button, so the { } key stays on the board beside it.
+     * The emoji plugin is added: its key stands next to the comma, a key's width off the space bar, on every page
+     * ([Layouts.withEmoji]).
      */
     var emojiKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
-    var codeKey = false
+
+    /**
+     * The { } key is a button in the row above the keys: its place on the letters, next to ?123, is the comma's
+     * ([Layouts.withComma]). Off, there is no row to hold the button, and the { } key keeps its place.
+     */
+    var commaKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
@@ -508,7 +513,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         }
         // The mic first: it knows the letters page by its { } key, which the emoji key then takes the place of.
         val spoken = if (micKey) Layouts.withMic(base) else base
-        rows = if (emojiKey) Layouts.withEmoji(spoken, codeKey) else spoken
+        val pointed = if (commaKey) Layouts.withComma(spoken, spec) else spoken
+        rows = if (emojiKey) Layouts.withEmoji(pointed) else pointed
         layoutKeys()
     }
 

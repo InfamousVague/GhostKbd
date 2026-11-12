@@ -660,14 +660,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
-        // The emoji key stands where the { } key did, and the { } key is a button in the row (everyday), so with
-        // emoji added there is always a row to hold it, unless the row is hidden: then the { } key stays on the
-        // board, beside the emoji key (Layouts.withEmoji).
-        val emojiOn = Plugins.isOn(prefs, Plugins.EMOJI)
-        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || emojiOn || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
-        codeInRow = emojiOn && rowShown
-        view.emojiKey = emojiOn
-        view.codeKey = emojiOn && !rowShown
+        // Wherever there is a row, the { } key is a button in it (everyday) and the comma has its place on the
+        // board, next to ?123 (Matt, 2026-11-12: "The comma key should be in the original spot the code was in the
+        // emoji key should cut into the spacebar"). With no row (it is hidden, or nothing is in it) the { } key
+        // keeps that place, as it always had it. The emoji key stands after whichever is there (Layouts.withEmoji).
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
+        codeInRow = rowShown
+        view.emojiKey = Plugins.isOn(prefs, Plugins.EMOJI)
+        view.commaKey = rowShown
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme

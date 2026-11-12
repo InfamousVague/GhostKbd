@@ -95,8 +95,8 @@ object Layouts {
      * The other pages have no { } key and come back as they were, full stop and all: numbers are typed there, and
      * need it. So does a letters page with no full stop before enter to take the place of.
      *
-     * The letters page is known by its ?123 key: the other pages' rows end with ABC, whether or not the emoji key
-     * stands in them ([withEmoji] puts one beside their comma).
+     * The letters page is known by its ?123 key: the other pages' rows start with ABC, and every page may have the
+     * emoji key ([withEmoji]) and a comma ([withComma]).
      */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
@@ -111,57 +111,45 @@ object Layouts {
     const val LEAST_BAR = 3f
 
     /**
-     * The emoji plugin's key (Matt, 2026-11-12: "Move the emoji key to where the dev tools toggle is. And make it the
-     * same as the dictation where it's just the icon no background. And move the code button up to where the emoji
-     * button used to be in the toolbar"): on the letters page it stands in the { } key's place, between ?123 and
-     * the space bar, and is drawn as the mic key is, its icon alone. The { } key is then a button in the row above
-     * the keys (DevKeyboardService.everyday).
+     * The comma key on the letters (Matt, 2026-11-12, of 0.16.2's bottom row: "The comma key should be in the original
+     * spot the code was in the emoji key should cut into the spacebar"): where the { } key is a button in the row
+     * above the keys (DevKeyboardService.everyday), its place on the board, next to ?123, is the comma's, as it is
+     * Gboard's and as it is on the ?123 page: the same key as there, [spec]'s own comma where its script has one
+     * (Arabic's ،) with the Latin one a long press away. 0.16.2 had put the emoji key in that place.
      *
-     * Where there is no row to hold that button ([keepCode]: the row is hidden, or nothing is in it), the { } key
-     * keeps a key on the board, straight after the emoji key, with a key's width taken from the space bar, so the
-     * code keys can still be reached. That is not done where it would leave the bar under [LEAST_BAR] key widths:
-     * there the board keeps its { } key as it was, and has no emoji key.
-     *
-     * Its third time on the board: it was a key between { } and the space bar from 0.12.1 to 0.15.0, and a button in
-     * the row in 0.16.
-     *
-     * On the pages that have a comma key (?123, =\< and the code keys) it stands next to the comma ([besideComma]).
+     * Where the { } key keeps its place (there is no row to hold the button) the rows come back as they were, and
+     * the comma is on the full stop's long press, as it has been since the { } key took its key. Pages with no { }
+     * key have their comma already.
      */
-    fun withEmoji(rows: List<KeyRow>, keepCode: Boolean): List<KeyRow> {
+    fun withComma(rows: List<KeyRow>, spec: LayoutSpec = QWERTY): List<KeyRow> {
         val last = rows.last()
         val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
-        if (at < 0) return besideComma(rows)
-        val emoji = Key(KeyType.EMOJI, pill = false)
-        if (!keepCode) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = emoji }, last.inset)
+        if (at < 0) return rows
+        return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = sym(",", spec) }, last.inset)
+    }
+
+    /**
+     * The emoji plugin's key: on every page it stands straight after the key beside ?123 or ABC, which is the comma
+     * (or the { } key, on letters whose row is hidden), between that key and the space bar, with a key's width taken
+     * from the bar (five keys to four). It is where Gboard has its emoji key, where this keyboard had it from 0.12.1
+     * to 0.15.0, and where Matt's thumb looks for it ("include the emoji next to the comma key as I've become
+     * accustomed to using that"). It is drawn as the mic key is, its icon alone (Matt, the same day: "make it the
+     * same as the dictation where it's just the icon no background"); a tap opens emoji and a hold opens Settings.
+     *
+     * In 0.16.2 it stood in the { } key's own place and took nothing from the bar, and the other pages had no way to
+     * emoji at all. A row whose bar would be left under [LEAST_BAR], or that has the key already, comes back as it is.
+     */
+    fun withEmoji(rows: List<KeyRow>): List<KeyRow> {
+        val last = rows.last()
+        if (last.keys.any { it.type == KeyType.EMOJI }) return rows
+        val mode = last.keys.indexOfFirst { it.type == KeyType.MODE && (it.page == Page.SYMBOLS || it.page == Page.LETTERS) }
+        val beside = last.keys.getOrNull(mode + 1)?.takeIf { mode >= 0 && (it.type == KeyType.CHAR || it.type == KeyType.MODE && it.page == Page.DEV) } ?: return rows
         val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
         if (space.width - 1f < LEAST_BAR) return rows
         val keys = ArrayList<Key>(last.keys.size + 1)
         last.keys.forEach { key ->
-            if (key === last.keys[at]) keys += emoji
             keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
-        }
-        return rows.dropLast(1) + KeyRow(keys, last.inset)
-    }
-
-    /**
-     * The emoji key on the pages that have a comma key (Matt, 2026-11-12: "additionally include the emoji next to the
-     * comma key as I've become accustomed to using that"): ?123, =\< and the code keys, whose last row is ABC, the
-     * comma, the space bar, the full stop and enter. It stands straight after the comma, where Gboard has its own,
-     * with a key's width taken from the space bar (five keys to four), and is the same key as on the letters: its
-     * icon alone, a tap for emoji, a hold for Settings. Until then those pages had no way to emoji at all once the
-     * row's emoji button had become the { } button: it took going back to the letters. A row with no comma after its
-     * ABC key, or whose bar would be left under [LEAST_BAR], comes back as it was.
-     */
-    private fun besideComma(rows: List<KeyRow>): List<KeyRow> {
-        val last = rows.last()
-        val back = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.LETTERS }
-        val comma = last.keys.getOrNull(back + 1)?.takeIf { back >= 0 && it.type == KeyType.CHAR } ?: return rows
-        val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
-        if (space.width - 1f < LEAST_BAR || last.keys.any { it.type == KeyType.EMOJI }) return rows
-        val keys = ArrayList<Key>(last.keys.size + 1)
-        last.keys.forEach { key ->
-            keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
-            if (key === comma) keys += Key(KeyType.EMOJI, pill = false)
+            if (key === beside) keys += Key(KeyType.EMOJI, pill = false)
         }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }
