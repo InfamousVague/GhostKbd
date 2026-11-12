@@ -14,6 +14,8 @@ import org.junit.Test
  * emoji key to where the dev tools toggle is. And make it the same as the dictation where it's just the icon no
  * background. And move the code button up to where the emoji button used to be in the toolbar"). Neither takes
  * anything from the space bar, unless the row above the keys is hidden and the { } key has to stay on the board.
+ * On the pages that have a comma key the emoji key stands next to it (Matt, the same day, later still: "additionally
+ * include the emoji next to the comma key as I've become accustomed to using that"), a key's width off the bar.
  */
 class LayoutsTest {
     private fun bottom(rows: List<KeyRow>) = rows.last().keys
@@ -103,6 +105,10 @@ class LayoutsTest {
             assertSame(page, Layouts.withMic(page))
             assertTrue(bottom(page).any { it.type == KeyType.CHAR && it.text == "." })
             assertNull(bottom(page).firstOrNull { it.type == KeyType.MIC })
+            // With the emoji key beside their comma too: an emoji key does not make a page the letters.
+            val keyed = Layouts.withEmoji(page, keepCode = false)
+            assertSame(keyed, Layouts.withMic(keyed))
+            assertTrue(bottom(keyed).any { it.type == KeyType.CHAR && it.text == "." })
         }
     }
 
@@ -167,11 +173,37 @@ class LayoutsTest {
         }
     }
 
-    @Test fun `the other pages have no emoji key`() {
-        for (rows in listOf(Layouts.symbols(), Layouts.more(), Layouts.dev())) {
-            val keyed = Layouts.withEmoji(rows, keepCode = false)
-            assertSame(rows, keyed)
-            assertTrue(bottom(keyed).none { it.type == KeyType.EMOJI })
+    @Test fun `on the pages with a comma key the emoji key stands next to the comma`() {
+        val pages = mapOf("?123" to Layouts.symbols(), "=\\<" to Layouts.more(), "{ }" to Layouts.dev())
+        for ((name, rows) in pages) for (keep in listOf(false, true)) {
+            val keyed = Layouts.withEmoji(rows, keepCode = keep)
+            assertEquals(name, listOf(KeyType.MODE, KeyType.CHAR, KeyType.EMOJI, KeyType.SPACE, KeyType.CHAR, KeyType.ENTER), types(keyed))
+            assertEquals(name, "ABC", bottom(keyed)[0].label)
+            assertEquals(name, ",", bottom(keyed)[1].text)
+            assertEquals(name, ".", bottom(keyed)[4].text)
+            // The same key as on the letters: its icon alone, nothing typed.
+            val emoji = bottom(keyed)[2]
+            assertFalse(name, emoji.pill)
+            assertEquals(name, "", emoji.text)
+            assertEquals(name, 1f, emoji.width, 0f)
+            // Its width comes from the space bar, and the row is as wide as it was.
+            assertEquals(name, 5f, bar(rows), 0f)
+            assertEquals(name, 4f, bar(keyed), 0f)
+            assertEquals(name, rows.last().units, keyed.last().units, 0f)
+            rows.dropLast(1).forEachIndexed { i, row -> assertSame(row, keyed[i]) }
+            // Asked twice, it is still one key.
+            assertEquals(name, 1, bottom(Layouts.withEmoji(keyed, keepCode = keep)).count { it.type == KeyType.EMOJI })
+        }
+        // The code keys' comma still types one and goes back to the letters.
+        assertEquals(Page.LETTERS, bottom(Layouts.withEmoji(Layouts.dev(), keepCode = false))[1].page)
+    }
+
+    @Test fun `a script's own comma has the emoji key beside it too`() {
+        for (spec in Layouts.SPECS) for (rows in listOf(Layouts.symbols(spec), Layouts.more(spec))) {
+            val keyed = bottom(Layouts.withEmoji(rows, keepCode = false))
+            assertEquals(spec.id, KeyType.EMOJI, keyed[2].type)
+            assertEquals(spec.id, bottom(rows)[1].text, keyed[1].text)
+            assertTrue("${spec.id}: the bar is ${keyed.first { it.type == KeyType.SPACE }.width}", keyed.first { it.type == KeyType.SPACE }.width >= Layouts.LEAST_BAR)
         }
     }
 }

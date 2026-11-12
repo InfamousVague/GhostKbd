@@ -146,6 +146,12 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - **The keyboard times itself** (`Perf.kt`, debug builds only, while `files/debug-perf` is there): each piece of a
   key press's work, how often and how long, written to the log as the keys hide.
 
+## 0.16.3
+
+- **The emoji key next to the comma** (`Layouts.withEmoji`, `besideComma`): on the pages that have a comma key (?123,
+  =\< and the code keys) the emoji key stands straight after it, a key's width off the space bar. Since 0.16.2 those
+  pages had no way to emoji but back through the letters.
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's
@@ -204,7 +210,8 @@ words and all, so the arrow stays under the thumb; and whatever takes the place 
 takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
 on") takes its room out of theirs. Emoji is a key on the board, where the { } key was, drawn as the mic key is,
 its icon alone; and the { } key is a button in the row, where the emoji button was, lit while the code keys are
-showing (since 0.16.2: `Layouts.withEmoji`, `DevKeyboardService.everyday`). With emoji off the { } key keeps its
+showing (since 0.16.2: `Layouts.withEmoji`, `DevKeyboardService.everyday`). On the pages with a comma key (?123, =\<,
+the code keys) it stands next to the comma (since 0.16.3). With emoji off the { } key keeps its
 place on the board, and with the row hidden both are keys there. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop

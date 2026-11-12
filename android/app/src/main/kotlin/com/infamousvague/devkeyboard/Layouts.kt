@@ -95,11 +95,12 @@ object Layouts {
      * The other pages have no { } key and come back as they were, full stop and all: numbers are typed there, and
      * need it. So does a letters page with no full stop before enter to take the place of.
      *
-     * The letters page is known by its { } key, or by the emoji key that has taken that key's place ([withEmoji]).
+     * The letters page is known by its ?123 key: the other pages' rows end with ABC, whether or not the emoji key
+     * stands in them ([withEmoji] puts one beside their comma).
      */
     fun withMic(rows: List<KeyRow>): List<KeyRow> {
         val last = rows.last()
-        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.DEV || it.type == KeyType.EMOJI }) return rows
+        if (last.keys.none { it.type == KeyType.MODE && it.page == Page.SYMBOLS }) return rows
         val at = last.keys.indexOfFirst { it.type == KeyType.ENTER } - 1
         val stop = last.keys.getOrNull(at)?.takeIf { it.type == KeyType.CHAR && it.text.isNotEmpty() } ?: return rows
         val mic = Key(KeyType.MIC, hint = stop.text, alts = (listOf(stop.text) + stop.alts).distinct())
@@ -122,12 +123,14 @@ object Layouts {
      * there the board keeps its { } key as it was, and has no emoji key.
      *
      * Its third time on the board: it was a key between { } and the space bar from 0.12.1 to 0.15.0, and a button in
-     * the row in 0.16. Pages with no { } key come back as they were.
+     * the row in 0.16.
+     *
+     * On the pages that have a comma key (?123, =\< and the code keys) it stands next to the comma ([besideComma]).
      */
     fun withEmoji(rows: List<KeyRow>, keepCode: Boolean): List<KeyRow> {
         val last = rows.last()
         val at = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.DEV }
-        if (at < 0) return rows
+        if (at < 0) return besideComma(rows)
         val emoji = Key(KeyType.EMOJI, pill = false)
         if (!keepCode) return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = emoji }, last.inset)
         val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
@@ -136,6 +139,29 @@ object Layouts {
         last.keys.forEach { key ->
             if (key === last.keys[at]) keys += emoji
             keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
+        }
+        return rows.dropLast(1) + KeyRow(keys, last.inset)
+    }
+
+    /**
+     * The emoji key on the pages that have a comma key (Matt, 2026-11-12: "additionally include the emoji next to the
+     * comma key as I've become accustomed to using that"): ?123, =\< and the code keys, whose last row is ABC, the
+     * comma, the space bar, the full stop and enter. It stands straight after the comma, where Gboard has its own,
+     * with a key's width taken from the space bar (five keys to four), and is the same key as on the letters: its
+     * icon alone, a tap for emoji, a hold for Settings. Until then those pages had no way to emoji at all once the
+     * row's emoji button had become the { } button: it took going back to the letters. A row with no comma after its
+     * ABC key, or whose bar would be left under [LEAST_BAR], comes back as it was.
+     */
+    private fun besideComma(rows: List<KeyRow>): List<KeyRow> {
+        val last = rows.last()
+        val back = last.keys.indexOfFirst { it.type == KeyType.MODE && it.page == Page.LETTERS }
+        val comma = last.keys.getOrNull(back + 1)?.takeIf { back >= 0 && it.type == KeyType.CHAR } ?: return rows
+        val space = last.keys.firstOrNull { it.type == KeyType.SPACE } ?: return rows
+        if (space.width - 1f < LEAST_BAR || last.keys.any { it.type == KeyType.EMOJI }) return rows
+        val keys = ArrayList<Key>(last.keys.size + 1)
+        last.keys.forEach { key ->
+            keys += if (key.type == KeyType.SPACE) key.copy(width = key.width - 1f) else key
+            if (key === comma) keys += Key(KeyType.EMOJI, pill = false)
         }
         return rows.dropLast(1) + KeyRow(keys, last.inset)
     }
