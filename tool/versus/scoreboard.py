@@ -11,6 +11,9 @@ says how many words are left wrong, by thumb:
            same three thumbs laid on the same keys. Nothing was looked at there but these totals: what a change
            does to these is what it does.
 
+  --final          also types a third set, kept for the end: 300 more held-out sentences from line 110,001 on.
+                   Only its totals are ever printed (no --show, no --save of its words), so that nothing can be
+                   fitted to it: look at it when the work is done, not while it is being done
   --save NAME      keeps every word's verdict under build/versus/scoreboard/NAME.json
   --against NAME   and says, set by set, how many words are mended and how many broken since then (--show N of each)
   --bench          also runs the typing bench's own tap test (tool/typing_bench.sh taps, 12,000 words): words right,
@@ -47,6 +50,7 @@ RUN = os.path.join(HERE, "runs", "2026-11-11")
 GEOMETRY = os.path.join(RUN, "ghost.geometry.json")
 THUMBS = ["careful", "leaning", "sloppy"]
 UNSEEN_FIRST = 100000
+FINAL_FIRST = 110000
 
 
 def kept(name):
@@ -191,6 +195,7 @@ def main():
     ap.add_argument("--java")
     ap.add_argument("--set", action="append", default=[])
     ap.add_argument("--marks-without-taps", action="store_true")
+    ap.add_argument("--final", action="store_true")
     ap.add_argument("--no-names", action="store_true")
     ap.add_argument("--unseen-first", type=int, default=UNSEEN_FIRST)
     ap.add_argument("--sentences", type=int, default=300)
@@ -199,20 +204,24 @@ def main():
     flags = (["--marks-without-taps"] if args.marks_without_taps else []) + (["--no-names"] if args.no_names else [])
     size = (1248, 1972, 420)
 
-    now = {}
-
-    def typed(name, records):
+    def typed(records):
+        """(every word's verdict, the capitals) of [records] typed through this tree's decoder."""
         texts = score.replay(records, size, board=board, flags=flags, dials=args.set, overlay=args.overlay, java=args.java)
-        now[name] = verdicts(records, texts)
-        now[name + " capitals"] = capitals(records, lambda r: texts[(r["thumb"], r["line"])][0])
-    typed("seen", kept("ghost.jsonl.gz"))
-    typed("unseen", unseen(args.unseen_first, args.sentences))
+        return verdicts(records, texts), capitals(records, lambda r: texts[(r["thumb"], r["line"])][0])
+    now = {}
+    now["seen"], now["seen capitals"] = typed(kept("ghost.jsonl.gz"))
+    now["unseen"], now["unseen capitals"] = typed(unseen(args.unseen_first, args.sentences))
     theirs = kept("gboard.jsonl.gz")
     gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in theirs}
     print(line("seen", now["seen"], gboard))
     print(capitals_line("", now["seen capitals"], capitals(theirs, lambda r: r["out"])))
     print(line("unseen", now["unseen"]))
     print(capitals_line("", now["unseen capitals"]))
+    if args.final:
+        # Totals only, of the words and of the capitals: neither is kept in `now`, so --save never writes its words.
+        words, caps = typed(unseen(FINAL_FIRST, args.sentences))
+        print(line("final", words))
+        print(capitals_line("", caps))
     folder = os.path.join(ROOT, "build", "versus", "scoreboard")
     if args.against:
         then = json.load(open(os.path.join(folder, args.against + ".json")))

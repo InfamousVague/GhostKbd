@@ -218,6 +218,14 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** The letter just typed by a finger, once: null for anything typed another way (a popup, the row, a swipe). */
     fun takeTyped(): Typed? = lastTyped.also { lastTyped = null }
 
+    /**
+     * The space bar's own tap, once, with where it aimed: a thumb reaching for the bottom row lands on the top of the
+     * bar as often as on the key above it, and the service keeps the tap in case it was a letter of the word it cut
+     * in two (DevKeyboardService.Cut, Autocorrect.rejoin). Null for a space typed any other way.
+     */
+    private var lastSpace: Typed? = null
+    fun takeSpace(): Typed? = lastSpace.also { lastSpace = null }
+
     /** The same letter, left where it is for the service to take: the typing trainer's look at a tap (TrainerKeys.kt). */
     fun peekTyped(): Typed? = lastTyped
 
@@ -1734,7 +1742,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     // A character key that names a page goes there after typing: the developer page's comma.
                     t.key.page?.let { showPage(it) }
                 }
-                KeyType.SPACE -> if (!t.cursorMoved) listener.onSpace()
+                KeyType.SPACE -> if (!t.cursorMoved) { lastSpace = Typed(' ', RectF(t.rect), t.aimX, t.aimY); listener.onSpace() }
                 KeyType.ENTER -> listener.onEnter()
                 KeyType.SHIFT -> tapShift()
                 KeyType.MODE -> showPage(t.key.page ?: Page.LETTERS)

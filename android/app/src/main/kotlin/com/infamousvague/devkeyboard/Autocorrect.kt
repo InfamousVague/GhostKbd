@@ -742,12 +742,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val common = known != null && known >= COMMON
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
-        val unknown = when {
-            known != null -> UNKNOWN
-            lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
-            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
-            else -> UNKNOWN
-        }
+        val unknown = if (known != null) UNKNOWN else unlisted(lower)
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
         val bar = when {
@@ -825,6 +820,67 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
+    }
+
+    /**
+     * The one word that a tap on the space bar cut in two, or null where the two stand as they are. A thumb reaching
+     * for the bottom row (c, v, b, n, m) lands on the top of the bar as often as on the key above it, and the word
+     * is then two scraps with a space between: "bei g" for "being", "ha e" for "have", or with nothing after it,
+     * "o " for "on" (and a second space then made it "o. "). 37 of the 326 words Gboard got and this did not on
+     * 2026-11-11 were cut so (docs/versus.md).
+     *
+     * [first] and [second] are the two scraps as they were typed ([second] is empty where the tap was the word's
+     * last letter and nothing has been typed since), [stands] is what stands in the field for the first (itself, or
+     * what it was mended to at the space), and [taps] is where every tap landed, the space bar's own among them at
+     * [first]'s length (xs and ys are [first], a space and [second] long). [scorer] is the place the first scrap
+     * stands in.
+     *
+     * The letters and the bar's tap are read as one word, as [byTaps] reads any ([TapDecoder] takes the bar's tap as
+     * a letter for how much nearer the bar's middle line it was than that letter's key: next to nothing just under
+     * the bar's top edge, a great deal in its middle). That reading is held against what stands. Two scraps are
+     * worth the first as it stands and the second after it, less nine for being two words, as a join is counted,
+     * and the one word must be worth [REJOIN_MARGIN] more: two real words stand however high on the bar the space
+     * was tapped ("is a", "to go"), and two scraps that are no words give way even to a tap in the bar's middle
+     * ("bei g"). One scrap with nothing after it is a word typed with one tap more, and is held as [byTaps] holds
+     * one: letters no list has are worth what they are worth there and give way to any reading worth more, and a
+     * listed word gives way only to one worth [REJOIN_MARGIN] more ("the" and two spaces is a full stop, not
+     * "then"; "o" and two spaces after "sit" is "on").
+     */
+    fun rejoin(first: String, second: String, stands: String, scorer: Scorer? = null, taps: Taps): String? {
+        val now = now
+        val lex = now.lexicon
+        if (!TAPS || !REJOIN || lex.cautious || lex.words.isEmpty() || first.isEmpty()) return null
+        val typed = "$first $second"
+        if (typed.length > 24 || taps.xs.size != typed.length || !taps.has(first.length) || taps.space == null) return null
+        // Letters only, and no capital after a scrap's first letter: an acronym or a camelCase name is left alone.
+        if (!first.all { it.isLetter() } || !second.all { it.isLetter() } || first.drop(1).any { it.isUpperCase() } || second.any { it.isUpperCase() }) return null
+        val locale = now.board.locale
+        val words = lex.words
+        fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        fun alone(word: String): Float {
+            val l = word.lowercase(locale)
+            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(l)
+        }
+        val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
+        val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
+        val decoder = tapDecoder(now, taps)
+        decoder.load(typed.lowercase(locale), taps)
+        var best: String? = null
+        var bestScore = asItStands + (if (second.isEmpty() && !isWord(stands.lowercase(locale))) 0f else REJOIN_MARGIN)
+        for (h in decoder.search(bestScore - (if (scorer == null) 0f else CONTEXT_PICK), TapDecoder.BUDGET)) {
+            val word = lex.sorted[h.index]
+            val zipf = lex.sortedZipf[h.index]
+            val score = zipf + lift(word, zipf) - h.cost
+            if (score > bestScore) { best = word; bestScore = score }
+        }
+        return best?.let { recase(locale, first, capitalI(now, it)) }
+    }
+
+    /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
+    private fun unlisted(lower: String): Float = when {
+        lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
+        lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
+        else -> UNKNOWN
     }
 
     /**
@@ -1137,6 +1193,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** Reading a word by where its taps landed ([byTaps]), and two words run together: off only for the benchmark's comparisons. */
         @JvmField var TAPS = true
         @JvmField var JOINS = true
+        /** Putting a word together again that a tap on the space bar cut in two ([rejoin]), and how much more than what stands the one word must be worth. */
+        @JvmField var REJOIN = true
+        @JvmField var REJOIN_MARGIN = 1.0f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
         @JvmField var UNKNOWN = 3.2f
         @JvmField var UNKNOWN_ODD = 1.8f
