@@ -466,8 +466,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private var rows: List<KeyRow> = Layouts.letters(false)
     private val keyRects = ArrayList<Pair<Key, RectF>>()
 
+    /**
+     * Where the letter keys listened ([tapKeys]) when the letters were last left for another page: a word typed on
+     * them is still read by its taps when a mark of that page ends it (a question mark, an exclamation mark, the
+     * comma), and when the row suggests for it meanwhile. Until this was kept, the taps were let go with the page,
+     * and the word before every question mark typed from ?123 was read by which keys are neighbours alone
+     * (docs/versus.md, 2026-11-11: 42 of the 326 words lost to Gboard ended so). Null until the letters are left,
+     * and again at each new field.
+     */
+    private var lettersKeys: Triple<Map<Char, Pair<Float, Float>>, Float, FloatArray?>? = null
+
     fun showPage(next: Page) {
         val changed = page != next
+        // Before the letters are laid out of the way: where their keys listen now.
+        if (page == Page.LETTERS && next != Page.LETTERS) lettersKeys = tapKeys()
         page = next
         if (next != Page.LETTERS) { shift = ShiftState.OFF; autoShifted = false }
         rebuild()
@@ -493,6 +505,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         shift = ShiftState.OFF
         autoShifted = false
         page = Page.LETTERS
+        lettersKeys = null
         cancelTouch()
         rebuild()
         invalidate()
@@ -850,10 +863,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /**
      * Where each letter key listens on the letters page, for autocorrect's reading of a word's taps ([Taps]): its
      * middle, moved by the adaptive keys plugin's nudge where it has one, with a letter key's width and the space
-     * bar's left, top, right and bottom. Null on any other page.
+     * bar's left, top, right and bottom. On another page, the same as it stood when the letters were left for it
+     * ([lettersKeys]): the taps of a word were made on the letters whichever page ends it. Null where the letters
+     * have never been laid out.
      */
     fun tapKeys(): Triple<Map<Char, Pair<Float, Float>>, Float, FloatArray?>? {
-        if (page != Page.LETTERS) return null
+        if (page != Page.LETTERS) return lettersKeys
         val model = adaptive
         val out = HashMap<Char, Pair<Float, Float>>(48)
         var keyW = 0f

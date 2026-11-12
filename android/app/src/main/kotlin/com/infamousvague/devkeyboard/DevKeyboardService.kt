@@ -2707,8 +2707,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /**
      * Where the fingers landed for [word], the word just before the cursor, for autocorrect to read it by; null where
-     * that is not known for every letter of it (the cursor was moved into it, part of it was pasted or swiped, the
-     * keys are not the letters page), and autocorrect then goes by which keys are neighbours, as it always did.
+     * that is not known for every letter of it (the cursor was moved into it, part of it was pasted or swiped), and
+     * autocorrect then goes by which keys are neighbours, as it always did. A word ended from another page (?123's question mark, the comma) keeps its taps: the keyboard
+     * remembers where the letters' keys were when it left them ([KeyboardView.tapKeys]).
      */
     private fun tapsFor(word: String): Taps? {
         if (word.isEmpty() || wordTouches.size != word.length) return null
