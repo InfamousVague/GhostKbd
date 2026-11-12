@@ -110,6 +110,9 @@ class KeyboardPrefs(context: Context) {
     val rewriteLocal: Boolean get() = bool(REWRITE_LOCAL)
     val localModel: String get() = prefs.getString(LOCAL_MODEL, DEFAULTS[LOCAL_MODEL] as String)!!
 
+    /** The models the person added by their links, for Rewrite on this phone: ModelLinks.write's text, a line a model. */
+    val ownModels: String get() = prefs.getString(OWN_MODELS, DEFAULTS[OWN_MODELS] as String)!!
+
     /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
     val backlight: Boolean get() = bool(BACKLIGHT)
     val backlightEffect: String get() = prefs.getString(BACKLIGHT_EFFECT, "reactive")!!
@@ -413,6 +416,7 @@ class KeyboardPrefs(context: Context) {
         const val REWRITE_LANGUAGE = "rewrite_language"
         const val REWRITE_LOCAL = "rewrite_local"
         const val LOCAL_MODEL = "local_model"
+        const val OWN_MODELS = "own_models"
         const val ENHANCE_STYLE = "enhance_style"
         const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
@@ -506,6 +510,7 @@ class KeyboardPrefs(context: Context) {
             REWRITE_LANGUAGE to "Spanish",
             REWRITE_LOCAL to true,
             LOCAL_MODEL to "",
+            OWN_MODELS to "",
             ENHANCE_STYLE to "tight",
             ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,

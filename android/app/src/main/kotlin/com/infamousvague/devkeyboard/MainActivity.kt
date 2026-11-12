@@ -324,16 +324,19 @@ class MainActivity : FlutterActivity() {
                     "useLocalModel" -> {
                         // A model that is here is chosen; one that is not is fetched, and chosen once it is here if no
                         // other is in use (LocalModels.download).
-                        LocalModels.spec(call.argument<String>("id"))?.let { spec ->
+                        LocalModels.spec(this@MainActivity, call.argument<String>("id"))?.let { spec ->
                             if (LocalModels.isReady(this@MainActivity, spec)) prefs.set(KeyboardPrefs.LOCAL_MODEL, spec.id) else LocalModels.download(this@MainActivity, spec)
                         }
                         result.success(localAiState())
                     }
                     "cancelLocalModel" -> { LocalModels.cancel(); result.success(localAiState()) }
                     "deleteLocalModel" -> {
-                        LocalModels.spec(call.argument<String>("id"))?.let { LocalModels.delete(this@MainActivity, it) }
+                        LocalModels.spec(this@MainActivity, call.argument<String>("id"))?.let { LocalModels.delete(this@MainActivity, it) }
                         result.success(localAiState())
                     }
+                    // A model of the person's own, by its Hugging Face link: asked about there, then one of the list.
+                    "addLocalModel" -> { LocalModels.add(this@MainActivity, call.argument<String>("link").orEmpty()); result.success(localAiState()) }
+                    "removeLocalModel" -> { LocalModels.remove(this@MainActivity, call.argument<String>("id").orEmpty()); result.success(localAiState()) }
                     "dictationState" -> result.success(dictationState())
                     "downloadModel" -> {
                         val id = call.argument<String>("id")

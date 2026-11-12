@@ -1851,8 +1851,45 @@ List<Widget> _rewriteLocal(SettingsStore store) {
             disabledReason: m['installed'] == true || m['downloading'] == true ? null : store.offlineReason,
           ),
         for (final m in models)
-          if (m['installed'] == true)
+          if (m['own'] == true)
+            // One the person added goes from the list and from the phone together.
+            SettingRow(
+              label: 'Remove ${m['name']}',
+              hint: Text(m['installed'] == true ? 'Takes it off the list, and frees ${_megabytes(m['bytes'])}.' : 'Takes it off the list.'),
+              onPress: () => store.removeLocalModel(m['id'] as String),
+            )
+          else if (m['installed'] == true)
             SettingRow(label: 'Delete ${m['name']}', hint: Text('Frees ${_megabytes(m['bytes'])}.'), onPress: () => store.deleteLocalModel(m['id'] as String)),
+      ],
+    ),
+    PaneSection(
+      title: 'Another model',
+      footer: Text(
+        local['adding'] == true
+            ? 'Asking Hugging Face about it…'
+            : local['addError'] is String && local['addError'] != store.offlineReason
+                ? local['addError'] as String
+                : 'Any chat model in GGUF form on Hugging Face. On the model’s page open Files, pick a .gguf file (Q4_K_M, 1 to 4 GB, suits a phone), copy its link, paste it here and press enter. '
+                    'The keyboard asks Hugging Face for the file’s size and SHA-256, and holds the download to them. '
+                    'Rewrite was tried with the two models above: another may write worse, and one whose chat format the keyboard does not know will write badly.',
+      ),
+      children: [
+        if (store.offlineReason != null)
+          SettingRow(label: 'Add a model by its link', disabledReason: store.offlineReason)
+        else
+          SettingRowBox(
+            child: GlacierInput(
+              // A model added empties the field; a link that was not added stays, to be put right.
+              key: ValueKey('local-model-${models.length}'),
+              type: GlacierInputType.url,
+              placeholder: 'huggingface.co/…/model.gguf',
+              ariaLabel: 'Add a model by its Hugging Face link',
+              autoCorrect: false,
+              onSubmitted: (text) {
+                if (text.trim().isNotEmpty) store.addLocalModel(text.trim());
+              },
+            ),
+          ),
       ],
     ),
   ];

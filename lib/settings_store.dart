@@ -569,7 +569,7 @@ class SettingsStore extends ChangeNotifier {
 
   /// Rewrite on this phone (android LocalAi.kt, LocalModels.kt): `built` (this build can run a model; where it
   /// cannot, Settings shows none of it), `on` (the switch), `serves` (Rewrite runs on the phone as things stand),
-  /// `active` (the model in use) and `models`, each with `installed`, `downloading`, `progress` and `error`.
+  /// `active` (the model in use) and `models`, each with `installed`, `downloading`, `progress`, `error` and `own`.
   Map<String, Object?> localAi = const {'built': false, 'on': true, 'serves': false, 'models': <Object?>[]};
 
   Future<void> refreshLocalAi() => _localAiCall('localAiState', const {});
@@ -578,6 +578,12 @@ class SettingsStore extends ChangeNotifier {
   Future<void> useLocalModel(String id) => _localAiCall('useLocalModel', {'id': id});
   Future<void> cancelLocalModel() => _localAiCall('cancelLocalModel', const {});
   Future<void> deleteLocalModel(String id) => _localAiCall('deleteLocalModel', {'id': id});
+
+  /// A model of the person's own choosing, by the link to its GGUF file on Hugging Face (android ModelLinks.kt): the
+  /// phone asks Hugging Face for the file's size and hash and lists it with the others (`own`). `adding` while it
+  /// asks; `addError` says why the last link was not added. Removing one takes its file off the phone too.
+  Future<void> addLocalModel(String link) => _localAiCall('addLocalModel', {'link': link});
+  Future<void> removeLocalModel(String id) => _localAiCall('removeLocalModel', {'id': id});
 
   Future<void> _localAiCall(String method, Map<String, Object> args) async {
     try {

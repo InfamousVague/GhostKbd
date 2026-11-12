@@ -83,6 +83,41 @@ slips, one with an @name, an emoji and a link, Spanish, a paragraph to shorten, 
 On an M-series Mac, four threads, no GPU: the 2B read a 280-token request in about 1.3 s and wrote 50 tokens a
 second; the 4B took 3 to 5 s to read and wrote about 13 a second. **A phone has not been timed.**
 
+## Any other model, by its link (`ModelLinks.kt`)
+
+Matt, 2026-11-12: "I want the keyboard to download and run a model on the device itself, ideally supporting all
+popular local models." The keyboard offers the two it was tried with; every other one is a link away. Settings › AI ›
+Rewrite › Another model takes the link to a GGUF file on Hugging Face as it is copied there (the file's page or its
+download link, with or without `https://`). Then:
+
+- `ModelLinks.read` takes only `huggingface.co/<maker>/<model>/blob|resolve/<revision>/<file>.gguf`. Nothing else is a
+  link: no other server, no sign-in in the address, no `..`.
+- `LocalModels.add` sends one HEAD to that address through `Net` (the ledger's LOCAL_MODEL, which already reaches
+  Hugging Face) and does not follow the redirect. Hugging Face's own answer names the file's size (`X-Linked-Size`),
+  its SHA-256 (`X-Linked-Etag`) and the commit the link stands at (`X-Repo-Commit`); seen on 2026-11-12 for Ghost.md's
+  2B file, and they were Ghost.md's own numbers. `ModelLinks.answer` makes the model of them, pinned to that commit,
+  or says why not: behind a sign-in (401, 403: Google's own Gemma files answered 401 that day; copies of them by
+  others are open), no such file (404), no hash to hold it to, or larger than seven tenths of the phone's memory.
+- The model joins the list (`own_models`, a line a model, read back only if every part of the line still agrees with
+  the rest) and from there is fetched, held to its size and hash, chosen and used exactly as the keyboard's own are,
+  from Hugging Face alone. Its file is kept under its id, since two makers can call a file the same. Remove takes it
+  off the list and off the phone. Twelve at most.
+
+What that does and does not make of "all popular models":
+
+- Any model llama.cpp can read and whose chat format it knows by its marks runs: `llm_core.cpp` asks llama.cpp to
+  frame the request with the file's own template. llama.cpp has long known the formats of Qwen and everything else
+  on ChatML, Llama 2 and 3, Gemma 2 and 3, Phi 3 and 4, Mistral, DeepSeek and Granite; its list at v0.9.0 was not
+  read through for this.
+- One whose template llama.cpp does not know is framed as ChatML, which is wrong for it, and it will write badly.
+  Gemma 4 is one (its template needs llama.cpp's Jinja reader, which is in `llama-common`, not in the library built
+  here). The check on what comes back keeps most of that out of the field; it does not make the model good.
+- None of them has been tried for Rewrite by anyone but whoever adds it. The worked examples and the check were
+  made for small models in general, on the Qwen files in particular.
+- A model that reasons before it answers is told not to only where its template has `<think>` in it.
+- None of this has run on a phone: it waits on the library as everything here does. `ModelLinksTest` (7) tries the
+  links, Hugging Face's answers and the list off the phone; `test/local_ai_settings_test.dart` tries the Settings rows.
+
 ## Finishing it
 
 1. `android/settings.gradle.kts`: `id("com.android.library") version "9.3.1" apply false` among the plugins, and
@@ -98,5 +133,9 @@ second; the 4B took 3 to 5 s to read and wrote about 13 a second. **A phone has 
 ## Not done
 
 - Nothing but Rewrite uses the phone's model: Ghostwriter, Enhance, Tidy and Mockingbird still need the AI provider.
-- No check that a phone has the memory for a model before it is downloaded.
+- The keyboard's own two models are not checked against the phone's memory before they are downloaded (a model added
+  by its link is). A phone with 6 GB will be short for the 4B.
+- A model file that is already on the phone (fetched by another app, or one from behind a sign-in) cannot be brought
+  in: only a link can.
+- Hugging Face only. No other server's models, and no account there.
 - iPhone: none of it.

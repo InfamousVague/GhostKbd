@@ -164,8 +164,10 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 Rewrite and its Fix on a language model that runs on the phone: Settings › AI › Rewrite › On this phone, Ghost.md's
 Qwen3.5 2B and 4B files, a process of its own for the model, worked examples in what the model is shown, and a check
 on what it writes before that replaces anything. `LocalAi.kt`, `LocalModels.kt`, `LocalRewrite.kt`, `LlmService.kt`,
-`android/llm` (llama.cpp v0.9.0) and `tool/local_ai_try`. The native library is not part of the build yet, so no
-version has any of it: [docs/local-ai.md](docs/local-ai.md) says where it stands and how to finish it.
+`android/llm` (llama.cpp v0.9.0) and `tool/local_ai_try`. Any other GGUF model on Hugging Face can be added by its
+link (Settings › AI › Rewrite › Another model; `ModelLinks.kt`): Hugging Face is asked for the file's size and SHA-256
+and the download is held to them. The native library is not part of the build yet, so no version has any of it:
+[docs/local-ai.md](docs/local-ai.md) says where it stands and how to finish it.
 
 ## Releases and auto-update
 
