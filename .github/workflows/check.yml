@@ -1,10 +1,9 @@
-# Every push to main: does it compile? `flutter analyze`, then a debug build (Kotlin, whisper.cpp's C++, Dart), with
-# no secrets and no release. Releases are release.yml's, from the release branch.
+# PROOF ONLY, never for main. 0.16.0 before it is released: the release-mode build as release.yml's Flutter makes it
+# (this runner's debug key, nothing published, no secret read), kept as an artifact to be tried on an emulator, and
+# Flutter's and Kotlin's tests on the build service's own tools.
 name: Check
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -28,20 +27,50 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          # Named, so a new stable cannot change a build on the day it comes out: 3.50.0 (2026-11-11) refused to
-          # build until Android's Gradle plugin and Kotlin were raised (android/settings.gradle.kts), and each
-          # Flutter brings its own Android defaults. 3.47.9 built 0.14.0 and 0.15.0. Raise it on purpose, with the
-          # app tried on the new one first (README, "Moving to a new Flutter"); release.yml names the same one.
           flutter-version: 3.50.0
           cache: true
       - run: flutter pub get
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib
-      - name: Debug build
-        # Downloads that time out are tried again (see release.yml).
+      - name: Release-mode build (this runner's debug key, nothing published)
         run: |
-          for attempt in 1 2 3; do
-            flutter build apk --debug --target-platform android-arm64 && exit 0
-            echo "::warning::Build attempt $attempt failed; trying again"; sleep $((attempt * 60))
-          done
-          exit 1
+          set +e
+          : > results.txt
+          flutter build apk --release --target-platform android-arm64 --build-name=0.16.0 --build-number=82 2>&1 | tee build-release.log
+          echo "release-mode build: exit ${PIPESTATUS[0]}" >> results.txt
+      - name: Flutter's tests
+        run: |
+          set +e
+          flutter test 2>&1 | tee flutter-test.log
+          echo "flutter test: exit ${PIPESTATUS[0]}" >> results.txt
+      - name: Kotlin's unit tests
+        run: |
+          set +e
+          (cd android && ./gradlew :app:testDebugUnitTest) 2>&1 | tee unit-tests.log
+          echo "kotlin unit tests: exit ${PIPESTATUS[0]}" >> results.txt
+          python3 - <<'PY' | tee -a results.txt
+          import glob, xml.etree.ElementTree as ET
+          files = glob.glob('build/app/test-results/testDebugUnitTest/*.xml')
+          total = {'tests': 0, 'failures': 0, 'errors': 0, 'skipped': 0}
+          for name in files:
+              root = ET.parse(name).getroot()
+              for key in total:
+                  total[key] += int(root.get(key, 0))
+          print('kotlin unit tests counted: %d files, %s' % (len(files), ', '.join('%s %d' % item for item in total.items())))
+          PY
+      - name: Gather
+        if: always()
+        run: |
+          mkdir -p out
+          cp results.txt out/ 2>/dev/null || true
+          [ -f build/app/outputs/flutter-apk/app-release.apk ] && cp build/app/outputs/flutter-apk/app-release.apk out/app-release.apk
+          ls -la out
+          cat results.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proof-0.16.0
+          path: out/
+          retention-days: 3
+      - name: Did everything pass?
+        run: |
+          cat results.txt
+          if grep ': exit' results.txt | grep -v ': exit 0$'; then exit 1; fi
