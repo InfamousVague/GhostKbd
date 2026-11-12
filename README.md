@@ -158,7 +158,11 @@ words; a tap types one with a space and offers the next three. Whenever the row 
 completions, a swipe's other readings) it shows about three, in the row's middle, and the tools follow them with the
 first tool whole in view at the row's end (`PluginRow.WordRoom`): undo and redo while each has something to do, the
 clipboard, emoji and GIFs first, and on a row wide enough for them and three words (a foldable's inner screen, a
-tablet) pinned at its start instead. Emoji was a key between the { } key
+tablet) pinned at its start instead; whether it is wide enough is asked as if both arrows were there, so the row
+keeps its shape as they come and go. A tap on an arrow keeps the row as it was, words and all, so the arrow stays
+under the thumb; and whatever takes the place of an arrow that its own tap took away (Redo, after the last Undo)
+takes no tap for the next 0.6 seconds (`TapGuard`). A chip before the words (a clip copied a moment ago, "Incognito
+on") takes its room out of theirs. Emoji was a key between the { } key
 and the space bar from 0.12.1 to 0.15.0 and is a button in the row again, beside the clipboard. With dictation on,
 the mic key stands where the full stop was, next to enter, on the letters page: hold it for the full stop and its
 punctuation, or type two spaces (`Layouts.withMic`); in a password, an e-mail address or a web address the full stop

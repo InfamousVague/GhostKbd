@@ -100,4 +100,44 @@ class WordRoomTest {
         assertEquals(0, r.lead)
         assertEquals(0, r.gap)
     }
+
+    @Test fun `a chip before the words takes its room out of theirs, and the tool is still in view`() {
+        // "Incognito on" (120 with its margins and the edge) and two words, then the tools: 412 - 120 - 48 = 244.
+        val two = room(412, before = 120, words = 2, firstWord = 1, lastWord = 2, count = 7)
+        assertEquals(0, two.lead)
+        assertEquals(244 / 3, two.width)
+        // The chip, the words and the room either side of them end where the tool's room begins.
+        assertTrue(412 - (120 + 2 * two.width + 2 * two.gap) in 48..50)
+        // A clip copied a moment ago, cut at a third of the row (137 and the edge), and three words: 221 for them.
+        val three = room(412, before = 143, firstWord = 1, lastWord = 3, count = 8)
+        assertEquals(221 / 3, three.width)
+        // The pixel or two a third rounds away is shared between the words' two sides.
+        assertTrue(three.gap in 0..1)
+        assertTrue(412 - (143 + 3 * three.width + 2 * three.gap) in 48..50)
+    }
+
+    @Test fun `in a tight row one word or two are as wide as a word is read in`() {
+        // 228 for the words: a third each would be 76, under the 80 a word is read in.
+        val two = room(412, before = 136, words = 2, firstWord = 1, lastWord = 2, count = 7)
+        assertEquals(80, two.width)
+        assertEquals((228 - 160) / 2, two.gap)
+        val one = room(412, before = 136, words = 1, firstWord = 1, lastWord = 1, count = 6)
+        assertEquals(80, one.width)
+        assertEquals((228 - 80) / 2, one.gap)
+        // Three share what there is, and the tool keeps its room.
+        val three = room(412, before = 136, firstWord = 1, lastWord = 3, count = 8)
+        assertEquals(76, three.width)
+        assertEquals(0, three.gap)
+    }
+
+    @Test fun `words are never cut below three quarters of what a word is read in`() {
+        // A row with 150 left for three words: 50 each would be cut to a letter or two. They keep 60 and the row slides.
+        val r = room(412, before = 214, firstWord = 1, lastWord = 3, count = 8)
+        assertEquals(60, r.width)
+        assertEquals(0, r.gap)
+        // And where what stands before them is wider than the row itself.
+        val none = room(300, before = 400, firstWord = 2, lastWord = 4, count = 9)
+        assertEquals(60, none.width)
+        assertEquals(0, none.gap)
+    }
 }

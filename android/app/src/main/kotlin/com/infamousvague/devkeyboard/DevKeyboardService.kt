@@ -225,6 +225,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private var toolsHeld = false
 
+    /**
+     * With [toolsHeld] after an arrow: the row was suggesting words when the arrow was tapped, the arrow in view at its
+     * end, and goes on suggesting them (or keeps their room, where there are none here) so the arrow stays under the
+     * thumb. A row that jumped to its tools there put Undo at its other end, and the next tap on whatever tool stood
+     * where Undo had been. Read only while [toolsHeld] is set, and set afresh wherever that is.
+     */
+    private var heldWords = false
+
     /** Mockingbird: the field's text as last read, kept as a sample once it is sent or left. */
     private var draft = ""
     private var draftApp: String? = null
@@ -439,6 +447,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         wordTouches.clear(); takenTouch = null
         lastSpaceAt = 0L
         if (redo) editor.redo() else editor.undo()
+        // The row keeps the shape it had: its tools, or its words with the arrow at their end.
+        heldWords = row?.showsWords == true
         toolsHeld = true
         scheduleRow()
     }
@@ -1381,7 +1391,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         saying.setLength(0)
         // The row shows its tools now, Tidy first among them, and not suggestions for the take's last word: the
         // chips are for this moment, and the next key takes them away.
-        if (said != null) toolsHeld = true
+        if (said != null) { toolsHeld = true; heldWords = false }
         scheduleRow()
     }
 
@@ -1600,9 +1610,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return
         }
         if (!toolsHeld) currentInputConnection?.let { ic -> if (selStart == selEnd && contextual(ic, before, items)) { strip.setItems(items); return } }
+        // An arrow tapped at the end of a row of words: the words go on, so the arrow stays where the thumb is.
+        val wordsHeld = toolsHeld && heldWords
         // Only while there are words to suggest from: on a layout with no word list (Korean, plain ABC) every word
         // would otherwise get a quoted "keep" chip and nothing else.
-        if (!toolsHeld && Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions && autocorrectAllowed() && autocorrect.active) {
+        if ((!toolsHeld || wordsHeld) && Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions && autocorrectAllowed() && autocorrect.active) {
             val ic = currentInputConnection
             val correction = lastCorrection
             // Next-word prediction: what is likely here, where it may be offered. Made in well under a millisecond
@@ -1635,7 +1647,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                         // The everyday tools next (or pinned before it all, where the row is wide), then the rest.
                         val at = items.size
                         items += tools.filter { it !in first }
-                        strip.setItems(items, everyday(), at)
+                        fill(strip, items, at)
                         return
                     }
                 }
@@ -1667,11 +1679,28 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Nothing to suggest: the tools, the everyday ones first but for what is about this very moment.
         if (items.isEmpty()) {
             val tools = tools()
+            // No word to suggest here, and the row was showing words when the arrow was tapped: their room stays,
+            // empty, and the tools follow it as they did.
+            if (wordsHeld) {
+                fill(strip, listOf(RowItem("words-held", label = "", wide = true)) + tools.filter { !leads(it) }, 1)
+                return
+            }
             val first = tools.filter(::leads)
-            strip.setItems(first + tools.filter { it !in first }, everyday(), first.size)
+            fill(strip, first + tools.filter { it !in first }, first.size)
             return
         }
         showWords(strip, items)
+    }
+
+    /**
+     * Fills the row with [items], the everyday tools pinned before them where the row is wide, else put in at [at]
+     * ([PluginRow.setItems]). Whether they are pinned is asked as if both arrows were among them, so the row keeps its
+     * shape as Undo and Redo come and go.
+     */
+    private fun fill(strip: PluginRow, items: List<RowItem>, at: Int) {
+        val everyday = everyday()
+        val missing = if (Plugins.isOn(prefs, Plugins.UNDO)) 2 - everyday.count { it.guard } else 0
+        strip.setItems(items, everyday, at, everyday.size + missing)
     }
 
     /**
@@ -1683,7 +1712,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      */
     private fun showWords(strip: PluginRow, items: List<RowItem>) {
         val shown = middleBold(items.filter { it.wide }) + items.filter { !it.wide }
-        strip.setItems(shown + tools().filter { !leads(it) }, everyday(), shown.size)
+        fill(strip, shown + tools().filter { !leads(it) }, shown.size)
     }
 
     /** A tool about this very moment, which comes before everything: the selection's, a clip just copied, "Incognito on", an update. */
@@ -1705,8 +1734,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // Each is there only while it has something to do (Matt, 2026-11-12: "only show undo and redo when an undo
             // and redo is available"): the keyboard's own last step, or the app's undo where it has none. They were
             // always there, and dim with nothing to do.
-            if (editor.canUndo) items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo") { undoTap(redo = false) }
-            if (editor.canRedo) items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo") { undoTap(redo = true) }
+            // An arrow's own tap can take it away (the last Undo), and Redo then stands where it stood: each is
+            // guarded, so a thumb still tapping does not land on what took its place (TapGuard).
+            if (editor.canUndo) items += RowItem("undo", icon = RowIcon.UNDO, chip = true, description = "Undo", guard = true) { undoTap(redo = false) }
+            if (editor.canRedo) items += RowItem("redo", icon = RowIcon.REDO, chip = true, description = "Redo", guard = true) { undoTap(redo = true) }
         }
         if (Plugins.isOn(prefs, Plugins.CLIPBOARD) && !incognito) items += RowItem("clips", icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, chip = true, description = "Clipboard") { showingClips = true; scheduleRow() }
         if (Plugins.isOn(prefs, Plugins.EMOJI)) items += RowItem("emoji", icon = RowIcon.EMOJI, tint = RowTint.EMOJI, chip = true, description = "Emoji") { openEmoji() }
@@ -1882,7 +1913,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         editor.insert(code.text, Kind.PASTE)
         notTyped()
         autoSpaced = false
-        toolsHeld = true
+        toolsHeld = true; heldWords = false
         showingClips = false
         SmsCodes.used(code)
         scheduleRow()
@@ -1951,7 +1982,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Pasted words were not typed: next-word prediction does not count them.
         notTyped()
         autoSpaced = false
-        toolsHeld = true
+        toolsHeld = true; heldWords = false
         ClipHistory.fresh = null
         showingClips = false
         scheduleRow()
