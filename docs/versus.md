@@ -185,36 +185,64 @@ against the build that was measured:
 - These are four hours of one thumb model on one set of sentences, and the dials were tuned on a bench with the
   same thumb. They say where to look, not what to ship.
 
-### One more letter of reach (an experiment, not a change)
+### The search's reach, by how near the line a tap was (made 2026-11-12)
 
-The search's reach is no dial, so it was tried as source: `tool/versus/experiments/reach.sh` writes a copy of
-`TapDecoder.kt` in which `changes` is one more than it is (two letters in a word of three or fewer, three up to
-five, four up to eight, five beyond), and `whatif.py --overlay` compiles it in place of the tree's, for the JVM
-only. On the 900 sentence-typings of 2026-11-11, on top of the fix above:
+The bound on how many letters of a word the search will read as another key counted letters, whatever their taps
+said. It now counts each by its cost (`TapDecoder.counts`, in hundredths): a letter read as another key for
+`WHOLE_CHANGE` or more is a whole change, and for less its share of one, so two taps each just over the line to the
+next key are a fraction of a change between them, and two in the middles of far keys are two. A letter missed,
+added or swapped is a whole one as before. "jr" is "he" again, "tbr" and "yhd" are "the", "jluze" is "house".
 
-| Decoder | careful | leaning | sloppy | all | Mended | Broken |
+`WHOLE_CHANGE` is 2, set on the typing bench's own tuner (`tool/typing_bench.sh tune`, whose measure is words
+right less four for every right word spoiled: 93.02 at 0.5, 93.45 at 1, 93.76 at 2, 93.84 at 4; taken where the
+curve flattens). It was first tried as source that the app did not have (`whatif.py --overlay`): one more letter
+of reach for every word mended 88 words of the run and broke 3, but spoiled more of the bench's right words for
+the same gain (for its careful thumb 1.6 in a thousand, and 3.0% of the right words no list has, where counting by
+cost leaves 1.2 and 1.5%).
+
+| | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| the tree (taps kept at marks) | 2.6% | 7.4% | 15.2% | 8.4% | | |
-| one more letter of reach | 2.6% | 6.0% | 11.8% | 6.8% | 88 | 3 |
-| as many as the cost allows | 2.5% | 6.0% | 11.6% | 6.7% | 93 | 4 |
-| one more, and `UNKNOWN_ODD` 0, `MARGIN_COMMON` 0.6, `UNKNOWN` 1.6 | 2.1% | 5.2% | 9.4% | 5.6% | 159 | 10 |
-| Gboard, on the emulator | 1.8% | 3.2% | 6.4% | 3.8% | | |
+| the run's 900 typings, before | 2.6% | 7.4% | 15.2% | 8.4% | | |
+| after | 2.5% | 6.0% | 12.1% | 6.9% | 80 | 0 |
+| 900 typings of 300 other sentences, before | 3.9% | 6.7% | 15.5% | 8.7% | | |
+| after | 3.8% | 5.6% | 13.0% | 7.4% | 89 | 6 |
 
-One line is worth 1.6 of the 5.0 points: "jr" is "he" again, "tbr" and "yhd" are "the", "jluze" is "house",
-"kiztenws" is "listened". The three it breaks are a commoner word now in reach of a slip (towrr became "two"
-where it had become "tower", taw "at" for raw, gof "good" for God). The typing bench on its own sentences
-(12,000 words, the same copy compiled into it) agrees and says what it costs:
+The second pair of rows is what to believe: 300 held-out sentences from line 100,001 on, which nothing had read,
+typed by the same three thumbs on the same keys (`scoreboard.py`'s "unseen"). On 12,000 of the bench's own words
+the sloppy thumb's words right go from 82.7% to 85.7% and the normal one's from 91.6% to 92.3% (careful 96.4%
+either way); right words spoiled go from 1.2, 1.1 and 1.5 in a thousand to 1.2, 1.5 and 1.7, and the right words
+no list has that are spoiled from 1.5%, 2.4% and 6.0% to 1.5%, 4.3% and 7.1%.
 
-| Bench thumb | Words right, as it is | one more letter | Right words spoiled per 1,000 | Unknown words spoiled |
-| --- | ---: | ---: | ---: | ---: |
-| careful | 96.4% | 96.4% | 1.2 to 1.6 | 1.5% to 3.0% |
-| normal | 91.6% | 92.4% | 1.1 to 1.5 | 2.4% to 4.3% |
-| sloppy | 82.7% | 85.8% | 1.5 to 1.7 | 6.0% to 8.3% |
+### A word cut in two is put together again (made 2026-11-12)
 
-Of the 326 words lost to Gboard, 174 would still be lost with the last row of the first table, and they say
-what is next: 70 of the 75 that are the space (36 of the 37 cut in two, all 12 with no space typed), 38 where no
-word was typed and the reading is not ranked first, 30 with a letter left out, doubled or swapped. No dial and no
-reach touches a word cut in two.
+A thumb reaching for c, v, b, n or m lands on the top of the space bar as often as on the key above it. The word
+was then two scraps with a space between, each corrected as a word of its own ("bei g", "ha e", "would t"); and
+where the letter was the word's last, the space that followed made a full stop of the two: "keep in touch" came
+out "keep I. Touch". Nothing could put them back.
+
+`KeyboardView` now keeps the bar's own tap with where it aimed, and `DevKeyboardService` the word that tap ended,
+as typed and as it was left standing, with its taps (`Cut`), until the next word ends or a second space comes.
+Then `Autocorrect.rejoin` reads the letters and the bar's tap as one word: `TapDecoder` takes that tap as a letter
+for how much nearer the bar's middle line it landed than that letter's key (next to nothing just under the bar's
+top edge, 2.4 in its middle), and never as nothing. The one word is held against what stands. Two scraps are worth
+the first as it stands and the second after it, less nine for being two words, as a join is counted, and the one
+word must be worth `REJOIN_MARGIN` (1) more: "is a" and "to go" stand however high the space was tapped, and
+"bei g" gives way wherever it was. One scrap with nothing after it is held as `byTaps` holds any typed word: "the"
+and two spaces is still a full stop, not "then"; "o" and two spaces is "on". Backspace straight after puts the
+scraps back and learns nothing from them.
+
+| | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the run's 900 typings, before | 2.5% | 6.0% | 12.1% | 6.9% | | |
+| after | 2.5% | 5.4% | 10.9% | 6.3% | 32 | 0 |
+| the 900 unseen typings, before | 3.8% | 5.6% | 13.0% | 7.4% | | |
+| after | 3.3% | 5.0% | 12.2% | 6.8% | 41 | 1 |
+
+The typing bench cannot see this (it types a word at a time), so the two sets of sentences are its only measure,
+through `Replay.kt`'s model of the service. Not yet typed on a device. Still cut in two: a word whose first letter
+landed on the bar (" egim" for "begin": the tap comes after the last word's own space, and makes a full stop of
+it), and scraps that were mended at the bar's tap into a word too good to give up ("eome" made "some", for
+"women").
 
 ### What the thumb had done
 

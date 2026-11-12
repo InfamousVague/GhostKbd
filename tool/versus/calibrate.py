@@ -458,15 +458,80 @@ def ghost_touch_model(hint_file, dpi, probes):
     return model, len(probes)
 
 
+def no_taps(args, kb):
+    """Ghost Keyboard's keys for the build that is installed, without a tap: for when the emulator is too busy to be
+    measured on (500 taps take half an hour then, and a stalled one measures nothing). The letters are taken to
+    answer where an earlier build's were measured ([args.no_taps], a geometry file), which is refused unless this
+    build's layout code puts every letter where that build had it; the space bar, the keys beside it and the ?123
+    page come from this build's layout code (the hint). Says in the file that it was not measured. A run typed on it
+    is held to the JVM replay sentence by sentence (score.py), and that is what bears it out or does not."""
+    w, h, dpi = screen()
+    old = json.load(open(args.no_taps))
+    whole = json.load(open(args.hint))
+    hint = whole.get("keys", whole)
+    dev = old["device"]
+    if (dev["width"], dev["height"], dev["dpi"]) != (w, h, dpi):
+        raise SystemExit("calibrate: %s was measured on another screen" % os.path.relpath(args.no_taps))
+    moved = sorted(c for c in old["keys"] if old["hint"].get(c) != hint.get(c))
+    if moved:
+        raise SystemExit("calibrate: this build's layout puts %s elsewhere than the build of %s had them: they have to be measured" % (", ".join(moved), os.path.relpath(args.no_taps)))
+    symbols = whole.get("symbols_page", {})
+
+    def inside(point, rect):
+        return rect is not None and rect[0] <= point[0] <= rect[2] and rect[1] <= point[1] <= rect[3]
+    for mark, how in old["marks"].items():
+        taps = how["taps"]
+        if how["on"] == "letters":
+            ok = inside(taps[0], hint.get(mark))
+        else:
+            ok = len(taps) == 3 and inside(taps[0], hint.get("symbols")) and inside(taps[1], symbols.get(mark)) and inside(taps[2], symbols.get("letters"))
+        if not ok:
+            raise SystemExit("calibrate: the way to %r of %s is not this build's: its keys have to be measured" % (mark, os.path.relpath(args.no_taps)))
+    model, _ = ghost_touch_model(args.hint, dpi, [])
+    was = old["hint"].get("space")
+    bar = hint["space"]
+    space = dict(old["space"])
+    how = dict(space.get("how", {}))
+    for i, side in enumerate(("left", "top", "right", "bottom")):
+        if was is None or was[i] != bar[i]:
+            space[side] = round(bar[i] + (0.05 if side == "left" else 0.0), 1)
+            how[side] = "from the layout code"
+    space["how"] = how
+    out = dict(old)
+    out.update({
+        "version": d.version(kb["package"]),
+        "measured": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "first_idea_from": "this build's layout code (%s) for where every key is, and %s for the area each letter answers to: nothing tapped" % (os.path.basename(args.hint), os.path.relpath(args.no_taps)),
+        "taps": 0,
+        "keyboard_height": whole.get("keyboard_height", old["keyboard_height"]),
+        "space": space,
+        "never_tapped": {n: hint[n] for n in ("shift", "delete", "symbols", "emoji", "enter", "dev", "mic", "globe") if n in hint},
+        "hint": {c: hint[c] for c in sorted(hint)},
+        "notes": ["Not measured (calibrate.py --no-taps): the letters are where %s measured them, and the space bar and the keys beside it where this build's layout code puts them. A run typed on this is held to the JVM replay sentence by sentence, which is what says whether it is right." % os.path.basename(args.no_taps)],
+        "touch_model": model,
+        "probes": [],
+    })
+    path = args.out or os.path.join(HERE, "geometry", "%s-%dx%d-%ddpi.json" % (args.keyboard, w, h, dpi))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(compact(out))
+    log("%s: not measured; letters as in %s, the rest from the layout code; wrote %s" % (kb["name"], os.path.relpath(args.no_taps), os.path.relpath(path)))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("keyboard", choices=sorted(d.KEYBOARDS))
     ap.add_argument("--hint", help="a JSON file of key rectangles {name: [l, t, r, b]} to start from, where the accessibility tree has none")
     ap.add_argument("--out", help="where to write (default tool/versus/geometry/<keyboard>-<w>x<h>-<dpi>dpi.json)")
+    ap.add_argument("--no-taps", metavar="GEOMETRY", help="Ghost Keyboard only, with --hint: tap nothing; the letters as this earlier geometry file measured them, the rest from the hint")
     args = ap.parse_args()
     kb = d.KEYBOARDS[args.keyboard]
     if not d.installed(kb["package"]):
         raise SystemExit("calibrate: %s is not installed on %s" % (kb["name"], d.SERIAL))
+    if args.no_taps:
+        if args.keyboard != "ghost" or not args.hint:
+            raise SystemExit("calibrate: --no-taps is for Ghost Keyboard, whose layout code gives the hint (--hint)")
+        return no_taps(args, kb)
     where = d.front()
     if not (where.startswith(d.FIELD) or "launcher" in where.lower()):
         raise SystemExit("calibrate: %s is in front on %s; not touching it" % (where, d.SERIAL))
