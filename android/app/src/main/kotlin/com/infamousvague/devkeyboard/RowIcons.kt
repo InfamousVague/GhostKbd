@@ -12,7 +12,12 @@ object RowIcons {
     private fun caret(rotate: Float) = PackIcon(false, listOf("M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"), listOf("M160,48V208L80,128Z"), 0.2f, 256.0f, 0.0f, 0.0f, rotate)
 
     /** The keyboard's icons are Phosphor's (regular, with its duotone wash), 2026-11-08. */
-    fun icon(icon: RowIcon): PackIcon = KEYS["phosphor" to icon] ?: MORE_ICONS[icon] ?: GLYPHS.getValue("phosphor").getValue(icon)
+    fun icon(icon: RowIcon): PackIcon = synchronized(found) {
+        found.getOrPut(icon) { KEYS["phosphor" to icon] ?: MORE_ICONS[icon] ?: GLYPHS.getValue("phosphor").getValue(icon) }
+    }
+
+    /** Each icon as [icon] found it: it is asked for at every frame an icon key is drawn in. */
+    private val found = java.util.EnumMap<RowIcon, PackIcon>(RowIcon::class.java)
 
     /** The keys' own icons (mic, backspace, shift, enter), from the packs' SVGs: lucide-static 1.70, @tabler/icons 3.51,
      *  @phosphor-icons/core 2.1 (regular, duotone wash), @material-symbols/svg-400 0.48 (rounded, filled wash), remixicon 4.9. */

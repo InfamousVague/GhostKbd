@@ -65,8 +65,20 @@ object Plugins {
     const val CONNECTORS = "connectors"
     val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS, ENHANCE, CONNECTORS)
 
-    fun enabled(prefs: KeyboardPrefs): Set<String> =
-        prefs.plugins.split(',').map { it.trim() }.filter { it in ALL }.toSet()
+    /**
+     * The plugins that are added. The setting is one string, and it is asked about dozens of times for every key
+     * typed (each tool in the row asks whether its plugin is on), so the set made from it is kept for as long as the
+     * string is the same.
+     */
+    fun enabled(prefs: KeyboardPrefs): Set<String> {
+        val raw = prefs.plugins
+        last?.let { (was, set) -> if (was == raw) return set }
+        val set = raw.split(',').map { it.trim() }.filter { it in ALL }.toSet()
+        last = raw to set
+        return set
+    }
+
+    @Volatile private var last: Pair<String, Set<String>>? = null
 
     fun isOn(prefs: KeyboardPrefs, id: String) = id in enabled(prefs)
 

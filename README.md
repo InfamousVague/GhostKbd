@@ -130,6 +130,21 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   only at a pause of 0.6 seconds, which for a message spoken straight through meant all at the end. A phrase is one
   undo step however often its draft was revised (`FieldEditor.replaceBefore`). Debug builds compile whisper for
   speed too, and can be given a recording in the microphone's place (`DebugSpeech.kt`).
+- **A key press no longer waits on the app** (`FieldMirror.kt`, `MirrorConnection.kt`, `DevKeyboardService.tick`;
+  [docs/performance.md](docs/performance.md)): asking the app for its text is the one slow thing a keyboard does,
+  and every letter asked two or three times and every space four or more, the keyboard standing still each time
+  until the app's own main thread answered. Now the keyboard keeps its own copy of the text around the cursor, does
+  its own typing to it, and answers from it; the copy is checked against the app after every key, is dropped at any
+  cursor move or edit that was not the keys' own, and a field whose app rewrites what is typed is asked as before.
+  The suggestion row's one reading is made off the main thread. On the emulator, typing 75 keys in another app's
+  field, the keyboard's main thread spent 4.4 s of 17 on a key's follow-up work before and 0.3 s after. A held
+  backspace keeps nearer its 50 ms step for the same reason.
+- **Less drawing** (`KeyboardView`): a key's label is measured once, not for every frame of the backlight's fade
+  (sixty a second for 1.2 s after each key); a frame that would look the same as the last is not drawn; a fading
+  key shares its colour filters where it made a new one every frame; and the keys under the listening panel are
+  not drawn at all. A frame takes the main thread under half the time it did.
+- **The keyboard times itself** (`Perf.kt`, debug builds only, while `files/debug-perf` is there): each piece of a
+  key press's work, how often and how long, written to the log as the keys hide.
 
 ## Releases and auto-update
 

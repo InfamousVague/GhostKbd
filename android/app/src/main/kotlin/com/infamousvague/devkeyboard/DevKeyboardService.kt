@@ -353,6 +353,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onDestroy() {
         swipeWorker.shutdownNow()
+        gone = true
+        reader.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SmsCodes.removeListener(onSmsCode)
         rowHandler.removeCallbacks(codesFresh)
@@ -416,8 +418,35 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * starting again keeps its history if the editor finds its newest step in the text, read there and then
      * ([FieldEditor.restarted]): inputs that share one view (a web page, Compose, Flutter) arrive the same way.
      */
+    /**
+     * The text around the cursor as the keyboard knows it without asking the app again (FieldMirror.kt), and the
+     * connection that keeps it in step with all the keyboard does to the field.
+     */
+    private val mirror = FieldMirror { android.os.SystemClock.uptimeMillis() }
+    private var mirrored: MirrorConnection? = null
+
+    /** The app in this field does not answer Android 12's one reading of it: the row reads the old way here. */
+    private var plainReads = false
+
+    /**
+     * The field, for everything the keyboard does to it, the service's own code and Android's helpers alike: Android's
+     * connection with the mirror kept in step (MirrorConnection.kt). Another connection is another field, or the same
+     * one started again: what was known is forgotten. The mirror is the main thread's alone, so a call from any
+     * other thread is given Android's connection as it is.
+     */
+    override fun getCurrentInputConnection(): InputConnection? {
+        val real = super.getCurrentInputConnection() ?: return null
+        if (Looper.myLooper() !== Looper.getMainLooper()) return real
+        mirrored?.let { if (it.target === real) return it }
+        mirror.drop()
+        return MirrorConnection(real, mirror).also { mirrored = it }
+    }
+
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        // Another field starts with nothing known about it; the same field started again keeps what it has shown of
+        // itself (whether its app reports the cursor, whether a reading of it was ever not as guessed).
+        if (restarting) mirror.drop() else { mirror.newField(); plainReads = false }
         runCatching {
             val key = attribute?.let {
                 FieldKey(it.fieldId, it.packageName, it.inputType, it.imeOptions, it.hintText?.toString(), it.fieldName, it.label?.toString(), it.privateImeOptions)
@@ -434,6 +463,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The field is gone, and its history with it. */
     override fun onFinishInput() {
         super.onFinishInput()
+        mirror.drop()
         dropTake()
         runCatching { AccuracyLog.flush(this); AccuracyLog.clearTaps() }
         fieldKey = null
@@ -477,6 +507,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        // A debug build times its own work while files/debug-perf is there (Perf.kt); a release build never does.
+        if (BuildConfig.DEBUG) Perf.on = java.io.File(filesDir, "debug-perf").exists()
+        Perf.time("show") { startView(info, restarting) }
+    }
+
+    private fun startView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         runCatching { AppProfiles.seen(this, prefs, info.packageName) }
         // What Mockingbird heard in apps of this kind (a chat, or anything else) counts most toward the next word here.
@@ -516,8 +552,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         updateShift()
     }
 
-    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
+    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) =
+        Perf.time("selection") { selectionMoved(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd) }
+
+    private fun selectionMoved(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        // First of all: a cursor that is not where the keys' own typing put it means the mirror no longer holds.
+        mirror.reported(newSelStart, newSelEnd, candidatesStart != -1 || candidatesEnd != -1)
         // A tap in the text (not the keyboard's own doing) lets the row go back to that word's suggestions.
         if (editor.onSelection(newSelStart, newSelEnd)) toolsHeld = false
         selStart = newSelStart
@@ -565,7 +606,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         scheduleRow()
     }
 
-    private fun applySettings() {
+    private fun applySettings() = Perf.time("settings") { applyNow() }
+
+    private fun applyNow() {
         offlineOn = prefs.offline
         language = prefs.languageState(latinField)
         autocorrect.setLanguages(language.dictionaries, language.board, language.lexicons)
@@ -706,7 +749,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!prefs.autoCaps) { view.setAutoShift(false); return }
         val info = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
-        val caps = if (info.inputType != InputType.TYPE_NULL) ic.getCursorCapsMode(info.inputType) else 0
+        val caps = if (info.inputType != InputType.TYPE_NULL) Perf.time("caps") { ic.getCursorCapsMode(info.inputType) } else 0
         view.setAutoShift(caps != 0)
     }
 
@@ -1563,6 +1606,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        if (Perf.on) { android.util.Log.i("GhostPerf", "\n" + Perf.report() + "\nmirror       strikes=${mirror.strikes}"); Perf.reset() }
+        mirror.drop()
         finishTyping()
         flushDraft()
         // Next-word prediction: the last words are counted, then (off this thread) old counts fade and the file is written.
@@ -1594,19 +1639,92 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
-     * One look at the text before the cursor, a moment after each edit: what next-word prediction learns from it
-     * ([NextWordLearner.look], also while the row is hidden), then what the row shows for it ([refreshRow]). The text is read
-     * once and shared, so this is no more asking of the app than the row's refresh alone was.
+     * One look at the text around the cursor, a moment after each edit: what next-word prediction learns from it
+     * ([NextWordLearner.look], also while the row is hidden), then what the row shows for it ([refreshRow]);
+     * [refreshWith] does both. The text is read once and shared.
+     *
+     * On Android 12 and later the reading is the one call that brings what stands before the cursor, what is
+     * selected, what follows and where the cursor is (which is what the mirror starts from: FieldMirror.kt), and it
+     * is made off the main thread ([reader]): asking is the one thing here that waits on the app, 10 to 16 ms a key on
+     * the emulator and far longer in an app that is busy. The answer is used only if nothing was typed or moved while
+     * it was on its way ([FieldMirror.stamp]); otherwise the field is read again.
      */
     private fun tick() {
-        val ic = currentInputConnection
+        val wanted = learnAllowed() || row?.visibility == View.VISIBLE
+        val conn = currentInputConnection as? MirrorConnection
+        // Nothing to learn here and no row to draw: the app is not asked for its text at all. And before Android 12,
+        // or in a field whose app does not answer its one reading, the text is read as it always was, here and now.
+        if (!wanted || conn == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || plainReads) {
+            Perf.time("tick") { refreshWith(if (wanted) Perf.time("tick.read") { currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() } else null) }
+            return
+        }
+        // One reading at a time: a refresh asked for while the app is still answering the last is that answer's to
+        // give (the row is filled as things stand when it comes), or the reading after it where the field has moved.
+        val now = android.os.SystemClock.uptimeMillis()
+        if (reading && now - readingSince < READ_LOST_MS) return
+        // Android gives up on an app after two seconds, so an answer this late is not coming: this field is read
+        // the old way from here on, and the row is not left waiting for it.
+        if (reading) { reading = false; readTurn++; plainReads = true; tick(); return }
+        reading = true
+        readingSince = now
+        val turn = ++readTurn
+        val stamp = mirror.stamp
+        val real = conn.target
+        reader.execute {
+            val asked = android.os.SystemClock.uptimeMillis()
+            val around = runCatching { Perf.time("tick.read") { real.getSurroundingText(READ_BEFORE, READ_AFTER, 0) } }.getOrNull()
+            val took = android.os.SystemClock.uptimeMillis() - asked
+            rowHandler.post {
+                // The service is gone, or this answer was given up on.
+                if (gone || turn != readTurn) return@post
+                reading = false
+                // Something was typed or moved while the app was answering, or the field is another: this is a reading
+                // of a field that has moved on. It is read again now (the wait before a refresh has been had).
+                if (stamp != mirror.stamp || mirrored !== conn) { tick(); return@post }
+                runCatching {
+                    Perf.time("tick") {
+                        conn.took(around, READ_BEFORE, READ_AFTER)
+                        val at = around?.let { minOf(it.selectionStart, it.selectionEnd) } ?: -1
+                        when {
+                            // What was just read is the field itself until the row is filled: the row's further
+                            // questions (what follows the cursor, what is selected) are answered from it, and the
+                            // app is asked once where it was asked three or four times.
+                            around != null && at >= 0 && at <= around.text.length ->
+                                mirror.during { refreshWith(around.text.subSequence(maxOf(0, at - CONTEXT_CHARS), at).toString()) }
+                            // Nothing after a long wait is Android giving up on an app that is not answering: it is not asked again.
+                            took >= GAVE_UP_MS -> refreshWith(null)
+                            // The app does not answer this call: from here on this field is read the old way.
+                            else -> { plainReads = true; refreshWith(conn.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString()) }
+                        }
+                    }
+                }.onFailure { android.util.Log.e("GhostKeyboard", "row refresh failed", it) }
+            }
+        }
+    }
+
+    /**
+     * The row's readings of the field are made on this thread (Matt, 2026-11-12: "do a performance pass on the
+     * keyboard to make sure everything is as fast as possible"): the keys answer the next touch while the app takes
+     * its time, where the whole keyboard used to stand still until it had answered. [reading]: one is being made.
+     */
+    private val reader = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "field-reader").apply { isDaemon = true } }
+    private var reading = false
+    private var readingSince = 0L
+    private var readTurn = 0
+
+    /** The service has been destroyed: an answer that comes after that is for nobody. */
+    private var gone = false
+
+    /**
+     * What a refresh does with its reading: [before] is the [CONTEXT_CHARS] before the cursor (before the selection,
+     * where there is one), null where the app was not asked or did not answer.
+     */
+    private fun refreshWith(before: String?) {
         val learn = learnAllowed()
-        // Nothing to learn here and no row to draw: the app is not asked for its text at all.
-        val before = if (learn || row?.visibility == View.VISIBLE) ic?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() else null
         val place = if (before != null && (learn || predictionAllowed())) runCatching { placeAt(before) }.getOrNull() else null
         // Learning must never stop the row from drawing. The AI's own typing is not the person's.
         if (typing == null) runCatching { learner.look(before, place, learn) }.onFailure { android.util.Log.e("GhostKeyboard", "next-word learning failed", it) }
-        refreshRow(before, place)
+        Perf.time("tick.row") { refreshRow(before, place) }
     }
 
     /** Where the cursor stands among the words of [before], for next-word prediction; null where nothing is predicted. */
@@ -3209,6 +3327,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
         /** How much text before the cursor each look reads: enough for the row's own patterns and the last few words. */
         private const val CONTEXT_CHARS = 200
+        /**
+         * What the row's one reading of the field asks for, before the cursor and after it: enough for every question
+         * a key press or the row then has, of which the longest are Mockingbird's look at the message being written
+         * (1,500 and 500, at every word's end) and Ghostwriter's at a request (2,000 and 400). The reading is made
+         * off the main thread, so its length costs the keys nothing.
+         */
+        private const val READ_BEFORE = 2000
+        private const val READ_AFTER = 500
+        /** A reading that came back with nothing after this long was not refused by the app: it never answered. */
+        private const val GAVE_UP_MS = 200L
+        /** A reading not back after this long is not coming (Android itself gives up after two seconds). */
+        private const val READ_LOST_MS = 4000L
         /** How many words the row suggests at once: Gboard's three. */
         private const val WORDS = 3
         /** How many strokes may wait to be read, and how much of the text before the cursor must be as it was for a reading to be typed. */

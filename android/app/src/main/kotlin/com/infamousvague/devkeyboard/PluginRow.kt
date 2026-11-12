@@ -246,7 +246,10 @@ class PluginRow(context: Context, private val onHide: () -> Unit, private val on
      * are when both arrows are among them: whether they are pinned is asked of that number, so a row does not turn
      * from one shape to the other as Undo or Redo comes and goes.
      */
-    fun setItems(next: List<RowItem>, leading: List<RowItem> = emptyList(), leadAt: Int = -1, most: Int = leading.size) {
+    fun setItems(next: List<RowItem>, leading: List<RowItem> = emptyList(), leadAt: Int = -1, most: Int = leading.size) =
+        Perf.time("row.set") { fillWith(next, leading, leadAt, most) }
+
+    private fun fillWith(next: List<RowItem>, leading: List<RowItem>, leadAt: Int, most: Int) {
         given = next; givenLead = leading; givenLeadAt = leadAt; givenMost = most
         val pin = leading.isNotEmpty() && pins(maxOf(most, leading.size))
         val at = leadAt.coerceAtMost(next.size)
