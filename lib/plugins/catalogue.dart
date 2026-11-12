@@ -264,6 +264,25 @@ const List<PluginManifest> catalogue = [
     iosLine: 'Esc, Tab, Ctrl, Alt and arrows for SSH apps.',
   ),
   PluginManifest(
+    id: 'agent',
+    name: 'Agent keys',
+    line: 'The keys a coding agent in a terminal is driven with, a tap each.',
+    description:
+        'For Claude Code, Gemini CLI, Codex and the like, run from your phone over SSH or in Termux. In the row above the '
+        'keys: Shift+Tab for the agent’s next mode, Esc twice to clear the prompt or go back, Ctrl+C to stop it, a new '
+        'line that does not send the prompt (Ctrl+J), / for its commands, @ to name a file, ! for a shell command and '
+        'Ctrl+R to search what you sent before. Each sends what means the same in more than one of those tools. They show '
+        'in terminal apps (Termux, Termius, JuiceSSH, ConnectBot…), before the terminal keys where those are on. In AI '
+        'chat apps the row has what a prompt wants instead: a new line where Enter would send, a code block, / and @. '
+        'A per-app profile turns them on or off for one app.',
+    category: PluginCategory.tools,
+    hue: 'purple',
+    icon: Lucide.bot,
+    adds: ['Shift+Tab, Esc twice, Ctrl+C and Ctrl+R in the row', 'A new line that does not send the prompt', '/ @ and ! a tap away', 'A new line and a code block in AI chat apps'],
+    hasPage: true,
+    ios: false,
+  ),
+  PluginManifest(
     id: 'clipboard',
     name: 'Clipboard history',
     line: 'Your last 25 copies, a tap away.',
@@ -470,7 +489,7 @@ const List<(String, String)> stockSounds = [
 /// rather than offered in the Market. Mockingbird and Ghostwriter stay Market plugins (Matt, 2026-11-09: "ghostwriter should be
 /// a plugin still", "mockingbird should be a plugin as well"), each with a page of its own once added.
 const Set<String> builtInPlugins = {
-  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito',
+  'autocorrect', 'swipe', 'adaptive', 'themes', 'clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito',
 };
 
 /// What the Market offers: the add-ons that need setting up of their own.

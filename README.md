@@ -71,6 +71,16 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   stepping through the key heights and the foldable and one-handed layouts with the themes.
 - A chip tapped away in the row as Undo lit up could stay drawn (`PluginRow.setItems`).
 
+## 0.16.0
+
+- **Agent keys** (the `agent` plugin, `AgentKeys.kt`; Settings › Row tools, off until switched on;
+  [docs/agent-keys.md](docs/agent-keys.md)): the keys a coding agent in a terminal is driven with, as chips in the
+  row: Shift+Tab, Esc twice, Ctrl+C, a new line that does not send the prompt (Ctrl+J), `/`, `@`, `!` and Ctrl+R, in
+  terminal apps; a new line, a code block, `/` and `@` in AI chat apps (a new kind of app, `AppKind.ASSISTANT`). A
+  per-app profile can turn them on or off for one app.
+- **The emoji button and the mic key** moved: emoji is in the row beside the clipboard again, and with dictation on
+  the mic key stands where the full stop was (`Layouts.withMic`).
+
 ## Releases and auto-update
 
 Installed copies update themselves from **https://ghostkbd.com/** (`apk.json` and `devkeyboard.apk` there, on Ghost.md's

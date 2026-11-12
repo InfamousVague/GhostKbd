@@ -560,7 +560,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (pack != null) SoundPacks.prepare(this, pack)
         }
         // Hide the row (Matt, 2026-11-10: "an option to hide the toolbar row completely"): no strip, whatever is added.
-        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true)
+        val rowShown = !prefs.hideRow && (prefs.toolbar || usesRow() || prefs.arrowKeys || profile?.flag("terminal") == true || profile?.flag("markdown") == true || profile?.flag("agent") == true)
         view.pluginRow = rowShown
         row?.let { it.theme = theme; it.condensed = keyHeight == "condensed"; it.showHide = prefs.toolbar; it.showArrows = prefs.arrowKeys; it.visibility = if (rowShown) View.VISIBLE else View.GONE }
         gifPanel?.theme = theme
@@ -1363,7 +1363,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** Whether any added plugin puts things in the row above the keys. */
     private fun usesRow(): Boolean =
         (Plugins.isOn(prefs, Plugins.AUTOCORRECT) && prefs.suggestions) ||
-            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE)
+            listOf(Plugins.SWIPE, Plugins.PASSWORDS, Plugins.GIFS, Plugins.MARKDOWN, Plugins.TERMINAL, Plugins.CLIPBOARD, Plugins.UNDO, Plugins.INCOGNITO, Plugins.MOCKINGBIRD, Plugins.GHOSTWRITER, Plugins.REWRITE, Plugins.AGENT)
                 .any { Plugins.isOn(prefs, it) }
 
     /** Refreshes the row soon: many edits in a moment (a batch, a swipe) make one refresh. */
@@ -1706,6 +1706,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 items += RowItem("fresh-${clip.at}", label = preview(clip.text), icon = RowIcon.CLIPBOARD, tint = RowTint.CLIPBOARD, bold = true, chip = true) { pasteClip(clip.text) }
             }
         }
+        // Agent keys (AgentKeys.kt): what a coding agent is driven with, before the terminal's own keys. An app's
+        // profile decides for that app; without one they show where the plugin is added and the app suits them.
+        val agent = profile?.flag("agent") ?: (Plugins.isOn(prefs, Plugins.AGENT) && AgentKeys.suits(app))
+        if (agent) for (chip in AgentKeys.chips(app, enterSends())) {
+            items += RowItem("agent-${chip.id}", label = chip.label, chip = true, description = chip.says) { agentTap(chip) }
+        }
         // An app's profile decides for that app; without one, the plugin's own rule (the apps it suits, or everywhere).
         if (profile?.flag("terminal") ?: (Plugins.isOn(prefs, Plugins.TERMINAL) && (prefs.terminalEverywhere || app == AppKind.TERMINAL))) {
             items += RowItem("esc", label = "Esc", chip = true) { sendKey(KeyEvent.KEYCODE_ESCAPE) }
@@ -1716,7 +1722,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             items += RowItem("up", icon = RowIcon.CARET_UP, chip = true, description = "Up") { sendKey(KeyEvent.KEYCODE_DPAD_UP) }
             items += RowItem("down", icon = RowIcon.CARET_DOWN, chip = true, description = "Down") { sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
             items += RowItem("right", icon = RowIcon.CARET_RIGHT, chip = true, description = "Right") { sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
-            for (c in listOf("|", "~", "/", "-", "&&", ">")) items += RowItem("t$c", label = c, chip = true) { editor.type(c) }
+            // The agent keys have a / of their own, nearer the thumb: the row does not show two.
+            for (c in listOf("|", "~", "/", "-", "&&", ">")) if (!(agent && c == "/")) items += RowItem("t$c", label = c, chip = true) { editor.type(c) }
         }
         if (profile?.flag("markdown") ?: (Plugins.isOn(prefs, Plugins.MARKDOWN) && (prefs.markdownEverywhere || app == AppKind.MARKDOWN))) {
             items += RowItem("md-b", icon = RowIcon.BOLD, chip = true, description = "Bold") { wrap("**", "**") }
@@ -1783,6 +1790,46 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         toolsHeld = true
         ClipHistory.fresh = null
         showingClips = false
+        scheduleRow()
+    }
+
+    /**
+     * Whether enter in this field does something other than start a new line: sends the message, searches, goes on
+     * to the next field ([enter] asks the same of it). A new-line chip is only worth its place where it does.
+     */
+    private fun enterSends(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        if (info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) return false
+        val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
+        return action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED
+    }
+
+    /**
+     * An agent key was tapped (AgentKeys.kt). A press is a key press with its modifiers, as the terminal row's Esc
+     * and Ctrl send theirs: what it does is the app's business, and the field is checked after it. What is typed or
+     * wrapped is an edit like any other, and a step in the history.
+     */
+    private fun agentTap(chip: AgentKeys.Chip) {
+        finishTyping()
+        lastCorrection = null
+        lastSwipe = null
+        when (val does = chip.does) {
+            is AgentKeys.Does.Press -> {
+                val code = when (does.code) {
+                    AgentKeys.Code.TAB -> KeyEvent.KEYCODE_TAB
+                    AgentKeys.Code.ESCAPE -> KeyEvent.KEYCODE_ESCAPE
+                    AgentKeys.Code.C -> KeyEvent.KEYCODE_C
+                    AgentKeys.Code.J -> KeyEvent.KEYCODE_J
+                    AgentKeys.Code.R -> KeyEvent.KEYCODE_R
+                }
+                var meta = 0
+                if (does.ctrl) meta = meta or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+                if (does.shift) meta = meta or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+                repeat(does.times) { sendKey(code, meta) }
+            }
+            is AgentKeys.Does.Type -> editor.type(does.text)
+            is AgentKeys.Does.Wrap -> wrap(does.open, does.close)
+        }
         scheduleRow()
     }
 

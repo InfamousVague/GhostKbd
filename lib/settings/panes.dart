@@ -699,7 +699,7 @@ bool _profileOutdated(SettingsStore s) => s.ai['profile'] is Map && (s.ai['profi
 
 String _ghostwriterSummary(SettingsStore s) => s.offline ? 'Offline is on' : s.ai['ready'] != true ? 'Add an AI key' : '<<requests>>, ${_sourcesSummary(s).toLowerCase()}';
 
-const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'incognito'];
+const _rowIds = ['clipboard', 'undo', 'emoji', 'gifs', 'markdown', 'terminal', 'agent', 'incognito'];
 
 String _rowSummary(SettingsStore s) {
   final ids = _rowIds.where(pluginHere);
@@ -1187,6 +1187,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         if (store.pluginOn('markdown')) _toggle(store, 'markdown_everywhere', 'Markdown in every app', null, Lucide.globe),
         _plugin(store, 'terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows, in terminal apps.', Lucide.terminal),
         if (store.pluginOn('terminal')) _toggle(store, 'terminal_everywhere', 'Terminal keys in every app', null, Lucide.globe),
+        _plugin(store, 'agent', 'Agent keys', 'For a coding agent in a terminal: Shift+Tab, Esc twice, Ctrl+C, a new line that doesn’t send, / @ ! and Ctrl+R. In AI chat apps: a new line, a code block, / and @.', Lucide.bot),
         _plugin(store, 'incognito', 'Incognito switch', 'Type without the keyboard learning or keeping anything.', Lucide.eyeOff),
       ],
     ),
@@ -1573,6 +1574,7 @@ const List<(String, String, String)> _profileFields = [
   ('number_row', 'Number row', 'Digits above the letters.'),
   ('autocorrect', 'Correct on its own', 'Off: autocorrect only suggests in this app.'),
   ('terminal', 'Terminal keys', 'Esc, Tab, Ctrl, Alt and arrows in the row.'),
+  ('agent', 'Agent keys', 'Shift+Tab, Esc twice, Ctrl+C and a new line that doesn’t send, for a coding agent.'),
   ('markdown', 'Markdown buttons', 'Bold, code, links and lists in the row.'),
 ];
 
@@ -1592,7 +1594,7 @@ List<Widget> _appsPage(BuildContext context, SettingsStore store) {
     PaneHero(
       glyph: AppIcon(Lucide.smartphone, size: 24),
       title: 'Per-app profiles',
-      meta: const Text('The number row, autocorrect, terminal keys, markdown buttons and incognito, set for one app. Whatever a profile leaves alone follows your settings.'),
+      meta: const Text('The number row, autocorrect, terminal keys, agent keys, markdown buttons and incognito, set for one app. Whatever a profile leaves alone follows your settings.'),
       status: PaneHeroStatus(n == 0 ? 'None yet' : (n == 1 ? '1 app' : '$n apps')),
     ),
     PaneSection(
