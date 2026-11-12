@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The versus field (tool/versus): one text field any keyboard can type into, and a record of what each key press
+     did to it. Built by tool/versus/field/build.sh with the SDK's own tools; never part of the keyboard's app. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.infamousvague.versus">
+    <application
+        android:label="Versus field"
+        android:debuggable="true"
+        android:allowBackup="false"
+        android:hasCode="true">
+        <activity
+            android:name=".Main"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
