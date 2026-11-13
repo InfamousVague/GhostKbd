@@ -450,9 +450,11 @@ class NgramTable private constructor(
 
     /**
      * The row of [key]: one word, or two with a space between ("how are"). A word not there whole is looked for by
-     * the part after its last apostrophe (j'ai finds ai).
+     * the part after its last apostrophe (j'ai finds ai), unless [whole] asks for the word as it is: after a
+     * possessive with no row of its own ("mary's") that part is English's row of the letter s, which says nothing
+     * of what follows a possessive ([Scorer.Here] asks so).
      */
-    private fun row(key: String): Int {
+    private fun row(key: String, whole: Boolean = false): Int {
         val space = key.indexOf(' ')
         if (space > 0) {
             val a = ids[key.substring(0, space)] ?: return -1
@@ -461,7 +463,7 @@ class NgramTable private constructor(
             return if (at >= 0) twoRow[at] else -1
         }
         val r = one(key)
-        if (r >= 0) return r
+        if (r >= 0 || whole) return r
         val cut = key.lastIndexOf('\'')
         return if (cut >= 0 && cut < key.length - 1) one(key.substring(cut + 1)) else -1
     }
@@ -470,8 +472,8 @@ class NgramTable private constructor(
      * How often [key]'s words were seen where the counts came from: two words together, or one word at all. 0 where
      * there is no such row, or the row does not say (a one-word row of a table made before they carried it).
      */
-    fun seen(key: String): Int {
-        val r = row(key)
+    fun seen(key: String, whole: Boolean = false): Int {
+        val r = row(key, whole)
         return if (r < 0) 0 else counts[r]
     }
 
@@ -482,8 +484,8 @@ class NgramTable private constructor(
     }
 
     /** The follower entries of [key], for [followers]. */
-    fun range(key: String): IntRange {
-        val r = row(key)
+    fun range(key: String, whole: Boolean = false): IntRange {
+        val r = row(key, whole)
         return if (r < 0) IntRange.EMPTY else start[r] until start[r + 1]
     }
 
@@ -1106,9 +1108,9 @@ class Scorer(
      * twice it for 6 and under half it for 9.
      */
     private fun row(table: NgramTable, key: String, prior: Float): Row? {
-        val n = table.seen(key).toFloat()
+        val n = table.seen(key, whole = true).toFloat()
         if (n <= 0f) return null
-        val range = table.range(key)
+        val range = table.range(key, whole = true)
         if (range.isEmpty()) return null
         val shares = HashMap<String, Float>((range.last - range.first + 1) * 2)
         var sum = 0f
@@ -1127,22 +1129,37 @@ class Scorer(
 
     /**
      * Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one.
-     * None at all where a table whose rows do not say how often they were seen has a row here ([NgramTable.counted]:
-     * a language whose table has not been made again): that table's say cannot be weighed, and leaving it out would
-     * read its language's words by another's rows. The place is then read as it was before there was a [Here].
+     * None at all (no [Here]) where the language being written ([weights]' largest: the table that knows most of
+     * the last few words, or the first language where nothing tells) has no row here, so a row of English's never
+     * weighs the words of a German sentence and every other language's words are weighed as before. None either
+     * where a table whose rows do not say how often they were seen has one ([NgramTable.counted]: a language whose
+     * table has not been made again): that table's say cannot be weighed, and leaving it out would read its
+     * language's words by another's rows. The place is then read as it was before there was a [Here]. A table of
+     * weight 0 has no say at all ([weights] never gives one, but a sum of 0 would make every worth NaN).
+     *
+     * A table without a row is not counted in as its words' own frequencies: with English and German on and
+     * English being written, that took the English row's say down by German's weight, and parted 3,954 of 6,362
+     * run-together words typed on their keys (held-out lines 64,001 to 70,000, the code review's probe, 2026-11-13)
+     * where the place not read parts 4,043 and this 4,099 (English alone: 4,134).
      */
     private fun rows(prev2: String?, prev: String, own: (String) -> Float?): List<Rows> {
         val key2 = prev2?.takeIf { prev != NextWordText.START }?.let { "$it $prev" }
         val out = ArrayList<Rows>(tables.size)
+        var most = 0f
+        for (w in weights) if (w > most) most = w
+        if (!(most > 0f)) return emptyList()
+        var leads = false
         for (t in tables.indices) {
             val table = tables[t]
             if (!table.counted) {
                 if (table.range(prev).isEmpty() && (key2 == null || table.range(key2).isEmpty())) continue
                 return emptyList()
             }
+            if (weights[t] <= 0f) continue
             val one = row(table, prev, PRIOR_HERE_ONE)
             val two = if (key2 == null) null else row(table, key2, PRIOR_HERE_TWO)
             if (one == null && two == null) continue
+            if (weights[t] >= most) leads = true
             one?.let { r ->
                 var listed = 0f
                 for (w in r.shares.keys) own(w)?.let { listed += 10f.pow(it - 9f) }
@@ -1155,7 +1172,7 @@ class Scorer(
             }
             out += Rows(weights[t], one, two)
         }
-        return out
+        return if (leads) out else emptyList()
     }
 
     /**
@@ -1196,29 +1213,55 @@ class Scorer(
             log10((sum / weight).coerceAtLeast(1e-12f))
         }
 
-        /** How likely [lower], a word of frequency [zipf], is here: 0 to 1. */
-        fun share(lower: String, zipf: Float): Float {
+        /** How likely [lower], a word of frequency [zipf], is here by the tables alone: 0 to 1. */
+        private fun byTables(lower: String, zipf: Float): Float {
             val own = 10f.pow(zipf - 9f)
             var sum = 0f
             var weight = 0f
             for (r in rows) { sum += r.weight * r.of(lower, own); weight += r.weight }
-            val tables = sum / weight
-            if (total1 <= 0f && total2 <= 0f) return tables
-            val after1 = ((u1[lower] ?: 0f) + PRIOR_ONE * tables) / (total1 + PRIOR_ONE)
-            val mine = if (total2 > 0f) ((u2[lower] ?: 0f) + PRIOR_TWO * after1) / (total2 + PRIOR_TWO) else after1
-            return maxOf(tables, mine)
+            return sum / weight
         }
+
+        /**
+         * How likely [lower], a word of frequency [zipf], is here: 0 to 1. The person's counts lift it, never lower
+         * it, and by at most [MINE_LIFT] in Zipf units over what the tables make of it ([worth]).
+         */
+        fun share(lower: String, zipf: Float): Float = 10f.pow(worth(lower, zipf) - 9f)
 
         /** Whether the place makes of [lower] what it makes of any word nobody lists: [room] over its frequency, exactly. */
         fun plain(lower: String, zipf: Float): Boolean {
             if ((u1[lower] ?: 0f) > 0f || (u2[lower] ?: 0f) > 0f) return false
+            return plainByTables(lower, zipf)
+        }
+
+        private fun plainByTables(lower: String, zipf: Float): Boolean {
             val own = 10f.pow(zipf - 9f)
             for (r in rows) if (!r.plain(lower, own)) return false
             return true
         }
 
-        /** What [lower], a word of frequency [zipf], is worth here in Zipf units: 9 + log10 of how likely it is. */
-        fun worth(lower: String, zipf: Float): Float = if (plain(lower, zipf)) zipf + room else 9f + log10(share(lower, zipf).coerceAtLeast(1e-12f))
+        /**
+         * What [lower], a word of frequency [zipf], is worth here in Zipf units: 9 + log10 of how likely it is. Where
+         * the person has typed it here, what their counts make of it, but never more than [MINE_LIFT] over what the
+         * tables alone make of it: three uses give a word an eighth of the place, and nothing has measured how
+         * autocorrect does with that ([MINE_LIFT]).
+         */
+        fun worth(lower: String, zipf: Float): Float {
+            val tables = if (plainByTables(lower, zipf)) zipf + room else 9f + log10(byTables(lower, zipf).coerceAtLeast(1e-12f))
+            if (total1 <= 0f && total2 <= 0f) return tables
+            val u = (u1[lower] ?: 0f) + (u2[lower] ?: 0f)
+            if (u <= 0f) return tables
+            val t = 10f.pow(tables - 9f)
+            val after1 = ((u1[lower] ?: 0f) + PRIOR_ONE * t) / (total1 + PRIOR_ONE)
+            val mine = if (total2 > 0f) ((u2[lower] ?: 0f) + PRIOR_TWO * after1) / (total2 + PRIOR_TWO) else after1
+            return if (mine <= t) tables else minOf(9f + log10(mine), tables + MINE_LIFT)
+        }
+
+        /**
+         * What the place makes of [lower] over what it makes of a word no row lists or holds down, in Zipf units:
+         * 0 for such a word, exactly ([plain]), else [worth] less [room] less [zipf]. One call for [plain] and [worth].
+         */
+        fun over(lower: String, zipf: Float): Float = if (plain(lower, zipf)) 0f else worth(lower, zipf) - room - zipf
 
         /** Whether a row lists [lower] as a follower here, or the person has typed it here often enough to go by. */
         fun lists(lower: String): Boolean {
@@ -1335,14 +1378,31 @@ class Scorer(
          * for the first give 7.006 and 7.005, and for the second 7.008 and 6.998. Both are what [PRIOR_TABLE_TWO] is.
          *
          * [SEEN_LEAST]: how many sightings get a follower listed (tool/next_words.py's minimum for a language of
-         * 300,000 sentences or more).
+         * 300,000 sentences or more). One number for every table: before a language under 300,000 sentences (whose
+         * followers are listed from 2 sightings) goes into next_words.py's SEEN_ONE, make this per table.
          */
         @JvmField var UNLISTED = 0.2f
         @JvmField var PRIOR_HERE_ONE = 15f
         @JvmField var PRIOR_HERE_TWO = 15f
         @JvmField var SEEN_LEAST = 3f
-        /** The least [Row.rest] is taken to be: a row whose listed words are nearly all the words there are shares its left-over out no more than twenty times over. */
-        const val REST_LEAST = 0.05f
+        /**
+         * The least [Row.rest] is taken to be: a row whose listed words are nearly all the words there are shares its
+         * left-over out no more than twenty times over. Not tuned: a guard against dividing by next to nothing, set
+         * by hand by the track's first engineer; no one-word row of English's table comes near it (the most a row's
+         * listed words take of all words by their own frequencies is 0.46, after "them"; measured 2026-11-13).
+         */
+        @JvmField var REST_LEAST = 0.05f
+        /**
+         * The most the person's own counts may make a word worth at a place over what the tables make of it, in
+         * Zipf units, before [Autocorrect.HERE_WEIGHT] (so 0.7 of a worth after it). Three uses out of three give a
+         * word an eighth of the place, about four points over a common word's own frequency, and no tool types with
+         * a person's counts in the Scorer (the bench and the replay make it from empty ones), so nothing measured
+         * says how far to believe them. Set by hand (2026-11-13, after the code review): under
+         * [Autocorrect.HERE_COMMON]'s 1.0 after the weight, so the counts alone never take a common word's place,
+         * as [Autocorrect]'s capped lift ([Autocorrect.CONTEXT_PICK] under [Autocorrect.MARGIN_COMMON]) never let
+         * them before; with the tables or a slip in the taps they may.
+         */
+        @JvmField var MINE_LIFT = 1f
 
         /** See [Scorer.personalZipf]. */
         fun personalZipf(n: Float, isWord: Boolean): Float =

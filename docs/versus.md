@@ -664,18 +664,19 @@ with" 6.94 for 6.53), and a common word in a place it all but never stands less 
 frequency and would pass over a word that is rare and likely here. The place's say counts 0.7 times
 (`HERE_WEIGHT`), and at a place a common typed word gives way to a reading worth 1.0 more (`HERE_COMMON`). Where no
 table has a row for the words before, where next-word prediction is off, and in every language but English, a word
-is weighed exactly as it was.
+is weighed exactly as it was. Since the code review (below) a listed word with every tap well inside its own key is
+weighed as it was too, and the place never reads a word as its apostrophe spelling.
 
 | | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | the run's 900 typings, before | 2.5% | 5.4% | 10.9% | 6.3% | | |
-| after | 1.9% | 4.6% | 9.6% | 5.3% | 60 | 12 |
+| after | 2.0% | 4.6% | 9.6% | 5.4% | 58 | 12 |
 | the 900 unseen typings, before | 3.3% | 5.0% | 12.2% | 6.8% | | |
-| after | 2.6% | 4.2% | 10.9% | 5.9% | 80 | 20 |
+| after | 2.7% | 4.2% | 10.9% | 5.9% | 77 | 20 |
 
-That is 326 words wrong of 5,205 to 278, and 437 of 6,408 to 377. Of the words Gboard got and this did not, 166
-are left where there were 201, and 87 go the other way where 74 did. By what stood in the decoder's way
-(`fixtures.py --still`), 158 of the list's 326 are still lost where 199 were: a letter left out, doubled or swapped
+That is 326 words wrong of 5,205 to 280, and 437 of 6,408 to 380 (278 and 377 before the code review's changes).
+Of the words Gboard got and this did not, 168 are left where there were 201, and 87 go the other way where 74 did.
+By what stood in the decoder's way (`fixtures.py --still`, on the tree before the code review), 158 of the list's 326 are still lost where 199 were: a letter left out, doubled or swapped
 46 to 32, more letters off their keys than the search will change 18 to 9, letters that spell a rare word 9 to 1,
 letters that spell a common word 23 to 18, no word typed and the word meant within reach 55 to 51, and the space's
 42 to 41. On 12,000 of the typing bench's own words, by its three thumbs (careful, normal, sloppy):
@@ -683,12 +684,13 @@ letters that spell a common word 23 to 18, no word typed and the word meant with
 | | Words right | Right words spoiled in 1000 | Slips that spell a word, mended | Joins fixed | Right words no list has, spoiled |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | before | 96.41 / 92.34 / 85.65% | 1.22 / 1.48 / 1.65 | 290 of 426 / 507 of 715 / 761 of 1,082 | 60.0 / 61.5 / 56.4% | 1.5 / 4.3 / 7.1% |
-| after | 96.87 / 93.19 / 87.24% | 1.93 / 1.75 / 2.07 | 333 / 560 / 825 | 62.2 / 64.1 / 59.4% | 2.3 / 3.0 / 6.0% |
+| after | 96.78 / 93.12 / 87.16% | 1.93 / 1.75 / 2.07 | 323 / 553 / 817 | 62.2 / 63.6 / 59.4% | 2.3 / 3.0 / 6.0% |
 
 **What it costs.** A right word that is rare in its place, and a slip away from a word the place expects, is
 changed more often: 42 right words spoiled where there were 31, in the bench's 36,000 typed (nest to best, vase to
 base and gadded to added, each by all three thumbs; hunch to bunch; done to some). The bench's own measure, words
-right less four for every right word spoiled, goes from 93.76 to 94.60. With the place counted in full
+right less four for every right word spoiled, goes from 93.76 to 94.52 (94.60 before the code review's changes,
+below). With the place counted in full
 (`HERE_WEIGHT` 1) it spoils 3.04, 2.83 and 4.14 in a thousand and that measure is 94.30: the tables are surer of
 themselves than they have reason to be. The weight was set where the measure peaked, with the two sets of
 sentences beside it (94.53 at 0.8, 94.59 at 0.7, 94.50 at 0.6, before a join's second word was weighed as it now
@@ -723,17 +725,22 @@ matters now that every row says how often it was seen: 4 and 60 give 7.006 and 7
 the place looks better here than it will in a person's own writing. Two measures of that. 14 of the 60 words mended
 on the run's sentences are "Tom" (7 of the 80 on the unseen ones), which the tables expect at the start of a
 sentence and few people's messages do. And `tool/versus/elsewhere.py` cuts sentences from this repository's own
-documents, 287 that the thumb can type (2,639 words), plain prose about a keyboard with its own words in it:
+documents, 287 that the thumb can type (2,639 words), plain prose about a keyboard with its own words in it; the
+code review added 459 typeable sentences (4,480 words) of another project's documents, typed the same way
+(`whatif.py --file ... --first 0 --sentences 3000`). Each word is typed by the three thumbs:
 
-| 287 sentences that are not Tatoeba's | careful | leaning | sloppy | Mended | Broken |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| the place not read (`--set Autocorrect.HERE=false`) | 3.1% | 7.3% | 14.1% | | |
-| as the tree is | 2.8% | 6.3% | 13.6% | 83 | 38 |
+| Not Tatoeba's | careful | leaning | sloppy | Mended | Broken | Right words spoiled |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| this repository's, the place not read (`--set Autocorrect.HERE=false`) | 3.1% | 7.3% | 14.1% | | | 9 |
+| as the tree is | 2.8% | 6.1% | 13.6% | 79 | 29 | 9 |
+| another project's, the place not read | 4.0% | 6.5% | 14.6% | | | 22 |
+| as the tree is | 3.8% | 5.9% | 13.7% | 123 | 50 | 30 |
 
-So away from home the place still mends about twice what it breaks, and is worth about three fifths of what it is
-on Tatoeba's unseen sentences: 0.57 of a point of words wrong there (645 of 7,917 to 600), 0.94 here. It spoils 17
-right words there where 9 were. These are documents in one voice, not messages: what they say is that the gain is
-not all Tatoeba's, not how large it is in a person's own writing.
+So away from home the place still mends between two and three times what it breaks, and is worth about two thirds
+of what it is on Tatoeba's unseen sentences: 0.63 of a point of words wrong in the first (645 of 7,917 to 595) and
+0.54 in the second (1,124 of 13,440 to 1,051), 0.89 on the unseen set. With neither of the code review's two rules for
+clean taps and apostrophes (below), the second lost 42 right words where the place not read loses 22; now 30. These are documents, not messages: what they say is
+that the gain is not all Tatoeba's, not how large it is in a person's own writing.
 
 **Why a word was left or changed.** `tool/versus/why.py` types the run again and prints what `byTaps` weighed for
 every word left wrong (`--lost`: those Gboard got; `--typed`, `--meant`: a pattern; `--set unseen`): the typed word
@@ -853,6 +860,51 @@ tables lack counting no more than 0.5 against a reading (documents 21 mended and
 last word has no word after it, and the tables have no rows that say how likely a word is to end a sentence (the
 rows after "^" are starts): 70 of the seen set's wrong words are last words, and reading them by the mark that ends
 them would need such rows counted into the tables first.
+
+### After the code review (2026-11-13)
+
+A code review of the change above (it reproduced the gain with a thumb of its own and found the place off to be the
+base word for word) found what the track's own measures cannot see, and this is what was done about each.
+
+- **A right word with every tap in the middle of its key was rewritten where the tables expect a neighbour**: "Its"
+  opening a sentence was always "It's", and on prose that is not Tatoeba's the place changed clean words and
+  mended none. Now a listed word whose every tap is well inside its own key (`Autocorrect.CLEAN_TAP`: nearer its
+  own key's middle than any other's by 0.7 of a key width squared, within about 0.15 of a key of the middle) is
+  weighed as though there were no place, and at a place no listed word is read as a word it differs from by
+  apostrophes alone (`PLACE_APOSTROPHE` off: an apostrophe has no tap, so only the place would say so). Typed
+  with every tap in the middle of its key, held-out lines 30,001 to 34,000 (28,021 words) now have no word the
+  place alone changes (11 before), and five fewer than with the place not read. The cost is on Tatoeba's
+  sentences: seen 5.38% for 5.34%, unseen 5.93% for 5.88% (ff for off, kn for in, yu for you, thy for they, t for
+  to: a letter left out or a wrong key, every tap clean, which the place mended). On the bench, with the join rule
+  below, words right are 96.78 / 93.12 / 87.16% for 96.87 / 93.19 / 87.24% and its measure 94.52 for 94.60; right
+  words spoiled are 1.93 / 1.75 / 2.07 in 1000 either way. On the prose that is not Tatoeba's (above) the apostrophe
+  rule keeps 19 words that allowing those readings breaks, and mends none fewer; the clean-tap rule is near
+  nothing either way there with the thumbs' scattered taps (`CLEAN_TAP` has the table).
+- **With English and another language on, two words run together were parted less often than before**: where the
+  other language's table (which carries no counts) had a row for the first word, the second was read as nothing.
+  It is now read by the old row, as before there was a place, and the place is read only where the language being
+  written (the table `Scorer.weights` weighs most) has a row: run together and typed on their keys, 6,362 pairs
+  of held-out lines 64,001 to 70,000 are parted 4,099 times with English and German on, 4,043 with the place not
+  read (English alone: 4,134 and 4,059).
+- **The person's own counts could lift a word without a cap**: "Ken" typed cleanly after "hi" became "Jen" once
+  "Jen" had been typed there three times. They now lift a word at most 1.0 over what the tables make of it
+  (`Scorer.MINE_LIFT`, 0.7 after the weight, under the 1.0 a common word's bar asks): the counts alone never take
+  a common word's place, and the review's fifteen cases all stand. Nothing types with a person's counts, so this
+  was set by hand, not measured.
+- **A table with no row at a place had no say there**, so English's row counted in full in a German sentence. Now
+  there is no place where the language being written has no row (German leading, English's row is not gone by).
+  Counting such a table in as its words' own frequencies, by its weight, was tried first: it took English's say
+  down while English was being written and parted 3,954 of those 6,362 pairs, fewer than the place not read.
+  With English and another language on, the place is still read only where the other's table (which has no
+  counts) has no row for the words before: 64% of held-out places with German, 94% with English alone.
+- **After a possessive the place was the row of the letter s** (the table's maker looks a word up by what follows
+  its apostrophe, for French's j'ai): the place now asks for the word whole, and "mary's" has no place.
+- **A held-down second word of a join was worth more than a plain one.** It now pays `JOIN_UNSEEN` or what the
+  place holds it down by, whichever is more, so it is never worth more than a plain one. Paying both, as the review
+  had it, parted fewer of the bench's sloppy joins (58.6% for 59.4%); this way the normal thumb's are 63.6% for
+  64.1%, and the seen and unseen sets are the same all three ways.
+- Comments and documents that no longer said what the code does are put right; `REST_LEAST` is a dial with its
+  comment; a weight of 0 gives no place rather than every worth NaN.
 
 ### What the thumb had done
 

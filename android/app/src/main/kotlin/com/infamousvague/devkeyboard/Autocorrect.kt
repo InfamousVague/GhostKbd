@@ -28,10 +28,12 @@ import kotlin.concurrent.thread
  * forms: a right word the list lacks is one slip from a listed one more often than a typo is. With one of them
  * loaded a mend is made on its own only when it is near certain ([best]); a likely one is offered in the row instead.
  *
- * Where next-word prediction is on, the word before is gone by too ([Scorer], NextWordModel.kt): among the words a
- * prefix could become, the likely next ones rank higher, and between two candidates that would both have been good
- * corrections the likelier one after that word is chosen. Context never causes a correction that would not have been
- * made without it, and with no [Scorer] given everything here is exactly as it was before there was one.
+ * Where next-word prediction is on, the words before are gone by too ([Scorer], NextWordModel.kt): among the words a
+ * prefix could become, the likely next ones rank higher. A word read by its taps ([byTaps]) is weighed by how likely
+ * it is at its place in the sentence where a starter table has a row for the words before ([Scorer.Here]): there
+ * the place can make a correction that would not have been made without it ("need to rat more" is "eat"), and can
+ * keep one from being made, but it never overturns a listed word whose every tap is well inside its own key
+ * ([CLEAN_TAP]). With no [Scorer] given everything here is exactly as it was before there was one.
  *
  * Mockingbird reads the same dictionaries to take slips out of its writing samples ([slip], [lexicon]): a far
  * stricter judgement than [correct]'s, since nobody is there to undo it. A word the lists miss is not a slip for
@@ -893,9 +895,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     private class Fix(val word: String, val sure: Boolean)
 
     /**
-     * The word [lower] should be, or null. With a [scorer], among the candidates that would each have been a good
-     * enough correction on their own, the one likelier after the word before wins (its lift counts for at most
-     * [CONTEXT_PICK]); which words may be corrected at all, and the least a correction must score, are untouched.
+     * The word [lower] should be, or null. With a [scorer] and no taps, among the candidates that would each have been
+     * a good enough correction on their own, the one likelier after the word before wins (its lift counts for at
+     * most [CONTEXT_PICK]); which words may be corrected at all, and the least a correction must score, are untouched.
+     * With taps, [byTaps] decides, and there the place in the sentence may decide whether a word is corrected at all.
      *
      * With a [Lexicon.cautious] list loaded, a word that is one slip from a listed one is changed on its own only when
      * the mend scores [CAUTIOUS_SCORE], is not the kind an ending makes ([ending]), and the typed word does not look
@@ -981,7 +984,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one ([HERE_COMMON] at a
      *   place), and only by slips of the thumb: "br" with its r tapped on the line between e and r is "be", and
      *   with the r tapped in the middle of its key it is "br". At a place it may also be a word the rows list
-     *   there with a letter missed, added or swapped ([LISTED_EDITS]).
+     *   there, held against the taps with any slip (a swap, an apostrophe) and, by [LISTED_EDITS], of another
+     *   length (a letter missed or added);
+     * - a listed word whose every tap is well inside its own key ([onTheirKeys], [CLEAN_TAP]) is weighed as though
+     *   there were no place: the place alone never overturns what the taps say plainly.
      * The readings are the lists' words ([TapDecoder.search]), the words the rows list at the place (each held up
      * against the taps: the search goes by frequency, and would pass over a word that is rare and likely here),
      * the person's own, and two or three words run together ([TapDecoder.joins], worth at least [JOIN_BAR]) where the
@@ -1004,8 +1010,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val decoder = tapDecoder(now, taps)
         decoder.load(lower, taps)
         // The place the word stands in, where a table has a row for the words before it. Null where none has, or
-        // prediction is off: every word is then worth how common it is, as before the place was read at all.
-        val here = if (HERE) scorer?.here { words[it] } else null
+        // prediction is off: every word is then worth how common it is, as before the place was read at all. Null
+        // too for a listed word whose every tap is well inside its own key ([onTheirKeys]): the taps say it was
+        // meant, and the place alone never overturns that. It is read as it was before there was a place (a lift
+        // capped at [CONTEXT_PICK], [MARGIN_COMMON] for a common word): "Its" opening a sentence stands.
+        val clean = known != null && onTheirKeys(now, lower, taps)
+        val here = if (HERE && !clean) scorer?.here { words[it] } else null
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         fun worth(word: String, zipf: Float) = if (here != null) atPlace(here, word, zipf) else zipf + lift(word, zipf)
         val common = known != null && known >= COMMON
@@ -1038,8 +1048,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         var bestWord: String? = null
         var bestScore = Float.NEGATIVE_INFINITY
+        // At a place, a listed typed word is never read as a word it differs from by apostrophes alone ([PLACE_APOSTROPHE]):
+        // an apostrophe has no tap, so nothing but the place would say so ("Its" opening a sentence is not "It's").
+        val noApostrophe = here != null && known != null && !PLACE_APOSTROPHE
         fun offer(word: String, score: Float, least: Float = bar) {
             if (word == lower || word == stands || score < least || score <= bestScore) return
+            if (noApostrophe && ('\'' in word || '’' in word) && word.length > lower.length && word.filter { it != '\'' && it != '’' } == lower) return
             bestWord = word; bestScore = score
         }
         // What a reading must be worth, less its slips, to take the typed word's place.
@@ -1057,7 +1071,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val trace = TRACE
         if (trace != null) {
             trace("typed $lower: " + (if (known == null) "in no list, worth $unknown" else "listed at $known (${if (common) "common" else "rare"}), worth $stood as it stands") +
-                (if (here != null) " here" + (if (known != null && here.lists(stands)) ", where a row lists it" else "") else if (scorer == null) ", with no words before to go by" else ", after words no table has a row for") + "; a reading needs $bar")
+                (if (here != null) " here" + (if (known != null && here.lists(stands)) ", where a row lists it" else "") else if (scorer == null) ", with no words before to go by" else if (clean && HERE) ", every tap on its own key (the place read as before)" else ", after words no table has a row for") + "; a reading needs $bar")
             TRACE_MEANT?.let { m ->
                 val z = words[m]
                 trace("  meant $m: " + (if (z == null) "in no list" else "frequency $z, worth ${worth(m, z)}" + (if (here?.lists(m) == true) " (a row lists it)" else "") + ", slips ${decoder.align(m, 0, 99f)}"))
@@ -1151,14 +1165,25 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 if (made == null) none += a else afters[a] = made
                 return made
             }
-            // Where there is none: the least share a first word's row lists: a second word the row does not list
-            // follows it less often than that, however common it is elsewhere ("the" after "i": never, for all
-            // that "the" is everywhere).
+            // A word the rows there list is worth what it is worth at its place; any other word pays JOIN_UNSEEN or
+            // what the place holds it down by, whichever is more, so a pair the tables have evidence against never
+            // outranks one they know nothing of. Measured 2026-11-13, joins fixed by the bench's normal and
+            // sloppy thumbs: paying both (as the code review put it) 63.6 / 58.6%, the bench's measure 94.51; this
+            // way 63.6 / 59.4%, 94.52; the rule before, a held-down word worth its place alone, 64.1 / 59.4% (at
+            // CLEAN_TAP 0.5: 94.44 against 94.42 for paying both). Seen and unseen the same all three ways.
+            // Where there is no such place (prediction off, or no table that can be weighed has a row for the first
+            // word: [Scorer.after] is null), the least share the first word's row lists: a second word the row does
+            // not list follows it less often than that, however common it is elsewhere ("the" after "i": never, for
+            // all that "the" is everywhere).
             val least = HashMap<Int, Float>()
             fun second(a: Int, b: Int): Float {
                 val z = zipfs[b]
                 if (sorted[b].length < 2 && z < SwipeDecoder.ONE_LETTER) return Float.NEGATIVE_INFINITY
-                if (here != null) return after(a)?.let { if (it.plain(sorted[b], z)) z - JOIN_UNSEEN else atPlace(it, sorted[b], z) } ?: (z - JOIN_UNSEEN)
+                after(a)?.let { at ->
+                    val w = sorted[b]
+                    val over = HERE_WEIGHT * at.over(w, z)
+                    return if (at.lists(w)) z + over else z + minOf(-JOIN_UNSEEN, over)
+                }
                 val row = lex.follows(sorted[a])
                 val share = row?.get(sorted[b]) ?: 0f
                 if (share > 0f) return 9f + kotlin.math.log10(Math.pow(10.0, (z - 9f).toDouble()) + share).toFloat()
@@ -1176,9 +1201,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                     firsts = { i -> zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER) },
                     second = ::second,
                     followers = { a ->
-                        if (here != null) {
+                        val at = after(a)
+                        if (at != null) {
                             val listed = ArrayList<Int>()
-                            after(a)?.listed { w -> index(w)?.let { listed += it } }
+                            at.listed { w -> index(w)?.let { listed += it } }
                             listed.toIntArray()
                         } else {
                             val row = lex.follows(sorted[a])
@@ -1202,9 +1228,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 first = { i -> if (zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER)) head(i) else Float.NEGATIVE_INFINITY },
                 second = ::second,
                 followers = { a ->
-                    if (here != null) {
+                    val at = after(a)
+                    if (at != null) {
                         val listed = ArrayList<Int>()
-                        after(a)?.listed { w -> index(w)?.let { listed += it } }
+                        at.listed { w -> index(w)?.let { listed += it } }
                         listed.toIntArray()
                     } else lex.followers(sorted[a])
                 },
@@ -1524,8 +1551,35 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * every such word. Any other word is worth what the place makes it likelier or less likely by than such a
      * word ([Scorer.Here.worth], less the room, over its frequency), counted [HERE_WEIGHT] times.
      */
-    private fun atPlace(here: Scorer.Here, word: String, zipf: Float): Float =
-        if (here.plain(word, zipf)) zipf else zipf + HERE_WEIGHT * (here.worth(word, zipf) - here.room - zipf)
+    private fun atPlace(here: Scorer.Here, word: String, zipf: Float): Float = zipf + HERE_WEIGHT * here.over(word, zipf)
+
+    /**
+     * Whether every tap of [lower] landed well inside its own key: nearer it than any other key by at least
+     * [CLEAN_TAP] of a key width squared (a tap in a key's middle is a whole one nearer it than the key beside it;
+     * one on the line between them, none). Letters with no tap of their own (an apostrophe, a long-press) are passed
+     * over; a word with no tap at all, or taps not one a letter, is not.
+     */
+    private fun onTheirKeys(now: Now, lower: String, taps: Taps): Boolean {
+        val w2 = taps.keyW * taps.keyW
+        if (taps.xs.size != lower.length || !(w2 > 0f)) return false
+        val script = now.board.script
+        var any = false
+        for (i in lower.indices) {
+            if (!taps.has(i)) continue
+            val c = lower[i]
+            val k = if (taps.keys.containsKey(c)) c else script.plain(c.toString()).let { p -> if (p.length == 1 && taps.keys.containsKey(p[0])) p[0] else return false }
+            val at = taps.keys[k] ?: return false
+            val x = taps.xs[i]; val y = taps.ys[i]
+            val d0 = (x - at.first) * (x - at.first) + (y - at.second) * (y - at.second)
+            for ((other, p) in taps.keys) {
+                if (other == k) continue
+                val d = (x - p.first) * (x - p.first) + (y - p.second) * (y - p.second)
+                if ((d - d0) / w2 < CLEAN_TAP) return false
+            }
+            any = true
+        }
+        return any
+    }
 
     /**
      * What letters no list has are worth against a reading of their taps ([byTaps], [rejoin]), in the Zipf units a
@@ -2225,13 +2279,47 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          */
         @JvmField var HERE_COMMON = 1.0f
         /**
-         * A common typed word may be read as a word the rows list at its place with a letter missed or added too,
-         * where [TapDecoder.search] reads a common word by slips of the thumb alone: "he" typed where "the" stands
-         * is mended by it, and "too" is now and then made "to". Off, by [HERE_WEIGHT]'s measures: 94.34, 5.53% and
+         * A common typed word may be read as a word the rows list at its place of another length (a letter missed
+         * or added), where [TapDecoder.search] reads a common word by slips of the thumb alone: "he" typed where "the"
+         * stands is mended by it, and "too" is now and then made "to". A word of the same length the rows list is
+         * held against the taps whatever this says, with a swap or an apostrophe among its slips. Off, by [HERE_WEIGHT]'s measures: 94.34, 5.53% and
          * 6.09% for 94.59, 5.40% and 5.91%, with 1.83 / 1.61 / 2.07 right words spoiled in a thousand for 1.93 /
          * 1.61 / 2.07.
          */
         @JvmField var LISTED_EDITS = true
+        /**
+         * How far inside its own key every tap of a listed word must land for the place to be read as it was before
+         * it was weighed ([onTheirKeys], [byTaps]): how much nearer its own key's middle than any other's, in key
+         * widths squared (1 for a tap in the middle of a key, beside a key a width away; 0 on the line between two).
+         * After the code review of 2026-11-13: with the place read, a right word with every tap in the middle of its
+         * key was rewritten where the tables expect a neighbour ("Its" opening a sentence was always "It's"), and an
+         * apostrophe, a doubled letter or a letter added owe nothing to where the taps landed. 0.7 is a tap within
+         * about 0.15 of a key of the middle, toward its nearest neighbour. Measured 2026-11-13 (the bench's measure,
+         * seen and unseen words wrong; then mended and broken against 0.5 on prose that is not Tatoeba's, this
+         * repository's documents and another project's, 7,119 words each typed by the three thumbs, tool/versus/whatif.py):
+         *
+         *     clean at   measure   seen     unseen   not Tatoeba's, against 0.5
+         *     never      94.58     5.34%    5.88%    +19 -16
+         *     0.7        94.51     5.38%    5.93%    +11 -10
+         *     0.5        94.42     5.51%    6.05%
+         *     0.3        94.35     5.59%    6.15%    (the careful thumb spoils 1.62 right words in 1000 for 1.93)
+         *
+         * With taps that scatter as the thumbs' do it is near nothing either way on prose that is not Tatoeba's; with
+         * every tap in the middle of its key (the code review's typing) it takes every change the place alone made
+         * away. 0.7 does that for 2 words of the seen set and 3 of the unseen.
+         */
+        @JvmField var CLEAN_TAP = 0.7f
+        /**
+         * Whether at a place a listed typed word may be read as a word it differs from by apostrophes alone ("its" as
+         * "it's", "were" as "we're", "hell" as "he'll"). Off: an apostrophe is typed with no tap of its own, so the
+         * taps say nothing for such a reading and the place alone would make it, and Tatoeba's sentences, which the
+         * tables were counted from, all but never open with "Its". The code review of 2026-11-13 found 11 of the 14
+         * clean words the place changed in this repository's documents, and 16 of 33 in another project's, were
+         * its to it's. Measured 2026-11-13: on the seen and unseen sets and the bench nothing moves either way (no word
+         * mended there was such a reading); on the prose that is not Tatoeba's ([CLEAN_TAP]'s), allowing them breaks 19
+         * words and mends none.
+         */
+        @JvmField var PLACE_APOSTROPHE = false
         /** The most the slips may cost that turn one listed word into another. */
         @JvmField var LISTED_BUDGET = 3.4f
         /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */

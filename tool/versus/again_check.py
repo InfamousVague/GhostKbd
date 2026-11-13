@@ -3,7 +3,10 @@
 
 AgainTest holds Autocorrect.again alone and AgainSourceTest the service's lines; this holds what the three share,
 typed: "we ate going " tapped on the keys of tool/versus/geometry/ghost-1248x1972-420dpi.json, the r of "are"
-tapped a tenth of a key left of the t's middle, through tool/versus/replay.sh (the decoder as it is in this tree).
+tapped a fifth of a key left of the t's middle, through tool/versus/replay.sh (the decoder as it is in this tree).
+(It was a tenth until the place's review was merged: a tap that near the middle is "well inside its key"
+(Autocorrect.CLEAN_TAP), so "ate" is weighed with no place, and the capped lift alone then makes it "are" at its own
+space, second look or not.)
 With the second look on the field must read "We are going ", with Autocorrect.AGAIN=false "We ate going ". And a
 word the word after bears out is never changed: "we are going ", "we ate dinner ". Exit status 0 when all hold.
 Run by tool/versus/unit.sh.
@@ -51,10 +54,10 @@ def typed(text, off, dials=()):
 
 def main():
     checks = [
-        ("we a_e going ", 0.1, (), "We are going "),
-        ("we a_e going ", 0.1, ("Autocorrect.AGAIN=false",), "We ate going "),
+        ("we a_e going ", 0.2, (), "We are going "),
+        ("we a_e going ", 0.2, ("Autocorrect.AGAIN=false",), "We ate going "),
         ("we are going ", 0.0, (), "We are going "),
-        ("we a_e dinner ", 0.1, (), "We ate dinner "),
+        ("we a_e dinner ", 0.2, (), "We ate dinner "),
     ]
     bad = 0
     for text, off, dials, want in checks:

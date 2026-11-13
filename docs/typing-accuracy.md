@@ -22,8 +22,12 @@ each key the finger came down (`TapDecoder.kt`, `Autocorrect.byTaps`):
   letter left out, tapped twice or two swapped count as slips of a common word too).
 - **In English a word is weighed by its place in the sentence** (since 2026-11-12). Where the starter table has a
   row for the one or two words before, a reading is worth how likely its word is after them, and so is the typed
-  word: a common word where it all but never stands gives way to a reading ten times as likely there, and a word
-  the place expects is dearer to change. Where no row says, and in every other language, it is as above.
+  word: a common word where it all but never stands gives way to a reading that is about 27 times as likely there
+  (a worth of 1.0 more, the place counted 0.7 times), and a word the place expects is dearer to change. A listed
+  word with every tap well inside its own key is weighed as above all the same, and the place never reads a word
+  as its apostrophe spelling ("its" stays "its"). Where no row says, and in every other language, it is as above;
+  with English and another language on, the place is read only while English is the language being written and
+  where the other language's table has no row for the words before.
   [versus.md](versus.md#a-word-weighed-by-its-place-in-the-sentence-made-2026-11-12) has what that mended, what it
   costs and how it was measured.
 - **Two words run together are parted**: "inthe" is "in the", and "thisbis" (the space bar missed for the b above

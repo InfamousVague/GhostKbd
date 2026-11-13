@@ -42,6 +42,12 @@ class PlaceWorthTest {
             return Scorer(place, listOf(table), floatArrayOf(1f), mine, emptyList(), lookup)
         }
 
+        /** The scorer for the place after [before]'s words by several [tables], weighed by [weights]. */
+        fun scorerOf(tables: List<NgramTable>, weights: FloatArray, vararg before: String): Scorer {
+            val place = NextWordText.Place(before.getOrNull(before.size - 2), before.last(), "", emptyList())
+            return Scorer(place, tables, weights, emptyList(), emptyList(), lookup)
+        }
+
         fun here(vararg before: String, table: NgramTable = english, mine: List<PersonalPairs.Entry> = emptyList()): Scorer.Here? =
             scorer(*before, table = table, mine = mine).here { zipf[it] }
 
@@ -136,13 +142,35 @@ class PlaceWorthTest {
 
     @Test fun whatThePersonTypesAtAPlaceLiftsAWordAndNeverLowersOne() {
         val plain = here("the")!!
-        // Typed after "the" eight times: a word no row lists there is now likely there.
+        // Typed after "the" eight times: a word no row lists there is now likely there, but the counts make it
+        // worth no more than Scorer.MINE_LIFT over what the tables make of it.
         val mine = here("the", mine = listOf(PersonalPairs.Entry("walrus", 8f)))!!
         assertTrue(mine.lists("walrus"))
-        assertTrue(mine.worth("walrus", z("walrus")) > plain.worth("walrus", z("walrus")) + 1f)
+        assertEquals(plain.worth("walrus", z("walrus")) + Scorer.MINE_LIFT, mine.worth("walrus", z("walrus")), 0.001f)
         // A word they have not typed there is worth what it was.
         assertEquals(plain.worth("door", z("door")), mine.worth("door", z("door")), 0.001f)
         assertEquals(plain.worth("otter", z("otter")), mine.worth("otter", z("otter")), 0.001f)
+    }
+
+    @Test fun aRowIsGoneByOnlyWhereItsTableIsTheLanguageBeingWritten() {
+        // English's row after "thank", in a Scorer whose other (counted) table has no row there. Where English
+        // leads, its row counts in full, as with English alone.
+        val other = table("haus\t=100 ist:5000")
+        val alone = here("thank")!!.worth("you", z("you"))
+        val leads = scorerOf(listOf(english, other), floatArrayOf(1f, 0.4f), "thank").here { zipf[it] }!!.worth("you", z("you"))
+        assertEquals(alone, leads, 0.001f)
+        // Where the other language leads (a German sentence), English's row is not gone by: there is no place.
+        assertNull(scorerOf(listOf(english, other), floatArrayOf(0.4f, 1f), "thank").here { zipf[it] })
+        // Where neither table has a row there is no place, and a weight of 0 has no say at all (never NaN).
+        assertNull(scorerOf(listOf(english, other), floatArrayOf(1f, 1f), "walrusish").here { zipf[it] })
+        assertNull(scorerOf(listOf(english), floatArrayOf(0f), "thank").here { zipf[it] })
+    }
+
+    @Test fun aPossessiveIsNoRowOfTheLetterS() {
+        // English's table has a row for the letter s; after "mary's" (no row of its own) it says nothing.
+        assertTrue(english.range("s").isEmpty().not())
+        assertNull(here("mary's"))
+        assertTrue(here("it's") != null)
     }
 
     // --- autocorrect at a place --------------------------------------------------------------------------------------
@@ -177,5 +205,66 @@ class PlaceWorthTest {
     @Test fun lettersNoListHasAreReadAsTheWordThePlaceExpects() {
         // "thank yoi": the i is beside u and o, and "you" is what follows "thank".
         assertEquals("you", ac.correct("yoi", scorer("thank"), taps("yoi")))
+    }
+
+    @Test fun aJoinAfterAWordAnUncountedTableHasARowForIsReadAsBefore() {
+        // English and a table without counts (as every language but English's is) that has a row for "was": the
+        // place after "was" cannot be weighed, and the join is read as it was before there was a place.
+        val uncounted = table("was\tnicht:3000 ein:2000")
+        assertFalse(uncounted.counted)
+        val both = scorerOf(listOf(english, uncounted), floatArrayOf(1f, 0.5f), "she")
+        assertEquals("was afraid", ac.correct("wasafraid", both, taps("wasafraid")))
+        assertEquals("was afraid", ac.correct("wasafraid", scorer("she"), taps("wasafraid")))
+    }
+
+    @Test fun rightWordsWithEveryTapOnTheirKeysStandWhereTheTablesExpectANeighbour() {
+        // A sentence opening with "Its" (Tatoeba hardly has one: "It's" is what the table expects), "too" ending
+        // "I went too", "Tom" after "had", "thee" after "in": every tap in the middle of its key.
+        assertNull(ac.correct("Its", scorer("^"), taps("Its")))
+        assertNull(ac.correct("too", scorer("went"), taps("too")))
+        assertNull(ac.correct("Tom", scorer("had"), taps("Tom")))
+        // "thee" with every tap in the middle of its key: the place is not read, so it is what it is with no words
+        // before at all. (Since the search's reach a common word may lose a letter tapped twice for LISTED_EDIT, and
+        // "thee" is "the" by that, place or none: it was null here before the reach was merged.)
+        assertEquals(ac.correct("thee", null, taps("thee")), ac.correct("thee", scorer("in"), taps("thee")))
+        // With a tap on the line between two keys the place is read: "rat" a third of a key toward e is "eat"
+        // after "need to" (aCommonWordWhereItAllButNeverStandsGivesWayToTheWordThatDoes), and the same "rat" with
+        // every tap in the middle of its key stands.
+        assertNull(ac.correct("rat", scorer("need", "to"), taps("rat")))
+    }
+
+    @Test fun aListedWordIsNotReadAsItsApostropheSpellingByThePlaceAlone() {
+        // "its" opening a sentence and "were" after "if", each with one tap a fifth of a key off its middle (so not
+        // every tap is well inside its key): the place expects "it's" and "we're", and no tap says so.
+        assertNull(ac.correct("its", scorer("^"), taps("its", 1 to (0f to 0.2f))))
+        assertNull(ac.correct("were", scorer("if"), taps("were", 1 to (0f to 0.2f))))
+        // A contraction typed without its apostrophe is mended as it always was.
+        assertEquals("I'm", ac.correct("im", scorer("^"), taps("im")))
+    }
+
+    @Test fun thePersonsCountsAloneNeverTakeACommonWordsPlace() {
+        // "Ken" after "hi" where "jen" has been typed there three or ten times: Ken stands, typed cleanly or with
+        // its k a third of a key toward j.
+        for (n in listOf(3f, 10f)) {
+            val mine = listOf(PersonalPairs.Entry("jen", n))
+            assertNull(ac.correct("ken", scorer("hi", mine = mine), taps("ken")))
+            assertNull(ac.correct("ken", scorer("hi", mine = mine), taps("ken", 0 to (-0.33f to 0f))))
+        }
+    }
+
+    /** [first], a tap on the space bar under the key [under], [down] of the bar's height below its top edge, then [second]. */
+    private fun cut(first: String, second: String, under: Char, down: Float): Taps {
+        val a = taps(first)
+        val b = taps(second)
+        val t = TypingAccuracyTest
+        val bar = floatArrayOf(t.space[1] + down * (t.space[3] - t.space[1]))
+        return Taps(a.xs + floatArrayOf(t.centres.getValue(under).first) + b.xs, a.ys + bar + b.ys, t.centres, t.W, t.space)
+    }
+
+    @Test fun aWordCutInTwoIsPutTogetherAtAPlaceAndTwoWordsStand() {
+        assertEquals("being", ac.rejoin("bei", "g", "bei", scorer("am"), cut("bei", "g", 'n', 0.07f)))
+        assertEquals("have", ac.rejoin("ha", "e", "ha", scorer("i"), cut("ha", "e", 'v', 0.07f)))
+        assertNull(ac.rejoin("is", "a", "is", scorer("it"), cut("is", "a", 'b', 0.3f)))
+        assertNull(ac.rejoin("the", "", "the", scorer("in"), cut("the", "", 'n', 0.07f)))
     }
 }
