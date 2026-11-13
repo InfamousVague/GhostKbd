@@ -48,8 +48,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * in a list themselves and still give way to their accented word (see [load]). [commonest] are each language's
      * commonest few words, for filling next-word prediction's row. [sharedI] says a list other than English's has
      * "i" as one of its commonest words (Polish, Swedish, Italian), and [cautious] that one of the lists is of the
-     * languages added after the first six. [capitals] are English's words that are all but always written with a
-     * capital, each under its lower case ("tom" to "Tom"; see [proper]). Never changed once made.
+     * languages added after the first six. Never changed once made.
      */
     private class Lexicon(
         val key: String,
@@ -68,6 +67,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
+        /** English's words that are all but always written with a capital, each under its lower case ("tom" to "Tom"): see [proper]. */
         val capitals: Map<String, String> = emptyMap(),
     ) {
         /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
@@ -495,13 +495,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val contractions = now.lexicon.contractions
         val eszett = eszettWord(lower, words)
         val isWord = kept(lower) || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower) || eszett
-        val stands = (kept(lower) && remembered(now, lower) == null) || eszett
-        val mend = if (stands) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
+        val mend = if ((kept(lower) && remembered(now, lower) == null) || eszett) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
         val sure = mend?.takeIf { it.sure }?.word
         // What the space will leave: the mend, and a name's capital where the field wants them, as [correct] has it
-        // (which leaves capitals typed on purpose alone: TOM, tOm).
+        // (which leaves capitals typed on purpose alone: TOM, tOm; a word the person keeps is no name: [name]).
         val fix = when {
-            !names || stands -> sure
+            !names -> sure
             sure != null -> named(now, sure)
             typed.drop(1).any { it.isUpperCase() } -> null
             else -> name(now, lower)?.takeIf { recase(locale, typed, it) != typed }
