@@ -324,19 +324,32 @@ three points for all the misspellings.
   one. Below 0.75 a quarter of a unit buys some six words of the seen set's 5,205 and costs four, then eight, of
   the bench's 511 unknown words (15 spoiled at 0.75, 19 at 0.5, 27 at 0.25; the fixed bars spoil 17). Under -0.75
   nothing more is mended: what this bar holds back is spent at 253 words, 4.86%.
+- **On bench sentences the shift was not set on.** The tuner keeps a stretch of its own, 20,000 words from line
+  40,000 of the held-out file with another seed (`tool/typing_bench.sh tune` with `-Donly=none -Drounds=0` types
+  it and tunes nothing). There the measure is 94.13 without the table and 94.64 with it, and 0.75 is the best of
+  the shifts there too (94.59 at 1.25, 94.54 at 0.25, 94.41 at -0.25). Words right 96.49%, 92.72% and 86.21% to
+  96.63%, 93.08% and 87.17%; right words spoiled 1.18, 1.30 and 1.49 in a thousand to 1.18, 1.22 and 1.86; unknown
+  words spoiled 3.1%, 4.7% and 6.2% (of 479, 297 and 145) to 3.1%, 4.4% and 8.3%. So "no more often" does not
+  hold there for the sloppy thumb: 12 of its 145 for 9. At 1.25 every line there is better than without the table
+  (0.87, 1.06 and 1.36 in a thousand; 2.1%, 3.7% and 5.5%).
 - **`odd` gives way to the table** (`LETTERS_ODD`). `odd` knows "has a run no common word has" or "has none", and
   holds "gyatt" and "kekw" as cheap as "hkpelwss". Kept beside the table (the table then only lowers bars, and
   nothing the tree mended is lost: no word broken on either set down to a shift of 0.75) it leaves 5.61% and 6.23%
   wrong at 1.75, the least shift at which the bench's lines are as before; 5.32% and 5.98% at 0.75, with 2.7%,
   6.7% and 8.3% of unknown words spoiled; 5.17% and 5.87% at 0.25 with 4.6%, 7.9% and 9.5% (measure 94.47, 94.59,
-  94.59). Without it the same unknown words are spoiled a whole unit of shift lower, where 11 and 15 fewer words
-  are wrong. What that costs is the short slips `odd` caught and the table does not think odd enough: "truk",
-  "opej", "havun" and "cyss" stand on the seen set, "musz" and "agajn" on the unseen, and "tcis" there is parted
-  in two (two words are held to `JOIN_BAR` where "this" is now held to `UNKNOWN`). The table cannot do better by
-  them: it makes "opej" worth -0.6 and "piotr" -2.6, "agajn" -1.9 and "gyatt" -1.6.
+  94.59; on the tuner's own stretch 94.51 at 1.75 and 94.62 at 0.75). Without it the same unknown words are
+  spoiled a whole unit of shift lower, where 11 and 15 fewer words are wrong. What that costs is the short slips
+  `odd` caught and the table does not think odd enough: "truk", "opej", "havun" and "cyss" stand on the seen set,
+  "musz" and "agajn" on the unseen, and "tcis" there is parted in two (two words are held to `JOIN_BAR` where
+  "this" is now held to `UNKNOWN`). The table cannot do better by them: it makes "opej" worth -0.6 and "piotr"
+  -2.6, "agajn" -1.9 and "gyatt" -1.6.
 - **The weight.** 0.5, 0.6, 0.8 and 1 trace the same curve once the shift suits each. With the right words no
   list has spoiled as at 0.6 and 0.75, a weight of 0.8 (shift 3.05) leaves 278 and 386 words wrong and a weight
   of 1 (shift 5.3) 274 and 386, for 281 and 384: a little better by the seen set, no better by the unseen one.
+  A weight of 1 at 5.3 is as good a place to stand as 0.6 at 0.75, and by the bench a shade better: measure 94.70
+  for 94.64, and on the tuner's own stretch 94.69 for 94.64 with the sloppy thumb's unknown words spoiled as
+  without the table (1.18, 1.38 and 1.49 in a thousand; 3.1%, 5.1% and 6.2%). It was measured at five shifts, 0.6
+  at twelve.
 - **The bar for long words stays.** With the table and no `UNKNOWN_LONG` (0.6, 0.75) 190 of the 264 misspellings
   are mended for 235, and 22 and 23 words are broken on the two sets. At 2.0 for 1.6, 6 right words are changed
   on the seen set for 11 and 5 on the unseen for 7, and 220 misspellings are mended (measure 94.43).
@@ -350,7 +363,8 @@ three points for all the misspellings.
   6.24% at 0.75). With `odd` kept it is the gentlest way in, the fixed bars as they were under six letters: 5.49%
   and 6.18% at 1.25 with the bench's right words and unknown words spoiled exactly as before and nothing broken on
   either set, 5.17% and 5.91% at -0.25 with 3.4%, 6.1% and 7.1% of unknown words spoiled and the bench's highest
-  measure of all, 94.77.
+  measure of all, 94.77 (94.72 on the tuner's own stretch, with 4.4%, 6.7% and 8.3% of unknown words spoiled
+  there for 3.1%, 4.7% and 6.2%).
 - **Runs of three letters, each kind of word once.** On the 871 kinds of unlisted word in held-out lines that the
   counted sentences never had, a letter costs 1.137, 1.051, 0.997 and 0.974 with runs of 2, 3, 4 and 5
   (`tool/letters.py --compare`), in 755, 9,666, 57,777 and 167,805 rows (7 KB, 87 KB and 565 KB for the first

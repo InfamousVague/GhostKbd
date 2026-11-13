@@ -1203,7 +1203,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * 7.1%). Under it a quarter less leaves some six fewer of the scoreboard's 5,205 seen words wrong (281, 275,
          * 270) and spoils four, then eight, more of the bench's 511 unknown words (15, 19, 27). Weights of 0.8 and 1
          * with the shift that suits each (3.05, 5.3) leave 3 and 7 fewer of the seen set's words wrong and 2 more of
-         * the unseen set's. docs/versus.md has every line.
+         * the unseen set's. On the tuner's own unseen stretch of the bench the measure is 94.13 without the table
+         * and 94.64 with it, 0.75 the best of the shifts there too (94.59 at 1.25, 94.54 at 0.25), though its sloppy
+         * thumb has 8.3% of its unknown words spoiled there for 6.2%. docs/versus.md has every line.
          */
         @JvmField var LETTERS_SHIFT = 0.75f
         @JvmField var LETTERS_WEIGHT = 0.6f
