@@ -948,10 +948,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             NextWordText.place(head, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
         // Where the tap ended no word, what it left standing is held in its own place: the start of a sentence.
-        val after = if (c.typed.isNotEmpty() || !prefs.nextWord || terminalApp()) null else runCatching {
+        val sentence = if (c.typed.isNotEmpty() || !prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(before, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
-        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = after) ?: return false
+        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = sentence) ?: return false
         // A second space is the word's own and stays; anything else that ended it was typed, and the fix takes it in.
         if (!editor.replaceBefore(standing, c.was + whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty() && separator == " ") "" else separator)) return false
         stats { TypingStats.correction(this) }
