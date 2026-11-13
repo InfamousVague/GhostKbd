@@ -708,12 +708,15 @@ class TapDecoder(
         /**
          * [joins] stops with what it has at this much work: trie nodes walked, [ALIGN_WORK] for every word held up
          * against the taps, and one for every pair of words weighed. The likeliest first words are tried first, so
-         * what is found is found early and the rest of the work is looking for better: of the 1,800 typings of
-         * tool/versus/scoreboard.py not one reads otherwise at 5,000, 10,000, 20,000, 30,000 or 60,000 (at 3,000
-         * eleven words do), and the bench's 12,000 words are the same at 16,000 as at 60,000, which is what it was
-         * first set to. 16,000 is three times what any of them needed.
+         * what is found is found early and the rest of the work is looking for better. Set on
+         * tool/versus/scoreboard.py --bench, 2026-11-12: its 1,800 typings and the bench's 12,000 words read the
+         * same at 16,000 as at 60,000, which is what it was first set to; at 8,000 the typings are still the same
+         * and the bench's sloppy thumb has one join fewer parted; at 5,000 three words of the typings are lost,
+         * at 3,000 nine. 16,000 is twice the least that loses anything here: a longer word list makes each search
+         * longer, and this is to be tried again when there is one. A number with a point, as every dial is, so
+         * that the bench can set it by name.
          */
-        @JvmField var MAX_JOIN_WORK = 16_000
+        @JvmField var MAX_JOIN_WORK = 16_000f
         const val ALIGN_WORK = 8
         /** The work the last [joins] did, and the most any has done since this was set to 0: read by the tools and the tests, never by the keyboard. */
         @JvmField var JOIN_WORK_LAST = 0

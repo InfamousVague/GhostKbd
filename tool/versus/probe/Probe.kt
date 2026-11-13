@@ -282,7 +282,7 @@ fun time(root: File, boardFile: File, show: Int) {
     // The join search's own count of its work (TapDecoder.joinWork), which no other process's load changes.
     val works = tokens.filter { it.work > 0 }.sortedByDescending { it.work }
     println("work: %d of the words were looked at for a join; the search's work a word: mean %.0f, most %d (it stops at %d): %s".format(
-        works.size, works.map { it.work }.average(), works.firstOrNull()?.work ?: 0, TapDecoder.MAX_JOIN_WORK, works.take(6).joinToString(", ") { "${it.typed} ${it.work}" }))
+        works.size, works.map { it.work }.average(), works.firstOrNull()?.work ?: 0, TapDecoder.MAX_JOIN_WORK.toInt(), works.take(6).joinToString(", ") { "${it.typed} ${it.work}" }))
     // What the search needed where it did part a word: the cap is to be set well over this, and no higher than that asks.
     val parted = works.filter { it.parted }
     println("work: %d words were parted; the search's work for those: mean %.0f, most %d: %s".format(
