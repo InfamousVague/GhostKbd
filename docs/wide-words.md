@@ -371,7 +371,11 @@ word in 33 a word no list has; with this list, text has one in 120 to one in 430
 - **The margin of 1.3 is the bench's**, tuned on its thumb. The two sets are indifferent to it.
 - **The time a word's end takes** was last taken on a quiet Mac before possessives were known by their word and
   before the row's completions were changed; after that the Mac's load never fell under 35, and four more rounds
-  said nothing either way.
+  said nothing either way. A bit set of the wider words' hashes (128 KB of heap) was added last, so that letters
+  which are no word of it skip the binary search; its readings are the same to the word (seen, unseen and 24,000
+  bench words), but four interleaved rounds of the bench timed by processor time (Mac load 15 to 34) could not tell
+  it from the tree without it, or either from en.tsv alone: 133 to 187, 160 to 173 and 79 to 160 µs a word for the
+  careful thumb. It is kept because it can only take work away; that it does is not measured.
 - **A person's own words.** `isListed` does not count the wider list, so a word of it that the person types three
   times is still theirs: never changed, what a slip of it is mended to, swiped. Until then it is the rare word the
   list says it is. That is `WideWordsTest`'s to hold; no measure here has a person in it.
