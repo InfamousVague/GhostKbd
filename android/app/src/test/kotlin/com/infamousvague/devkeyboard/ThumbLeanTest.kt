@@ -69,6 +69,20 @@ class ThumbLeanTest {
             }
         }
 
+        /**
+         * Prediction on, with no table under it: a scorer that lifts no word. The lean is read only with prediction
+         * on ([Autocorrect.aimed]), so the readings below are asked with this.
+         */
+        val predicting: Scorer by lazy {
+            Scorer(NextWordText.place("I saw ", { it.isLetter() }, false)!!, emptyList(), FloatArray(0), emptyList(), emptyList(), object : Scorer.Lookup {
+                override fun isWord(lower: String) = ac.isWord(lower)
+                override fun form(lower: String) = lower
+                override fun count(lower: String) = 0f
+                override fun starting(prefix: String) = emptyList<Pair<String, Float>>()
+                override fun fills() = emptyList<String>()
+            })
+        }
+
         val WORDS = "the quick brown fox jumps over a lazy dog and then it runs back home to sleep for an hour or two".split(' ')
     }
 
@@ -207,7 +221,7 @@ class ThumbLeanTest {
         val fresh = ThumbLean()
         for (word in listOf("hello", "thw", "teh", "wirk", "inthe", "yom", "ghostkbd", "definately")) {
             val taps = tapped(word, 0.2f, 0.1f)
-            assertEquals(word, ac.correct(word, null, taps), ac.correct(word, null, fresh.read(taps)))
+            assertEquals(word, ac.correct(word, predicting, taps), ac.correct(word, predicting, fresh.read(taps)))
         }
     }
 
@@ -216,12 +230,12 @@ class ThumbLeanTest {
         // lists have as a rare word, so that it stands. Read by that lean the taps were aimed at t, o and m.
         val taps = tapped("tom", 0.3f, 0f).also { it.xs[0] = centres.getValue('t').first + 0.55f * W }
         assertEquals("yom", typed(taps))
-        assertNull(ac.correct("yom", null, taps))
+        assertNull(ac.correct("yom", predicting, taps))
         val right = Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.3f, 0f)
-        assertEquals("tom", ac.correct("yom", null, right))
+        assertEquals("tom", ac.correct("yom", predicting, right))
         // The same taps by a thumb known to land to the left were aimed further right still: "yom" stands.
         val left = Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, -0.15f, 0f)
-        assertNull(ac.correct("yom", null, left))
+        assertNull(ac.correct("yom", predicting, left))
     }
 
     @Test fun aWordTypedAsMeantByALeaningThumbIsLeftAlone() {
@@ -229,15 +243,15 @@ class ThumbLeanTest {
         for (word in listOf("hello", "form", "from", "there", "their", "were", "where", "on", "in", "of", "if")) {
             val taps = tapped(word, 0.25f, 0.2f)
             assertEquals(word, typed(taps))
-            assertNull("$word as it landed", ac.correct(word, null, taps))
-            assertNull("$word read by its lean", ac.correct(word, null, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
+            assertNull("$word as it landed", ac.correct(word, predicting, taps))
+            assertNull("$word read by its lean", ac.correct(word, predicting, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
         }
         // A name no list has, the same.
         for (word in listOf("ghostkbd", "zustand", "kekw")) {
             if (ac.isWord(word)) continue
             val taps = tapped(word, 0.25f, 0.2f)
             if (typed(taps) != word) continue
-            assertNull("$word read by its lean", ac.correct(word, null, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
+            assertNull("$word read by its lean", ac.correct(word, predicting, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
         }
     }
 
@@ -245,7 +259,7 @@ class ThumbLeanTest {
         // A lean that is wrong for these taps (they are in the middles of their keys) moves none of them off its key.
         for (word in listOf("hello", "form", "there", "on", "of")) {
             val taps = tapped(word, 0f, 0f)
-            assertNull(word, ac.correct(word, null, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
+            assertNull(word, ac.correct(word, predicting, Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.25f, 0.2f)))
         }
     }
 
@@ -256,13 +270,59 @@ class ThumbLeanTest {
         val bar = space[1] + 0.25f * (space[3] - space[1])
         val xs = a.xs + floatArrayOf(centres.getValue('b').first) + out.xs
         val ys = a.ys + floatArrayOf(bar) + out.ys
-        assertNull(ac.rejoin("a", "out", "a", null, Taps(xs, ys, centres, W, space)))
-        assertEquals("about", ac.rejoin("a", "out", "a", null, Taps(xs, ys, centres, W, space, 0f, 0.33f)))
+        assertNull(ac.rejoin("a", "out", "a", predicting, Taps(xs, ys, centres, W, space)))
+        assertEquals("about", ac.rejoin("a", "out", "a", predicting, Taps(xs, ys, centres, W, space, 0f, 0.33f)))
         // And two words that are two words stand, lean or no lean, however high on the bar the space was tapped.
         val isA = tapped("is", 0f, 0f); val aa = tapped("a", 0f, 0f)
         val top = space[1] + 0.03f * (space[3] - space[1])
         val two = Taps(isA.xs + floatArrayOf(centres.getValue('n').first) + aa.xs, isA.ys + floatArrayOf(top) + aa.ys, centres, W, space, 0f, 0.33f)
-        assertNull(ac.rejoin("is", "a", "is", null, two))
+        assertNull(ac.rejoin("is", "a", "is", predicting, two))
+    }
+
+    @Test fun `only an English board with prediction on reads by the lean`() {
+        // The "yom" of aWordIsReadByWhereTheThumbIsLanding, by a thumb known to land 0.3 of a key right: "tom" with
+        // prediction on. With it off (no scorer) the lean is not read, and every reading is as with no lean at all.
+        val taps = tapped("tom", 0.3f, 0f).also { it.xs[0] = centres.getValue('t').first + 0.55f * W }
+        val right = Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0.3f, 0f)
+        assertEquals("tom", ac.correct("yom", predicting, right))
+        assertNull(ac.correct("yom", null, right))
+        for (word in listOf("hello", "thw", "teh", "wirk", "inthe", "ghostkbd", "definately", "doodled")) {
+            val plain = tapped(word, 0.2f, 0.1f)
+            val leant = Taps(plain.xs, plain.ys, plain.keys, plain.keyW, plain.space, 0.25f, 0.2f)
+            assertEquals(word, ac.correct(word, null, plain), ac.correct(word, null, leant))
+            assertEquals(word, ac.suggest(word, null, plain).words, ac.suggest(word, null, leant).words)
+        }
+        val a = tapped("a", 0f, 0f); val out = tapped("out", 0f, 0f)
+        val xs = a.xs + floatArrayOf(centres.getValue('b').first) + out.xs
+        val ys = a.ys + floatArrayOf(space[1] + 0.25f * (space[3] - space[1])) + out.ys
+        assertNull(ac.rejoin("a", "out", "a", null, Taps(xs, ys, centres, W, space, 0f, 0.33f)))
+    }
+
+    @Test fun `another language learns nothing and lets go of what it held`() {
+        val other = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }.also {
+            val state = LanguageState.of(listOf("es"), emptyMap(), "")
+            it.loadNow(state.dictionaries, state.board)
+        }
+        val lean = ThumbLean()
+        teach(lean, WORDS, 0.3f, 0.2f, 0.05f, Random(3))
+        assertTrue(lean.x > 0.1f)
+        val taps = tapped("casa", 0.3f, 0.2f)
+        other.settled(lean, typed(taps), "casa", taps)
+        assertEquals(0f, lean.x, 0f)
+        assertEquals(0f, lean.y, 0f)
+        assertEquals(0f, lean.taps, 0f)
+    }
+
+    @Test fun `keys of another width begin it again`() {
+        val lean = ThumbLean()
+        teach(lean, WORDS, 0.3f, 0.2f, 0.05f, Random(4))
+        assertTrue(lean.x > 0.1f)
+        val same = tapped("the", 0f, 0f)
+        assertEquals(lean.x, lean.read(same).leanX, 0f)
+        // The Fold opened: keys half as wide again. Read as they landed, and nothing is held.
+        val wide = Taps(same.xs, same.ys, same.keys, W * 1.5f, same.space)
+        assertSame(wide, lean.read(wide))
+        assertEquals(0f, lean.taps, 0f)
     }
 
     // --- the service --------------------------------------------------------------------------------------------------
@@ -286,13 +346,20 @@ class ThumbLeanTest {
         assertTrue(finish, finish.contains("lean.newField()"))
         // Taught in one place: straight after autocorrect has settled a word, which no password field ever gets to
         // (correctLastWord gives up first where autocorrect is not allowed, and it is never allowed in one).
-        assertEquals(1, Regex("\\.settled\\(lean").findAll(service).count())
+        // A word left as typed teaches as it is settled, a fix only once it has been put in the field.
+        assertEquals(2, Regex("\\.settled\\(lean").findAll(service).count())
         assertEquals(0, Regex("lean\\.learn\\(").findAll(service).count())
-        val correct = service.substring(service.indexOf("private fun correctLastWord("))
+        val correct = service.substring(service.indexOf("private fun correctLastWord(")).substringBefore("\n    }")
         val allowed = correct.indexOf("if (!autocorrectAllowed()")
         val asked = correct.indexOf("autocorrect.correct(word, scorer, taps)")
-        val taught = correct.indexOf("autocorrect.settled(lean, word, found, taps)")
-        assertTrue(allowed in 0 until asked && asked < taught)
+        val asTyped = correct.indexOf("if (found == null) autocorrect.settled(lean, word, null, taps)")
+        val replaced = correct.indexOf("if (!editor.replaceBefore(word, fixed + separator")
+        val fixed = correct.indexOf("autocorrect.settled(lean, word, fixed, taps)")
+        assertTrue(correct, allowed in 0 until asked && asked < asTyped && asTyped < replaced && replaced < fixed)
+        assertTrue(correct, correct.contains("{ lean.pass(); return false }"))
+        // Two scraps put together: the first scrap's lesson is taken back once the whole word is in the field.
+        val rejoined = service.substring(service.indexOf("private fun rejoined(")).substringBefore("\n    }")
+        assertTrue(rejoined, rejoined.indexOf("lean.unlearn()") > rejoined.indexOf("editor.replaceBefore(standing"))
         val gate = service.substring(service.indexOf("private fun autocorrectAllowed()")).substringBefore("\n    }")
         for (kind in listOf("TYPE_TEXT_VARIATION_PASSWORD", "TYPE_TEXT_VARIATION_VISIBLE_PASSWORD", "TYPE_TEXT_VARIATION_WEB_PASSWORD")) assertTrue(kind, gate.contains(kind))
         // Both readings of a word's taps go by it: the word's own, and the letters with the bar's tap among them.

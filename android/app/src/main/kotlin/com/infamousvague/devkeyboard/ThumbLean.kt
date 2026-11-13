@@ -38,6 +38,8 @@ class ThumbLean {
     private var squares = 0f
     /** As they were before the last word was settled, for [unlearn]. */
     private val was = FloatArray(4)
+    /** The key width the taps that taught it were tapped on (0 before any): the board it holds for. */
+    private var width = 0f
 
     /** The lean as it is estimated now, across and down, in key widths. */
     var x = 0f
@@ -51,16 +53,19 @@ class ThumbLean {
     /** A text field is entered, or left: nothing is known of the thumb in the next one. */
     fun newField() {
         if (KEEP) return
-        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f
+        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f; width = 0f
         was.fill(0f)
     }
 
     /**
      * [taps] to be read by the lean as it is estimated now. The very same taps where nothing is estimated: the word
-     * is then read exactly as it was before there was a lean.
+     * is then read exactly as it was before there was a lean. Where the keys are not the width they were as it was
+     * taught (the Fold opened or shut, one-handed or split mode turned on in the field), a thumb reaching over
+     * another board leans otherwise: it begins again at nothing, as for a new field.
      */
     fun read(taps: Taps): Taps {
         if (!ON) return taps
+        if (width != 0f && taps.keyW != width) newField()
         val lx = if (FIXED_X != 0f || FIXED_Y != 0f) FIXED_X else x
         val ly = if (FIXED_X != 0f || FIXED_Y != 0f) FIXED_Y else y
         return if (lx == 0f && ly == 0f) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, lx, ly)
@@ -76,6 +81,9 @@ class ThumbLean {
         pass()
         val w = taps.keyW
         if (w <= 0f) return
+        // Taught on keys of another width than before: what it held was for that board.
+        if (width != 0f && w != width) newField()
+        width = w
         for (i in meant.indices) {
             if (!taps.has(i)) continue
             val at = taps.keys[meant[i]] ?: continue

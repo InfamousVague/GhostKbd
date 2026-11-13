@@ -386,6 +386,8 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))
                 if (whole != null) {
+                    // The scrap was the last word settled: what it taught is taken back, as the service does.
+                    lean.unlearn()
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - c.stood.length - 1)
                     text.append(whole).append(' ')
@@ -437,6 +439,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + " " + word)) {
             val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(c.stood.length + 1 + word.length), tapsAcross(c.touches, c.tap, wordTouches))
             if (whole != null) {
+                lean.unlearn()
                 fixes += "${c.stood}_$word>$whole"
                 text.setLength(text.length - c.stood.length - 1 - word.length)
                 text.append(whole).append(separator)
