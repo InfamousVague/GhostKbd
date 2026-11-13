@@ -34,6 +34,8 @@ class AgainSourceTest {
         assertTrue(look.contains("b.field !== currentInputEditorInfo"))
         assertTrue(look.contains("ic.getSelectedText(0).isNullOrEmpty()"))
         assertTrue(look.contains("if (!before.endsWith(standing)) return null"))
+        // A cursor moved by touch to other words that end the same way: the text before them must be what it was.
+        assertTrue(look.contains("if (head.takeLast(HEAD_CHARS) != b.head) return null"))
         assertTrue(look.contains("autocorrect.again(b.typed, b.stood, stands, scorer, taps)"))
         // No place to weigh at (prediction off, a terminal): no second look.
         assertTrue(look.contains("}.getOrNull() ?: return null"))
@@ -41,7 +43,7 @@ class AgainSourceTest {
 
     @Test fun `it is kept only for a tapped word a space or a comma ended`() {
         val correct = body("private fun correctLastWord(")
-        val keep = correct.indexOf("behind = Behind(word, stands, wordTouches.toList(), separator, currentInputEditorInfo)")
+        val keep = correct.indexOf("behind = Behind(word, stands, wordTouches.toList(), separator, head, currentInputEditorInfo)")
         assertTrue(keep >= 0)
         assertTrue(correct.contains("if (Autocorrect.AGAIN && taps != null && !swiped && (separator == \" \" || separator == \",\") && lower != wasPutBack)"))
         // Taken at the start, so any way out of the function lets it go; a space after a comma keeps it.
@@ -54,19 +56,50 @@ class AgainSourceTest {
         val correct = body("private fun correctLastWord(")
         val edit = correct.indexOf("editor.replaceBefore(was + word, put + stands + separator, Kind.CORRECTION, typedFirst = separator)")
         assertTrue(edit >= 0)
-        val undo = correct.indexOf("lastCorrection = Triple(was + word, put + stands, separator)", edit)
+        val undo = correct.indexOf("val change = Triple(was + word, put + stands, separator)", edit)
         assertTrue(undo > edit)
+        assertTrue(correct.indexOf("lastCorrection = change", undo) > undo)
         // Before this word's own fix would go in alone.
         assertTrue(edit < correct.indexOf("val fixed = found ?: return false"))
         val undoing = body("private fun undoCorrection(")
         assertTrue(undoing.contains("behind = null"))
         assertTrue(undoing.contains("putBack = typed.substringAfterLast(' ').lowercase(locale)"))
+        // The accuracy log's word (the word after) is undone only where its own space had fixed it.
+        assertTrue(undoing.contains("if (accuracyOn() && (wasBehind == null || wasBehind.second != null)) AccuracyLog.settle(this, \"undone\")"))
+        assertTrue(undoing.indexOf("if (wasBehind != null) {") < undoing.indexOf("learner.word(typed.length)"))
+    }
+
+    @Test fun `a word the second look changed and typed again as it was is kept`() {
+        // The review of 2026-11-13: "we ate going " became "we are going ", the person went back and typed "ate"
+        // again, and the next word changed it again. The change is written into ends, so that "ate" typed over
+        // "are" meets the keep-and-learn branch (prior.typed == lower, prior.out is not).
+        val correct = body("private fun correctLastWord(")
+        val edit = correct.indexOf("editor.replaceBefore(was + word, put + stands + separator")
+        val noted = correct.indexOf("noteEnd(b.typed.lowercase(locale), newer, headBefore, now)", edit)
+        assertTrue(noted > edit)
+        assertTrue(correct.indexOf("ends.firstOrNull { it.field === currentInputEditorInfo && it.head == headBefore }?.let { ends.remove(it) }", edit) in edit until noted)
+        // The head it is found by is the one the word had as it ended.
+        assertTrue(correct.contains("val headBefore = before.dropLast(was.length + word.length).takeLast(HEAD_CHARS)"))
+        assertTrue(correct.contains("val head = before.dropLast(word.length).takeLast(HEAD_CHARS)"))
+        assertTrue(correct.contains("if (prior != null && prior.typed == lower && !prior.out.equals(lower, ignoreCase = true)) {"))
+        // The word after stands after the changed word now: its record and the one kept to read it again say so.
+        assertTrue(correct.contains("noteEnd(lower, stands, headNow, now)"))
+        assertTrue(correct.contains("behind = behind?.let { Behind(it.typed, it.stood, it.touches, it.separator, headNow, it.field) }"))
+    }
+
+    @Test fun `never at enter`() {
+        // enter calls correctLastWord with no separator and then lets go of lastCorrection: nothing could undo it.
+        val correct = body("private fun correctLastWord(")
+        assertTrue(correct.contains("val again = if (separator.isEmpty()) null else ahead?.let"))
+        assertTrue(body("private fun enter(").contains("correctLastWord(ic, \"\")"))
     }
 
     @Test fun `the cursor moved by the keyboard lets it go`() {
         // Wherever the bar's cut word is let go for a moved cursor, so is the word before.
         assertEquals(Regex("; cut = null").findAll(service).count(), Regex("; cut = null; behind = null").findAll(service).count())
         assertEquals(3, Regex("; cut = null; behind = null").findAll(service).count())
+        // And where the app reports the cursor moved by something other than the keyboard (a tap in the text).
+        assertTrue(body("private fun selectionMoved(").contains("if (editor.onSelection(newSelStart, newSelEnd)) { toolsHeld = false; behind = null }"))
     }
 
     @Test fun `the replay and the bench call the same function`() {

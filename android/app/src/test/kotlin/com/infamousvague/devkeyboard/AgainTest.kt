@@ -29,9 +29,17 @@ class AgainTest {
     }
 
     @Test fun aWordNoListHasIsNeverPutBack() {
-        // "ery" stood as "very" after the space: whatever follows, the letters no list has do not come back.
-        val back = ac.again("ery", "very", "good", scorer("^"), taps("ery"))
-        assertNotEquals("ery", back)
+        // "ery" stood as "very" after the space: whatever follows, the letters no list has do not come back. Without
+        // the guard (AGAIN_UNLISTED) some do ("abbndon", tapped on the middles of its keys, over "abandon"), as the
+        // first draft put back "Ery" on the seen set.
+        val cases = listOf(Triple("ery", "very", "good"), Triple("abbndon", "abandon", "of"), Triple("acandon", "abandon", "is"))
+        val was = Autocorrect.AGAIN_UNLISTED
+        val unguarded = try {
+            Autocorrect.AGAIN_UNLISTED = true
+            cases.count { (typed, stood, next) -> ac.again(typed, stood, next, scorer("^"), taps(typed)) == typed }
+        } finally { Autocorrect.AGAIN_UNLISTED = was }
+        assertTrue("without the guard some come back", unguarded > 0)
+        for ((typed, stood, next) in cases) assertNotEquals(typed, ac.again(typed, stood, next, scorer("^"), taps(typed)))
     }
 
     @Test fun noSecondLookWithoutAPlaceCountedTablesOrTheSwitch() {

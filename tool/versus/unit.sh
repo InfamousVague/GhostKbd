@@ -3,8 +3,8 @@
 #
 # Compiles the plain-Kotlin part of the keyboard (the same sources tool/typing_bench.sh takes) with the unit tests
 # that need nothing else (TypingAccuracyTest, PlaceWorthTest, MistakeMemoryTest, SwipeDecoderTest, LayoutsTest,
-# TapKeysSourceTest, AgainTest, AgainSourceTest)
-# and runs them with JUnit from Gradle's own cache. For working on autocorrect: `./gradlew :app:testDebugUnitTest`
+# TapKeysSourceTest, AgainTest, AgainSourceTest) and runs them with JUnit from Gradle's own cache; then, with no
+# test named, tool/versus/again_check.py (the second look typed through the replay). For working on autocorrect: `./gradlew :app:testDebugUnitTest`
 # is still what says the whole app's tests pass, and takes ten minutes on a busy Mac.
 set -e
 cd "$(dirname "$0")/../.."
@@ -24,4 +24,6 @@ kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect
 [ -f "$jar" ] || { echo "unit: did not compile" >&2; exit 1; }
 classes=""
 for t in $tests; do classes="$classes com.infamousvague.devkeyboard.$t"; done
-exec java -Xmx2g -cp "$jar:$junit:$hamcrest" org.junit.runner.JUnitCore $classes
+java -Xmx2g -cp "$jar:$junit:$hamcrest" org.junit.runner.JUnitCore $classes
+# With no tests named: the second look end to end, through the replay's Typist (tool/versus/again_check.py).
+[ -n "$*" ] || python3 tool/versus/again_check.py

@@ -203,12 +203,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /**
      * The word that ended last, kept until the next word ends: it is read again then, with that word in hand
      * ([lookAgain], Autocorrect.again). [typed] is the word as typed, [stood] what was left standing for it, [touches]
-     * its taps and [separator] what ended it (a space, or a comma the next space then follows). Kept only for a word
-     * whose letters were tapped, ended by a space or a comma; let go at anything else that touches the text, and
-     * never kept across a field or a moved cursor.
+     * its taps and [separator] what ended it (a space, or a comma the next space then follows), [head] the text that
+     * stood before it (as [Ended.head]). Kept only for a word whose letters were tapped, ended by a space or a comma;
+     * let go at anything else that touches the text, and never kept across a field or a moved cursor.
      */
-    private class Behind(val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val separator: String, val field: EditorInfo?)
+    private class Behind(val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val separator: String, val head: String, val field: EditorInfo?) {
+        /** What stands between this word and the next: the space, or the comma and its space. */
+        val gap get() = if (separator == " ") " " else "$separator "
+    }
     private var behind: Behind? = null
+    /**
+     * The last change the second look made behind the cursor (the very [lastCorrection] it set, while that is still
+     * the one backspace would undo) and the fix the word after it was given at its space, if any.
+     */
+    private var behindChange: Pair<Triple<String, String, String>, String?>? = null
     /** The word backspace last put back where a fix had replaced it (lower case): it is never read again behind the cursor. */
     private var putBack: String? = null
     /** The space bar's tap, while [space] deals with it; null for a space that came any other way. */
@@ -582,7 +590,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // First of all: a cursor that is not where the keys' own typing put it means the mirror no longer holds.
         mirror.reported(newSelStart, newSelEnd, candidatesStart != -1 || candidatesEnd != -1)
         // A tap in the text (not the keyboard's own doing) lets the row go back to that word's suggestions.
-        if (editor.onSelection(newSelStart, newSelEnd)) toolsHeld = false
+        // Nor is the word before read again behind the cursor (lookAgain) once the cursor has moved that way.
+        if (editor.onSelection(newSelStart, newSelEnd)) { toolsHeld = false; behind = null }
         selStart = newSelStart
         selEnd = newSelEnd
         // The space a row tap typed is the keyboard's to take back only while the cursor stays just after it.
@@ -951,24 +960,26 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * ended and been settled as [stands]. [before] is the text before the cursor, ending in [word] as typed. What
      * stands in the field for [b] and the gap after it, and what should stand there in their place; null to leave
      * it. Never where the field has changed, the cursor moved or text is selected since [b] ended (the text before
-     * the cursor must end in [b]'s word, its gap and [word] exactly), nor where [b]'s letters' keys are not known.
+     * the cursor must end in [b]'s word, its gap and [word] exactly, and the text before [b] be what stood before it
+     * as it ended), nor where [b]'s letters' keys are not known.
      */
-    private fun lookAgain(ic: InputConnection, b: Behind, before: String, word: String, stands: String): Pair<String, String>? {
+    private fun lookAgain(ic: InputConnection, b: Behind, before: String, word: String, stands: String): String? {
         if (!Autocorrect.AGAIN || b.field !== currentInputEditorInfo || b.touches.size != b.typed.length) return null
         if (!ic.getSelectedText(0).isNullOrEmpty()) return null
-        val gap = if (b.separator == " ") " " else b.separator + " "
-        val standing = b.stood + gap + word
+        val standing = b.stood + b.gap + word
         if (!before.endsWith(standing)) return null
-        // The word before starts a word of its own: nothing it would be the tail of.
         val head = before.dropLast(standing.length)
+        // A cursor moved by touch to another place that ends in the same words is told by the text before them: the
+        // [HEAD_CHARS] before the word must be those that stood before it as it ended.
+        if (head.takeLast(HEAD_CHARS) != b.head) return null
+        // The word before starts a word of its own: nothing it would be the tail of.
         if (head.isNotEmpty() && (head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) return null
         val taps = tapsOf(b.typed, b.touches) ?: return null
         // Where prediction is off there is no place to weigh the word at, and no second look (Autocorrect.again).
         val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(head, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull() ?: return null
-        val now = autocorrect.again(b.typed, b.stood, stands, scorer, taps) ?: return null
-        return (b.stood + gap) to (now + gap)
+        return autocorrect.again(b.typed, b.stood, stands, scorer, taps)
     }
 
     /** [tapsFor] for a word that has ended: [word] as typed and [touches], the taps kept with it. */
@@ -1052,18 +1063,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val swiped = atSwipe?.equals(word, ignoreCase = true) == true
         atSwipe = null
         if (reporting() && !swiped) { reportKeys(); reportBoard(taps); Reports.word(this, word, stands, taps) }
-        // Kept to be read again when the next word ends: a word whose letters were tapped, ended by a space or a comma.
         val wasPutBack = putBack
         putBack = null
-        if (Autocorrect.AGAIN && taps != null && !swiped && (separator == " " || separator == ",") && lower != wasPutBack) {
-            behind = Behind(word, stands, wordTouches.toList(), separator, currentInputEditorInfo)
-        }
         // The word before this one, read again now that this one has ended and been settled. Where it changes, the
         // two words and the separator go in as one edit, one step in the history, and backspace straight after puts
-        // back both as they stood before (the word before as the space left it, this one as typed).
-        val back = ahead?.let { lookAgain(ic, it, before, word, stands) }
-        if (back != null) {
-            val (was, put) = back
+        // back both as they stood before (the word before as the space left it, this one as typed). Never at enter
+        // (no separator): the line or the message goes with it, and nothing could take the change back.
+        val again = if (separator.isEmpty()) null else ahead?.let { b -> lookAgain(ic, b, before, word, stands)?.let { b to it } }
+        // Kept to be read again when the next word ends: a word whose letters were tapped, ended by a space or a comma.
+        if (Autocorrect.AGAIN && taps != null && !swiped && (separator == " " || separator == ",") && lower != wasPutBack) {
+            behind = Behind(word, stands, wordTouches.toList(), separator, head, currentInputEditorInfo)
+        }
+        if (again != null) {
+            val (b, newer) = again
+            val was = b.stood + b.gap
+            val put = newer + b.gap
             if (editor.replaceBefore(was + word, put + stands + separator, Kind.CORRECTION, typedFirst = separator)) {
                 stats { TypingStats.correction(this) }
                 found?.let { fixed ->
@@ -1071,7 +1085,20 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                     stats { TypingStats.correction(this) }
                     if (mistakesOn()) mistakes.learn(lower, meantAs(fixed, opens), Mistakes.STOOD)
                 }
-                lastCorrection = Triple(was + word, put + stands, separator)
+                // The word before stands as the second look left it: typed again as it was, over this change, it is
+                // the person's (the keep-and-learn branch above), and is never changed again by the word after. This
+                // word now stands after the changed one: its own record, and the one kept to read it again, say so.
+                val headBefore = before.dropLast(was.length + word.length).takeLast(HEAD_CHARS)
+                val headNow = (headBefore + put).takeLast(HEAD_CHARS)
+                ends.firstOrNull { it.field === currentInputEditorInfo && it.head == headBefore }?.let { ends.remove(it) }
+                ends.firstOrNull { it.field === currentInputEditorInfo && it.head == head && it.typed == lower }?.let { ends.remove(it) }
+                noteEnd(b.typed.lowercase(locale), newer, headBefore, now)
+                noteEnd(lower, stands, headNow, now)
+                behind = behind?.let { Behind(it.typed, it.stood, it.touches, it.separator, headNow, it.field) }
+                if (reporting()) Reports.count(this, "fix.behind")
+                val change = Triple(was + word, put + stands, separator)
+                lastCorrection = change
+                behindChange = change to found
                 return true
             }
         }
@@ -1224,16 +1251,28 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * meant, so the next space does not fix it again. False when the fix is no longer just before the cursor.
      */
     private fun undoCorrection(ic: InputConnection, keepSeparator: Boolean): Boolean {
-        val (typed, fixed, separator) = lastCorrection ?: return false
+        val last = lastCorrection ?: return false
+        val (typed, fixed, separator) = last
         lastCorrection = null
+        // A change the second look made behind the cursor: the word after it was fixed at its space, or left as typed.
+        val wasBehind = behindChange?.takeIf { it.first === last }
+        behindChange = null
         // A word put back is the person's: neither it nor the word after it is read again behind the cursor.
         behind = null
         putBack = typed.substringAfterLast(' ').lowercase(locale)
-        if (accuracyOn()) AccuracyLog.settle(this, "undone")
+        // The accuracy log's last word is the word after; it was undone only where its own space had fixed it.
+        if (accuracyOn() && (wasBehind == null || wasBehind.second != null)) AccuracyLog.settle(this, "undone")
         stats { TypingStats.undone(this) }
         val tail = fixed + separator
         if (!editor.replaceBefore(tail, if (keepSeparator) typed + separator else typed, Kind.CORRECTION)) return false
         lastSpaceAt = 0L
+        // Both words put back as they stood before the change: only the word after's own fix (if it had one) was held.
+        if (wasBehind != null) {
+            wasBehind.second?.let { learner.unhold(it.lowercase(locale)) }
+            if (reporting()) Reports.count(this, "fix.behindUndone")
+            scheduleRow()
+            return true
+        }
         // Two scraps put back where a word had been put together ([rejoined]): they are no word to keep or to learn from.
         if (' ' in typed) { learner.unhold(fixed.lowercase(locale)); scheduleRow(); return true }
         // The fix was never meant, so it is never counted; the word put back is the one that was typed.

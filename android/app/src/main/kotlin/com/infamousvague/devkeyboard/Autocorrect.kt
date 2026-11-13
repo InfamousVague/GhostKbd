@@ -1062,7 +1062,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         for (r in nearest) {
             // A word no list has is never put back once the space has changed it: the word after cannot speak for it
             // (no row has it, so it is held down by nothing), and the bench's unknown words were the first look's to judge.
-            if (known == null && r.word == asTyped) continue
+            if (known == null && r.word == asTyped && !AGAIN_UNLISTED) continue
             r.after = after(r.word)
             r.all = r.worth - r.cost + r.after + (if (r.word == asTyped) guard else 0f)
             if (r.all > best.all) best = r
@@ -1413,6 +1413,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var AGAIN_READINGS = 6f
         /** Whether the readings of a common word take letters left out and added as well as slips: off lost a word on unseen. */
         @JvmField var AGAIN_EDITS = true
+        /**
+         * Whether letters no list has may be put back once the space has changed them. Never: the first draft did
+         * ("Ery" for Very, "ftlmt" for front on the seen set), since no row has such letters and nothing holds them
+         * down. A switch only so that AgainTest can show the guard is what keeps them out.
+         */
+        @JvmField var AGAIN_UNLISTED = false
         /**
          * The most a pair the tables never saw (or seldom did) counts against a reading, in Zipf units, where [AGAIN_MOST]
          * is the most a pair they list counts for one. Set on 2026-11-13 against the documents' own sentences
