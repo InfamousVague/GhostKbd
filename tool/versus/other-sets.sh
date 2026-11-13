@@ -3,7 +3,7 @@
 #
 # scoreboard.py types three sets of sentences through Ghost Keyboard's decoder on the JVM: the 900 typings of the
 # run of 2026-11-11 ("seen"), 900 typings of 300 other held-out sentences ("unseen", from line 100,001 of the
-# held-out file on) and 900 more kept for the end ("final", from line 110,001 on). Only the first was ever typed
+# held-out file on) and 900 more kept for the end ("final", from line 101,001 on). Only the first was ever typed
 # into Gboard, and the changes to autocorrect were made from the words lost there. This types the other two into
 # the keyboard on the emulator, with the same thumbs and the same seed, so that "as good as Gboard" can be said of
 # sentences no change was made from. scoreboard.py reads what it leaves (build/versus/runs/<name>/unseen and
@@ -53,7 +53,7 @@ esac
 for set in $sets; do
   case "$set" in
     unseen) first=100000 ;;
-    final) first=110000 ;;
+    final) first=101000 ;;
     *) echo "other-sets: no set called $set (unseen, final)" >&2; exit 2 ;;
   esac
   python3 tool/versus/run.py "$kb" --geometry "$geo" --out "build/versus/runs/$name/$set" --sentences 300 --first "$first"

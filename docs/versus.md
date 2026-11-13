@@ -255,6 +255,32 @@ on every sentence where it matters. The records are in `tool/versus/runs/2026-11
 was restarted in the middle of the first attempt; the emulator was started again, the check run from its start,
 and the emulator put back as it had been found.)
 
+### Gboard on sentences nothing was made from (2026-11-12)
+
+Until now only the run's own 900 typings had been given to Gboard, and every change above was made from the words
+lost there. On 2026-11-12 Gboard was given the 900 typings of `scoreboard.py`'s "unseen" set too: 300 held-out
+sentences from line 100,001 on, the same three thumbs and the same seed, its keys as they were measured on
+2026-11-11, its learned words deleted first (`tool/versus/other-sets.sh`; 14 typings were thrown away for a stall
+and typed again).
+
+| | careful | leaning | sloppy | all |
+| --- | ---: | ---: | ---: | ---: |
+| Gboard, the run's 900 typings (5,205 words) | 1.84% | 3.23% | 6.40% | 3.82% (199) |
+| Gboard, the 900 unseen typings (6,408 words) | 1.64% | 2.39% | 6.32% | 3.45% (221) |
+| Ghost Keyboard's decoder at bbd0877, the run's | 2.48% | 5.42% | 10.89% | 6.26% (326) |
+| Ghost Keyboard's decoder at bbd0877, unseen | 3.28% | 5.01% | 12.17% | 6.82% (437) |
+
+Gboard is no worse on fresh sentences than on the run's, and the gap is wider there, not narrower: 282 words Gboard
+got and Ghost Keyboard did not, 66 the other way. "As good as Gboard" therefore means 3.45% on these sentences as
+well as 3.82% on the run's, and a change that closes the first gap and not the second was fitted to the run. The
+records are in `tool/versus/runs/other-sets/unseen`, and `scoreboard.py` prints Gboard's line beside the unseen
+set's from them.
+
+A third set was to be kept for the end ("final"). Its place had been given as line 110,001 of the held-out file,
+which has 102,028 lines: the set was empty, and nothing was ever typed from it. It is now the 300 sentences from
+line 101,001 on; a set with fewer sentences than asked for is an error in `run.py` and in `scoreboard.py --final`;
+and Gboard is given it as the unseen set was.
+
 ### What the thumb had done
 
 The 326 again, by the slip (`score.py`'s `category`):
