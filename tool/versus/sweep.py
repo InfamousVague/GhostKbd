@@ -63,8 +63,8 @@ Every answer is kept under build/versus/sweep/, by what was compiled (a digest o
 typed (the sets, the bench's sentences) and English's lists (the files of assets/dict and assets/ngram that begin
 "en"), so a grid or a search run again, or run on after being stopped, asks only for what it has not seen, and a
 change to the decoder or a list starts afresh. --no-cache asks again regardless. Nothing here can read the held-out
-sentences from line 110,001 on, which are kept for the end (scoreboard.py --final): the unseen set is made from a
-copy of the file that stops at line 110,000 (or at scoreboard.py's own FINAL_FIRST, should that be lower), and
+sentences from line 101,001 on, which are kept for the end (scoreboard.py --final): the unseen set is made from a
+copy of the file that stops at line 101,000 (or at scoreboard.py's own FINAL_FIRST, should that be lower), and
 Sweep.kt is told the same bound and reads no further.
 """
 import argparse
@@ -86,7 +86,7 @@ import thumb as th  # noqa: E402
 
 WORK = os.path.join(ROOT, "build", "versus", "sweep")
 # The last line of the held-out sentences this may read: those after it are scoreboard.py --final's.
-LAST_LINE = min(110000, scoreboard.FINAL_FIRST)
+LAST_LINE = min(101000, scoreboard.FINAL_FIRST)
 SETS = ("seen", "unseen")
 # What a search takes when it is given no dial: every number but these. Swipe typing's own are not asked for by a
 # tap; Scorer's five are next-word prediction's (the starter table's priors, and how much the words before lift a

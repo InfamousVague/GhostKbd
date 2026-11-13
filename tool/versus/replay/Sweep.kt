@@ -1,6 +1,6 @@
 // tool/versus/sweep.py's worker: the decoder's dials tried one setting after another, in one JVM.
 //
-//   tool/versus/replay.sh sweep --sets <file> [--bench-words 12000] [--threads 4] [--last-line 110000]
+//   tool/versus/replay.sh sweep --sets <file> [--bench-words 12000] [--threads 4] [--last-line 101000]
 //   tool/versus/replay.sh sweep --dials             every dial there is and what the tree sets it to; loads nothing
 //
 // tool/versus/scoreboard.py --set starts a JVM, reads the word lists and types 1,800 sentences and the typing bench
@@ -48,11 +48,11 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 
 /**
- * The last line of build/typing-bench/en-heldout.txt that anything here may read. From line 110,001 on the sentences
+ * The last line of build/typing-bench/en-heldout.txt that anything here may read. From line 101,001 on the sentences
  * are kept unseen for the end (tool/versus/scoreboard.py --final): a setting found by trying thousands must not have
  * been tried on them.
  */
-const val SWEEP_LAST_LINE = 110_000
+const val SWEEP_LAST_LINE = 101_000
 
 private val sweepCpu = runCatching {
     java.lang.management.ManagementFactory.getThreadMXBean().takeIf { it.isCurrentThreadCpuTimeSupported }?.also { if (!it.isThreadCpuTimeEnabled) it.isThreadCpuTimeEnabled = true }

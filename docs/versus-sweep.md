@@ -86,15 +86,16 @@ regardless; a change that reads a list from somewhere else needs it.
 **A setting the decoder throws at** is answered as an error, and the worker goes on with every dial put back; a
 search passes such a value over.
 
-**It cannot read the sentences kept for the end.** `scoreboard.py --final` types a third set, from line 110,001 of
-the held-out file, whose totals are to be looked at once when the work is done. A search that tries thousands of
-settings would wear that out in an afternoon. `sweep.py` makes the unseen set from a copy of the file that stops
-at line 110,000 (or at `scoreboard.py`'s `FINAL_FIRST`, should that come to be lower) and refuses a first line
-past it; `Sweep.kt` is told the same bound and reads the bench's sentences no further (`Sentences(root, most)`),
-and never past line 110,000 whatever it is told. One thing for whoever runs `--final`: the held-out file in this
-worktree, and in the one it was copied from, has 102,028 lines, so there is no line 110,001 and that set would
-have no sentence in it. It was not run here, by the rule; it follows from `thumb.sentences`, which passes over
-every line up to the first it is given.
+**It cannot read the sentences kept for the end.** `scoreboard.py --final` types a third set, from line 101,001 of
+the held-out file (branch versus, b960177), whose totals are to be looked at once when the work is done. A search
+that tries thousands of settings would wear that out in an afternoon. `sweep.py` makes the unseen set from a copy of
+the file that stops at line 101,000 (or at `scoreboard.py`'s `FINAL_FIRST`, should that come to be lower) and
+refuses a first line past it; `Sweep.kt` is told the same bound and reads the bench's sentences no further
+(`Sentences(root, most)`), and never past line 101,000 whatever it is told. Until 2026-11-13 the bound was line
+110,000, from a `FINAL_FIRST` that named a line the file (102,028 lines) does not have: the copy the runs below were
+typed from held lines 101,001 to 102,028 too. Nothing typed came from them: the unseen set's 300 sentences end
+before line 101,001 (they are the same with the copy cut at 101,000), and the bench's 12,000 words are the first
+lines of the file; but the bench's reader loaded them, and the copy was deleted when the bound was mended.
 
 ## It is the scoreboard's numbers, to the word
 
