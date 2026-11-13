@@ -851,7 +851,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
         val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
         val decoder = tapDecoder(now, taps)
-        decoder.load(typed.lowercase(locale), spread(now, scorer, taps))
+        decoder.load(typed.lowercase(locale), if (ThumbLean.SPREAD_REJOIN) spread(now, scorer, taps) else taps.loose())
         var best: String? = null
         // What stands pays for its own taps as the lean has them ([TapDecoder.own]): the letters', and the bar's as a space.
         var bestScore = asItStands - decoder.own + (if (second.isEmpty() && !isWord(stands.lowercase(locale))) 0f else REJOIN_MARGIN)
@@ -890,10 +890,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
-     * [taps] as they are read: with how tightly this thumb types ([Taps.tight], [ThumbLean]) only in English with the
-     * next-word model on, where that was measured; elsewhere every cost is as it was before there was an estimate.
+     * [taps] as they are read: with how tightly this thumb types ([Taps.tight], [ThumbLean]) only with English alone
+     * and the next-word model on, where that was measured; elsewhere (English with another language too) every cost
+     * is as it was before there was an estimate.
      */
-    private fun spread(now: Now, scorer: Scorer?, taps: Taps): Taps = if (scorer != null && now.board.english) taps else taps.loose()
+    private fun spread(now: Now, scorer: Scorer?, taps: Taps): Taps = if (scorer != null && now.lexicon.key == ENGLISH_ALONE) taps else taps.loose()
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
     private fun unlisted(lower: String): Float = when {
@@ -1260,6 +1261,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
         /** The name of a set of word lists as one lexicon: the script and the lists' stems ("LATIN:en,pl"); empty with no list. */
         fun key(script: Script, dictionaries: List<String>): String = if (dictionaries.isEmpty()) "" else script.name + ":" + dictionaries.joinToString(",")
+
+        /** English's list alone, the one lexicon how tightly this thumb types ([ThumbLean.tight]) was measured on. */
+        private val ENGLISH_ALONE = key(Script.LATIN, listOf("en"))
 
         /** [word]'s letters for swipe typing: lower case, plain ([Script.plain]), apostrophes dropped ("What's" is "whats"). */
         fun swipeLetters(script: Script, word: String): String = script.plain(word.lowercase()).filter { it != '\'' && it != '’' }

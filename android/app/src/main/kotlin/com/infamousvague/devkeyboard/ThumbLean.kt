@@ -36,8 +36,10 @@ class ThumbLean {
     private var sumX = 0f
     private var sumY = 0f
     private var squares = 0f
+    /** The same squares, each held to [SPREAD_CAP] where that is set: what the spread is measured by. */
+    private var held = 0f
     /** As they were before the last word was settled, for [unlearn]. */
-    private val was = FloatArray(4)
+    private val was = FloatArray(5)
 
     /** The lean as it is estimated now, across and down, in key widths. */
     var x = 0f
@@ -58,7 +60,7 @@ class ThumbLean {
     /** A text field is entered, or left: nothing is known of the thumb in the next one. */
     fun newField() {
         if (KEEP) return
-        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f; tight = 1f
+        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; held = 0f; x = 0f; y = 0f; tight = 1f
         was.fill(0f)
     }
 
@@ -91,31 +93,34 @@ class ThumbLean {
             val dy = (taps.ys[i] - at.second) / w
             // A tap this far from the key now read for it was no slip of the aim: two letters swapped, a misspelling put right.
             if (dx * dx + dy * dy > REACH * REACH) continue
-            n += 1f; sumX += dx; sumY += dy; squares += dx * dx + dy * dy
+            val r2 = dx * dx + dy * dy
+            n += 1f; sumX += dx; sumY += dy; squares += r2; held += if (SPREAD_CAP > 0f) minOf(r2, SPREAD_CAP) else r2
         }
         // What is older fades, so that it follows a change of hand or grip.
-        if (n > MEMORY) { val f = MEMORY / n; n *= f; sumX *= f; sumY *= f; squares *= f }
+        if (n > MEMORY) { val f = MEMORY / n; n *= f; sumX *= f; sumY *= f; squares *= f; held *= f }
         estimate()
     }
 
     /** A word has been settled that teaches nothing: letters no list has, a letter missed or added, no taps. */
-    fun pass() { was[0] = n; was[1] = sumX; was[2] = sumY; was[3] = squares }
+    fun pass() { was[0] = n; was[1] = sumX; was[2] = sumY; was[3] = squares; was[4] = held }
 
     /** The last word settled was not what was meant after all (its fix was taken back): it is as it was before that word. */
-    fun unlearn() { n = was[0]; sumX = was[1]; sumY = was[2]; squares = was[3]; estimate() }
+    fun unlearn() { n = was[0]; sumX = was[1]; sumY = was[2]; squares = was[3]; held = was[4]; estimate() }
 
     private fun estimate() {
         if (n <= 0f) { x = 0f; y = 0f; tight = 1f; return }
         val mx = sumX / n; val my = sumY / n
         // The scatter of one tap about where the thumb lands, each way, squared: NOISE's until the field's own taps say.
         val about = (squares - (sumX * sumX + sumY * sumY) / n).coerceAtLeast(0f) / 2f
-        // The same scatter as the spread the taps are read by: SPREAD's, worth SPREAD_TAPS taps, until the field's say.
-        val v = (SPREAD_TAPS * SPREAD + about) / (SPREAD_TAPS + (n - 1f).coerceAtLeast(0f))
+        // The same scatter as the spread the taps are read by (each tap's square held to SPREAD_CAP where that is
+        // set): SPREAD's, worth SPREAD_TAPS taps, until the field's say.
+        val spread = (held - (sumX * sumX + sumY * sumY) / n).coerceAtLeast(0f) / 2f
+        val v = (SPREAD_TAPS * SPREAD + spread) / (SPREAD_TAPS + (n - 1f).coerceAtLeast(0f))
         // Read tighter as one over the spread squared; looser more steeply, so that a careful thumb's few wider
         // sentences are seldom read loosely while a sloppy thumb's are soon.
         val q = SPREAD / v
         val k = if (q >= 1f) q else Math.pow(q.toDouble(), SPREAD_POWER.toDouble()).toFloat()
-        tight = (TapDecoder.SPATIAL * k).coerceIn(SPREAD_LOW, SPREAD_HIGH) / TapDecoder.SPATIAL
+        tight = k.coerceIn(SPREAD_LOW, SPREAD_HIGH)
         val s2 = (NOISE_TAPS * NOISE * NOISE + about) / (NOISE_TAPS + (n - 1f).coerceAtLeast(0f))
         // How far the mean stands out of what that scatter alone would make of it, and how much a lean of LEAN's size
         // would have shown in so many taps.
@@ -248,13 +253,26 @@ class ThumbLean {
         @JvmField var SPREAD_TAPS = 4f
 
         /**
-         * The least and the most SPATIAL is read with, however widely or closely the taps fall. Least 0.5, 0.7, 0.9,
-         * 1.0, 1.1: words wrong 278, 281, 287, 289, 293 and 397, 395, 394, 400, 407; the bench's sloppy thumb spoils
-         * 4.96, 3.10, 2.48, 2.28, 2.28 right words a thousand (1.65 with no spread), its normal one 3.09, 2.42, 2.02,
-         * 1.75, 1.61 (1.48). The most is seldom reached: a careful thumb's sentence comes to about 2.
+         * The least and the most [tight] may be, however widely or closely the taps fall: factors on SPATIAL as it
+         * stands, so that they move with it when it is moved. With SPATIAL at 1.5 a least of 0.6 reads no lower than
+         * 0.9 and a most of 2 no higher than 3. Least (in SPATIAL, at 1.5) 0.5, 0.7, 0.9, 1.0, 1.1: words wrong 278,
+         * 281, 287, 289, 293 and 397, 395, 394, 400, 407; the bench's sloppy thumb spoils 4.96, 3.10, 2.48, 2.28, 2.28
+         * right words a thousand (1.65 with no spread), its normal one 3.09, 2.42, 2.02, 1.75, 1.61 (1.48). The least
+         * was chosen with the unseen totals in view. The most is seldom reached: a careful thumb's sentence comes to
+         * about 1.3 (SPATIAL about 2). Until 2026-11-13 these were values of SPATIAL itself (0.9 and 3), which with SPATIAL moved to 0.9
+         * left the spread nothing to do (seen 277 on, 278 off).
          */
-        @JvmField var SPREAD_LOW = 0.9f
-        @JvmField var SPREAD_HIGH = 3f
+        @JvmField var SPREAD_LOW = 0.6f
+        @JvmField var SPREAD_HIGH = 2f
+
+        /**
+         * For measuring, and off: the most one tap's squared miss (key widths squared) counts for in the spread, so
+         * that one wild tap early in a field cannot make a careful thumb loose. 0: not held. Held at 0.5, 0.36, 0.25:
+         * words wrong 290, 291, 298 and 396, 395, 417 (not held: 287 and 394); the careful thumb's bench spoils 1.01,
+         * 1.01, 0.91 a thousand (1.01), the sloppy thumb's words right 86.93%, 86.75%, 86.26% (87.04%). A held square
+         * also holds a sloppy thumb's honest taps, so nothing was gained: left off.
+         */
+        @JvmField var SPREAD_CAP = 0f
 
         /**
          * How much of the loosening two words run together are spared: their slips' cost is divided by [Taps.tight]
@@ -264,6 +282,13 @@ class ThumbLean {
          * no list has split into two words ("mapbox", "map of"). Taken at 1 for the bench.
          */
         @JvmField var SPREAD_JOINS = 1f
+
+        /**
+         * Whether the bar's tap read as a letter between two words ([Autocorrect.rejoin]) follows the spread as a
+         * word does. Following it: words wrong 287 and 394; read with SPATIAL as it stands, 288 and 393, the bench's
+         * lines identical. No gain either way, so it is spared, as joins are, and rejoins read as before.
+         */
+        @JvmField var SPREAD_REJOIN = false
 
         /** For measuring, and nothing: a SPATIAL to read every word with in place of the estimate's (the ceiling runs). */
         @JvmField var SPREAD_FIXED = 0f

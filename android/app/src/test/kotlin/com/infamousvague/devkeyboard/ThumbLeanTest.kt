@@ -194,11 +194,11 @@ class ThumbLeanTest {
             val sloppy = ThumbLean()
             teach(sloppy, WORDS, 0f, 0f, 0.36f, Random(seed))
             assertTrue("sloppy ${sloppy.tight}", sloppy.tight < 0.9f)
-            assertTrue(sloppy.tight * TapDecoder.SPATIAL >= ThumbLean.SPREAD_LOW - 1e-4f)
+            assertTrue(sloppy.tight >= ThumbLean.SPREAD_LOW)
             val careful = ThumbLean()
             teach(careful, WORDS, 0.24f, 0.2f, 0.16f, Random(seed))
             assertTrue("careful ${careful.tight}", careful.tight > 1f)
-            assertTrue(careful.tight * TapDecoder.SPATIAL <= ThumbLean.SPREAD_HIGH + 1e-4f)
+            assertTrue(careful.tight <= ThumbLean.SPREAD_HIGH)
             // Read with it: the same taps, the lean and the spread on them.
             val taps = tapped("hello", 0f, 0f)
             assertEquals(sloppy.tight, sloppy.read(taps).tight, 0f)
@@ -217,6 +217,70 @@ class ThumbLeanTest {
         // And a fix taken back takes its spread with it.
         lean.unlearn()
         assertEquals(before, lean.tight, 0f)
+    }
+
+    @Test fun aWildTapInAFieldsSecondWordLoosensACarefulThumbForAWhile() {
+        // The weak place of a plain variance: one tap 0.9 of a key off in the second word of a field, when only the
+        // first word's three taps and the prior stand against it. Twenty careful fields: it is read looser than
+        // SPATIAL straight after (never below the floor), and tight again by the sentence's end. This is the cost
+        // docs/versus.md states ("A wild tap early in a field"); holding each square ([ThumbLean.SPREAD_CAP]) was
+        // measured and left off.
+        var loosened = 0
+        for (seed in 1L..20L) {
+            val lean = ThumbLean()
+            val rnd = Random(100 + seed)
+            teach(lean, WORDS.take(1), 0f, 0f, 0.16f, rnd)
+            val taps = tapped(WORDS[1], 0f, 0f, 0.16f, rnd).also { it.xs[2] = centres.getValue(WORDS[1][2]).first + 0.9f * W }
+            lean.learn(WORDS[1].toCharArray(), taps)
+            if (lean.tight < 1f) loosened++
+            assertTrue("seed $seed: ${lean.tight}", lean.tight >= ThumbLean.SPREAD_LOW)
+            teach(lean, WORDS.drop(2), 0f, 0f, 0.16f, rnd)
+            assertTrue("seed $seed at the end: ${lean.tight}", lean.tight >= 1f)
+        }
+        assertTrue("loosened in $loosened of 20", loosened >= 15)
+    }
+
+    @Test fun theBoundsMoveWithSpatial() {
+        // SPREAD_LOW and SPREAD_HIGH are factors on SPATIAL: with SPATIAL moved to 0.9 a scattered thumb is still
+        // read looser than it, and a careful one tighter (with 0.9 as a value of SPATIAL the spread did nothing).
+        val was = TapDecoder.SPATIAL
+        try {
+            TapDecoder.SPATIAL = 0.9f
+            val sloppy = ThumbLean()
+            teach(sloppy, WORDS, 0f, 0f, 0.36f, Random(8))
+            assertTrue("sloppy ${sloppy.tight}", sloppy.tight < 0.9f && sloppy.tight >= ThumbLean.SPREAD_LOW)
+            val careful = ThumbLean()
+            teach(careful, WORDS, 0f, 0f, 0.16f, Random(8))
+            assertTrue("careful ${careful.tight}", careful.tight > 1f && careful.tight <= ThumbLean.SPREAD_HIGH)
+        } finally { TapDecoder.SPATIAL = was }
+    }
+
+    @Test fun theSpreadIsReadWithEnglishAloneOnly() {
+        // With English and German loaded the spread is not read, whatever it is: German's words were never measured
+        // with it. English alone reads it (some word below comes out otherwise read loosely).
+        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }.also {
+            val state = LanguageState.of(listOf("en", "de"), emptyMap(), "")
+            it.loadNow(state.dictionaries, state.board)
+        }
+        fun scorer(a: Autocorrect): Scorer {
+            val lookup = object : Scorer.Lookup {
+                override fun isWord(lower: String) = a.isWord(lower)
+                override fun form(lower: String) = lower
+                override fun count(lower: String) = 0f
+                override fun starting(prefix: String) = emptyList<Pair<String, Float>>()
+                override fun fills() = emptyList<String>()
+            }
+            val place = NextWordText.place("", { Character.isLetter(it) || it == '\'' }, false)!!
+            return Scorer(place, emptyList(), FloatArray(0), emptyList(), emptyList(), lookup)
+        }
+        var english = 0
+        for (word in listOf("thw", "teh", "wirk", "yom", "cin", "fot", "ghis", "jello", "nrw", "tge", "abd", "ger")) {
+            val taps = Taps(tapped(word, 0f, 0f).xs.also { it[0] += 0.4f * W }, tapped(word, 0f, 0f).ys, centres, W, space)
+            val loose = Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0f, 0f, 0.4f)
+            assertEquals(word, both.correct(word, scorer(both), taps), both.correct(word, scorer(both), loose))
+            if (ac.correct(word, scorer(ac), taps) != ac.correct(word, scorer(ac), loose)) english++
+        }
+        assertTrue("English alone read the spread in none of them", english > 0)
     }
 
     @Test fun withTheSpreadOffTapsAreReadWithSpatialAsItStands() {
