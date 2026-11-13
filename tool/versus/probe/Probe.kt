@@ -63,9 +63,9 @@ class Inside(val ac: Autocorrect) {
 fun found(inside: Inside, d: TapDecoder, typed: String, taps: Taps, show: Int) {
     val least = -30f
     d.load(typed, taps)
-    val joins = d.joins(least, least, Autocorrect.JOIN_FIRST, firsts = { i -> inside.zipfs[i] >= Autocorrect.JOIN_FIRST && (inside.sorted[i].length >= 2 || inside.zipfs[i] >= SwipeDecoder.ONE_LETTER) },
+    val joins = d.joins(least, least, Autocorrect.JOIN_FIRST, first = { i -> if (inside.zipfs[i] >= Autocorrect.JOIN_FIRST && (inside.sorted[i].length >= 2 || inside.zipfs[i] >= SwipeDecoder.ONE_LETTER)) inside.zipfs[i] else Float.NEGATIVE_INFINITY },
         second = { a, b -> inside.worth(inside.sorted[a], inside.sorted[b]).first },
-        followers = { a -> inside.follows(inside.sorted[a])?.keys?.mapNotNull { w -> inside.index(w).takeIf { it >= 0 } }?.toIntArray() ?: IntArray(0) })
+        followers = { a -> inside.follows(inside.sorted[a])?.keys?.mapNotNull { w -> inside.index(w).takeIf { it >= 0 } }?.toIntArray()?.also { it.sort() } ?: IntArray(0) })
     val ranked = joins.map { j ->
         val third = if (j.third >= 0) inside.worth(inside.sorted[j.second], inside.sorted[j.third]).first - 9f else 0f
         Triple(inside.sorted[j.first] + " " + inside.sorted[j.second] + (if (j.third >= 0) " " + inside.sorted[j.third] else "") + (if (j.bars > 0) " [${j.bars} on a letter]" else ""),
@@ -199,8 +199,233 @@ fun probe(root: File, boardFile: File, show: Int) {
     System.err.println("probe: $joined stretches of words run together, $parted parted right")
 }
 
+/** One event of a typing as the board reads it: a letter's key ('l'), the space bar ('b'), a mark ('m') or anything else ('x'). */
+class Ev(val kind: Char, val c: Char, val x: Float, val y: Float, val meta: String, val raw: String)
+
+fun events(board: Board, events: List<String>, meta: List<String>): List<Ev> = events.mapIndexed { i, e ->
+    val p = e.split(':')
+    val m = meta.getOrElse(i) { "m" }
+    if (p[0] != "T") Ev('m', e.substring(2, 3)[0], 0f, 0f, m, e) else {
+        val hit = board.keyAt(p[1].toFloat(), p[2].toFloat() - board.top)
+        when {
+            hit == null -> Ev('x', ' ', 0f, 0f, m, e)
+            hit.key.type == KeyType.SPACE -> Ev('b', ' ', hit.aimX, hit.aimY, m, e)
+            hit.key.type == KeyType.CHAR && hit.key.text.length == 1 && hit.key.text[0].isLetter() && m != "m" -> Ev('l', hit.key.text[0], hit.aimX, hit.aimY, m, e)
+            else -> Ev('x', ' ', 0f, 0f, m, e)
+        }
+    }
+}
+
+fun play(typist: Typist, e: Ev) {
+    val p = e.raw.split(':')
+    if (e.kind == 'm') typist.mark(e.c) else typist.tap(p[1].toFloat(), p[2].toFloat(), p[3].toLong())
+}
+
+/**
+ * How long Autocorrect.correct takes for every typed word of the typings on the input, one at a time, as the
+ * keyboard asks at a word's end: the mean, the middle, the slowest in a hundred and in a thousand, and the slowest
+ * few by name. Each word is asked three times and its quickest kept, and the slowest few nine times more (so that
+ * a pause of the JVM's is not taken for the decoder's). Everything is typed through once first, unmeasured, so
+ * that the JVM has compiled it.
+ */
+fun time(root: File, boardFile: File, show: Int) {
+    // The processor time this thread has had, not the time of day: other people's builds share the Mac.
+    val bean = java.lang.management.ManagementFactory.getThreadMXBean()
+    fun clock() = bean.currentThreadCpuTime
+    val board = Board.recorded(boardFile)
+    val decoder = Decoder(root)
+    val (keys, keyW, space) = board.tapKeys
+    class Token(val id: String, val typed: String, val before: String, val taps: Taps) { var nanos = 0L; var work = 0 }
+    val tokens = ArrayList<Token>()
+    val lines = generateSequence { readLine() }.toList()
+    fun scorerFor(t: Token) = (t.before + t.typed).let { text -> runCatching { NextWordText.place(text.takeLast(96), { c -> Words.isWordChar(c, decoder.state.joiners) }, text.length >= 96, decoder.state.locale, "")?.let { decoder.at(it) } }.getOrNull() }
+    for (pass in 0..1) {
+        tokens.clear()
+        for (line in lines) {
+            val f = line.split('\t')
+            if (f.size < 4) continue
+            val typist = Typist(board, decoder)
+            val run = ArrayList<Ev>()
+            var before = ""
+            fun end() {
+                if (run.isEmpty()) return
+                val t = Token(f[0], run.joinToString("") { it.c.toString() }, before, Taps(FloatArray(run.size) { run[it].x }, FloatArray(run.size) { run[it].y }, keys, keyW, space))
+                val scorer = scorerFor(t)
+                // The quickest of three: one reading of the clock is as often the JVM's pause as the decoder's work.
+                t.nanos = Long.MAX_VALUE
+                repeat(if (pass == 0) 1 else 3) { TapDecoder.JOIN_WORK_LAST = 0; val t0 = clock(); decoder.ac.correct(t.typed, scorer, t.taps); t.nanos = minOf(t.nanos, clock() - t0) }
+                t.work = TapDecoder.JOIN_WORK_LAST
+                tokens += t
+                run.clear()
+            }
+            for (e in events(board, f[1].split(' '), f[2].split(' '))) {
+                if (e.kind == 'l') { if (run.isEmpty()) before = typist.text.toString(); run += e } else end()
+                play(typist, e)
+            }
+            end()
+        }
+    }
+    val sorted = tokens.map { it.nanos }.sorted()
+    fun at(q: Double) = sorted[((sorted.size - 1) * q).toInt()] / 1000.0
+    println("time: %d typed words; microseconds for Autocorrect.correct: mean %.0f, middle %.0f, slowest in a hundred %.0f, in a thousand %.0f, slowest %.0f".format(
+        tokens.size, sorted.average() / 1000.0, at(0.5), at(0.99), at(0.999), sorted.last() / 1000.0))
+    val again = tokens.sortedByDescending { it.nanos }.take(maxOf(show, 20)).map { t ->
+        val scorer = scorerFor(t)
+        var least = Long.MAX_VALUE
+        repeat(9) { val t0 = clock(); decoder.ac.correct(t.typed, scorer, t.taps); least = minOf(least, clock() - t0) }
+        t to least
+    }.sortedByDescending { it.second }
+    println("      the slowest, each timed nine times more and its quickest kept:")
+    for ((t, least) in again.take(show)) println("      %6.0f µs  %-26s %s  -> %s".format(least / 1000.0, t.typed, t.id, decoder.ac.correct(t.typed, scorerFor(t), t.taps) ?: "(left)"))
+    println("time: the slowest single word, at its quickest of nine: %.0f µs".format(again.first().second / 1000.0))
+    // The join search's own count of its work (TapDecoder.joinWork), which no other process's load changes.
+    val works = tokens.filter { it.work > 0 }.sortedByDescending { it.work }
+    println("work: %d of the words were looked at for a join; the search's work a word: mean %.0f, most %d (it stops at %d): %s".format(
+        works.size, works.map { it.work }.average(), works.firstOrNull()?.work ?: 0, TapDecoder.MAX_JOIN_WORK, works.take(6).joinToString(", ") { "${it.typed} ${it.work}" }))
+}
+
+/**
+ * Words cut in two: for every tap of a typing that was meant as a letter and landed on the space bar, the scraps
+ * either side of it, what stood in the field before the tap, after it and when the scrap after it ended, what
+ * Autocorrect.rejoin answers when asked now, and what the decoder finds when it reads the scraps and the bar's
+ * tap as one word (the bar's tap as a letter, by where on the bar it landed).
+ */
+fun cuts(root: File, boardFile: File, show: Int) {
+    val board = Board.recorded(boardFile)
+    val decoder = Decoder(root)
+    val inside = Inside(decoder.ac)
+    val (keys, keyW, space) = board.tapKeys
+    var all = 0; var right = 0
+    var line = readLine()
+    while (line != null) {
+        val f = line.split('\t')
+        line = readLine()
+        if (f.size < 4) continue
+        val target = f[3].split(' ')
+        val evs = events(board, f[1].split(' '), f[2].split(' '))
+        val typist = Typist(board, decoder)
+        val after = ArrayList<String>()
+        for (e in evs) { play(typist, e); after += typist.text.toString() }
+        val out = score(typist.text.toString())
+        for ((i, e) in evs.withIndex()) {
+            if (e.kind != 'b' || e.meta[0] != 'k') continue
+            var a = i
+            while (a > 0 && evs[a - 1].kind == 'l') a--
+            var b = i
+            while (b + 1 < evs.size && evs[b + 1].kind == 'l') b++
+            val first = evs.subList(a, i); val second = evs.subList(i + 1, b + 1)
+            val word = e.meta.drop(1).substringBefore(':').toInt()
+            val meant = target[word]
+            val ok = out.getOrNull(word) == meant || meant in out
+            all++; if (ok) right++
+            val s1 = first.joinToString("") { it.c.toString() }; val s2 = second.joinToString("") { it.c.toString() }
+            val bar = space!!
+            val depth = (e.y - bar[1]) / (bar[3] - bar[1])
+            val above = keys.minByOrNull { (_, c) -> (c.first - e.x) * (c.first - e.x) + (c.second - e.y) * (c.second - e.y) }!!.key
+            val before = if (a > 0) after[a - 1] else ""
+            println("== ${f[0]}  meant \"$meant\"  typed \"$s1\" [bar] \"$s2\"  the bar's tap ${"%.2f".format(depth)} of its height down, nearest $above  ${if (ok) "RIGHT" else "wrong"}")
+            println("     the field: before \"${before.takeLast(24)}\"  after the bar's tap \"${after[i].takeLast(30)}\"  after the next scrap ended \"${after[minOf(b + 1, evs.size - 1)].takeLast(40)}\"")
+            val run = first + listOf(e) + second
+            val taps = Taps(FloatArray(run.size) { run[it].x }, FloatArray(run.size) { run[it].y }, keys, keyW, space)
+            val typed = "$s1 $s2"
+            val d = inside.decoder(taps)
+            d.load(typed, taps)
+            val hits = d.search(-30f).map { h -> Triple(inside.sorted[h.index], inside.zipfs[h.index] - h.cost, h.cost) }.sortedByDescending { it.second }.take(show)
+            println("     as one word: " + hits.joinToString("  ") { "%s %.2f (cost %.2f)".format(it.first, it.second, it.third) }.ifEmpty { "none" })
+            val z = inside.words[meant]
+            val c = d.align(meant.replace("'", ""), 0, 99f)
+            println("     the word meant: zipf ${z?.let { "%.2f".format(it) } ?: "none"}, its slips cost %.2f, the bar's tap as its letter %.2f".format(c, inside.sub(d, s1.length, meant.replace("'", "").getOrElse(s1.length) { '?' })))
+            for ((name, scrap) in listOf("before" to s1, "after" to s2)) if (scrap.isNotEmpty()) println("     the scrap $name: \"$scrap\" ${inside.words[scrap]?.let { "listed, %.2f".format(it) } ?: if (scrap.length >= 4 && inside.odd(scrap)) "looks like no word" else "in no list"}")
+        }
+    }
+    System.err.println("probe: $all taps meant as a letter landed on the bar, $right of their words came out right")
+}
+
+/** tool/versus/thumb.py's thumbs, for typing words here: scatter and lean in key sizes, one tap in sixteen wilder by 2.2. */
+class Thumb(val name: String, val sx: Float, val sy: Float, val leanX: Float = 0f, val leanY: Float = 0f)
+val THUMBS = listOf(Thumb("careful", 0.20f, 0.15f), Thumb("leaning", 0.20f, 0.15f, 0.24f, 0.18f), Thumb("sloppy", 0.34f, 0.25f))
+
+/** Where a thumb lands for the letters of [word], and the letters its taps typed: null where one landed off the letters. */
+fun typeWord(board: Board, thumb: Thumb, rnd: java.util.Random, word: String): Pair<String, Taps>? {
+    val (keys, keyW, space) = board.tapKeys
+    val keyH = board.keyRects.first { it.first.type == KeyType.CHAR }.second.h
+    fun gauss(s: Float) = (rnd.nextGaussian() * s * (if (rnd.nextFloat() < 0.06f) 2.2 else 1.0)).toFloat()
+    val xs = FloatArray(word.length); val ys = FloatArray(word.length)
+    val typed = StringBuilder()
+    for ((i, c) in word.withIndex()) {
+        val at = keys[c] ?: return null
+        xs[i] = at.first + (thumb.leanX + gauss(thumb.sx)) * keyW
+        ys[i] = at.second + (thumb.leanY + gauss(thumb.sy)) * keyH
+        val hit = board.keyRects.firstOrNull { it.second.contains(xs[i], ys[i]) }?.first ?: return null
+        if (hit.type != KeyType.CHAR || hit.text.length != 1 || !hit.text[0].isLetter()) return null
+        typed.append(hit.text[0])
+    }
+    return typed.toString() to Taps(xs, ys, keys, keyW, space)
+}
+
+/**
+ * Right words spoiled, on far more text than the typing bench's 12,000 words: the sentences on the input are
+ * typed by the three thumbs, and every word whose taps all landed on its own keys is given to Autocorrect.correct
+ * with the sentence before it as it was meant. Whatever is changed was right and is spoiled. Said for all such
+ * words and for those no list has (names, compounds, slang: what a person types on purpose), and of the spoiled,
+ * how many were parted into two words. Nothing is measured of slips mended: this is the guard, not the gain.
+ */
+fun spoils(root: File, boardFile: File, show: Int) {
+    val board = Board.recorded(boardFile)
+    val decoder = Decoder(root)
+    val lines = generateSequence { readLine() }.toList()
+    for (thumb in THUMBS) {
+        val rnd = java.util.Random(7)
+        var clean = 0; var spoiled = 0; var unlisted = 0; var unlistedSpoiled = 0; var parted = 0
+        val examples = LinkedHashMap<String, Int>()
+        // The words no list has, each counted once however often the sentences have it (Tatoeba has "Mennad" in hundreds).
+        val kinds = HashSet<String>(); val kindsSpoiled = HashSet<String>(); val kindsParted = HashSet<String>()
+        for (line in lines) {
+            val before = StringBuilder()
+            for (raw in line.split(' ')) {
+                val word = raw.trim { !it.isLetter() }
+                val lower = word.lowercase()
+                // Letters only, as the thumb types them; a capital inside or throughout is typed on purpose and never touched.
+                if (lower.length < 2 || !lower.all { it in 'a'..'z' } || word.drop(1).any { it.isUpperCase() }) { before.append(raw).append(' '); continue }
+                val typed = typeWord(board, thumb, rnd, lower)
+                if (typed != null && typed.first == lower) {
+                    clean++
+                    val listed = decoder.ac.isWord(lower)
+                    if (!listed) { unlisted++; kinds += lower }
+                    val text = before.toString() + lower
+                    val scorer = runCatching { NextWordText.place(text.takeLast(96), { c -> Words.isWordChar(c, decoder.state.joiners) }, text.length >= 96, decoder.state.locale, "")?.let { decoder.at(it) } }.getOrNull()
+                    val out = decoder.ac.correct(lower, scorer, typed.second)
+                    if (out != null && out.lowercase() != lower) {
+                        spoiled++
+                        if (!listed) { unlistedSpoiled++; kindsSpoiled += lower }
+                        if (' ' in out) { parted++; if (!listed) kindsParted += lower }
+                        val key = "$lower → ${out.lowercase()}" + (if (listed) "" else " *")
+                        examples[key] = (examples[key] ?: 0) + 1
+                    }
+                }
+                before.append(raw).append(' ')
+            }
+        }
+        println("spoils %-8s %d right words, %d spoiled (%.2f per 1000), %d of them parted in two; of %d that no list has, %d spoiled (%.1f%%); of the %d different ones, %d spoiled, %d parted".format(
+            thumb.name, clean, spoiled, 1000.0 * spoiled / clean.coerceAtLeast(1), parted, unlisted, unlistedSpoiled, 100.0 * unlistedSpoiled / unlisted.coerceAtLeast(1), kinds.size, kindsSpoiled.size, kindsParted.size))
+        examples.entries.filter { ' ' in it.key.substringAfter("→ ").removeSuffix(" *") }.sortedByDescending { it.value }.take(show).forEach { println("        parted  ${it.key}" + if (it.value > 1) " (${it.value})" else "") }
+    }
+}
+
+/** The words of a field's text as tool/versus/score.py counts them: lower case, marks aside. */
+fun score(text: String): List<String> = text.lowercase().replace('’', '\'').split(Regex("[^a-z']+")).filter { it.isNotEmpty() }
+
 object Probe {
     @JvmStatic fun main(args: Array<String>) {
-        if (args.getOrNull(3) == "words") words(File(args[0]), File(args[1]), args[2].toInt()) else probe(File(args[0]), File(args[1]), args.getOrNull(2)?.toInt() ?: 5)
+        val root = File(args[0]); val board = File(args[1]); val show = args.getOrNull(2)?.toInt() ?: 5
+        // Any of the decoder's dials for this run, as tool/versus/replay/Replay.kt sets them: Autocorrect.JOINS=false.
+        args.drop(4).forEach { dial(it) }
+        when (args.getOrNull(3) ?: "joins") {
+            "words" -> words(root, board, show)
+            "time" -> time(root, board, show)
+            "cuts" -> cuts(root, board, show)
+            "spoils" -> spoils(root, board, show)
+            else -> probe(root, board, show)
+        }
     }
 }

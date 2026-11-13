@@ -393,81 +393,156 @@ class TapDecoder(
     }
 
     /**
-     * Words run together: every way the taps split into a first word and a last, or a first, a middle and a last,
+     * Words run together: the ways the taps split into a first word and a last, or a first, a middle and a last,
      * with a tap between two of them that may have been the space bar, or no tap at all (the space missed).
-     * [second] scores a word after the one before it (the place in the list of each): how common it is there, as a
-     * Zipf frequency. A join's worth is the first word's frequency and each later word's after the one before, less
-     * 9 for each space (two words are one in a billion times less likely than one, so each must be common to be
-     * worth it), less the cost. Only those worth at least [least] come back, or [barLeast] where a tap was read as
-     * the bar: a letter nobody meant, standing between two words, says more than two words with nothing between.
+     * [first] says what a word is worth as the first of them (its frequency, and what the words before lift it by;
+     * minus infinity for a word that may not start a join) and [second] what a word is worth after the one before
+     * it (the place in the list of each), as Zipf frequencies; [followers] are the words the tables list after a
+     * word, in the list's order. A join is worth its first word, and each later word after the one before, less 9 for each space (two
+     * words are one in a billion times less likely than one, so each must be common to be worth it), less what the
+     * slips cost. Those worth at least [least] come back, or [barLeast] where a tap was read as the bar: a letter
+     * nobody meant, standing between two words, says more than two words with nothing between, which is also how
+     * a word no list has may be made ("tablecloth").
      *
      * A first or a middle word is at least [common], and is read with the slips a thumb makes inside one word:
      * letters read as other keys, and one letter missed, added or swapped ([starts]). The last is read as any word
-     * is ([search], [align]), held to [JOIN_BUDGET]. All of it stops at [MAX_JOIN_VISITS] nodes and
-     * [MAX_JOIN_LASTS] last words, with what it has.
+     * is ([search], [align]), held to [JOIN_BUDGET].
+     *
+     * What comes back is the best join there is and whichever others were found on the way to it, not every join:
+     * the likeliest first words are tried first, each find raises what the rest must be worth, and a first word
+     * that could not be part of a better join is passed over. The taps left after a first word are read once for
+     * every place they could start at, whichever first words end there. All of it stops at [MAX_JOIN_WORK] with
+     * what it has ([joinWork] says how far it went).
      */
-    fun joins(least: Float, barLeast: Float, common: Float, firsts: (Int) -> Boolean, second: (first: Int, second: Int) -> Float, followers: (first: Int) -> IntArray): List<Join> {
+    fun joins(least: Float, barLeast: Float, common: Float, first: (Int) -> Float, second: (first: Int, second: Int) -> Float, followers: (first: Int) -> IntArray): List<Join> {
+        joinWork = 0
+        val out = joined(least, barLeast, common, first, second, followers)
+        if (joinWork > JOIN_WORK_MOST) JOIN_WORK_MOST = joinWork
+        JOIN_WORK_LAST = joinWork
+        return out
+    }
+
+    private fun joined(least: Float, barLeast: Float, common: Float, first: (Int) -> Float, second: (first: Int, second: Int) -> Float, followers: (first: Int) -> IntArray): List<Join> {
         val out = ArrayList<Join>()
         if (n < 3) return out
-        joinVisits = 0
-        var lasts = 0
+        var best = Float.NEGATIVE_INFINITY
+        // A word's followers in the tables, in the list's order, asked for once.
         val rows = HashMap<Int, IntArray>()
-        // The words the taps from [from] on could be after the word [before], each worth [need] there or more, less its cost.
-        fun last(before: Int, from: Int, need: Float, found: (index: Int, cost: Float) -> Unit) {
-            if (++lasts > MAX_JOIN_LASTS || joinVisits > MAX_JOIN_VISITS) return
-            val seen = HashSet<Int>()
-            for (f in rows.getOrPut(before) { followers(before) }) {
-                val c = align(words[f], from, JOIN_BUDGET)
+        // What a follower's slips cost from a tap on: the same word follows many first words.
+        val aligned = HashMap<Long, Float>()
+        fun cost(from: Int, word: Int): Float {
+            val w = words[word]
+            val len = n - from
+            if (w.length - len > 4 || len - w.length > 2) return Float.POSITIVE_INFINITY
+            // One of the first two taps is one of the word's first two letters, or nothing fits within the budget.
+            val a = w[0]; val b = if (w.length > 1) w[1] else a
+            if (sub(from, a) > JOIN_BUDGET && sub(from, b) > JOIN_BUDGET && (from + 1 >= n || (sub(from + 1, a) > JOIN_BUDGET && sub(from + 1, b) > JOIN_BUDGET))) return Float.POSITIVE_INFINITY
+            return aligned.getOrPut((from.toLong() shl 32) or word.toLong()) { joinWork += ALIGN_WORK; align(w, from, JOIN_BUDGET) }
+        }
+        // The words the taps from a tap on could be, by frequency less cost, best first; and the least each list holds.
+        val tails = arrayOfNulls<List<Hit>>(n)
+        val tailsFrom = FloatArray(n)
+        fun tails(from: Int, need: Float): List<Hit> {
+            tails[from]?.let { if (tailsFrom[from] <= need) return it }
+            val found = search(need, JOIN_BUDGET, from).sortedByDescending { zipfs[it.index] - it.cost }
+            joinWork += visits
+            tails[from] = found; tailsFrom[from] = need
+            return found
+        }
+        // The last word after [before], from the tap [from]: [have] is what the words and slips before it come to,
+        // [bar] the least the whole must be worth. Each one found is handed to [found] with its cost.
+        fun last(before: Int, from: Int, have: Float, bar: Float, found: (index: Int, cost: Float) -> Unit) {
+            var need = maxOf(bar, best) + 9f - have
+            if (need > MAX_ZIPF + PAIR_LIFT) return
+            // The words the tables list after [before], which may be worth more there than they are anywhere:
+            // each is held up against the taps by itself.
+            val row = rows.getOrPut(before) { followers(before) }
+            joinWork += row.size
+            for (f in row) {
+                val c = cost(from, f)
                 if (c.isInfinite()) continue
-                seen += f
-                if (second(before, f) - c >= need) found(f, c)
+                joinWork++
+                val s = second(before, f)
+                if (s - c < need) continue
+                found(f, c)
+                val worth = have + s - c - 9f
+                if (worth > best) { best = worth; need = maxOf(bar, best) + 9f - have }
             }
-            if (need <= MAX_ZIPF) {
-                for (h in search(need, JOIN_BUDGET, from)) {
-                    if (h.index in seen) continue
-                    if (second(before, h.index) - h.cost >= need) found(h.index, h.cost)
-                }
-                joinVisits += visits
+            // Any other word is worth no more after [before] than it is anywhere: the commonest that fit, till they fall short.
+            if (need > MAX_ZIPF) return
+            for (h in tails(from, need)) {
+                if (zipfs[h.index] - h.cost < need) break
+                if (java.util.Arrays.binarySearch(row, h.index) >= 0) continue
+                joinWork++
+                val s = second(before, h.index)
+                if (s - h.cost < need) continue
+                found(h.index, h.cost)
+                val worth = have + s - h.cost - 9f
+                if (worth > best) { best = worth; need = maxOf(bar, best) + 9f - have }
             }
         }
-        // The likeliest first words first: where the search has to stop, it has looked at those.
-        val heads = starts(0, common).filter { firsts(it.index) }.sortedByDescending { zipfs[it.index] - it.cost }
-        val mids = HashMap<Int, List<Start>>()
-        for (pass in 0..1) for (first in heads) {
-            val z1 = zipfs[first.index]
+        // Every first word with the space after it, the likeliest first: where the search has to stop, it has looked at those.
+        val leads = ArrayList<Lead>()
+        for (head in starts(0, common)) {
+            val z = first(head.index)
+            if (z == Float.NEGATIVE_INFINITY) continue
             for (spaced in 0..1) {
-                // The taps before [first.end] are the first word; the tap there is the space, or the cut falls between taps.
-                val gap = if (spaced == 1) spaceCost[first.end] else NO_SPACE
-                if (gap > JOIN_BUDGET) continue
-                val from = first.end + spaced
-                if (from >= n) continue
-                val spent = first.cost + gap
-                if (pass == 0) {
-                    // The second word must be worth: the bar + 9 - z1 + spent, less whatever its cost adds.
-                    val need = (if (spaced == 1) barLeast else least) + 9f - z1 + spent
-                    if (need <= MAX_ZIPF + PAIR_LIFT) last(first.index, from, need) { index, cost -> out += Join(first.index, index, -1, spent + cost, spaced) }
-                    continue
-                }
-                // Three words, once every two have been looked for: a middle word, and the same again after it.
-                if (!JOIN_THREE || n - from < 3) continue
-                for (mid in mids.getOrPut(from) { starts(from, common).filter { firsts(it.index) } }) {
-                    val pair = second(first.index, mid.index)
-                    for (spaced2 in 0..1) {
-                        val gap2 = if (spaced2 == 1) spaceCost[mid.end] else NO_SPACE
-                        if (gap2 > JOIN_BUDGET) continue
-                        val from2 = mid.end + spaced2
-                        if (from2 >= n) continue
-                        val spent2 = spent + mid.cost + gap2
-                        val need = (if (spaced + spaced2 > 0) barLeast else least) + 18f - z1 - pair + spent2
-                        if (need <= MAX_ZIPF + PAIR_LIFT) last(mid.index, from2, need) { index, cost -> out += Join(first.index, mid.index, index, spent2 + cost, spaced + spaced2) }
-                    }
+                // The taps before [head.end] are the first word; the tap there is the space, or the cut falls between taps.
+                val gap = if (spaced == 1) spaceCost[head.end] else NO_SPACE
+                val from = head.end + spaced
+                if (gap > JOIN_BUDGET || from >= n) continue
+                leads += Lead(head.index, from, head.cost + gap, z - head.cost - gap, spaced)
+            }
+        }
+        leads.sortByDescending { it.have }
+        // No word is worth more after another than MAX_ZIPF + PAIR_LIFT: half a point over the nine a space costs.
+        val most = MAX_ZIPF + PAIR_LIFT - 9f
+        for (lead in leads) {
+            if (joinWork > MAX_JOIN_WORK) break
+            val bar = if (lead.bars > 0) barLeast else least
+            if (lead.have + most < maxOf(bar, best)) continue
+            last(lead.index, lead.from, lead.have, bar) { index, cost -> out += Join(lead.index, index, -1, lead.spent + cost, lead.bars) }
+        }
+        // Three words, once every two have been looked for: a middle word, and the same again after it.
+        if (!JOIN_THREE) return out
+        val mids = arrayOfNulls<List<Start>>(n)
+        val lowest = minOf(least, barLeast)
+        for (lead in leads) {
+            if (joinWork > MAX_JOIN_WORK) break
+            if (n - lead.from < 3 || lead.have + 2 * most < maxOf(lowest, best)) continue
+            val middles = mids[lead.from] ?: starts(lead.from, common).filter { first(it.index) != Float.NEGATIVE_INFINITY }.also { mids[lead.from] = it }
+            for (mid in middles) {
+                if (joinWork > MAX_JOIN_WORK) break
+                if (lead.have - mid.cost + 2 * most < maxOf(lowest, best)) continue
+                joinWork++
+                val have = lead.have + second(lead.index, mid.index) - 9f - mid.cost
+                for (spaced in 0..1) {
+                    val gap = if (spaced == 1) spaceCost[mid.end] else NO_SPACE
+                    val from = mid.end + spaced
+                    if (gap > JOIN_BUDGET || from >= n) continue
+                    val bars = lead.bars + spaced
+                    val bar = if (bars > 0) barLeast else least
+                    if (have - gap + most < maxOf(bar, best)) continue
+                    last(mid.index, from, have - gap, bar) { index, cost -> out += Join(lead.index, mid.index, index, lead.spent + mid.cost + gap + cost, bars) }
                 }
             }
         }
         return out
     }
 
-    private var joinVisits = 0
+    /**
+     * How much work [joins] has done since it was last asked: trie nodes walked, words held up against the taps
+     * ([ALIGN_WORK] each) and pairs weighed. The time a join search takes is this, give or take; it is counted
+     * so that the search can stop itself, and so that the tools can say what the worst word costs whatever else
+     * the machine is doing ([JOIN_WORK_MOST]).
+     */
+    private var joinWork = 0
+
+    /**
+     * A first word of a join with the space after it settled: the tap the next word starts at, what the slips so
+     * far cost (the space among them), what the word is worth less that, and whether the space was a tap ([bars] 1).
+     */
+    private class Lead(val index: Int, val from: Int, val spent: Float, val have: Float, val bars: Int)
 
     /**
      * The words the taps from [from] on begin with, each with where it ends and what its slips cost: any number of
@@ -478,7 +553,7 @@ class TapDecoder(
     private fun starts(from: Int, common: Float): List<Start> {
         val found = HashMap<Long, Float>()
         fun go(node: Int, i: Int, cost: Float, slipped: Boolean, last: Char) {
-            if (cost > JOIN_BUDGET || trie.best[node] < common || ++joinVisits > MAX_JOIN_VISITS) return
+            if (cost > JOIN_BUDGET || trie.best[node] < common || ++joinWork > MAX_JOIN_WORK) return
             if (i >= n) return
             val w = trie.word[node]
             if (w >= 0 && i > from && zipfs[w] >= common) { val key = (w.toLong() shl 16) or i.toLong(); val had = found[key]; if (had == null || cost < had) found[key] = cost }
@@ -561,9 +636,15 @@ class TapDecoder(
         const val MAX_INSERTS = 2
         /** A search that has looked at this many nodes stops with what it has: no word is worth a key press's wait. */
         const val MAX_VISITS = 40_000
-        /** [joins] stops with what it has at this many nodes in all, and this many last words looked for. */
-        const val MAX_JOIN_VISITS = 120_000
-        const val MAX_JOIN_LASTS = 96
+        /**
+         * [joins] stops with what it has at this much work: trie nodes walked, [ALIGN_WORK] for every word held up
+         * against the taps, and one for every pair of words weighed.
+         */
+        const val MAX_JOIN_WORK = 60_000
+        const val ALIGN_WORK = 8
+        /** The work the last [joins] did, and the most any has done since this was set to 0: read by the tools and the tests, never by the keyboard. */
+        @JvmField var JOIN_WORK_LAST = 0
+        @JvmField var JOIN_WORK_MOST = 0
         /** No word is commoner than this, and no pair lifts a second word more than [PAIR_LIFT] over it. */
         const val MAX_ZIPF = 8f
         const val PAIR_LIFT = 1.5f

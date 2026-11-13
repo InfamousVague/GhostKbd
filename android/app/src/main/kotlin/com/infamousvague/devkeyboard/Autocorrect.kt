@@ -82,6 +82,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             pairs[prev] = out
             return out
         }
+
+        /** [follows]' words as places in [sorted], in its order, for reading words run together ([byTaps]). Kept once worked out. */
+        private val places = java.util.concurrent.ConcurrentHashMap<String, IntArray>()
+
+        fun followers(prev: String): IntArray = places[prev] ?: run {
+            val row = follows(prev)
+            val out = if (row == null) IntArray(0) else row.keys.mapNotNull { w -> java.util.Arrays.binarySearch(sorted, w).takeIf { it >= 0 } }.toIntArray().also { it.sort() }
+            places[prev] = out
+            out
+        }
     }
 
     /** What is typed on and what is known, swapped as one so a key press never sees one board's words under another's keys. */
@@ -783,19 +793,19 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 val floor = least.getOrPut(a) { 9f + kotlin.math.log10(row.values.min() * JOIN_UNLISTED) }
                 return minOf(unseen, floor)
             }
+            // What a word is worth as the first of them: its frequency and what the words before lift it by.
+            fun head(i: Int) = zipfs[i] + JOIN_LIFT * lift(sorted[i], zipfs[i])
+            // A join has the best single word to beat as well as its bar: the search is told, and looks no lower.
             val joins = decoder.joins(
-                joinBar, barred, JOIN_FIRST,
-                firsts = { i -> zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER) },
+                maxOf(joinBar, bestScore), maxOf(barred, bestScore), JOIN_FIRST,
+                first = { i -> if (zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER)) head(i) else Float.NEGATIVE_INFINITY },
                 second = ::worth,
-                followers = { a ->
-                    val row = lex.follows(sorted[a])
-                    if (row == null) IntArray(0) else row.keys.mapNotNull { w -> java.util.Arrays.binarySearch(sorted, w).takeIf { it >= 0 } }.toIntArray()
-                },
+                followers = { a -> lex.followers(sorted[a]) },
             )
             for (j in joins) {
                 val a = sorted[j.first]; val b = sorted[j.second]
                 var text = capitalI(now, a) + " " + capitalI(now, b)
-                var score = zipfs[j.first] + lift(a, zipfs[j.first]) + worth(j.first, j.second) - 9f - j.cost
+                var score = head(j.first) + worth(j.first, j.second) - 9f - j.cost
                 if (j.third >= 0) { text += " " + capitalI(now, sorted[j.third]); score += worth(j.second, j.third) - 9f }
                 offer(text, score, if (j.bars > 0) barred else joinBar)
             }
@@ -1168,6 +1178,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          */
         @JvmField var JOIN_FALL = 0f
         @JvmField var JOIN_LONG = 7f
+        @JvmField var JOIN_LIFT = 1f
         /** The least a word must be worth to be offered as what a half-typed word with a slip in it was the start of. */
         @JvmField var FINISH_LEAST = 2.5f
         /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */
