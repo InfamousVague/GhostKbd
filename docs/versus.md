@@ -1603,6 +1603,73 @@ What was found on the way, and tried and left out:
 Checks: unit.sh 186, lang_check 17,245, next_word_check 585, swipe-selfcheck 8, 594 Gradle unit tests, 74 Flutter
 tests. Not typed on the emulator or a phone.
 
+### The last items (2026-11-13)
+
+Matt, 2026-11-13: "Try to patch up the last items to fix": the four left at the end of the second round above, in
+order, each behind a dial (off: the tree before word for word, checked against the saved scoreboard "done2") and held
+to the same guards (the bench's careful thumb no more than 1.32 right words spoiled a thousand nor 1.6% of unknown
+ones; normal and sloppy no more than 0.1 and 0.5% up; the same on the fresh draw, 24,000 words with seed 11), judged on
+the seen and unseen sets together and on the documents' sentences (`elsewhere.py --at 9d36d4c`).
+
+**1. A sentence's last word, read by the mark that ends it** (`Autocorrect.AGAIN_END`, made and left off, 4d07e4f).
+English's starter table now has a row for a sentence's end, `$` (`tool/next_words.py` `END_ONE`): every word seen 20
+times or more in the counted sentences, with how often in ten-thousandths of its uses a sentence ended straight after
+it, drawn toward the rate for every word by 20 uses; the row's `=n` is how many words were counted, so that with the
+`^` row's count (the sentences) the rate for every word is known (`NgramTable.ending`, `endRate`; `Scorer.ends`, in
+Zipf units over that rate: "us" +0.49, "too" +0.24, "is" -0.84, "the" -3.1). The table was made again from the same
+2026-11-07 export: only that row is new (15,193 words, 195 KB), every other line the same. The held-out lines are never
+counted: of the 438 words that reach 20 uses only with them and the 1,316 that only they have, none is in the row. A
+keyboard from before reads `$` as a row no word ever looks up, and `next_word_check` takes it as a context of its own.
+`Autocorrect.again` takes `NextWordText.END` for the word after; the service calls it at . ? ! with the word's own fix
+(it goes in with the mark, as any fix), the replay's Typist the same, the bench and the sweep at a sentence's last word.
+
+| `AGAIN_END` on, with | seen | unseen | documents |
+| --- | ---: | ---: | --- |
+| weight 1 | 116 (2 mended) | 192 (2 broken) | the same |
+| weight 1.5 | 115 (4 mended, 1 broken) | 190 (2 and 2) | 3 broken, none mended |
+| weight 2 | 116 | 193 | |
+| at most 0.25 for a reading (`AGAIN_END_MOST`) | 116 | 192 | the same |
+| at most 0 (only against) | 117 | 191 | the same |
+
+The bench moves by a hundredth of a point (careful 97.66% to 97.67%, sloppy 90.50% to 90.52% at weight 1.5) and no spoil
+changes on either draw. Across both sets it gains nothing at any setting: what it mends on one it breaks on the other,
+and "forgot about is." itself is not mended (the common word's guard and the place after "about" already held "us"
+further back than the end gives it). On the documents it breaks "from run to fun." and "the asking" to skiing:
+Tatoeba's sentences end in a noun far more often than this prose does, so the end speaks for nouns it should not. Left
+off, with the row in the table, for a better use of it (a full stop and a question mark weighed apart, say).
+
+**2. The word before a word typed in two scraps** (`Autocorrect.AGAIN_REJOIN`, on, e0a3065). "top rxpe sicr" stood as
+"top expensive": the second look met the first scrap's letters no list has and gave up, and the rejoin then made one
+word of the scraps with nothing looking back. The word before the cut, as the second look left it, now goes with the
+`Cut`, and is read again with the whole word once the scraps are put together: "too expensive". In the service the
+change goes in with the rejoin as one edit (backspace puts back all three as they stood) and counts as `fix.behind`.
+The bench types no such scraps, so its lines are the same by construction.
+
+| | seen | unseen | bench careful | normal | sloppy | fresh careful | normal | sloppy |
+| --- | ---: | ---: | --- | --- | --- | --- | --- | --- |
+| before (done2) | 2.27% (118) | 2.97% (190) | 97.66%, 1.32, 1.6% | 95.18%, 1.47, 2.5% | 90.50%, 1.62, 3.5% | 97.64%, 0.91, 1.5% | 95.06%, 1.89, 4.5% | 90.45%, 2.39, 6.6% |
+| look again after a rejoin | 2.25% (117) | 2.97% (190) | the same | the same | the same | the same | the same | the same |
+
+Seen 1 mended (sloppy 4.09% to 4.03%), none broken; unseen none either way; the documents the same. Words Gboard got and
+this did not: seen 53 to 52, unseen 83. Behind the cursor (`behind.py seen`): seen 39 changes to 40 (34 put a wrong
+word right, 3 spoiled a right one, as before), unseen 63 as before; the bench's own counts (5.7, 9.7, 13.7 a thousand;
+8, 9, 15 right words spoiled that way) are unchanged. The new change puts a wrong word right and spoils none.
+
+**3. The space** (seen's 11, no change made). `why.py --set seen --lost` with every block of each typing: "a" run into
+its neighbour ("sstarter" for a starter, read as starter; "havea fole", read as have file); a space on a bottom-row
+letter inside a long run ("archerycalone", "ysgvon" for tag on: the join search offers no reading at all, the first a
+rare word and the second with two slips); a dropped space with a slip ("answhiny": only "a shiny" is offered); a stray
+bar tap with a letter left out ("c alculte"); and "a otherb..." for another department. A cheaper missed space beside
+a word of one letter (`NO_SPACE_ONE` 2.4 and 1.8, against `NO_SPACE` 3.2) mends none of them and breaks "In Amenas" as
+"a means" twice on seen: reverted. No pattern there is both common and general.
+
+**4. `AGAIN_SWAP` and `NEAR`** were not made again: the second round had found that the swap's gains all came from
+small margins in the word after (asked for a margin of 1 it mended nothing) and that `NEAR` changed nothing on either
+set; nothing found here changes either finding.
+
+Checks: unit.sh 188, lang_check 17,245, next_word_check 585, swipe-selfcheck 8, next_words.py --selftest 92, 596 Gradle
+unit tests, 74 Flutter tests. Not typed on the emulator or a phone.
+
 ### Where Ghost Keyboard wins
 
 64 words it got and Gboard did not: short words (19), one key off (12), a right word changed (11), the space (7).
