@@ -804,15 +804,23 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 second = ::worth,
                 followers = { a -> lex.followers(sorted[a]) },
             )
+            // The best of them says what the letters are, and it alone can be taken.
+            var top: TapDecoder.Join? = null
+            var topScore = Float.NEGATIVE_INFINITY
             for (j in joins) {
-                val a = sorted[j.first]; val b = sorted[j.second]
-                var text = capitalI(now, a) + " " + capitalI(now, b)
                 var score = head(j.first) + worth(j.first, j.second) - 9f - j.cost
-                if (j.third >= 0) { text += " " + capitalI(now, sorted[j.third]); score += worth(j.second, j.third) - 9f }
-                // Letters that look like no word only where these words meet are two words set side by side, which
-                // is how a word no list has is made ("worktree", "windowpane"): they are held to the bar as it was.
-                val odd = oddAt != null && oddAt.indices.any { i -> oddAt[i] && !meets(i, j.from2, j.barred2) && (j.third < 0 || !meets(i, j.from3, j.barred3)) }
-                offer(text, score, if (odd) fallen else joinBar)
+                if (j.third >= 0) score += worth(j.second, j.third) - 9f
+                if (score > topScore) { top = j; topScore = score }
+            }
+            top?.let { j ->
+                var text = capitalI(now, sorted[j.first]) + " " + capitalI(now, sorted[j.second])
+                if (j.third >= 0) text += " " + capitalI(now, sorted[j.third])
+                // Letters that look like no word only where these words meet, with a word standing as typed on one
+                // side of the place, are two words set side by side, which is how a word no list has is made
+                // ("worktree", "windowpane"): they are held to the bar as it was.
+                val away = oddAt != null && oddAt.indices.any { i -> oddAt[i] && !meets(i, j.from2, j.barred2) && (j.third < 0 || !meets(i, j.from3, j.barred3)) }
+                val odd = oddAt != null && (away || !beside(lower, j, words))
+                offer(text, topScore, if (odd) fallen else joinBar)
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
@@ -1120,6 +1128,22 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     private fun meets(middle: Int, from: Int, barred: Boolean) = middle == from - 1 || middle == from || (barred && middle == from - 2)
 
     /**
+     * Whether one of the pieces of [lower] that [join]'s words were read from is a word as it was typed: three
+     * letters or more, and as common as a join's first word must be ([JOIN_FIRST]). The letter a tap read as the
+     * space typed may belong to the piece on either side of it ("down" and "beat" in "downbeat"). Two words set
+     * side by side have at least one of them standing; where neither piece is a word, the letters are no two
+     * words yet, whatever they look like ("petsonvtteating").
+     */
+    private fun beside(lower: String, join: TapDecoder.Join, words: Map<String, Float>): Boolean {
+        fun word(from: Int, to: Int) = to - from >= 3 && (words[lower.substring(from, to)] ?: 0f) >= JOIN_FIRST
+        val end1 = join.from2 - (if (join.barred2) 1 else 0)
+        val last = if (join.third >= 0) join.from3 - (if (join.barred3) 1 else 0) else lower.length
+        if (word(0, end1) || word(0, join.from2) || word(join.from2, last) || word(end1, last)) return true
+        if (join.third < 0) return false
+        return word(join.from2, join.from3) || word(end1, join.from3) || word(join.from3, lower.length) || word(last, lower.length)
+    }
+
+    /**
      * [lower] is a word nobody would fix: common in a loaded language, a contraction typed without its apostrophe,
      * a word spelled without its accents, a learned word, or texting slang (the whole list, its switch on or off).
      */
@@ -1283,20 +1307,25 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * worth of chance, with each letter more; [JOIN_BAR] alone held them all to the bar of a six-letter name,
          * and most of the joins of 2026-11-11's run that were still lost had been found and left for that.
          *
-         * Only where they look like no word somewhere other than where the join's words meet ([meets]): letters
-         * that are odd only there are two words set side by side, which is how a name or a compound no list has
-         * is made, and they keep [JOIN_BAR] at any length. Without that, at 0.75 a letter, "infamousvague",
-         * "ghostkeyboard" and "mergeconflict" typed with every tap in the middle of its key came out as two words,
-         * and at 1 "worktree" and "midjourney" as well (tool/versus/probe.py words, 166 names and compounds no
-         * list has: with the rule the same 4 are changed as before there was any fall, up to 1.5 a letter).
+         * Not where the letters are two words set side by side, which is how a name or a compound no list has is
+         * made: they keep [JOIN_BAR] at any length. That is where every run of letters that looks like no word
+         * lies where the best join's words meet ([meets]), and one of the pieces either side of that place is a
+         * word as it was typed ([beside]). The best join speaks for the letters: no other is taken. Without the
+         * first of those, at 0.75 a letter, "infamousvague", "ghostkeyboard" and "mergeconflict" typed with every
+         * tap in the middle of its key came out as two words, and at 1 "worktree" and "midjourney" as well
+         * (tool/versus/probe.py words, 166 names and compounds no list has: with the rule the same 4 are changed
+         * as before there was any fall). Without the second, two words that each have a slip
+         * in them and still look like words were held for a compound ("petsonvtteating" for "person treating"):
+         * 4 more words of the seen set left wrong and 2 of the unseen.
          *
-         * Set on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it then stood. Words left wrong of
-         * 5,205 seen and of 6,408 unseen; then the bench's right words spoiled in a thousand and its unknown words
-         * spoiled, for its three thumbs. No fall: 318, 429; 1.22/1.48/1.45, 1.5%/4.3%/7.1%. 0.5 a letter over 6:
-         * 309, 422. 0.75: 305, 420. 1: 302, 420. 1.25: 302, 420, the bench the same at all four. 1.5: 299, 420;
-         * 1.42/1.61/1.65, 2.3%/4.9%/8.3%. 2: 298, 420; 1.83/1.88/1.86, 3.8%/6.1%/9.5%. 1 a letter over 5: 301, 420;
-         * 1.62/2.02/1.86, 3.0%/6.7%/9.5%. Over 7: 305, 421, the bench as at 6. Taken at 1 over 6, in the middle of
-         * what spoils nothing: more buys no unseen word and begins to part the bench's names.
+         * Set on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it stands. Words left wrong of 5,205
+         * seen and of 6,408 unseen; then the bench's right words spoiled in a thousand and its unknown words
+         * spoiled, for its three thumbs. No fall: 310, 417; 1.22/1.48/1.45, 1.5%/4.3%/7.1%. 0.75 a letter over 6:
+         * 294, 406. 1: 291, 406. 1.25: 291, 404, the bench's spoiled the same at all four. 1.5: 288, 404;
+         * 1.32/1.48/1.45, 1.9%/4.3%/7.1%. 2: 287, 404; 1.83/1.88/1.86, 3.8%/6.1%/9.5%. 1 a letter over 5: 290, 404;
+         * 1.52/1.88/1.65, 2.7%/6.1%/8.3%. Over 7: 294, 407, the bench as at 6. Taken at 1 over 6, in the middle of
+         * what spoils nothing and what a letter is worth: a quarter more buys two unseen words and stands next
+         * to where the bench's names begin to be parted.
          */
         @JvmField var JOIN_FALL = 1.0f
         @JvmField var JOIN_LONG = 6f
@@ -1304,16 +1333,17 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * How much of what the words before lift a join's first word by counts ([Scorer.boost], held to
          * [CONTEXT_PICK] first). All of it, as a single word has, parts names no list has into words that are
          * likely where they stand; none of it leaves joins unparted that their place makes plain ("obfrwam" is
-         * "I dream", not "a dream"). Set on tool/versus/scoreboard.py --bench, 2026-11-12, the fall as above.
-         * Words left wrong of 5,205 seen and of 6,408 unseen, with how many of each the tree before had right;
-         * then the bench's joins fixed, right words spoiled in a thousand and unknown words spoiled, for its
-         * three thumbs:
-         *   0     309 (1), 424 (0);  63.3/72.3/68.8%;  1.22/1.48/1.65;  1.5/4.3/7.1%
-         *   0.25  306 (1), 420 (0);  67.8/74.4/69.3%;  1.22/1.48/1.65;  1.5/4.3/7.1%
-         *   0.5   302 (0), 420 (0);  72.2/75.4/70.6%;  1.22/1.48/1.45;  1.5/4.3/7.1%
-         *   0.75  304 (2), 420 (2);  72.2/75.9/71.6%;  1.42/1.48/1.65;  1.9/4.3/8.3%
-         *   1     301 (2), 420 (2);  73.3/77.9/71.8%;  1.42/1.75/1.86;  1.9/5.5/9.5%
-         * Half is the only one that breaks nothing and spoils nothing more than no join search at all does.
+         * "I dream", not "a dream"). Set on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it stands.
+         * Words left wrong of 5,205 seen and of 6,408 unseen, with how many of each a half has right and this
+         * has not; then the bench's joins fixed, right words spoiled in a thousand and unknown words spoiled,
+         * for its three thumbs:
+         *   0     297 (6), 410 (4);  64.4/72.3/69.6%;  1.22/1.48/1.65;  1.5/4.3/7.1%
+         *   0.25  294 (3), 406 (0);  67.8/74.4/70.1%;  1.22/1.48/1.65;  1.5/4.3/7.1%
+         *   0.5   291,     406;      72.2/75.4/71.6%;  1.22/1.48/1.45;  1.5/4.3/7.1%
+         *   0.75  293 (2), 406 (2);  72.2/75.9/72.8%;  1.42/1.48/1.65;  1.9/4.3/8.3%
+         *   1     293 (2), 406 (2);  73.3/78.5/73.1%;  1.42/1.75/1.65;  1.9/5.5/9.5%
+         * Half leaves the fewest words wrong and spoils no more than versus does, which has no lift in its search
+         * at all (1.22/1.48/1.65 and 1.5/4.3/7.1%); from three quarters up the bench's names begin to be parted.
          */
         @JvmField var JOIN_LIFT = 0.5f
         /** The least a word must be worth to be offered as what a half-typed word with a slip in it was the start of. */

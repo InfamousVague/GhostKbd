@@ -225,6 +225,10 @@ class TypingAccuracyTest {
         assertEquals("had stitches", ac.correct("gadvzritchds", null, taps("gadvzritchds", 0 to (0.45f to 0f), 3 to (0f to 0.45f), 4 to (0f to -0.45f), 5 to (0.45f to 0f), 10 to (-0.3f to -0.4f))))
         // The same letters with every tap in the middle of its key are what was typed: nothing near enough to part them into.
         assertNull(ac.correct("gadvzritchds", null, taps("gadvzritchds")))
+        // "person treating", the space on the v and an r tapped as t in each: both halves still look like words,
+        // and the only letters that look like none are where they meet. Neither half is a word as typed, so
+        // they are no two words set side by side, and the bar falls for them too.
+        assertEquals("person treating", ac.correct("petsonvtteating", null, taps("petsonvtteating", 2 to (-0.45f to 0f), 6 to (0f to 0.45f), 8 to (-0.45f to 0f))))
     }
 
     @Test fun twoWordsSetSideBySideMayBeOneWordNoListHas() {
