@@ -153,7 +153,9 @@ not be made to compare with. 275,707 lines in 211,786 groups were read and none 
 
 Before, a listed word under Zipf 3.2 gave way to any word a hundred times as common that was a cheap slip away,
 whatever that left it worth. That rule was made for a list in which a rare word is as often a misspelling as a word,
-and it stays for the words no dictionary vouches for (`l`, `w`, and en.tsv's own 4,029).
+and it stays for the words no dictionary vouches for (`l`, `w`, and en.tsv's own 4,029). An `l` or `w` word that
+only the wider list has is also held at the bar of letters no list has (`WIDE_HOLD`): it was such letters before,
+and knowing it never makes it weaker than it was then ([Answering the review](#answering-the-review-2026-11-13)).
 
 A `d` word is a word. Typed by its taps, it is one of the readings, worth its own frequency, and gives way only to a
 reading worth `SURE_MARGIN` more: "yurt" on its own keys is "yurt", "dialled" is not "dialed", and "vases" with its v
@@ -190,7 +192,13 @@ and 413 of the seen and unseen sets' words wrong; 307 and 416). Names held as do
 ### Where the taps are not known
 
 A word the cursor was moved into, text from a hardware keyboard, and everything typed while a list beyond the first
-six is loaded are corrected without taps, by which keys are neighbours. That path is as it was, and
+six is loaded are corrected without taps, by which keys are neighbours. Where a list beyond the first six is loaded
+(a cautious lexicon) the wider list is never read in, so English there is exactly as it was with en.tsv alone
+(`WideWordsTest.aCautiousListLeavesEnglishAsItWas`). Where English is loaded alone, or with the first six, the path
+without taps is nearly, not exactly, as it was: a word of the wider list is a known rare word there rather than
+letters no list has, and possessives are known by their word. Measured on the bench's 12,000 words typed on the
+same sentences (with context): words right 93.61%, 85.19%, 71.65% with en.tsv alone and 93.63%, 85.15%, 71.54%
+with the list, right words spoiled 5.47, 5.09, 4.67 in a thousand and 4.66, 4.42, 3.85. And
 `tool/lang_check.sh` still holds it to its recorded answers: of English's 2,073 golden rows 1,649 are the same, and
 every other but one that differed already is a word of the wider list joining the row as a completion (246), being
 typed (24), or read from a stroke (153); with the file moved away 2,072 are the same, as before there was one. On
@@ -233,9 +241,10 @@ first words typed can feel:
 | | Budget | Measured |
 | --- | --- | --- |
 | Heap, English's lists with swipe's shapes | no more than twice today's | 14.2 MB today (9.0 without swipe's shapes); 28.0 MB with the list (18.8) |
+| Heap while the list is read | not budgeted before the review; stated here | the first lists stay in use while the wider one is read, so the old trie, the file's words, the merge's arrays and the new trie are alive together: English's lists load in a 9 MB heap with en.tsv alone and need 25 MB with the list (the smallest `-Xmx` that loads them, serial collector, without swipe's shapes; `build/review4/Peak.kt`). Each English lexicon kept for the globe key is widened on its own, once it is switched to, and shares nothing with another: about 18.8 MB each with the list where it was 9.0 |
 | Reading it | on the loader's thread, after en.tsv is in use; no longer than en.tsv takes twice over | en.tsv 33 ms, both 61 ms, on this Mac's JVM, warmed |
 | In the APK | under 0.7 MB | 533,388 bytes deflated (1,681,713 as a file; en.tsv is 185,629 and 525,088) |
-| A word's end on the main thread | no more than a fifth longer | 61, 96 and 139 µs a word for the bench's three thumbs with en.tsv alone; 70, 110 and 160 with the list: 15% (the least of three rounds of 24,000 words each, on a quiet Mac, before possessives; the Mac was never quiet again to take it on the finished tree) |
+| A word's end on the main thread | no more than a fifth longer | 61, 96 and 139 µs a word for the bench's three thumbs with en.tsv alone; 70, 110 and 160 with the list: 15% (the least of three rounds of 24,000 words each, on a quiet Mac, before possessives). On the finished tree, by processor time, three interleaved rounds of 12,000 words at load 8 to 10: medians 117, 154, 232 µs with `WIDE=0` and 139, 171, 272 with the list (+19%, +11%, +17%), but the rounds swung by as much (109 to 160 and 139 to 158 careful), so this is in line with the budget, not proof of it |
 | A key press's row on the main thread | no longer than it was | the wider words are looked through for completions only where the first lists have fewer than eight; looked through at every key press, a word's first letter took 167 µs for 107 (`build/wide/heap/RowTime.kt`, 39,305 key presses), and now the two cannot be told apart on a busy Mac (63 to 100 µs each) |
 
 The heap is the JVM's on a Mac (`build/wide/heap/Heap2.kt`, a scratch probe: used heap after a collection, before
@@ -284,7 +293,7 @@ the scoreboard's every word, on both sets, is the base's, and so are the bench's
 
 ## Each kind, in and out
 
-One thing changed at a time, each measured as the list as it is was. Words wrong on the seen set (5,205 words; 326
+One thing changed at a time, each measured as the list as it is was (before `WIDE_HOLD`, which puts one more word of the seen set wrong: 306). Words wrong on the seen set (5,205 words; 326
 with en.tsv alone) and the unseen set (6,408; 437), with words mended and broken against en.tsv alone; the bench's
 misspelled words mended, of 264 (232 with en.tsv alone); and the bench's 12,000 words typed on the same sentences as
 en.tsv alone was, for its careful, normal and sloppy thumbs: words right, in points, and right words spoiled, as a
@@ -355,6 +364,45 @@ What lowering them would do was measured for whoever sets them next (`scoreboard
 17 and 25 more words right on the two sets for three tenths, paid for in the bench's unknown words: nearly all of the
 extra spoiling is three of its 44 ("mattv" to matt 18 times, "gyatt" to hyatt, "zsh" to ssh). The bench makes one
 word in 33 a word no list has; with this list, text has one in 120 to one in 430.
+
+## Answering the review (2026-11-13)
+
+A review of the finished track reproduced its numbers and raised nine points. What was changed, and measured:
+
+- **The bench, like for like.** The bench filters its unknown words by `isWord`, so the list's run and en.tsv's
+  typed different sentences. Both typed with the 51 unknown words neither list has (`-Dunknown`), en.tsv alone
+  (`WIDE=0`) leaves 96.45%, 92.57%, 85.65% right and spoils 1.42, 1.61, 1.62 right words in a thousand; the tree
+  96.55%, 92.72%, 85.74% and 1.11, 1.34, 1.42. Unknown words spoiled are 2.3%, 3.1%, 3.5% both ways. That is the
+  bench's before and after.
+- **A cautious lexicon is never widened.** The path without taps was said to be "the same"; it was not. Now a
+  lexicon with a list beyond the first six never reads the wider list, and is exactly as before (a test holds it).
+  English alone without taps is nearly the same, measured in [Where the taps are not known](#where-the-taps-are-not-known).
+- **A name only writing vouches for is held no less than it was unlisted** (`WIDE_HOLD`). As a rare listed word
+  that is not `SURE`, "piotr" gave way to "poor" (any word a hundred times commoner a cheap slip away, whatever
+  that left it worth), where unlisted it had stood. Now an `l` or `w` word only the wider list has gives way only
+  to a reading that passes both that rule and the bar of letters no list has. Seen: 306 where 305 (hymie, which the
+  rare-word rule made "humor", stands, as it did unlisted); unseen 413 either way; the bench like for like 96.55%,
+  92.72%, 85.74% where 96.56%, 92.73%, 85.74%, spoils unchanged. The bench's 32 unknown words that the lists know,
+  typed with its filter taken off (a copy of Bench.kt, `-Dnofilter`): careful unknown words spoiled 5.0% → 4.6%
+  of 262, right words spoiled 1.82 → 1.72 in a thousand, piotr → poor gone; normal and sloppy -0.02 and -0.01
+  right, unknown words spoiled unchanged. Held exactly as unlisted letters instead (no rare-word rule), the unseen
+  set had two words more wrong (incas → a, as), so the stricter of the two bars is the one kept.
+- **The loader**: it gives up every 4,096 lines when another lexicon is wanted, not only after the whole file;
+  `loadNow` forgets only its own key's place among those to be widened; a line with two apostrophes is not taken;
+  the bit set's size is the dial `WIDE_BITS`; `theFirstListIsInUseBeforeTheWiderOneIsRead` waits for its second
+  `onLoaded` with a deadline instead of sleeping 50 ms.
+- **The heap while the list is read** and the cost of several English lexicons are now in [the budget](#the-budget).
+  The narrow lexicon's trie cannot be let go before the wide one is made: it is in use while the list is read.
+- **Outside the tap path.** `Reports.known` is `isWord`, so a typed word of the wider list that the person put
+  right by hand is counted as `mistakes.unlisted` and never reported as a pair: fewer pairs leave the phone, none
+  more. Mockingbird's sample cleaner reads the wider list through `loadNow`, so "senor" is no longer cleaned to
+  "senior" (senor is a `d` word). The person's own words are those typed three times or more (`OWN_WORD_COUNT`
+  2.5 in NextWords), as `isListed`'s comment says; the 2 in `personalZipf` is next-word prediction's weighting of a
+  known word, another thing.
+- **Parts of other tracks' code.** The diff touches the row's completions (`suggest`), `pick`, `runs()` and swipe's
+  `ends()`/`zipf()` and `WordTrie`. Each reads the first lists alone or behaves as before with `WIDE=0` or without
+  the file; they are where a merge with the row, letters and swipe tracks needs care (`runs()` and `unlisted()`
+  above all, after letters).
 
 ## Not done, and not sure of
 

@@ -1446,7 +1446,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * read where English is loaded (0: never, and everything is as it was with en.tsv alone). The others say what
          * a word of it is for, by its Zipf frequency. They are read as the list is, so the bench and the scoreboard
          * set them before the keyboard is made. "Seen" and "unseen" below are tool/versus/scoreboard.py's two sets,
-         * 5,205 and 6,408 words, of which 305 and 413 are left wrong as these stand (326 and 437 with en.tsv alone).
+         * 5,205 and 6,408 words, of which 306 and 413 are left wrong as these stand (326 and 437 with en.tsv alone; 305 and 413 before [WIDE_HOLD]).
          * - [WIDE_LEAST]: the least a word must have to be taken at all. 0, every word of the file: the file is the
          *   cut (tool/wide_words.py), and this is for trying a shorter one without making it.
          * - [WIDE_READ]: the least for a word a dictionary vouches for to be a reading of a slip (to be in the
@@ -1485,14 +1485,18 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * any reading worth more than [unlisted] says such letters are. On (1), it is held at that bar AND by the rule
          * for a doubtful rare word (a reading must also be [RARE_GAP] commoner and a cheap slip away), so knowing it
          * never makes it weaker than it was unlisted ("piotr" is not "poor"). Off, only the rare-word rule holds it.
-         * Set by measurement: see docs/wide-words.md, "A word only writing vouches for".
+         * Measured (docs/wide-words.md, "Answering the review"): on, the seen set has one word more wrong (hymie,
+         * which the rare-word rule alone made "humor" and which stood unlisted too), the unseen set the same; the
+         * bench's sentences (same words each way) -0.01 right careful and normal; the bench's names that the list
+         * knows, typed unfiltered: piotr→poor gone, unknown words spoiled 5.0% → 4.6% careful. Held exactly as
+         * unlisted letters instead (no rare-word rule at all), the unseen set had two more wrong (incas → a, as).
          */
         @JvmField var WIDE_HOLD = 1f
         /**
          * A rare word that a dictionary vouches for ([SURE]) stands as typed unless a reading of its taps is worth
          * [SURE_MARGIN] more than the word itself ([SURE_STANDS] 0: such a word is as doubtful as any rare word, which
          * is how every rare word was held before the wider list said which are words; the seen and unseen sets then
-         * have 307 and 416 words wrong for 305 and 413).
+         * have 307 and 416 words wrong for 305 and 413, measured before [WIDE_HOLD]).
          *
          * The margin was set on 60,000 of the typing bench's words, typed on the same sentences each time
          * (-Dunknown), by the bench's own measure (words right, less four for every right word spoiled, a thumb's
@@ -1504,7 +1508,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * [LISTED_BUDGET].)
          *
          * [SURE_UNTAPPED] is the same where the taps are not known ([best] without [byTaps]: the cursor was moved into
-         * the word, it came from a hardware keyboard, or a list beyond the first six is loaded): on, such a word is
+         * the word, or it came from a hardware keyboard; a list beyond the first six never has the wider list read in): on, such a word is
          * never changed there. It is off, and the word is held there as every rare word always was (it gives way to a
          * far commoner word one cheap slip away). With no taps, letters that spell a rare word are a slip of the
          * commoner word a key away far more often than they are the rare word: on the bench's lines typed without
