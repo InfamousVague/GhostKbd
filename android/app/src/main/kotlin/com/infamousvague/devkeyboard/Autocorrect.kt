@@ -113,12 +113,20 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * list is read in: a word of the first lists is found as it always was ([first], a hash map), and any other by
      * its place in [sorted], which holds both. So a word of the wider list is a word wherever the lists are asked
      * for one, and costs no map entry of its own (a hundred thousand of them would be 6 MB of entries).
+     *
+     * Most of what is asked is no word at all (the stems of a slip's readings, letters as they were typed), so each
+     * of the wider list's words also sets one bit of [maybe] by its hash (128 KB): letters whose bit is not set are
+     * none of them, and eleven in twelve of such questions are answered without halving anything.
      */
     private class Listed(private val first: Map<String, Float>, private val sorted: Array<String>, private val zipf: FloatArray) : AbstractMap<String, Float>() {
+        private val maybe = java.util.BitSet(BITS).also { bits -> for (w in sorted) if (!first.containsKey(w)) bits.set(spot(w)) }
+        private fun spot(key: String): Int = key.hashCode().let { it xor (it ushr 15) } and (BITS - 1)
+        /** [key]'s place in [sorted] where it is one of the wider list's words, else a negative number. */
+        private fun wider(key: String): Int = if (maybe.get(spot(key))) java.util.Arrays.binarySearch(sorted, key) else -1
         override val size: Int get() = sorted.size
         override fun isEmpty() = sorted.isEmpty()
-        override fun containsKey(key: String) = first.containsKey(key) || java.util.Arrays.binarySearch(sorted, key) >= 0
-        override fun get(key: String): Float? = first[key] ?: java.util.Arrays.binarySearch(sorted, key).let { if (it >= 0) zipf[it] else null }
+        override fun containsKey(key: String) = first.containsKey(key) || wider(key) >= 0
+        override fun get(key: String): Float? = first[key] ?: wider(key).let { if (it >= 0) zipf[it] else null }
         override val entries: Set<Map.Entry<String, Float>> get() = object : AbstractSet<Map.Entry<String, Float>>() {
             override val size: Int get() = sorted.size
             override fun iterator() = object : Iterator<Map.Entry<String, Float>> {
@@ -126,6 +134,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 override fun hasNext() = i < sorted.size
                 override fun next(): Map.Entry<String, Float> = java.util.AbstractMap.SimpleImmutableEntry(sorted[i], zipf[i]).also { i++ }
             }
+        }
+
+        private companion object {
+            /** [maybe]'s bits: a million, of which the list's 87,000 words set one in twelve. */
+            const val BITS = 1 shl 20
         }
     }
 
