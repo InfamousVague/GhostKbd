@@ -307,7 +307,7 @@ class TypingAccuracyTest {
         // lower case, by its own sentences (dict/en_capitals_beside.tsv): asked for names it is as it is unasked.
         val own = listOf(
             "de" to listOf("mir", "seine", "los", "weiss"), "es" to listOf("los", "las", "catalan", "china"), "fr" to listOf("roman", "les", "marie"),
-            "nl" to listOf("ben", "dan", "april", "september"), "cs" to listOf("tom", "sam", "jim"), "it" to listOf("roma", "marco"), "sl" to listOf("sami", "mali"),
+            "nl" to listOf("ben", "dan", "april", "september"), "cs" to listOf("tom", "sam", "jim"), "it" to listOf("bella", "verde", "costa"), "sl" to listOf("sami", "mali"),
         )
         for ((other, words) in own) {
             val two = loaded(listOf("en", other))
@@ -416,10 +416,12 @@ class TypingAccuracyTest {
         // A name that begins with another letter has its capital there as anywhere.
         assertEquals("Monday", turkish.correct("monday", names = true))
         assertEquals("London", turkish.correct("london", names = true))
-        // On QWERTY, which Turkish shares with English and where shift gives English's I, Ivan has his.
+        // On QWERTY, which Turkish shares with English and where shift gives English's I, Ireland has its capital.
+        // (Not Ivan: Turkish writes "ivan", a hall, in lower case, so beside Turkish he is out on either board.)
         val shared = loaded(listOf("en", "tr"))
-        assertEquals("Ivan", shared.correct("ivan", names = true))
         assertEquals("Ireland", shared.correct("ireland", names = true))
+        assertEquals("Italy", shared.correct("italy", names = true))
+        assertNull(shared.correct("ivan", names = true))
     }
 
     @Test fun theRowAndTheSpaceAgreeOnANameWithTheWordsBeforeToGoBy() {
