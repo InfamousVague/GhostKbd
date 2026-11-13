@@ -75,6 +75,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val marks: ByteArray? = null,
         /** The first lists' words alone, without the wider list's: [words] itself where that list is not read in. */
         val firstWords: Map<String, Float> = words,
+        /** The first lists' words in order, and their frequencies: [sorted] and [sortedZipf] themselves where it is not. */
+        val firstSorted: Array<String> = sorted,
+        val firstZipf: FloatArray = sortedZipf,
     ) {
         /**
          * The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read.
@@ -379,10 +382,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * `n` beside one of those where it is a name ([NAMED]). A line whose word the first lists have says what vouches
      * for that word and nothing else: en.tsv's own frequency stands.
      *
-     * The words join [Lexicon.sorted] and its trie, so each is a word wherever the lists are asked ([Listed]), a
-     * completion, a word to swipe ([WIDE_SWIPE]) and a reading of a slip. A word only writing vouches for is known
-     * when typed and is no reading of a slip unless [WIDE_READ_WRITTEN] lets it be: wordfreq lists misspellings
-     * beside names, and a slip must never be mended into one.
+     * The words join [Lexicon.sorted], so each is a word wherever the lists are asked ([Listed]) and a completion
+     * where the first lists have few. Those a dictionary vouches for join the trie, and are readings of a slip
+     * ([WIDE_READ]); the commoner of them are words a stroke may be ([WIDE_SWIPE]). A word only writing vouches for
+     * is known when typed and is no reading of anything unless [WIDE_READ_WRITTEN] lets it be: wordfreq lists
+     * misspellings beside names, and a slip must never be mended into one. docs/wide-words.md says what each of
+     * those was measured to be worth, and what it costs.
      *
      * Returns [lex] itself where the asset is not there (English is then exactly as it was before there was a wider
      * list), and null where [gone] says another lexicon is wanted now. Nothing here opens a connection.
@@ -461,7 +466,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val all = sorted as Array<String>
         return Lexicon(
             lex.key, Listed(first, all, sortedZipf), lex.folded, lex.contractions, all, sortedZipf, lex.plainKeys, lex.plainWords, lex.plainZipf,
-            ends, lex.givesWay, lex.commonest, lex.sharedI, lex.cautious, lex.pairRows, sortedMarks, first,
+            ends, lex.givesWay, lex.commonest, lex.sharedI, lex.cautious, lex.pairRows, sortedMarks, first, was, lex.sortedZipf,
         )
     }
 
@@ -681,14 +686,28 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val top = ArrayList<Pair<String, Float>>()
         val slangNow = slang
         val begun = Best(SCAN_KEEP)
-        val arr = now.lexicon.sorted
-        val zipfs = now.lexicon.sortedZipf
+        val arr = now.lexicon.firstSorted
+        val zipfs = now.lexicon.firstZipf
         var lo = firstFrom(arr, lower)
         var scanned = 0
         while (lo < arr.size && arr[lo].startsWith(lower) && scanned < 30_000) {
             val cand = arr[lo]
             if (cand != lower) begun.offer(cand, if (slangNow.isNotEmpty() && cand in slangNow) maxOf(zipfs[lo], SLANG_ZIPF) else zipfs[lo])
             lo++; scanned++
+        }
+        // English's wider list: every word of it is rarer than en.tsv's rarest, so its words are looked through only
+        // where the first lists have fewer words to offer than are kept ("yur" offers "yurt"). A key press that
+        // begins a word is then as quick as it was: a letter has three times the words under it with that list.
+        val marks = now.lexicon.marks
+        if (marks != null && !begun.full) {
+            val all = now.lexicon.sorted
+            val allZipf = now.lexicon.sortedZipf
+            lo = firstFrom(all, lower)
+            scanned = 0
+            while (lo < all.size && all[lo].startsWith(lower) && scanned < 30_000) {
+                if (marks[lo].toInt() and WIDER != 0 && all[lo] != lower) begun.offer(all[lo], allZipf[lo])
+                lo++; scanned++
+            }
         }
         begun.into(top)
         if (now.board.script.plain(lower) == lower) {
@@ -745,6 +764,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         private val words = arrayOfNulls<String>(n)
         private val ranks = FloatArray(n)
         private var size = 0
+
+        /** As many are kept as there is room for. */
+        val full: Boolean get() = size == n
 
         fun offer(word: String, rank: Float) {
             if (size == n && rank <= ranks[n - 1]) return
@@ -1436,11 +1458,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          *
          * The margin was set on 60,000 of the typing bench's words, typed on the same sentences each time
          * (-Dunknown), by the bench's own measure (words right, less four for every right word spoiled, a thumb's
-         * mean, and three points for every misspelling mended): en.tsv alone 93.537; the list with a margin of 0.6
-         * 93.652, 1.0 93.673, 1.15 93.681, 1.3 93.703, 1.45 93.693, 1.6 93.689, 2.0 93.663. At 1.3 the three thumbs
-         * spoil 72, 73 and 53 right words of those 60,000 where en.tsv alone spoils 90, 87 and 58. (Read only as
-         * slips of the thumb, as a common word is, such a word did no better: 93.679 at best. And the most its
-         * slips may cost changes nothing between 2.2 and 4.4: it is [LISTED_BUDGET].)
+         * mean, and three points for every misspelling mended): en.tsv alone 93.537; the list with [SURE_STANDS] 0
+         * 93.645, and with a margin of 0.6 93.679, 1.0 93.700, 1.15 93.707, 1.3 93.726, 1.45 93.720, 1.6 93.715,
+         * 2.0 93.690. At 1.3 the three thumbs spoil 70, 72 and 53 right words of those 60,000 where en.tsv alone
+         * spoils 90, 87 and 58. (Read only as slips of the thumb, as a common word is, such a word did no better
+         * at any margin tried. And the most its slips may cost changes nothing between 2.2 and 4.4: it is
+         * [LISTED_BUDGET].)
          *
          * [SURE_UNTAPPED] is the same where the taps are not known ([best] without [byTaps]: the cursor was moved into
          * the word, it came from a hardware keyboard, or a list beyond the first six is loaded): on, such a word is
@@ -1481,8 +1504,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         private const val COMMON = 3.2f
         /**
          * What English's wider list says of a word ([Lexicon.marks]): a dictionary vouches for it at the size a
-         * spelling checker is made from; only writing vouches for it; it is a name; it is one of the wider list's own
-         * words (en.tsv lacks it); and no slip is read as it.
+         * spelling checker is made from; only writing vouches for it; it is a name (nothing here goes by that yet:
+         * it is where a capital for the word could come from); it is one of the wider list's own words (en.tsv lacks
+         * it); and no slip is read as it.
          */
         private const val SURE = 1
         private const val WRITTEN = 2
