@@ -152,16 +152,15 @@ class PlaceWorthTest {
         assertEquals(plain.worth("otter", z("otter")), mine.worth("otter", z("otter")), 0.001f)
     }
 
-    @Test fun aTableWithNoRowHereCountsAsFarAsItsWeightGoes() {
-        // English's row after "thank", in a Scorer whose other (counted) table has no row there: "you" is worth less
-        // the more the other table weighs, and still more than its own frequency.
+    @Test fun aRowIsGoneByOnlyWhereItsTableIsTheLanguageBeingWritten() {
+        // English's row after "thank", in a Scorer whose other (counted) table has no row there. Where English
+        // leads, its row counts in full, as with English alone.
         val other = table("haus\t=100 ist:5000")
         val alone = here("thank")!!.worth("you", z("you"))
-        val beside = scorerOf(listOf(english, other), floatArrayOf(0.4f, 1f), "thank").here { zipf[it] }!!.worth("you", z("you"))
-        assertTrue("alone $alone, beside $beside", beside < alone - 0.3f && beside > z("you"))
-        // Where English leads, it counts nearly in full.
-        val leads = scorerOf(listOf(english, other), floatArrayOf(1f, 0.1f), "thank").here { zipf[it] }!!.worth("you", z("you"))
-        assertTrue(leads > beside && leads <= alone)
+        val leads = scorerOf(listOf(english, other), floatArrayOf(1f, 0.4f), "thank").here { zipf[it] }!!.worth("you", z("you"))
+        assertEquals(alone, leads, 0.001f)
+        // Where the other language leads (a German sentence), English's row is not gone by: there is no place.
+        assertNull(scorerOf(listOf(english, other), floatArrayOf(0.4f, 1f), "thank").here { zipf[it] })
         // Where neither table has a row there is no place, and a weight of 0 has no say at all (never NaN).
         assertNull(scorerOf(listOf(english, other), floatArrayOf(1f, 1f), "walrusish").here { zipf[it] })
         assertNull(scorerOf(listOf(english), floatArrayOf(0f), "thank").here { zipf[it] })

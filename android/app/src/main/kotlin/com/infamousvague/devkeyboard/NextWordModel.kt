@@ -1128,33 +1128,38 @@ class Scorer(
     }
 
     /**
-     * Every table's rows for the place after [prev], and after [prev2] then [prev], weighed as [weights] has them.
-     * A table with no row here is in the list too, with no rows ([Rows.one] and [Rows.two] null): it makes of every
-     * word just its own frequency, so a row of English's in the middle of a German sentence counts as far as
-     * English's weight goes beside German's, not in full. Empty (no [Here]) where no table has a row, and where a
-     * table whose rows do not say how often they were seen has one ([NgramTable.counted]: a language whose table
-     * has not been made again): that table's say cannot be weighed, and leaving it out would read its language's
-     * words by another's rows. The place is then read as it was before there was a [Here]. A table of weight 0 has
-     * no say at all ([weights] never gives one, but a sum of 0 would make every worth NaN).
+     * Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one.
+     * None at all (no [Here]) where the language being written ([weights]' largest: the table that knows most of
+     * the last few words, or the first language where nothing tells) has no row here, so a row of English's never
+     * weighs the words of a German sentence and every other language's words are weighed as before. None either
+     * where a table whose rows do not say how often they were seen has one ([NgramTable.counted]: a language whose
+     * table has not been made again): that table's say cannot be weighed, and leaving it out would read its
+     * language's words by another's rows. The place is then read as it was before there was a [Here]. A table of
+     * weight 0 has no say at all ([weights] never gives one, but a sum of 0 would make every worth NaN).
+     *
+     * A table without a row is not counted in as its words' own frequencies: with English and German on and
+     * English being written, that took the English row's say down by German's weight, and parted 3,954 of 6,362
+     * run-together words typed on their keys (held-out lines 64,001 to 70,000, the code review's probe, 2026-11-13)
+     * where the place not read parts 4,043 and this 4,099 (English alone: 4,134).
      */
     private fun rows(prev2: String?, prev: String, own: (String) -> Float?): List<Rows> {
         val key2 = prev2?.takeIf { prev != NextWordText.START }?.let { "$it $prev" }
         val out = ArrayList<Rows>(tables.size)
-        var any = false
+        var most = 0f
+        for (w in weights) if (w > most) most = w
+        if (!(most > 0f)) return emptyList()
+        var leads = false
         for (t in tables.indices) {
             val table = tables[t]
             if (!table.counted) {
-                if (table.range(prev).isEmpty() && (key2 == null || table.range(key2).isEmpty())) {
-                    if (weights[t] > 0f) out += Rows(weights[t], null, null)
-                    continue
-                }
+                if (table.range(prev).isEmpty() && (key2 == null || table.range(key2).isEmpty())) continue
                 return emptyList()
             }
             if (weights[t] <= 0f) continue
             val one = row(table, prev, PRIOR_HERE_ONE)
             val two = if (key2 == null) null else row(table, key2, PRIOR_HERE_TWO)
-            if (one == null && two == null) { out += Rows(weights[t], null, null); continue }
-            any = true
+            if (one == null && two == null) continue
+            if (weights[t] >= most) leads = true
             one?.let { r ->
                 var listed = 0f
                 for (w in r.shares.keys) own(w)?.let { listed += 10f.pow(it - 9f) }
@@ -1167,7 +1172,7 @@ class Scorer(
             }
             out += Rows(weights[t], one, two)
         }
-        return if (any) out else emptyList()
+        return if (leads) out else emptyList()
     }
 
     /**

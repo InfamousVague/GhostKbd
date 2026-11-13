@@ -264,18 +264,19 @@ with" 6.94 for 6.53), and a common word in a place it all but never stands less 
 frequency and would pass over a word that is rare and likely here. The place's say counts 0.7 times
 (`HERE_WEIGHT`), and at a place a common typed word gives way to a reading worth 1.0 more (`HERE_COMMON`). Where no
 table has a row for the words before, where next-word prediction is off, and in every language but English, a word
-is weighed exactly as it was.
+is weighed exactly as it was. Since the code review (below) a listed word with every tap well inside its own key is
+weighed as it was too, and the place never reads a word as its apostrophe spelling.
 
 | | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | the run's 900 typings, before | 2.5% | 5.4% | 10.9% | 6.3% | | |
-| after | 1.9% | 4.6% | 9.6% | 5.3% | 60 | 12 |
+| after | 2.0% | 4.6% | 9.6% | 5.4% | 58 | 12 |
 | the 900 unseen typings, before | 3.3% | 5.0% | 12.2% | 6.8% | | |
-| after | 2.6% | 4.2% | 10.9% | 5.9% | 80 | 20 |
+| after | 2.7% | 4.2% | 10.9% | 5.9% | 77 | 20 |
 
-That is 326 words wrong of 5,205 to 278, and 437 of 6,408 to 377. Of the words Gboard got and this did not, 166
-are left where there were 201, and 87 go the other way where 74 did. By what stood in the decoder's way
-(`fixtures.py --still`), 158 of the list's 326 are still lost where 199 were: a letter left out, doubled or swapped
+That is 326 words wrong of 5,205 to 280, and 437 of 6,408 to 380 (278 and 377 before the code review's changes).
+Of the words Gboard got and this did not, 168 are left where there were 201, and 87 go the other way where 74 did.
+By what stood in the decoder's way (`fixtures.py --still`, on the tree before the code review), 158 of the list's 326 are still lost where 199 were: a letter left out, doubled or swapped
 46 to 32, more letters off their keys than the search will change 18 to 9, letters that spell a rare word 9 to 1,
 letters that spell a common word 23 to 18, no word typed and the word meant within reach 55 to 51, and the space's
 42 to 41. On 12,000 of the typing bench's own words, by its three thumbs (careful, normal, sloppy):
