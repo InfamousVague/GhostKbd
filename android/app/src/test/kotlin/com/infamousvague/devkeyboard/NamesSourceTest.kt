@@ -46,7 +46,7 @@ class NamesSourceTest {
     @Test fun `a word that ends is corrected with names, and in no other way`() {
         val correct = body("private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean")
         // Names where the field wants them, but for the one word whose fix the backspace has just taken back here.
-        assertTrue(correct.contains("val found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)"))
+        assertTrue(correct.contains("var found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)"))
         // The one place the service asks for a correction.
         assertEquals(1, Regex("autocorrect\\.correct\\(").findAll(service).count())
     }
@@ -149,7 +149,7 @@ class NamesSourceTest {
         val replay = code(file!!)
         // A field that capitalises sentences, at the app's defaults: names unless told otherwise.
         assertTrue(replay.contains("private val names: Boolean = true"))
-        assertTrue(replay.contains("val fixed = decoder.ac.correct(word, scorer, taps, names)"))
+        assertTrue(replay.contains("var fixed = decoder.ac.correct(word, scorer, taps, names)"))
         assertEquals(1, Regex("\\.ac\\.correct\\(").findAll(replay).count())
         // Every way a word is put together again: at the next word's end, at a second space, and at a closing mark
         // straight after the space (the joins track's; the service's goes through rejoined too).

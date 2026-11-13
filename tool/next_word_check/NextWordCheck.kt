@@ -261,7 +261,8 @@ private fun bundled(root: File) {
                 val key = line.substringBefore('\t')
                 val parts = key.split(' ')
                 // A two-word context: both its words listed (the first may be a sentence's start), and its "=n" first.
-                if (parts.size > 2 || parts.withIndex().any { (i, w) -> !(w == NextWordText.START && (i == 0 || parts.size == 1)) && !listed(w) }) {
+                // A sentence's end ("$", NextWordText.END) is a row of its own: its followers are the words sentences end in.
+                if (parts.size > 2 || parts.withIndex().any { (i, w) -> !(w == NextWordText.START && (i == 0 || parts.size == 1)) && !(w == NextWordText.END && parts.size == 1) && !listed(w) }) {
                     bad++; if (first.isEmpty()) first = key
                 }
                 var rest = line.substringAfter('\t')

@@ -488,7 +488,10 @@ class ThumbLeanTest {
         assertTrue(correct, correct.contains("{ lean.pass(); return false }"))
         // Two scraps put together: the first scrap's lesson is taken back once the whole word is in the field.
         val rejoined = service.substring(service.indexOf("private fun rejoined(")).substringBefore("\n    }")
-        assertTrue(rejoined, rejoined.indexOf("lean.unlearn()") > rejoined.indexOf("editor.replaceBefore(standing"))
+        // With the word before read again as well (Autocorrect.AGAIN_REJOIN) the three go in as one edit, and the lesson is taken back after it.
+        assertTrue(rejoined, rejoined.lastIndexOf("lean.unlearn()") > rejoined.indexOf("editor.replaceBefore(standing"))
+        assertTrue(rejoined, rejoined.indexOf("lean.unlearn()") > rejoined.indexOf("editor.replaceBefore(was"))
+        assertEquals(2, Regex("lean\\.unlearn\\(\\)").findAll(rejoined).count())
         val gate = service.substring(service.indexOf("private fun autocorrectAllowed()")).substringBefore("\n    }")
         for (kind in listOf("TYPE_TEXT_VARIATION_PASSWORD", "TYPE_TEXT_VARIATION_VISIBLE_PASSWORD", "TYPE_TEXT_VARIATION_WEB_PASSWORD")) assertTrue(kind, gate.contains(kind))
         // Both readings of a word's taps go by it: the word's own, and the letters with the bar's tap among them.

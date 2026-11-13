@@ -267,4 +267,31 @@ class PlaceWorthTest {
         assertNull(ac.rejoin("is", "a", "is", scorer("it"), cut("is", "a", 'b', 0.3f)))
         assertNull(ac.rejoin("the", "", "the", scorer("in"), cut("the", "", 'n', 0.07f)))
     }
+
+    // --- a sentence's end (NextWordText.END) ---------------------------------------------------------------------------
+
+    @Test fun theRowOfASentencesEndSaysHowLikelyEachWordIsToEndOne() {
+        // 1,000 sentences in 10,000 words: one word in ten ends one. "us" ends 40 in 100 of its uses, "is" 2.
+        val t = table("^\t=1000 i:3000 the:2000", "\$\t=10000 us:4000 is:200")
+        assertEquals(0.1f, t.endRate, 1e-6f)
+        assertEquals(0.4f, t.ending("us")!!, 1e-6f)
+        assertNull(t.ending("walrus"))
+        val s = scorer("about", table = t)
+        assertEquals(log10(4f), s.ends("us"), 0.001f)
+        assertEquals(log10(0.2f), s.ends("is"), 0.001f)
+        // A word the row does not list, and a table without the row: nothing is known.
+        assertEquals(0f, s.ends("walrus"), 0f)
+        val none = scorer("about", table = table("^\t=1000 i:3000 the:2000", "about\t=50 us:5000"))
+        assertEquals(0f, none.ends("us"), 0f)
+        assertEquals(0f, table("about\t=50 us:5000").endRate, 0f)
+    }
+
+    @Test fun englishsTableHasTheRowAndItReadsAsTheGeneratorMeantIt() {
+        // A word sentences often end in, and one they seldom do (tool/next_words.py END_ONE).
+        val s = scorer("about")
+        assertTrue(english.endRate in 0.05f..0.3f)
+        assertTrue("us ${s.ends("us")}", s.ends("us") > 0.2f)
+        assertTrue("is ${s.ends("is")}", s.ends("is") < -0.5f)
+        assertTrue("the ${s.ends("the")}", s.ends("the") < -2f)
+    }
 }
