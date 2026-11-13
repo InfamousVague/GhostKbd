@@ -337,6 +337,37 @@ hushed", which reads as "tomb" and "hushed" set side by side), a second word no 
 first word too far off its keys for a join's budget ("kerd" for "need"), a word cut in two and run into the next
 ("a otherbdrpartmeny"), and a letter that fell in the bar's middle, which is a space as far as a tap can say.
 
+After review (2026-11-13), with nothing in English reading differently (seen 291, unseen 406, the bench the same):
+
+- **English only.** All of the above, not just the fall of the bar, is for English being loaded. Without English the
+  joins go by `TapDecoder.pairs`, versus's search kept word for word, and `Autocorrect.rejoin` reads no first scrap,
+  no closing mark (its `mark` argument), no mend's cost and no `doubled`. On 15,000 typings in ten other languages
+  (two common words run together, or with the space's tap on a letter, and a word cut by the bar) the tree read 6
+  of 22,259 lines otherwise than versus before this, and none after. With English and another language loaded
+  together the other is typed under English's rules, and nothing measures that.
+- **The service compiles.** `DevKeyboardService.rejoined` had two `val after`, which Kotlin refuses: the app did not
+  build, and nothing here built the service to say so. `tool/versus/service_check.sh` compiles the app's main
+  sources (MainActivity and BuildConfig stubbed) against the SDK's `android.jar` and Gradle's cached jars, without
+  Gradle; it is not a build.
+- **The mirror is the service's.** The `Typist` now rejoins after a closing mark only for `.,!?;:` and only where
+  what stands before the scraps ends in no letter, digit or `@#/._-\:$`'’`, as `rejoined` does; the 900 typings
+  read the same either way.
+- **Two spaces after a sentence** arm the service's `Cut` with no first scrap, so the next word is offered to
+  `rejoin`. A test holds that fifteen words that stand (ice, all, and, one, ever, ...) are left under each of c v b
+  n m from a third of the way down the bar, and that on its top edge only two rare ones give way (ow under the n is
+  now, ore under the m more).
+- **The work cap** bounds the whole search but for one word's letters against the taps: a last word's search walks
+  no more nodes than the work left, and the walk for first words has half of it at most (`JOIN_START_SHARE`).
+- **Retimed**, versus and this tree one after the other, twice, load 23 to 35, by probe.py's time mode over the
+  seen set's 5,172 typed words: mean 186 and 94 microseconds, then 106 and 72; the slowest in a thousand 2,910 and
+  2,337, then 1,694 and 1,610; the slowest single word 2,566 and 2,903, then 1,904 and 2,031. The slowest single
+  word is a little slower than on versus.
+- **`REJOIN_APART` is a guess**: no typing set has a full stop typed with a double tap. `JOIN_FALL` and `JOIN_LONG`
+  were set on the 40,000-word list and are to be set again on a longer one.
+- **Still to do on the emulator** (`device-check.sh`), none of which any test covers: "It did. ot" with the n on the
+  bar; "tragi ." with the c on it; two spaces after a sentence, then a real word; backspace straight after each
+  rejoin; a password field; the cursor moved between the two scraps.
+
 ### Gboard on sentences nothing was made from (2026-11-12)
 
 Until now only the run's own 900 typings had been given to Gboard, and every change above was made from the words
