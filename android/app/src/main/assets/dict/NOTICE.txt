@@ -25,6 +25,68 @@ frequency to two decimals, made by tool/dictionaries.py in Ghost Keyboard's repo
 - en.tsv, de.tsv, es.tsv, fr.tsv, it.tsv and pt.tsv are wordfreq's lists as they are.
 en_contractions.tsv and en_slang.txt are Ghost Keyboard's own and are not from wordfreq.
 
+en_wide.tsv
+-----------
+English's wider list: the words of English as it is written now that en.tsv does not reach, each with a Zipf
+frequency and a mark for what vouches for it (d a dictionary, l a larger dictionary only, w writing only, n a
+name). Made by tool/wide_words.py in Ghost Keyboard's repository, which says how each word was chosen. It is a
+derived work of the sources below and, as it takes its frequencies from wordfreq, is distributed under the
+Creative Commons Attribution-ShareAlike 4.0 licence with the notices below kept beside it.
+
+Frequencies, and which words are in use: wordfreq 3.1.1 (the citation and sources are those given for the
+other lists in this notice). What was changed: of its English list, only words of 3 to 24 plain letters
+with at most one apostrophe inside that en.tsv does not already have, and of those only the ones the
+dictionary below also has, or that pass the tool's tests for a word only writing vouches for.
+
+Which strings are words: the English Speller Database (ESDB, formerly SCOWL), release 2026.02.25,
+https://github.com/en-wl/wordlist, read at sizes 80 and under. No word that only its size 85 has is here.
+Its notice:
+
+  Copyright 2000-2026 by Kevin Atkinson
+
+  Permission to use, copy, modify, distribute, and sell any part of SCOWLv2, or
+  word lists created from it, is hereby granted without fee, provided that the
+  above copyright notice appears in all copies and that both the above
+  copyright notice and this notice appear in supporting documentation.  Kevin
+  Atkinson makes no representations about the suitability of this database for
+  any purpose.  It is provided "as is" without express or implied warranty.
+
+  SCOWL is derived from many sources, most of which are in the Public Domain.
+  Data from the Corpus of Contemporary American English (COCA) was also used.
+
+  All data from COCA comes from 3-gram data that is not freely available;
+  however, the usage is within the rights given by the NDA that was signed when
+  purchasing the data.  More information on COCA is available at
+  https://www.english-corpora.org/coca/.
+
+  The primary source of words for SCOWL comes from 12dicts and ENABLE2K.  Both
+  are in the Public Domain, but Alan Beale <biljir@pobox.com> deserves special
+  credit as he is the author of 12dicts and a major contributor to ENABLE2K.  In
+  addition, he gave me an incredible amount of feedback and created a number of
+  special lists in order to help improve the overall quality of SCOWL.
+
+The list takes Australian spellings with the others, and for those the database's notice goes on:
+
+  The initial information for Australian English comes from Benjamin Titze:
+
+    Copyright 2016 by Benjamin Titze
+
+    Permission to use, copy, modify, distribute and sell this array, the
+    associated software, and its documentation for any purpose is hereby
+    granted without fee, provided that the above copyright notice appears
+    in all copies and that both that copyright notice and this permission
+    notice appear in supporting documentation. Benjamin Titze makes no
+    representations about the suitability of this array for any
+    purpose. It is provided "as is" without express or implied warranty.
+
+The database's parts of speech were read to tell an abbreviation, a prefix or a name from a word; they were
+first assigned with the help of WordNet (WordNet 1.6 Copyright 1997 by Princeton University. All rights
+reserved.), which is provided "as is" with no representations or warranties. None of them is in the file.
+
+Words on the "List of Dirty, Naughty, Obscene, and Otherwise Bad Words"
+(https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words, CC BY 4.0) were left out.
+None of that list is in the file.
+
 wordfreq's sources
 ------------------
 wordfreq contains data extracted from Google Books Ngrams (http://books.google.com/ngrams) and Google Books Syntactic

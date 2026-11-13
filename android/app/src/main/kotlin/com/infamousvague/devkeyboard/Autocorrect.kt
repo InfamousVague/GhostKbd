@@ -46,6 +46,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * commonest few words, for filling next-word prediction's row. [sharedI] says a list other than English's has
      * "i" as one of its commonest words (Polish, Swedish, Italian), and [cautious] that one of the lists is of the
      * languages added after the first six. Never changed once made.
+     *
+     * With English's wider list read in ([widen]), [words] is the first lists and the wider one as one map
+     * ([Listed]), [sorted] holds the words of both, and [marks] says of each word of [sorted] what vouches for it
+     * ([SURE], [WRITTEN], [NAMED], [WIDER]) and whether a slip may be read as it ([UNREAD]). Without it [marks] is
+     * null and everything is as it was before there was such a list.
      */
     private class Lexicon(
         val key: String,
@@ -64,9 +69,21 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
+        /** For each word of [sorted], what English's wider list says of it; null where that list is not read in. */
+        val marks: ByteArray? = null,
     ) {
-        /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
-        val trie: WordTrie = WordTrie(sorted, sortedZipf)
+        /**
+         * The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read.
+         * A word marked [UNREAD] is left out of it, so no slip is ever read as that word.
+         */
+        val trie: WordTrie = WordTrie(sorted, sortedZipf, marks?.let { m -> BooleanArray(m.size) { m[it].toInt() and UNREAD == 0 } })
+
+        /** What English's wider list says of [word] ([SURE] and the rest): 0 where it says nothing, or is not read in. */
+        fun mark(word: String): Int {
+            val m = marks ?: return 0
+            val i = java.util.Arrays.binarySearch(sorted, word)
+            return if (i >= 0) m[i].toInt() else 0
+        }
 
         /** [pairRows] read: for a word, each word that follows it (lower case) and its share of what followed. Kept once read. */
         private val pairs = java.util.concurrent.ConcurrentHashMap<String, Map<String, Float>>()
@@ -84,6 +101,27 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
     }
 
+    /**
+     * A lexicon's first lists and English's wider list as one map, which is what [Lexicon.words] is once the wider
+     * list is read in: a word of the first lists is found as it always was ([first], a hash map), and any other by
+     * its place in [sorted], which holds both. So a word of the wider list is a word wherever the lists are asked
+     * for one, and costs no map entry of its own (a hundred thousand of them would be 6 MB of entries).
+     */
+    private class Listed(private val first: Map<String, Float>, private val sorted: Array<String>, private val zipf: FloatArray) : AbstractMap<String, Float>() {
+        override val size: Int get() = sorted.size
+        override fun isEmpty() = sorted.isEmpty()
+        override fun containsKey(key: String) = first.containsKey(key) || java.util.Arrays.binarySearch(sorted, key) >= 0
+        override fun get(key: String): Float? = first[key] ?: java.util.Arrays.binarySearch(sorted, key).let { if (it >= 0) zipf[it] else null }
+        override val entries: Set<Map.Entry<String, Float>> get() = object : AbstractSet<Map.Entry<String, Float>>() {
+            override val size: Int get() = sorted.size
+            override fun iterator() = object : Iterator<Map.Entry<String, Float>> {
+                private var i = 0
+                override fun hasNext() = i < sorted.size
+                override fun next(): Map.Entry<String, Float> = java.util.AbstractMap.SimpleImmutableEntry(sorted[i], zipf[i]).also { i++ }
+            }
+        }
+    }
+
     /** What is typed on and what is known, swapped as one so a key press never sees one board's words under another's keys. */
     private class Now(val board: Board, val lexicon: Lexicon)
 
@@ -98,6 +136,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     private var wantedBoard = now.board
     private var keep: Set<String> = emptySet()
     private val cache = HashMap<String, Lexicon>()
+    /**
+     * The lexicons in [cache] that have English among their lists and have not had its wider list read into them
+     * yet ([widen]): the first lists come into use as soon as they are read, and the wider one follows.
+     */
+    private val widening = HashSet<String>()
     /** The one thread that reads word lists, while there is one to read. */
     private var loader: Thread? = null
 
@@ -137,8 +180,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     /** The lexicon the decoder's worked-out shapes are for. */
     private var decoderLexicon: Lexicon? = null
 
-    /** The lexicon asked for last is the one in use: for the self-check, which must not ask before the lists are read. */
-    val settled: Boolean @Synchronized get() = now.lexicon.key == wantedKey
+    /**
+     * The lexicon asked for last is the one in use, English's wider list and all: for the self-check, which must not
+     * ask before the lists are read.
+     */
+    val settled: Boolean @Synchronized get() = now.lexicon.key == wantedKey && wantedKey !in widening
 
     /**
      * The word lists to use ([dictionaries], the stems of assets/dict's files) and the keys being typed on. A list is
@@ -152,6 +198,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         wantedBoard = board
         this.keep = keep + key
         cache.keys.retainAll(this.keep)
+        widening.retainAll(this.keep)
         if (key == wantedKey) {
             now = Now(board, now.lexicon)
             return
@@ -160,7 +207,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         wantedLists = dictionaries
         val ready = if (key.isEmpty()) Lexicon("") else cache[key]
         now = Now(board, ready ?: Lexicon(""))
-        if (ready == null && loader == null) loader = thread(name = "autocorrect-dictionary", isDaemon = true) { loadWanted() }
+        if ((ready == null || key in widening) && loader == null) loader = thread(name = "autocorrect-dictionary", isDaemon = true) { loadWanted() }
     }
 
     /**
@@ -168,24 +215,49 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * meanwhile (a read that is no longer wanted gives up at its next list). One runs at a time, so turning six
      * languages on in a row never reads six sets at once. A read that fails is forgotten, and the next
      * [setLanguages] tries it again.
+     *
+     * Where English is among the lists its wider list is read second ([widen]), once the first lists are in use: the
+     * first words typed wait no longer for their corrections than they did before there was a wider list, and
+     * [onLoaded] is told again when it is in. A wider list that cannot be read leaves the first lists as they are.
      */
     private fun loadWanted() {
         while (true) {
             val (key, lists, script) = synchronized(this) {
-                if (wantedKey.isEmpty() || cache.containsKey(wantedKey)) { loader = null; return }
+                if (wantedKey.isEmpty() || (cache.containsKey(wantedKey) && wantedKey !in widening)) { loader = null; return }
                 Triple(wantedKey, wantedLists, wantedBoard.script)
             }
-            val made = runCatching { load(key, lists, script) { synchronized(this) { wantedKey != key } } }.getOrNull()
+            val gone = { synchronized(this) { wantedKey != key } }
+            var first = synchronized(this) { cache[key] }
+            if (first == null) {
+                val made = runCatching { load(key, lists, script, gone) }.getOrNull()
+                val inUse = synchronized(this) {
+                    when {
+                        wantedKey != key -> { if (made != null && key in keep) { cache[key] = made; if (wider(lists)) widening += key }; false }
+                        made != null -> { cache[key] = made; if (wider(lists)) widening += key; now = Now(wantedBoard, made); true }
+                        else -> { wantedKey = ""; loader = null; return }
+                    }
+                }
+                if (!inUse) continue
+                runCatching { onLoaded?.invoke() }
+                first = made
+            }
+            val base = first ?: continue
+            if (!synchronized(this) { key in widening && wantedKey == key }) continue
+            // Null where another lexicon was asked for meanwhile: this one keeps its place in [widening] for next time.
+            val whole = runCatching { widen(base, gone) }.getOrDefault(base)
             val inUse = synchronized(this) {
-                when {
-                    wantedKey != key -> { if (made != null && key in keep) cache[key] = made; false }
-                    made != null -> { cache[key] = made; now = Now(wantedBoard, made); true }
-                    else -> { wantedKey = ""; loader = null; return }
+                if (whole == null) false else {
+                    widening -= key
+                    if (key in keep) cache[key] = whole
+                    if (wantedKey == key && whole !== base) { now = Now(wantedBoard, whole); true } else false
                 }
             }
             if (inUse) runCatching { onLoaded?.invoke() }
         }
     }
+
+    /** Whether [lists] have a wider list to be read after them: English's, while [WIDE] is on. */
+    private fun wider(lists: List<String>) = WIDE > 0f && "en" in lists
 
     /**
      * Reads [languages]' lists for [script] into a [Lexicon].
@@ -292,14 +364,110 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
+     * [lex], which has English among its lists, with English's wider list read into it: assets/dict/en_wide.tsv,
+     * the words of English as it is written now that en.tsv's 40,000 do not reach (tool/wide_words.py makes it, and
+     * says what is in it). Each line is a word, its Zipf frequency and what vouches for it: `d` a dictionary, at the
+     * size a spelling checker is made from ([SURE]); `l` a larger dictionary only; `w` writing only ([WRITTEN]); and
+     * `n` beside one of those where it is a name ([NAMED]). A line whose word the first lists have says what vouches
+     * for that word and nothing else: en.tsv's own frequency stands.
+     *
+     * The words join [Lexicon.sorted] and its trie, so each is a word wherever the lists are asked ([Listed]), a
+     * completion, a word to swipe ([WIDE_SWIPE]) and a reading of a slip. A word only writing vouches for is known
+     * when typed and is no reading of a slip unless [WIDE_READ_WRITTEN] lets it be: wordfreq lists misspellings
+     * beside names, and a slip must never be mended into one.
+     *
+     * Returns [lex] itself where the asset is not there (English is then exactly as it was before there was a wider
+     * list), and null where [gone] says another lexicon is wanted now. Nothing here opens a connection.
+     */
+    private fun widen(lex: Lexicon, gone: () -> Boolean = { false }): Lexicon? {
+        if (lex.marks != null) return lex
+        val stream = open("dict/en_wide.tsv") ?: return lex
+        val first = lex.words
+        var words = arrayOfNulls<String>(1 shl 17)
+        var zipfs = FloatArray(1 shl 17)
+        var marks = ByteArray(1 shl 17)
+        var n = 0
+        var inOrder = true
+        // What the list says of the words the first lists have.
+        val said = HashMap<String, Byte>(1 shl 15)
+        stream.bufferedReader().useLines { lines ->
+            for (line in lines) {
+                val tab = line.indexOf('\t')
+                val tab2 = if (tab > 0) line.indexOf('\t', tab + 1) else -1
+                if (tab2 < 0) continue
+                val word = line.substring(0, tab)
+                var mark = 0
+                for (i in tab2 + 1 until line.length) when (line[i]) { 'd' -> mark = mark or SURE; 'w' -> mark = mark or WRITTEN; 'n' -> mark = mark or NAMED }
+                if (first.containsKey(word)) { if (mark != 0) said[word] = mark.toByte(); continue }
+                val zipf = line.substring(tab + 1, tab2).toFloatOrNull() ?: continue
+                // Plain letters with at most an apostrophe inside, as the tool writes them: nothing else is taken.
+                if (zipf < WIDE_LEAST || word.isEmpty() || !word.all { it in 'a'..'z' || it == '\'' } || word[0] == '\'' || word[word.length - 1] == '\'') continue
+                if (n == words.size) { words = words.copyOf(n * 2); zipfs = zipfs.copyOf(n * 2); marks = marks.copyOf(n * 2) }
+                if (n > 0 && words[n - 1]!! >= word) inOrder = false
+                val unread = zipf < (if (mark and WRITTEN != 0) WIDE_READ_WRITTEN else WIDE_READ)
+                words[n] = word; zipfs[n] = zipf; marks[n] = (mark or WIDER or (if (unread) UNREAD else 0)).toByte()
+                n++
+            }
+        }
+        if (gone()) return null
+        // The tool writes the words in order, so they are merged with the first lists' in one pass; a file in
+        // another order is put in order first, and a word it has twice is taken once.
+        var order = IntArray(n) { it }
+        if (!inOrder) {
+            val boxed = Array(n) { it }
+            boxed.sortWith { a, b -> words[a]!!.compareTo(words[b]!!) }
+            var m = 0
+            for (i in boxed) if (m == 0 || words[order[m - 1]] != words[i]) order[m++] = i
+            order = order.copyOf(m)
+        }
+        val was = lex.sorted
+        val total = was.size + order.size
+        val sorted = arrayOfNulls<String>(total)
+        val sortedZipf = FloatArray(total)
+        val sortedMarks = ByteArray(total)
+        var i = 0
+        var j = 0
+        for (k in 0 until total) {
+            val w = if (j < order.size) words[order[j]]!! else null
+            if (w == null || (i < was.size && was[i] < w)) {
+                sorted[k] = was[i]; sortedZipf[k] = lex.sortedZipf[i]; sortedMarks[k] = said[was[i]] ?: 0; i++
+            } else {
+                sorted[k] = w; sortedZipf[k] = zipfs[order[j]]; sortedMarks[k] = marks[order[j]]; j++
+            }
+        }
+        if (gone()) return null
+        // Swipe typing's index: the lists the first words are in are left as they are (a stroke may be reading
+        // them), and a pair of ends that gains words gets a list of its own.
+        val more = HashMap<String, ArrayList<String>>()
+        for (at in order) {
+            val word = words[at]!!
+            if (marks[at].toInt() and UNREAD != 0 || zipfs[at] < WIDE_SWIPE) continue
+            val glide = if ('\'' in word) word.replace("'", "") else word
+            if (glide.length < 2 || glide.length > 20) continue
+            more.getOrPut("${glide[0]}${glide[glide.length - 1]}") { ArrayList() }.add(word)
+        }
+        val ends = HashMap<String, List<String>>(lex.byEnds)
+        for ((pair, list) in more) ends[pair] = ends[pair].orEmpty() + list
+        @Suppress("UNCHECKED_CAST")
+        val all = sorted as Array<String>
+        return Lexicon(
+            lex.key, Listed(first, all, sortedZipf), lex.folded, lex.contractions, all, sortedZipf, lex.plainKeys, lex.plainWords, lex.plainZipf,
+            ends, lex.givesWay, lex.commonest, lex.sharedI, lex.cautious, lex.pairRows, sortedMarks,
+        )
+    }
+
+    /**
      * Loads [dictionaries] for [board] on the calling thread and returns once they are in: for a worker that needs the
      * answers now and has no keyboard to borrow them from (Mockingbird cleaning its samples from Settings).
      */
     fun loadNow(dictionaries: List<String>, board: Board) {
         val key = key(board.script, dictionaries)
-        val made = if (key.isEmpty()) Lexicon("") else load(key, dictionaries, board.script) ?: Lexicon("")
+        val first = if (key.isEmpty()) Lexicon("") else load(key, dictionaries, board.script) ?: Lexicon("")
+        // English's wider list with them, read here and now as the rest is.
+        val made = if (key.isNotEmpty() && wider(dictionaries)) runCatching { widen(first) }.getOrNull() ?: first else first
         synchronized(this) {
             wantedKey = key; wantedLists = dictionaries; wantedBoard = board; keep = setOf(key)
+            widening.clear()
             if (key.isNotEmpty()) cache[key] = made
             now = Now(board, made)
         }
@@ -677,6 +845,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         // A common word is never changed; a rare one only for a far commoner word one cheap slip away.
         if (known != null && known >= COMMON) return capitalI(now, lower).takeIf { it != lower }?.let { Fix(it, true) }
+        // Nor is a rare word that a dictionary vouches for (English's wider list says so): it is a word, and with no
+        // taps to go by nothing says it was not the one meant.
+        if (known != null && SURE_STANDS > 0f && now.lexicon.mark(lower) and SURE != 0) return null
         val pick = pick(now, lower, known, scorer) ?: return null
         if (pick.score < MIN_SCORE) return null
         val sure = !now.lexicon.cautious || (pick.score >= CAUTIOUS_SCORE && !ending(now.board, lower, pick.from) && !inflected(words, lower, pick.from))
@@ -717,13 +888,19 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         decoder.load(lower, taps)
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         val common = known != null && known >= COMMON
+        // A rare word that a dictionary vouches for (English's wider list says which): a word, not a misspelling.
+        val sure = known != null && !common && SURE_STANDS > 0f && lex.mark(lower) and SURE != 0
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
         val unknown = if (known != null) UNKNOWN else unlisted(lower)
-        // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
-        // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
+        // A rare listed word that only writing vouches for is as often a common misspelling as a word (definately,
+        // occured): it gives way to a word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]),
+        // whatever that leaves it worth. One a dictionary vouches for is worth its own frequency, and gives way only
+        // to a reading worth [SURE_MARGIN] more than that: "yurt" typed on its own keys stands, and with its y on
+        // the line to h it is "hurt".
         val bar = when {
             known == null -> unknown
+            sure -> known + lift(stands, known) + SURE_MARGIN
             !common -> Float.NEGATIVE_INFINITY
             else -> known + lift(stands, known) + MARGIN_COMMON
         }
@@ -734,11 +911,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             bestWord = word; bestScore = score
         }
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
-        val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
-        val floor = if (known != null && !common) known + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
-        for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
+        val budget = when { common -> LISTED_BUDGET; sure -> SURE_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
+        val doubtful = known != null && !common && !sure
+        val floor = if (doubtful) known!! + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
+        for (h in decoder.search(floor, budget, 0, slipsOnly = common || (sure && SURE_SLIPS > 0f))) {
             val word = lex.sorted[h.index]
-            if (known != null && !common && lex.sortedZipf[h.index] < known + RARE_GAP) continue
+            if (doubtful && lex.sortedZipf[h.index] < known!! + RARE_GAP) continue
             // Typed plainly with a slip: the plain word where there is one (esra is esta, not está).
             val plain = script.plain(word)
             if (plain != word && words.containsKey(plain)) continue
@@ -750,7 +928,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // The person's own words: never in the trie, so each is held up against the taps.
         for (l in learned + own) {
             if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
-            if (known != null && LEARNED_ZIPF < known + RARE_GAP) continue
+            if (known != null && !sure && LEARNED_ZIPF < known + RARE_GAP) continue
             val cost = decoder.align(l, 0, budget)
             if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
         }
@@ -1163,6 +1341,28 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */
         @JvmField var MARGIN_RARE = 0.6f
         @JvmField var MARGIN_COMMON = 1.6f
+        /**
+         * English's wider list (assets/dict/en_wide.tsv, [widen]): read where English is loaded (0: never, and
+         * everything is as it was with en.tsv alone). [WIDE_LEAST] is the least Zipf frequency a word of it must have
+         * to be taken at all, [WIDE_READ] to be a reading of a slip where a dictionary vouches for it,
+         * [WIDE_READ_WRITTEN] where only writing does (9: never), and [WIDE_SWIPE] to be a word a stroke may be.
+         * Read as the list is: the bench and the scoreboard set them before the keyboard is made.
+         */
+        @JvmField var WIDE = 1f
+        @JvmField var WIDE_LEAST = 0f
+        @JvmField var WIDE_READ = 0f
+        @JvmField var WIDE_READ_WRITTEN = 9f
+        @JvmField var WIDE_SWIPE = 0f
+        /**
+         * A rare word that a dictionary vouches for ([SURE]) stands as typed unless a reading is worth [SURE_MARGIN]
+         * more than the word itself (0: such a word is as doubtful as any rare word, which is how every rare word was
+         * held before the wider list said which are words). [SURE_BUDGET] is the most the slips to that reading may
+         * cost, and with [SURE_SLIPS] on they are slips of the thumb only, as for a common word.
+         */
+        @JvmField var SURE_STANDS = 1f
+        @JvmField var SURE_MARGIN = 0.6f
+        @JvmField var SURE_BUDGET = 3.4f
+        @JvmField var SURE_SLIPS = 0f
         /** The most the slips may cost that turn one listed word into another. */
         @JvmField var LISTED_BUDGET = 3.4f
         /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */
@@ -1180,6 +1380,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         private const val JOIN_FULL_ROW = 12
         /** Zipf 3.2 is about one in 600,000 words: below it a "word" in the list is as likely a common misspelling. */
         private const val COMMON = 3.2f
+        /**
+         * What English's wider list says of a word ([Lexicon.marks]): a dictionary vouches for it at the size a
+         * spelling checker is made from; only writing vouches for it; it is a name; it is one of the wider list's own
+         * words (en.tsv lacks it); and no slip is read as it.
+         */
+        private const val SURE = 1
+        private const val WRITTEN = 2
+        private const val NAMED = 4
+        private const val WIDER = 8
+        private const val UNREAD = 16
         /** How much commoner (in Zipf, so 0.9 is about eight times) an accented word must be for its plain spelling, itself listed, to give way to it. */
         private const val PLAIN_MARGIN = 0.9f
         /** The languages the keyboard began with: with these alone, every correction is made as it always was. */
