@@ -1204,19 +1204,19 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var LETTERS = 1f
         /**
          * What is added to what the table makes letters worth, and how much of what the letters cost is counted.
-         * Set 2026-11-12 on the typing bench's own measure (words right less four for every right word spoiled, and
-         * the misspellings mended: 93.76 without the table) with the scoreboard's two sets beside it. At a weight of
+         * Measured on the typing bench's own measure (words right less four for every right word spoiled, and the
+         * misspellings mended: 93.76 without the table) with the scoreboard's two sets beside it. At a weight of
          * 0.6 the measure is 94.57, 94.60, 94.64, 94.64, 94.62 and 94.52 for a shift of 1.25, 1, 0.75, 0.5, 0.25 and
-         * -0.25, and 0.75 is the least of those at which the bench's unknown words are spoiled no more often than
-         * under the fixed bars (1.5%, 4.3% and 4.8% for its three thumbs, where the fixed bars have 1.5%, 4.3% and
-         * 7.1%). Under it a quarter less leaves some six fewer of the scoreboard's 5,205 seen words wrong (281, 275,
-         * 270) and spoils four, then eight, more of the bench's 511 unknown words (15, 19, 27). Weights of 0.8 and 1
-         * with the shift that suits each (3.05, 5.3) leave 3 and 7 fewer of the seen set's words wrong and 2 more of
-         * the unseen set's. On the tuner's own unseen stretch of the bench the measure is 94.13 without the table
-         * and 94.64 with it, 0.75 the best of the shifts there too (94.59 at 1.25, 94.54 at 0.25), though its sloppy
-         * thumb has 8.3% of its unknown words spoiled there for 6.2%. docs/versus.md has every line.
+         * -0.25. Set 2026-11-13 to 1, the least shift tried at which no thumb has more right words spoiled, nor
+         * more of the right words no list has, than under the fixed bars, both on the bench's 12,000 words (1.01,
+         * 1.21 and 1.03 in a thousand for 1.22, 1.48 and 1.65; 0.8%, 3.0% and 3.6% for 1.5%, 4.3% and 7.1%) and on
+         * the tuner's own unseen stretch of the bench, which it was not set on (0.99, 1.14 and 1.36 for 1.18, 1.30
+         * and 1.49; 2.5%, 4.0% and 5.5% for 3.1%, 4.7% and 6.2%). 0.75, where it stood first, leaves six fewer of
+         * the seen set's words wrong and seven of the unseen set's (281 and 384 for 287 and 391), but on that
+         * stretch its sloppy thumb spoils 1.86 right words in a thousand and 8.3% of the unknown ones. Weights of
+         * 0.8 and 1 with the shift that suits each (3.05, 5.3) trace the same curve. docs/versus.md has every line.
          */
-        @JvmField var LETTERS_SHIFT = 0.75f
+        @JvmField var LETTERS_SHIFT = 1f
         @JvmField var LETTERS_WEIGHT = 0.6f
         /**
          * The least the table may make letters worth. None: most of what the table mends is long strings and words
