@@ -11,7 +11,8 @@ says how many words are left wrong, by thumb:
            same three thumbs laid on the same keys. Nothing was looked at there but these totals: what a change
            does to these is what it does.
 
-  --final          also types a third set, kept for the end: 300 more held-out sentences from line 110,001 on.
+  --final          also types a third set, kept for the end: 300 more held-out sentences from line 101,001 on
+                   (the file has 102,028 lines; until 2026-11-12 this said line 110,001, where there is nothing).
                    Only its totals are ever printed (no --show, no --save of its words), so that nothing can be
                    fitted to it: look at it when the work is done, not while it is being done
   --save NAME      keeps every word's verdict under build/versus/scoreboard/NAME.json
@@ -41,7 +42,7 @@ RUN = os.path.join(HERE, "runs", "2026-11-11")
 GEOMETRY = os.path.join(RUN, "ghost.geometry.json")
 THUMBS = ["careful", "leaning", "sloppy"]
 UNSEEN_FIRST = 100000
-FINAL_FIRST = 110000
+FINAL_FIRST = 101000
 
 
 def kept(name):

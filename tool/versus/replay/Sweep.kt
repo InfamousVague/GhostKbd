@@ -305,15 +305,30 @@ class SweepBench(root: File, words: Int, private val seed: Long, lastLine: Int =
  * Waits until [ac] has read its slang list, which it does on a thread of its own (Decoder and Keyboard each give it
  * a fixed part of a second, and on a busy Mac that is not always enough: the first words typed would then be read
  * without it).
+ *
+ * It waits on Autocorrect's own signal, its `slang` set (assigned whole by that thread, so once it is not empty the
+ * whole list is in), and not on every slang word passing isWord: a change that made one entry fail isWord (cut out by
+ * length or script, say) would otherwise hold every worker start for a minute and then stop it. Such entries are
+ * named on stderr instead. Where the field is not there (renamed), it falls back to most of the list passing isWord.
  */
 fun sweepAwaitSlang(root: File, ac: Autocorrect) {
     val slang = File(root, "android/app/src/main/assets/dict/en_slang.txt").takeIf { it.exists() }?.readLines().orEmpty()
         .map { it.trim().lowercase() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+    if (slang.isEmpty()) return
+    val field = runCatching { Autocorrect::class.java.getDeclaredField("slang").apply { isAccessible = true } }.getOrNull()
+    val loaded: () -> Boolean = if (field != null) {
+        { (field.get(ac) as? Set<*>)?.isNotEmpty() == true }
+    } else {
+        System.err.println("sweep: Autocorrect has no field slang; waiting for most of the slang list to pass isWord");
+        { slang.count { ac.isWord(it) } * 10 >= slang.size * 9 }
+    }
     val until = System.nanoTime() + 60_000_000_000L
-    while (!slang.all { ac.isWord(it) }) {
+    while (!loaded()) {
         check(System.nanoTime() < until) { "sweep: the slang list was not read within a minute" }
         Thread.sleep(20)
     }
+    val refused = slang.filter { !ac.isWord(it) }
+    if (refused.isNotEmpty()) System.err.println("sweep: ${refused.size} slang entries are not words to Autocorrect: ${refused.take(20).joinToString(" ")}")
 }
 
 private fun sweepJson(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
