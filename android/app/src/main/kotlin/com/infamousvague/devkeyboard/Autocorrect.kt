@@ -975,10 +975,19 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
-     * PLACEHOLDER (the second look, being built): the word before, read again now that the word after it has ended.
-     * [typed] is the word before as it was typed, [stands] what stands in the field for it, [next] the word that
-     * followed as it stands, [scorer] the place the word before stands in and [taps] where its taps landed. What it
-     * should be in place of [stands], or null to leave it.
+     * The second look: the word before, read again now that the word after it has ended (Gboard does so: it holds
+     * back at the space where it is unsure and decides with the next word in hand; docs/versus.md, "The word before,
+     * read again"). [typed] is the word before as it was typed, [stands] what stands in the field for it, [next] the
+     * word that followed as it stands, [scorer] the place the word before stands in and [taps] where its taps landed.
+     * Every reading of the taps (what stands, what was typed, and the decoder's readings) is weighed by what its
+     * slips cost, by its place after the words before it ([atPlace]) and by how likely [next] is after it
+     * ([Scorer.follows]); where another is ahead of what stands by [AGAIN_MARGIN], and the word after itself gives it
+     * [AGAIN_LEAST] of that, it is what should stand. A typed word no list has is never put back.
+     *
+     * What it should be in place of [stands], or null to leave it. Null always where there is no place (prediction
+     * off), where a table at the place does not count its words ([Scorer.counted]: every language's but English's
+     * today, and English loaded with another), for a cautious list, without taps, and with [AGAIN] off. DevKeyboardService,
+     * the replay's Typist and the typing bench call it the same way.
      */
     fun again(typed: String, stands: String, next: String, scorer: Scorer?, taps: Taps?): String? {
         val now = now
@@ -1380,16 +1389,25 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** Putting a word together again that a tap on the space bar cut in two ([rejoin]), and how much more than what stands the one word must be worth. */
         @JvmField var REJOIN = true
         @JvmField var REJOIN_MARGIN = 1.0f
-        /** PLACEHOLDER: the second look ([again]) and its numbers, not yet set by measurement. */
+        /**
+         * The second look ([again]): the word before, read again once the word after it has ended. Off, every word
+         * is settled at its space as before (the scoreboard is then the tree of 9d36d4c word for word, and the
+         * bench's lines identical). Set on 2026-11-13 by tool/versus/scoreboard.py --bench (docs/versus.md, "The word
+         * before, read again"): on, seen 5.34% to 4.90%, unseen 5.88% to 5.07%, fewer right words spoiled on the bench.
+         */
         @JvmField var AGAIN = true
+        /** How much of what the word after makes of a reading ([Scorer.follows]) counts, and the most it may count either way, in Zipf units. 1.3 and 1.6 won a word or two on unseen and spoiled more on the bench; 0.7 lost 7 and 17; a cap of 2 lost, 4 was the same as 3. */
         @JvmField var AGAIN_WEIGHT = 1.0f
         @JvmField var AGAIN_MOST = 3.0f
+        /** How far ahead of what stands a reading must come, all in, and how much more of that the word after itself must give it. 0 and 0: seen 258, unseen 316, but the bench spoiled 2.03 per 1000 careful (1.62 here); 1.0: seen 261, unseen 339. */
         @JvmField var AGAIN_MARGIN = 0.5f
         @JvmField var AGAIN_LEAST = 0.5f
+        /** How much further ahead a reading must be to replace letters no list has that the space left standing (names are the case). 1.0 and 2.5 moved a word or three either way: left as first set. */
         @JvmField var AGAIN_UNKNOWN = 1.5f
+        /** How many of the readings nearest what stands are held up to the word after (each costs a look at its rows): 3 lost two words on unseen, 10 the same as 6. */
         @JvmField var AGAIN_READINGS = 6f
+        /** Whether the readings of a common word take letters left out and added as well as slips: off lost a word on unseen. */
         @JvmField var AGAIN_EDITS = true
-        @JvmField var AGAIN_REREAD = false
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
         @JvmField var UNKNOWN = 3.2f
         @JvmField var UNKNOWN_ODD = 1.8f

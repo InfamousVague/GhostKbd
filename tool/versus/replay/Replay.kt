@@ -442,10 +442,10 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val before = text.takeLast(96).toString()
         val from = (before.length - 48).coerceAtLeast(0)
         val word = before.substring(Words.lastStart(before, joiners, from))
-        // A space after a comma ends no word: the word the comma ended is still the word before the next.
-        if (word.isEmpty()) return false
         val b = behind
         behind = null
+        // A space after a comma ends no word: the word the comma ended is still the word before the next.
+        if (word.isEmpty()) { if (separator == " " && b?.separator == ",") behind = b; return false }
         val start = Words.runStart(before, joiners, from)
         if (start > 0) {
             val prev = before[start - 1]
@@ -466,11 +466,11 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val taps = tapsFor(word)
         val fixed = decoder.ac.correct(word, scorer, taps)
         asked?.invoke(word, before.dropLast(word.length), fixed)
-        var stands = fixed ?: word
+        val stands = fixed ?: word
         // The word before this one, read again now that this one has ended and been settled (Autocorrect.again).
         var changed = false
         val gap = if (b == null || b.separator == " ") " " else b.separator + " "
-        if (b != null && taps != null && text.endsWith(b.stood + gap + word)) {
+        if (b != null && Autocorrect.AGAIN && b.touches.size == b.typed.length && text.endsWith(b.stood + gap + word)) {
             val back = b.stood.length + gap.length + word.length
             val head = text.dropLast(back)
             if (head.isEmpty() || !(head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) {
@@ -479,14 +479,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
                 if (now != null) {
                     behinds += "${head.split(Regex("\\s+")).count { t -> t.any { it.isLetterOrDigit() } }}:${b.stood}:$now:${b.typed}"
                     text.setLength(text.length - back)
-                    text.append(now).append(gap)
-                    // The word just ended stood after another word when it was read: read once more after this one.
-                    if (Autocorrect.AGAIN_REREAD) {
-                        val after = (text.toString() + word).takeLast(96)
-                        val at = runCatching { NextWordText.place(after, ::isWordChar, after.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-                        stands = decoder.ac.correct(word, at, taps) ?: word
-                    }
-                    text.append(word)
+                    text.append(now).append(gap).append(word)
                     changed = true
                 }
             }
@@ -495,7 +488,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val bar = spaceTouch
         if (separator == " " && bar != null) cut = Cut(word, stands, wordTouches.toList(), bar)
         // Kept to be read again when the next word ends, where what ended it is looked through as a space is.
-        if (taps != null && (separator == " " || separator == ",")) behind = Behind(word, stands, wordTouches.toList(), separator)
+        if (Autocorrect.AGAIN && taps != null && (separator == " " || separator == ",")) behind = Behind(word, stands, wordTouches.toList(), separator)
         if (stands == word && !changed) return false
         if (stands != word) fixes += "$word>$stands"
         text.setLength(text.length - word.length)

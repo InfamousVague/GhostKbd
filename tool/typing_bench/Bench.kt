@@ -255,7 +255,6 @@ fun typeAll(
                     p.outs[p.at] = now
                     before.setLength(p.from)
                     before.append(now).append(' ')
-                    if (Autocorrect.AGAIN_REREAD) out = fix(typed, before.toString() + typed.text) ?: typed.text
                 }
             }
             flush()
