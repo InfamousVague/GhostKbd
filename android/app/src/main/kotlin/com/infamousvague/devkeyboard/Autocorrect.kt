@@ -2142,8 +2142,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var AGAIN_WEIGHT = 1.0f
         @JvmField var AGAIN_MOST = 3.0f
         /** How far ahead of what stands a reading must come, all in, and how much more of that the word after itself must give it. Before AGAIN_LOW: 0 and 0 gave seen 258, unseen 316, but the bench spoiled 2.03 per 1000 careful (1.62 then); a margin of 1.0 gave seen 261, unseen 339. With AGAIN_LOW 1 and AGAIN_BACK 1 (2026-11-13): a margin of 0.25 gave seen 253, unseen 327 and on the documents' sentences 34 mended, 15 broken (0.5: 26 and 8); LEAST 0.25 changed nothing. */
-        @JvmField var AGAIN_MARGIN = 0.5f
-        @JvmField var AGAIN_LEAST = 0.5f
+        /** 0.4 and 0.4 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (0.5 and 0.5 before). */
+        @JvmField var AGAIN_MARGIN = 0.4f
+        @JvmField var AGAIN_LEAST = 0.4f
         /** How much further ahead a reading must be to replace letters no list has that the space left standing (names are the case). 1.0 and 2.5 moved a word or three either way: left as first set. */
         @JvmField var AGAIN_UNKNOWN = 1.5f
         /** How many of the readings nearest what stands are held up to the word after (each costs a look at its rows): 3 lost two words on unseen, 10 the same as 6. */
@@ -2171,11 +2172,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * the bench's careful thumb spoiled 1.83 right words per 1000 where 0 spoiled 1.62. 1 and more lost words on unseen.
          */
         @JvmField var AGAIN_BACK = 0.5f
-        /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
-        @JvmField var UNKNOWN = 3.2f
+        /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh; 3.1 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (3.2 before). */
+        @JvmField var UNKNOWN = 3.1f
         @JvmField var UNKNOWN_ODD = 1.8f
-        /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
-        @JvmField var UNKNOWN_LONG = 1.6f
+        /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. 1.5 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (1.6 before). */
+        @JvmField var UNKNOWN_LONG = 1.5f
         @JvmField var LONG_WORD = 6f
         /**
          * English's letter table ([LetterModel]) has a say in what letters no list has are worth ([unlisted]): at 0

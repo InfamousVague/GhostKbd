@@ -238,7 +238,8 @@ class ThumbLeanTest {
         // first word's three taps and the prior stand against it. Twenty careful fields: it is read looser than
         // SPATIAL straight after (never below the floor), and tight again by the sentence's end. This is the cost
         // docs/versus.md states ("A wild tap early in a field"); holding each square ([ThumbLean.SPREAD_CAP]) was
-        // measured and left off.
+        // measured and left off. With SPREAD at 0.07 (the joint tuning of 2026-11-13; 0.065 before, when it was 15
+        // or more of 20) the prior holds a little more against the one tap: 10 of 20 are read looser.
         var loosened = 0
         for (seed in 1L..20L) {
             val lean = ThumbLean()
@@ -251,7 +252,7 @@ class ThumbLeanTest {
             teach(lean, WORDS.drop(2), 0f, 0f, 0.16f, rnd)
             assertTrue("seed $seed at the end: ${lean.tight}", lean.tight >= 1f)
         }
-        assertTrue("loosened in $loosened of 20", loosened >= 15)
+        assertTrue("loosened in $loosened of 20", loosened >= 8)
     }
 
     @Test fun theBoundsMoveWithSpatial() {

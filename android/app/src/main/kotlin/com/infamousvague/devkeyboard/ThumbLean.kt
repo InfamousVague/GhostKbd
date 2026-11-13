@@ -255,9 +255,10 @@ class ThumbLean {
          * it stands is right for: what a field begins with, so that its first word reads exactly as it did before.
          * Trusted taps of the measure's careful thumb come to about 0.046 a field, its sloppy one's 0.117. Forecast at
          * 0.05, 0.055, 0.06, 0.065, 0.07 (with SPREAD_POWER 3, a floor of 0.5): unseen 387, 390, 392, 392, 391; at
-         * 0.065 the careful thumb is read below 1.45 at 14% of its words where at 0.05 at 32%.
+         * 0.065 the careful thumb is read below 1.45 at 14% of its words where at 0.05 at 32%. 0.07 since the
+         * Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (0.065 before).
          */
-        @JvmField var SPREAD = 0.065f
+        @JvmField var SPREAD = 0.07f
 
         /**
          * How steeply SPATIAL falls as the spread grows past [SPREAD]: the spread's ratio to it to this power. At 2
@@ -276,9 +277,12 @@ class ThumbLean {
          * right words a thousand (1.65 with no spread), its normal one 3.09, 2.42, 2.02, 1.75, 1.61 (1.48). The least
          * was chosen with the unseen totals in view. The most is seldom reached: a careful thumb's sentence comes to
          * about 1.3 (SPATIAL about 2). Until 2026-11-13 these were values of SPATIAL itself (0.9 and 3), which with SPATIAL moved to 0.9
-         * left the spread nothing to do (seen 277 on, 278 off).
+         * left the spread nothing to do (seen 277 on, 278 off). The least is 0.85 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept:
+         * from 0.6 alone it takes the bench's normal and sloppy thumbs' right words spoiled from 2.01 and 2.43 a
+         * thousand back to 1.47 and 1.62 (0.16.5's 1.48 and 1.65) for 6 more words wrong on seen and 1 on unseen;
+         * 0.8, 0.9, 1.0 gave 1.61/2.23, 1.47/1.62, 1.34/1.42 for seen 126, 129, 135 and unseen 206, 202, 210.
          */
-        @JvmField var SPREAD_LOW = 0.6f
+        @JvmField var SPREAD_LOW = 0.85f
         @JvmField var SPREAD_HIGH = 2f
 
         /**
