@@ -420,11 +420,13 @@ word at its space and never looked at it again.
 `Autocorrect.again` reads the word before again once the next word has ended: every reading of its taps (what
 stands, what was typed, the decoder's readings), each weighed by what its slips cost, by its place after the words
 before it (`atPlace`) and by how likely the word that has now followed is after it (`Scorer.follows`, from the
-starter tables' one-word and two-word rows; capped at 3 either way). Where another reading comes ahead of what
-stands by 0.5, and the word after itself gives it 0.5 of that, it replaces what stands, behind the cursor: a slip
-left standing is mended ("we ate going" to "we are going", "I'd tell you of I knew" to "if I knew"), and a word the
-space changed is put back to what was typed, or to a third reading, where the word after says so. A typed word no
-list has is never put back (the first try put back "Ery" for Very and "ftlmt" for front). `DevKeyboardService`
+starter tables' one-word and two-word rows; up to 3 for a reading, and no more than 1 against one: a pair the tables
+never saw is often only a pair Tatoeba seldom has). Where another reading comes ahead of what stands by 0.5, and the
+word after itself gives it 0.5 of that, it replaces what stands, behind the cursor: a slip left standing is mended
+("we ate going" to "we are going", "I'd tell you of I knew" to "if I knew"), and a word the space changed is put
+back to what was typed (only 0.5 further ahead still: a word seen changing twice), or to a third reading, where the
+word after says so. A typed word no list has is never put back (the first try put back "Ery" for Very and "ftlmt"
+for front). `DevKeyboardService`
 keeps the word that ended last (`Behind`, beside the bar's `Cut`) and calls it as the next word ends; the replay's
 `Typist` and the bench's `typeAll` do the same. Where there is no place (prediction off), where a table does not
 count its words (every language's but English's today, and English loaded with another: `Scorer.counted` asks it
@@ -442,27 +444,54 @@ spoiled (6 first, 5 among, 2 never read again).
 | | seen | unseen | bench careful | normal | sloppy |
 |---|---|---|---|---|---|
 | starting tree (9d36d4c) | 5.34% (278) | 5.88% (377) | 96.87%, 1.93 | 93.19%, 1.75 | 87.24%, 2.07 |
-| the second look | 4.90% (255) | 5.07% (325) | 97.16%, 1.62 | 93.85%, 1.61 | 88.24%, 1.86 |
+| the second look, first made | 4.90% (255) | 5.07% (325) | 97.16%, 1.62 | 93.85%, 1.61 | 88.24%, 1.86 |
+| as reviewed (`AGAIN_LOW` 1, `AGAIN_BACK` 0.5) | 4.86% (253) | 5.09% (326) | 97.13%, 1.83 | 93.83%, 1.61 | 88.24%, 1.86 |
 
-(The bench's words right and right words spoiled per 1,000; unknown words spoiled 2.3%, 3.0% and 6.0% both ways.)
-Away from Tatoeba (`tool/versus/elsewhere.py`, 288 sentences of this repository's documents, `whatif.py --file`):
-careful 3.55% to 3.44%, leaning 5.89% to 5.70%, sloppy 13.15% to 12.81%, 17 words of 7,941 against 23 of 5,205 seen
-and 52 of 6,408 unseen: about half the gain is Tatoeba's own, since the tables it reads were counted from Tatoeba.
+(The bench's words right and right words spoiled per 1,000; unknown words spoiled 2.3%, 3.0% and 6.0% all three
+ways. Against the starting tree: seen 25 mended and none broken, unseen 54 mended and 3 broken.)
 
-What a person sees (`tool/versus/behind.py seen`, and the bench's "changed behind the cursor"): on the seen set 33
-words change behind the cursor (6.3 per 1,000 typed): 25 put a wrong word right, 2 spoil a right one ("Take" to
-"Game" before "of", "us" to "is" before "a"), 6 swap one wrong word for another; 3 of the 33 put back what was typed
-after the space had changed it. Gboard on the same taps: 82 changes, 58 put right, 1 spoiled. On the unseen set 65
-(10.1 per 1,000): 55, 3, 7. On the bench 3.7, 9.1 and 14.6 per 1,000 (careful 38 right, 3 spoiled, 4 other; normal
-88, 9, 12; sloppy 134, 15, 26). It is right as often as Gboard's (76% of changes on the seen set, Gboard's 71%) and
-spoils more (6% against 1%). It costs processor time: on the bench 303 to 328 µs a word careful against 190 off,
-387 to 413 normal against 264 to 268, 453 to 544 sloppy against 332 to 362 (the search is run once more for the
-word before).
+Away from Tatoeba (`tool/versus/elsewhere.py --at 9d36d4c`, 288 sentences of this repository's documents as they
+stood at 9d36d4c, typed by `whatif.py --file`; the documents' sentences change with the documents, this section
+added two, so the file is named by its commit). As first made the second look mended 36 words there and broke 19
+(careful 4 and 1, leaning 13 and 8, sloppy 19 and 10): "A fix is worn" became "A fox is worn", "install id" became
+"install is", and "keys", "says" and "launches", put right at the space, became "lets", "days" and "launched". Most
+of the 19 were pairs the tables give less room than they deserve ("says only", "keys a", "fix is": a negative
+`follows` of 1.3 to 1.6) and rare typed words put back (os, hoe, ein). With a pair the tables lack counting no more
+than 1 against a reading, and putting back what was typed 0.5 further ahead: 26 mended and 8 broken (careful 2 and
+1, leaning 11 and 4, sloppy 13 and 3); careful 3.55% to 3.51%, leaning 5.89% to 5.63%, sloppy 13.15% to 12.77%.
+That is 18 words of 7,941 (0.23%), against 25 of 5,205 seen (0.48%) and 51 of 6,408 unseen (0.80%): measured against
+unseen, about seven tenths of the gain is Tatoeba's own, since the tables it reads were counted from Tatoeba. The 8
+it still breaks there: launches to launched (twice, before "into"), says to days and to say, coc read as fox not fix,
+keys to let's, lasts to pasta, as to a.
+
+What a person sees (`tool/versus/behind.py seen --elsewhere`, and the bench's "changed behind the cursor"): on the
+seen set 29 words change behind the cursor (5.6 per 1,000 typed): 25 put a wrong word right, none spoils a right
+one, 4 swap one wrong word for another; 1 of the 29 puts back what was typed after the space had changed it.
+Gboard on the same taps: 82 changes, 58 put right, 1 spoiled. On the unseen set 64 (10.0 per 1,000): 54, 3, 7, with
+4 put back. On the documents' sentences 39 (4.9 per 1,000): 26, 8, 5, none put back. On the bench 3.3, 7.6 and 12.3
+per 1,000 (careful 34 right, 3 spoiled, 3 other; normal 80, 4, 7; sloppy 127, 8, 13). Of the 90 words Gboard put
+right behind the cursor on the seen set the tree has 79 right (the starting tree 74), of the 88 on unseen 73 (64).
+It costs processor time, on the main thread at the space: on the bench, on an idle Mac, 114 to 120 µs a word
+careful against 67 to 73 off, 142 to 143 normal against 87 to 90, 185 to 186 sloppy against 121 to 123 (the tap
+search is run once more for the word before). Skipping it where the word after already bears out what stands
+(`follows` 1 or more) saved 7 µs a word and lost 2 words on the bench: not kept.
+
+On the phone (`DevKeyboardService`): the change and the word after go in as one edit, and backspace straight after
+puts back both. The change is written into the words that ended a moment ago (`ends`), so the word before, typed
+again as it was over the change, is kept and learned (as a fix taken out is) and the next word does not change it
+again. It is read again only in the same field, with nothing selected, the text before the cursor ending in the
+two words exactly and the 32 characters before them those that stood there as it ended (a cursor tapped to other
+words that end the same way), and is let go where the app reports a cursor the keyboard did not move. Never at
+enter: the message goes with it, and nothing could take the change back. Reports count `fix.behind` and
+`fix.behindUndone`.
 
 **Tried and not kept**: the first look made more cautious where a second look follows (a bar 0.25, 0.5 or 1.0 higher
 at the space for a listed word: seen 257, 264, 278; unseen 327, 327, 338; with the second look's own margins at 0,
 258 and 319 against 258 and 316 without it); the word just ended read once more after the word before it changed
-(seen 255, unseen 324 against 325); the word after weighed 1.3 (seen 255, unseen 321, but the bench spoiled 1.83 and
+(seen 255, unseen 324 against 325); the word after counting less for rare words (in full from a Zipf of 5, and
+4.5 and 5.5: seen 261, 259, 264, unseen 336, 328, 339, with 18, 19 and 14 broken on the documents' sentences); a pair the
+tables lack counting no more than 0.5 against a reading (documents 21 mended and 6 broken, but unseen 333) or 0
+(unseen 342); the word after weighed 1.3 (seen 255, unseen 321, but the bench spoiled 1.83 and
 2.07 per 1,000 careful and sloppy) or 0.7 (262, 342); no margins (258, 316, careful spoiled 2.03). The sentence's
 last word has no word after it, and the tables have no rows that say how likely a word is to end a sentence (the
 rows after "^" are starts): 70 of the seen set's wrong words are last words, and reading them by the mark that ends

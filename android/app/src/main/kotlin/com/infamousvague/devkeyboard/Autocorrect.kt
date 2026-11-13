@@ -1398,13 +1398,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * The second look ([again]): the word before, read again once the word after it has ended. Off, every word
          * is settled at its space as before (the scoreboard is then the tree of 9d36d4c word for word, and the
          * bench's lines identical). Set on 2026-11-13 by tool/versus/scoreboard.py --bench (docs/versus.md, "The word
-         * before, read again"): on, seen 5.34% to 4.90%, unseen 5.88% to 5.07%, fewer right words spoiled on the bench.
+         * before, read again"): on, seen 5.34% to 4.86%, unseen 5.88% to 5.09%, fewer right words spoiled on the bench
+         * (careful 1.93 to 1.83 per 1000); on the documents' own sentences (elsewhere.py --at 9d36d4c) 26 words mended, 8 broken.
          */
         @JvmField var AGAIN = true
-        /** How much of what the word after makes of a reading ([Scorer.follows]) counts, and the most it may count either way, in Zipf units. 1.3 and 1.6 won a word or two on unseen and spoiled more on the bench; 0.7 lost 7 and 17; a cap of 2 lost, 4 was the same as 3. */
+        /** How much of what the word after makes of a reading ([Scorer.follows]) counts, and the most it may count for one (against one: [AGAIN_LOW]), in Zipf units. Measured before AGAIN_LOW: 1.3 and 1.6 won a word or two on unseen and spoiled more on the bench; 0.7 lost 7 and 17; a cap of 2 lost, 4 was the same as 3. */
         @JvmField var AGAIN_WEIGHT = 1.0f
         @JvmField var AGAIN_MOST = 3.0f
-        /** How far ahead of what stands a reading must come, all in, and how much more of that the word after itself must give it. 0 and 0: seen 258, unseen 316, but the bench spoiled 2.03 per 1000 careful (1.62 here); 1.0: seen 261, unseen 339. */
+        /** How far ahead of what stands a reading must come, all in, and how much more of that the word after itself must give it. Before AGAIN_LOW: 0 and 0 gave seen 258, unseen 316, but the bench spoiled 2.03 per 1000 careful (1.62 then); a margin of 1.0 gave seen 261, unseen 339. With AGAIN_LOW 1 and AGAIN_BACK 1 (2026-11-13): a margin of 0.25 gave seen 253, unseen 327 and on the documents' sentences 34 mended, 15 broken (0.5: 26 and 8); LEAST 0.25 changed nothing. */
         @JvmField var AGAIN_MARGIN = 0.5f
         @JvmField var AGAIN_LEAST = 0.5f
         /** How much further ahead a reading must be to replace letters no list has that the space left standing (names are the case). 1.0 and 2.5 moved a word or three either way: left as first set. */
