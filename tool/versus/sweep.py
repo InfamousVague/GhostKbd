@@ -35,6 +35,8 @@ typing bench's tap test (12,000 words by three thumbs). Its numbers are scoreboa
   sweep.py time [SETTING ...]         what each setting costs the decoder beside the tree, in microseconds a word:
                                       each typed --times times (3), turn about, the least taken. --threads 1 is the
                                       steadiest
+  sweep.py sets                       the file of typings the worker reads, for starting it by hand:
+                                      echo "TapDecoder.OMIT=1.8" | tool/versus/replay.sh sweep --sets "$(tool/versus/sweep.py sets)" | cut -f1
 
 The objective, which a search makes as small as it can: the words left wrong on seen and unseen together, and a
 penalty for each figure of the bench that is worse than the tree's own, so that words cannot be bought on these
@@ -503,6 +505,13 @@ def cmd_dials(sw, args):
         print("%-28s %-6s %-8s %s" % (name, d["type"], d["default"], "searched" if searched(sw, name) else ""))
 
 
+def cmd_sets(sw, args):
+    """Where the typings are written for the worker, for starting it by hand:
+    echo "Autocorrect.UNKNOWN=2.4 TapDecoder.OMIT=1.8" | tool/versus/replay.sh sweep --sets "$(tool/versus/sweep.py sets)" | cut -f1"""
+    sw.load()
+    print(sw.sets.path)
+
+
 def cmd_line(sw, args):
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
@@ -937,7 +946,7 @@ def weights(text):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["dials", "line", "grid", "scan", "search", "check", "again", "front", "time"])
+    ap.add_argument("command", choices=["dials", "line", "grid", "scan", "search", "check", "again", "front", "time", "sets"])
     ap.add_argument("items", nargs="*", help="settings (line, check, again) or dials (grid, scan, search)")
     ap.add_argument("--also", action="append", default=[], metavar="DIAL", help="scan, search: a dial to take besides (a switch, a whole number, another class's)")
     ap.add_argument("--without", action="append", default=[], metavar="DIAL", help="scan, search: a dial to leave out")
@@ -965,7 +974,7 @@ def main():
     args.settings = args.dials = args.items
     sw = Sweep(args)
     try:
-        {"dials": cmd_dials, "line": cmd_line, "grid": cmd_grid, "scan": cmd_scan, "search": cmd_search, "check": cmd_check, "again": cmd_again, "front": cmd_front, "time": cmd_time}[args.command](sw, args)
+        {"dials": cmd_dials, "line": cmd_line, "grid": cmd_grid, "scan": cmd_scan, "search": cmd_search, "check": cmd_check, "again": cmd_again, "front": cmd_front, "time": cmd_time, "sets": cmd_sets}[args.command](sw, args)
     except Refused as e:
         raise SystemExit("sweep: %s" % e)
     finally:
