@@ -359,6 +359,83 @@ class TypingAccuracyTest {
         assertEquals("Monday", both.correct("monday", names = true))
     }
 
+    @Test fun askingForNamesTouchesNoWordThatIsNoName() {
+        // A word left as typed is looked at again only where it is a name. Not where its capital does not come back
+        // from lower case as it was typed (İ, on i's long-press beside Turkish, lowers to two characters on a board
+        // that is not Turkish's; ǅ is one letter that lowers to ǆ and is no capital to raise again), nor where it
+        // only begins as I'm does: each is exactly what it is unasked, to the character.
+        for (typed in listOf("İrem", "İreland", "ǅemal", "i'ma", "i'xyz", "Ωmega", "hello", "Hello", "HELLO", "a", "A", "x", "tmo", "Tmo")) {
+            assertEquals(typed, ac.correct(typed), ac.correct(typed, names = true))
+            assertEquals(typed, ac.suggest(typed).fix, ac.suggest(typed, names = true).fix)
+        }
+        for (typed in listOf("hello", "Hello", "i'ma", "tmo", "Tmo", "x")) {
+            assertEquals(typed, ac.correct(typed, null, taps(typed)), ac.correct(typed, null, taps(typed), names = true))
+            assertEquals(typed, ac.suggest(typed, null, taps(typed)).fix, ac.suggest(typed, null, taps(typed), names = true).fix)
+        }
+        // Beside another language too, where English's names are fewer but still given.
+        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val two = LanguageState.of(listOf("en", "tr"), emptyMap(), "")
+        both.loadNow(two.dictionaries, two.board)
+        for (typed in listOf("İrem", "ǅemal", "i'ma", "merhaba", "Merhaba")) assertEquals(typed, both.correct(typed), both.correct(typed, names = true))
+        assertEquals("Monday", both.correct("monday", names = true))
+    }
+
+    @Test fun askedForNamesEveryWordOfTheListThatIsNoNameIsAsItWas() {
+        // English's whole list, each word typed in lower case with no taps to go by: asked for names, a word comes
+        // out as it does unasked unless a name is in it, and then its letters are the same and only that capital new.
+        val names = File(assets, "dict/en_capitals.txt").readLines().map { it.trim() }.filter { it.isNotEmpty() && it[0] != '#' }.map { it.lowercase() }.toSet()
+        fun isName(word: String) = word in names || (word.endsWith("'s") && word.dropLast(2) in names)
+        var words = 0
+        var capitals = 0
+        File(assets, "dict/en.tsv").useLines { lines ->
+            lines.forEach { line ->
+                val word = line.substringBefore('\t')
+                if (word.isEmpty() || word.length > 24) return@forEach
+                words++
+                val plain = ac.correct(word)
+                val asked = ac.correct(word, names = true)
+                if (plain == asked) return@forEach
+                val stands = asked ?: word
+                assertEquals(word, (plain ?: word).lowercase(), stands.lowercase())
+                // Every capital it has that it would not have unasked is a name's.
+                val before = (plain ?: word).split(' ')
+                val after = stands.split(' ')
+                assertEquals(word, before.size, after.size)
+                for (i in after.indices) if (after[i] != before[i]) assertTrue("$word: $asked", isName(before[i].lowercase()) && after[i] == before[i].replaceFirstChar { it.uppercase() })
+                capitals++
+            }
+        }
+        assertTrue("$words words", words > 30_000)
+        assertTrue("$capitals of ${names.size} names", capitals >= names.size * 9 / 10)
+    }
+
+    @Test fun inEveryLanguageButEnglishAskingForNamesChangesNothing() {
+        // Every other language the keyboard has a list for, loaded alone on its own board: its commonest words, in
+        // lower case and with a capital, some of English's names and some odd capitals. Asked for names or not, the
+        // answer and the row are the same, because there is no list of names to go by ([Autocorrect.load]).
+        val odd = listOf("tom", "Tom", "TOM", "monday", "london", "tom's", "i", "i'm", "i'ma", "İrem", "ǅemal", "mondya", "tmo")
+        var tried = 0
+        for (language in Languages.ALL) {
+            val dict = language.dict ?: continue
+            if (language.code == "en") continue
+            val other = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+            val state = LanguageState.of(listOf(language.code), emptyMap(), "")
+            assertTrue(language.code, "en" !in state.dictionaries)
+            other.loadNow(state.dictionaries, state.board)
+            val common = File(assets, "dict/$dict.tsv").useLines { lines -> lines.take(150).map { it.substringBefore('\t') }.filter { it.isNotEmpty() }.toList() }
+            for (word in common + common.map { w -> w.replaceFirstChar { it.titlecase(state.board.locale) } } + odd) {
+                assertEquals("${language.code}: $word", other.correct(word), other.correct(word, names = true))
+                val plain = other.suggest(word)
+                val asked = other.suggest(word, names = true)
+                assertEquals("${language.code}: $word", plain.fix, asked.fix)
+                assertEquals("${language.code}: $word", plain.words, asked.words)
+                assertEquals("${language.code}: $word", word, other.named(word))
+                tried++
+            }
+        }
+        assertTrue("$tried", tried > 30 * 300)
+    }
+
     // --- the person's own mistakes ----------------------------------------------------------------------------------
 
     @Test fun aRememberedMistakeIsMendedTheWayItWasPutRight() {

@@ -302,7 +302,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         return Lexicon(
             key, w, f, c, sorted, FloatArray(sorted.size) { w[sorted[it]] ?: 0f }, plainKeys, plainWords, FloatArray(plainWords.size) { w[plainWords[it]] ?: 0f },
-            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows, caps,
+            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows, capitals = caps,
         )
     }
 
@@ -449,7 +449,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * [taps] are where the fingers landed for it, where the keyboard knows (see [byTaps]): the fix may then be two
      * words ("thankyou" is "thank you"). [names] says the field wants capitals: then a name comes out with its own
      * ([proper]), mended ("mondya" is "Monday"), left as typed ("tom" is "Tom") or parted from the word it ran into
-     * ("withmary" is "with Mary"), in the middle of a sentence too. Capitals typed on purpose are left, as ever.
+     * ("withmary" is "with Mary"), in the middle of a sentence too. Capitals typed on purpose are left, as ever,
+     * and a word that is no name comes out exactly as it does unasked.
      */
     fun correct(typed: String, scorer: Scorer? = null, taps: Taps? = null, names: Boolean = false): String? {
         val now = now
@@ -462,7 +463,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // One of the person's own often-typed words is left alone, unless they have been putting it right by hand.
         if ((kept(lower) && remembered(now, lower) == null) || eszettWord(lower, now.lexicon.words)) return null
         val fixed = best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.takeIf { it.sure }?.word
-        val word = if (names) named(now, fixed ?: lower) else fixed ?: return null
+        // With names a mend has its names' capitals, and a word left as typed is looked at again only where it is a
+        // name ([name]): any other word is left without being asked how its capitals would be written back.
+        val word = when {
+            !names -> fixed ?: return null
+            fixed != null -> named(now, fixed)
+            else -> name(now, lower) ?: return null
+        }
         val cased = recase(now.board.locale, typed, word)
         return if (cased == typed) null else cased
     }
@@ -497,7 +504,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             !names || stands -> sure
             sure != null -> named(now, sure)
             typed.drop(1).any { it.isUpperCase() } -> null
-            else -> named(now, lower).takeIf { recase(locale, typed, it) != typed }
+            else -> name(now, lower)?.takeIf { recase(locale, typed, it) != typed }
         }
         fun shown(word: String) = if (names) proper(now, word) else capitalI(now, word)
         val out = LinkedHashSet<String>()
@@ -1144,16 +1151,24 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * lower case ([kept]: undoing a capital teaches that, as undoing any fix does), and never a spelling another
      * loaded language has as a word of its own ([load]).
      */
-    private fun proper(now: Now, word: String): String {
+    private fun proper(now: Now, word: String): String = name(now, word) ?: capitalI(now, word)
+
+    /**
+     * [word] (lower case) with its capital where it is a name to be given one ([proper] says which are), or null
+     * where it is none: a word of no list of names, one the person keeps in lower case, any word at all where
+     * English is not loaded. What [correct] goes by for a word it would otherwise leave as typed, so that asking
+     * for names changes a name and nothing else.
+     */
+    private fun name(now: Now, word: String): String? {
         val caps = now.lexicon.capitals
-        if (caps.isEmpty() || word.length < 3) return capitalI(now, word)
-        caps[word]?.let { return if (kept(word)) word else it }
+        if (caps.isEmpty() || word.length < 3) return null
+        caps[word]?.let { return if (kept(word)) null else it }
         // A name's possessive is the name's.
         if (word.length > 3 && word[word.length - 1] == 's' && (word[word.length - 2] == '\'' || word[word.length - 2] == '’')) {
             val name = word.substring(0, word.length - 2)
-            caps[name]?.let { return if (kept(name) || kept(word)) word else it + word.substring(word.length - 2) }
+            caps[name]?.let { return if (kept(name) || kept(word)) null else it + word.substring(word.length - 2) }
         }
-        return capitalI(now, word)
+        return null
     }
 
     /** A fix, or the word as typed, with each of its words as [proper] has it: a fix may be two words. */
