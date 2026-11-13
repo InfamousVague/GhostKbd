@@ -329,6 +329,62 @@ fun taps(root: File) {
 }
 
 /** A cost by name ("A.UNKNOWN" is Autocorrect's, "T.OMIT" is TapDecoder's), for trying others. */
+/**
+ * What reading by the lean costs in time (tool/typing_bench.sh leantime; -Dwords, -Dlean, -Drounds): the taps bench's
+ * normal thumb types its sentences once, with ThumbLean on as typeAll has it, and every word's call to correct is
+ * kept. Those calls are then made again, round after round, each word once with the lean it was read by and once
+ * with the same taps and no lean, timed by this thread's processor time (not the clock: the Mac is shared) around
+ * correct alone. The fastest round of each is said, in µs a word, over all words and over those read by a lean.
+ */
+fun leanTime(root: File) {
+    val kb = Keyboard(root)
+    val all = Sentences(root)
+    val limit = System.getProperty("words", "12000").toInt()
+    val seed = System.getProperty("seed", "7").toLong()
+    val rounds = System.getProperty("rounds", "6").toInt()
+    val oovList = UNKNOWN_WORDS.filter { !kb.ac.isWord(it) }.distinct()
+    val rnd = Random(seed)
+    val sentences = ArrayList<List<String>>()
+    var n = 0
+    for (line in all.lines) {
+        if (n >= limit) break
+        val words = all.words(line).map { if (rnd.nextFloat() < 0.03f) oovList[rnd.nextInt(oovList.size)] else it }
+        if (words.isEmpty()) continue
+        sentences += words; n += words.size
+    }
+    class Call(val text: String, val before: String, val leant: Taps, val plain: Taps)
+    val calls = ArrayList<Call>()
+    typeAll(kb, sentences, NOISES[1], seed, oovList.toSet()) { t, before ->
+        calls += Call(t.text, before, t.taps, Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE))
+        kb.ac.correct(t.text, kb.scorer(before), t.taps)
+    }
+    val read = calls.count { it.leant.leanX != 0f || it.leant.leanY != 0f }
+    val cpu = java.lang.management.ManagementFactory.getThreadMXBean()
+    fun pass(lean: Boolean): Pair<Double, Double> {
+        var total = 0L; var leaning = 0L
+        for (c in calls) {
+            val scorer = kb.scorer(c.before)
+            val t0 = cpu.currentThreadCpuTime
+            kb.ac.correct(c.text, scorer, if (lean) c.leant else c.plain)
+            val dt = cpu.currentThreadCpuTime - t0
+            total += dt
+            if (c.leant.leanX != 0f || c.leant.leanY != 0f) leaning += dt
+        }
+        return total / 1000.0 / calls.size to leaning / 1000.0 / read.coerceAtLeast(1)
+    }
+    pass(true); pass(false)
+    var bestOn = Double.MAX_VALUE to Double.MAX_VALUE
+    var bestOff = Double.MAX_VALUE to Double.MAX_VALUE
+    repeat(rounds) {
+        val on = pass(true); val off = pass(false)
+        println(String.format("round %d: with the lean %.1f µs a word (%.1f where it leans), without %.1f (%.1f)", it + 1, on.first, on.second, off.first, off.second))
+        if (on.first < bestOn.first) bestOn = on
+        if (off.first < bestOff.first) bestOff = off
+    }
+    println(String.format("leantime: %d words, %d of them read by a lean; fastest round with the lean %.1f µs a word (%.1f where it leans), without %.1f (%.1f)",
+        calls.size, read, bestOn.first, bestOn.second, bestOff.first, bestOff.second))
+}
+
 fun setCost(name: String, value: Float) {
     val cls = if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java
     cls.getField(name.substring(2)).setFloat(null, value)
@@ -371,6 +427,9 @@ fun sample(kb: Keyboard, all: Sentences, from: Int, limit: Int, seed: Long): Pai
  * Sets the tap reading's costs by trying each in turn on one stretch of sentences (three kinds of thumb), keeping
  * what does best, twice round; then says what that does on another stretch it never saw. What is best: words right,
  * less four for every right word spoiled, since a word changed that was right is the worse fault by far.
+ *
+ * Since the aim track every sentence is read by where the thumb is taken to land (ThumbLean, through typeAll), so
+ * these figures are not comparable with records from before it unless -Dset=ThumbLean.ON=false is given.
  */
 val WEIGHT = System.getProperty("weight", "4").toDouble()
 
@@ -783,6 +842,7 @@ fun next(root: File) {
  * thumb's usual scatter on top) type one stretch of sentences, putting right most of what the keyboard leaves wrong
  * or changes wrongly; what that taught is then scored on a second stretch, beside the same keyboard with no memory.
  * -Dfixes=0.7 is how often they bother to put a word right; -Dhabit=0.6 how often a habit shows.
+ * ThumbLean is on here too (typeAll): -Dset=ThumbLean.ON=false to compare with records from before the aim track.
  */
 fun mistakes(root: File) {
     val kb = Keyboard(root)
@@ -962,6 +1022,7 @@ fun main(args: Array<String>) {
     System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setDial(k, v) }
     when (args.getOrNull(1) ?: "all") {
         "taps" -> taps(root)
+        "leantime" -> leanTime(root)
         "tune" -> tune(root)
         "swipe" -> swipes(root)
         "tuneswipe" -> tuneSwipe(root)
