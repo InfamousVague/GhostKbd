@@ -975,6 +975,96 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
+     * PLACEHOLDER (the second look, being built): the word before, read again now that the word after it has ended.
+     * [typed] is the word before as it was typed, [stands] what stands in the field for it, [next] the word that
+     * followed as it stands, [scorer] the place the word before stands in and [taps] where its taps landed. What it
+     * should be in place of [stands], or null to leave it.
+     */
+    fun again(typed: String, stands: String, next: String, scorer: Scorer?, taps: Taps?): String? {
+        val now = now
+        val lex = now.lexicon
+        val words = lex.words
+        if (!AGAIN || !TAPS || scorer == null || taps == null || lex.cautious || words.isEmpty()) return null
+        if (typed.isEmpty() || typed.length > 24 || taps.xs.size != typed.length || ' ' in stands || !scorer.counted) return null
+        // An acronym, a camelCase name: left as typed at the space, and now.
+        if ((typed.length > 1 && typed.all { it.isUpperCase() }) || typed.drop(1).any { it.isUpperCase() }) return null
+        val locale = now.board.locale
+        val lower = typed.lowercase(locale)
+        if (kept(lower) || mistaken.containsKey(lower) || eszettWord(lower, words) || lex.folded.containsKey(lower)) return null
+        // What the typed letters stand as where they are left: themselves, or the contraction they are typed for.
+        val asTyped = lex.contractions[lower] ?: lower
+        val stood = stands.lowercase(locale).let { if (it == lower) asTyped else it }
+        if (stood != asTyped && (kept(stood) || !words.containsKey(stood))) return null
+        // The word after, as the tables know it. One no list has says nothing of what came before it.
+        val follower = next.lowercase(locale).let { lex.contractions[it] ?: it }
+        val followerZipf = words[follower] ?: return null
+        val known = words[asTyped]
+        val common = known != null && known >= COMMON
+        val here = if (HERE) scorer.here { words[it] } else null
+        fun lift(word: String, zipf: Float) = minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        fun worth(word: String, zipf: Float) = if (here != null) atPlace(here, word, zipf) else zipf + lift(word, zipf)
+        fun after(word: String) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-AGAIN_MOST, AGAIN_MOST)
+        // What the typed letters are worth as they stand, and how much more than that a reading must be worth to
+        // take their place, as the first look had it.
+        val typedWorth = if (known != null) worth(asTyped, known) else unlisted(lower)
+        val guard = when { known == null -> 0f; common -> if (here != null) HERE_COMMON else MARGIN_COMMON; else -> MARGIN_RARE }
+        val decoder = tapDecoder(now, taps)
+        decoder.load(lower, taps)
+        // Every reading: its word, what the word is worth at its place, what its slips cost, what the word after makes of it.
+        class Reading(val word: String, val worth: Float, val cost: Float) { var after = 0f; var all = 0f }
+        val readings = HashMap<String, Reading>()
+        fun offer(word: String, worth: Float, cost: Float) {
+            val had = readings[word]
+            if (had == null || worth - cost > had.worth - had.cost) readings[word] = Reading(word, worth, cost)
+        }
+        offer(asTyped, typedWorth, 0f)
+        if (stood != asTyped) {
+            val cost = decoder.align(stood, 0, TapDecoder.BUDGET)
+            if (cost.isInfinite()) return null
+            offer(stood, worth(stood, words.getValue(stood)), cost)
+        }
+        val standing = readings.getValue(stood)
+        standing.after = after(stood)
+        standing.all = standing.worth - standing.cost + standing.after + (if (stood == asTyped) guard else 0f)
+        // The least a reading must be worth, less its slips, for the word after to be able to put it first.
+        val least = standing.all + AGAIN_MARGIN - AGAIN_MOST
+        val budget = if (known == null) TapDecoder.BUDGET else LISTED_BUDGET
+        here?.listed { word ->
+            val zipf = words[word] ?: return@listed
+            if (word == asTyped || word == stood || kotlin.math.abs(word.length - lower.length) > 2) return@listed
+            val w = worth(word, zipf)
+            if (w <= least) return@listed
+            val cost = decoder.align(word, 0, minOf(budget, w - least))
+            if (!cost.isInfinite()) offer(word, w, cost)
+        }
+        for (h in decoder.search(least, budget, 0, slipsOnly = common && !AGAIN_EDITS)) {
+            val word = lex.sorted[h.index]
+            if (word == asTyped || word == stood) continue
+            val plain = now.board.script.plain(word)
+            if (plain != word && words.containsKey(plain)) continue
+            offer(word, worth(word, lex.sortedZipf[h.index]), h.cost)
+        }
+        // The readings nearest what stands are held up to the word after: each costs a look at its rows.
+        val nearest = readings.values.filter { it !== standing }.sortedByDescending { (if (it.word == asTyped) 99f else 0f) + it.worth - it.cost }.take(AGAIN_READINGS.toInt())
+        var best = standing
+        for (r in nearest) {
+            r.after = after(r.word)
+            r.all = r.worth - r.cost + r.after + (if (r.word == asTyped) guard else 0f)
+            if (r.all > best.all) best = r
+        }
+        val trace = TRACE
+        if (trace != null) {
+            trace("again $lower: stands $stood, then $follower; " + (if (known == null) "in no list" else if (common) "common" else "rare") + ", guard $guard" + (if (here != null) ", at a place" else ", no place"))
+            trace("  $stood: worth ${standing.worth}, slips ${standing.cost}, after ${standing.after}, in all ${standing.all} (stands)")
+            for (r in nearest) trace("  ${r.word}: worth ${r.worth}, slips ${r.cost}, after ${r.after}, in all ${r.all}")
+        }
+        if (best === standing || best.all < standing.all + AGAIN_MARGIN || best.after - standing.after < AGAIN_LEAST) return null
+        if (known == null && stood == asTyped && best.all < standing.all + AGAIN_UNKNOWN) return null
+        trace?.invoke("  chosen: ${best.word}")
+        return recase(locale, typed, capitalI(now, best.word)).takeIf { it != stands }
+    }
+
+    /**
      * What [word], of frequency [zipf], is worth at a place the tables have a row for, against the other readings
      * there, in Zipf units. A word no row lists or holds down is worth its own frequency, exactly. Every such word
      * is likelier or less likely there by the same amount (how much room the place leaves for words its rows do not
@@ -1287,6 +1377,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** Putting a word together again that a tap on the space bar cut in two ([rejoin]), and how much more than what stands the one word must be worth. */
         @JvmField var REJOIN = true
         @JvmField var REJOIN_MARGIN = 1.0f
+        /** PLACEHOLDER: the second look ([again]) and its numbers, not yet set by measurement. */
+        @JvmField var AGAIN = true
+        @JvmField var AGAIN_WEIGHT = 1.0f
+        @JvmField var AGAIN_MOST = 3.0f
+        @JvmField var AGAIN_MARGIN = 0.5f
+        @JvmField var AGAIN_LEAST = 0.5f
+        @JvmField var AGAIN_UNKNOWN = 1.5f
+        @JvmField var AGAIN_READINGS = 6f
+        @JvmField var AGAIN_EDITS = true
+        @JvmField var AGAIN_REREAD = false
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
         @JvmField var UNKNOWN = 3.2f
         @JvmField var UNKNOWN_ODD = 1.8f

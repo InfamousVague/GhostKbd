@@ -1266,6 +1266,27 @@ class Scorer(
         return if (rows.isEmpty()) null else Here(rows, emptyMap(), 0f, emptyMap(), 0f)
     }
 
+    /**
+     * Every table gone by here says how often its one-word rows were seen ([NgramTable.counted]), and there is one:
+     * what [follows] answers can then be held, one first word against another. False with any table from before
+     * the counts among them (every language's but English's, today), whatever rows it has.
+     */
+    val counted: Boolean get() = tables.isNotEmpty() && tables.all { it.counted }
+
+    /**
+     * What [first] (lower case), were it the word typed at this place, makes of [next] (lower case, of frequency
+     * [zipf]) coming straight after it, in Zipf units over [next]'s own frequency: how many powers of ten likelier
+     * [next] is after [first] than anywhere, by the tables alone ([after], [Here.worth]). Over 0 where a row lists
+     * it ("going" after "are"), under 0 where the rows there leave it little room or none ("going" after "ate"),
+     * and 0 exactly where no table has a row for [first]: nothing is then known of what follows it.
+     *
+     * Unlike [Autocorrect.atPlace], the room a place leaves for words its rows do not list is counted in: there
+     * the readings of one word are held against each other at one place, and the room is the same for all of them;
+     * here one word is held up at several places, a first word a place, and the room is each place's own.
+     */
+    fun follows(first: String, next: String, zipf: Float, own: (String) -> Float?): Float =
+        after(first, own)?.let { it.worth(next, zipf) - zipf } ?: 0f
+
     /** The person's own words that begin with [prefix]: lower case, as shown, and how common their use makes each. */
     fun personal(prefix: String): List<Next> = lookup.starting(prefix).mapNotNull { (w, n) ->
         val z = personalZipf(n, lookup.isWord(w))

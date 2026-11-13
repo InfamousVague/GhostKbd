@@ -282,6 +282,12 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     private class Cut(val typed: String, val stood: String, val touches: List<Touch?>, val tap: Touch)
     private var cut: Cut? = null
     private var spaceTouch: Touch? = null
+    /**
+     * DevKeyboardService.Behind: the word that ended last, as typed and as it was left standing, with its taps and
+     * what ended it, kept until the next word ends: it is read again then, with that word in hand (Autocorrect.again).
+     */
+    private class Behind(val typed: String, val stood: String, val touches: List<Touch?>, val separator: String)
+    private var behind: Behind? = null
     private val joiners = decoder.state.joiners
     private val locale = decoder.state.locale
     var unhandled = 0
@@ -292,6 +298,16 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
      * Two scraps it was asked to put together again are told as one, with the space between them.
      */
     var asked: ((word: String, before: String, fixed: String?) -> Unit)? = null
+    /**
+     * Told each word that was read again once the next had ended: as typed, as it stood, the text before it, the word
+     * that followed, and what it was changed to (null: left). For `why` and `looks`.
+     */
+    var looked: ((typed: String, stood: String, before: String, next: String, now: String?) -> Unit)? = null
+    /**
+     * The words changed behind the cursor, each "<which word of the text>:<what stood>:<what stands now>:<as typed>":
+     * for counting what a person sees change (tool/versus/behind.py).
+     */
+    val behinds = ArrayList<String>()
 
     private fun isWordChar(c: Char) = Words.isWordChar(c, joiners)
 
@@ -380,6 +396,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             // Unless the space before this one was the word's last letter, landed on the bar ("o " for "on").
             val c = cut
             cut = null
+            behind = null
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))
                 asked?.invoke(c.typed + " ", text.dropLast(c.stood.length + 1).takeLast(96).toString(), whole)
@@ -401,13 +418,13 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         lastSpaceAt = now.coerceAtLeast(1L)
     }
 
-    private fun tapsFor(word: String): Taps? {
-        if (word.isEmpty() || wordTouches.size != word.length) return null
+    private fun tapsFor(word: String, touches: List<Touch?> = wordTouches): Taps? {
+        if (word.isEmpty() || touches.size != word.length) return null
         val xs = FloatArray(word.length) { Float.NaN }
         val ys = FloatArray(word.length) { Float.NaN }
         var known = 0
         for (i in word.indices) {
-            val t = wordTouches[i] ?: continue
+            val t = touches[i] ?: continue
             if (t.c != word[i] && t.c.toString().lowercase(locale) != word[i].toString().lowercase(locale)) return null
             xs[i] = t.x; ys[i] = t.y; known++
         }
@@ -425,7 +442,10 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val before = text.takeLast(96).toString()
         val from = (before.length - 48).coerceAtLeast(0)
         val word = before.substring(Words.lastStart(before, joiners, from))
+        // A space after a comma ends no word: the word the comma ended is still the word before the next.
         if (word.isEmpty()) return false
+        val b = behind
+        behind = null
         val start = Words.runStart(before, joiners, from)
         if (start > 0) {
             val prev = before[start - 1]
@@ -443,15 +463,43 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             }
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-        val fixed = decoder.ac.correct(word, scorer, tapsFor(word))
+        val taps = tapsFor(word)
+        val fixed = decoder.ac.correct(word, scorer, taps)
         asked?.invoke(word, before.dropLast(word.length), fixed)
+        var stands = fixed ?: word
+        // The word before this one, read again now that this one has ended and been settled (Autocorrect.again).
+        var changed = false
+        val gap = if (b == null || b.separator == " ") " " else b.separator + " "
+        if (b != null && taps != null && text.endsWith(b.stood + gap + word)) {
+            val back = b.stood.length + gap.length + word.length
+            val head = text.dropLast(back)
+            if (head.isEmpty() || !(head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) {
+                val now = decoder.ac.again(b.typed, b.stood, stands, scorerAt(back), tapsFor(b.typed, b.touches))
+                looked?.invoke(b.typed, b.stood, head.takeLast(96).toString(), stands, now)
+                if (now != null) {
+                    behinds += "${head.split(Regex("\\s+")).count { t -> t.any { it.isLetterOrDigit() } }}:${b.stood}:$now:${b.typed}"
+                    text.setLength(text.length - back)
+                    text.append(now).append(gap)
+                    // The word just ended stood after another word when it was read: read once more after this one.
+                    if (Autocorrect.AGAIN_REREAD) {
+                        val after = (text.toString() + word).takeLast(96)
+                        val at = runCatching { NextWordText.place(after, ::isWordChar, after.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
+                        stands = decoder.ac.correct(word, at, taps) ?: word
+                    }
+                    text.append(word)
+                    changed = true
+                }
+            }
+        }
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch
-        if (separator == " " && bar != null) cut = Cut(word, fixed ?: word, wordTouches.toList(), bar)
-        if (fixed == null) return false
-        fixes += "$word>$fixed"
+        if (separator == " " && bar != null) cut = Cut(word, stands, wordTouches.toList(), bar)
+        // Kept to be read again when the next word ends, where what ended it is looked through as a space is.
+        if (taps != null && (separator == " " || separator == ",")) behind = Behind(word, stands, wordTouches.toList(), separator)
+        if (stands == word && !changed) return false
+        if (stands != word) fixes += "$word>$stands"
         text.setLength(text.length - word.length)
-        text.append(fixed).append(separator)
+        text.append(stands).append(separator)
         return true
     }
 }
@@ -547,7 +595,7 @@ fun replay(root: File, all: List<String>) {
                     "M" -> { val c = e.substring(2, 3)[0]; typist.mark(c); plain.mark(c) }
                 }
             }
-            println(id + "\t" + typist.text + "\t" + plain.text + "\t" + typist.fixes.joinToString(" ") + "\t" + typist.unhandled)
+            println(id + "\t" + typist.text + "\t" + plain.text + "\t" + typist.fixes.joinToString(" ") + "\t" + typist.unhandled + "\t" + typist.behinds.joinToString(";"))
             n++
         }
         line = readLine()
@@ -589,6 +637,11 @@ fun why(root: File, all: List<String>) {
                 told.forEach { println("\t" + it) }
                 told.clear()
             }
+            typist.looked = { typed, stood, before, _, now ->
+                println(f[0] + "\t" + typed + "\t" + (now ?: stood) + "\t" + before)
+                told.forEach { println("\t" + it) }
+                told.clear()
+            }
             for (e in f[1].split(' ')) {
                 val g = e.split(':')
                 when (g.getOrNull(0)) {
@@ -596,6 +649,54 @@ fun why(root: File, all: List<String>) {
                     "M" -> typist.mark(e.substring(2, 3)[0])
                 }
             }
+        }
+        line = readLine()
+    }
+}
+
+/**
+ * `looks`: replay's lines in, and out, for every word that was read again once the next had ended
+ * (Autocorrect.again), a line "<id> TAB <which word of the text> TAB <as typed> TAB <as it stood> TAB <the word that
+ * followed> TAB <what it was changed to, or nothing>", then a line a reading, each begun with a tab: what the word is
+ * worth at its place, what its slips cost and what the word after makes of it. tool/versus/behind.py counts from
+ * these what the word after could decide.
+ */
+fun looks(root: File, all: List<String>) {
+    val args = ArrayList<String>()
+    var recorded: File? = null
+    var i = 0
+    while (i < all.size) {
+        when {
+            all[i] == "--set" -> { dial(all[i + 1]); i++ }
+            all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
+            !all[i].startsWith("--") -> args += all[i]
+        }
+        i++
+    }
+    val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
+    val decoder = Decoder(root)
+    val told = ArrayList<String>()
+    Autocorrect.TRACE = { told += it }
+    var line = readLine()
+    while (line != null) {
+        val tab = line.indexOf('\t')
+        if (tab > 0) {
+            val id = line.substring(0, tab)
+            val typist = Typist(b, decoder)
+            typist.asked = { _, _, _ -> told.clear() }
+            typist.looked = { typed, stood, before, next, now ->
+                println(id + "\t" + before.split(Regex("\\s+")).count { t -> t.any { it.isLetterOrDigit() } } + "\t" + typed + "\t" + stood + "\t" + next + "\t" + (now ?: ""))
+                told.filter { it.startsWith("again ") || it.startsWith("  ") }.forEach { println("\t" + it) }
+                told.clear()
+            }
+            for (e in line.substring(tab + 1).split('\t')[0].split(' ')) {
+                val f = e.split(':')
+                when (f.getOrNull(0)) {
+                    "T" -> typist.tap(f[1].toFloat(), f[2].toFloat(), f[3].toLong())
+                    "M" -> typist.mark(e.substring(2, 3)[0])
+                }
+            }
+            println(id + "\t=\t" + typist.text)
         }
         line = readLine()
     }
@@ -609,6 +710,7 @@ fun main(args: Array<String>) {
         "probes" -> probes(root, rest)
         "replay" -> replay(root, rest)
         "why" -> why(root, rest)
-        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay|why ..."); kotlin.system.exitProcess(2) }
+        "looks" -> looks(root, rest)
+        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay|why|looks ..."); kotlin.system.exitProcess(2) }
     }
 }
