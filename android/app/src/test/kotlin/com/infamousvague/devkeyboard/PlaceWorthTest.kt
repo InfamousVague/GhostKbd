@@ -231,6 +231,15 @@ class PlaceWorthTest {
         assertNull(ac.correct("rat", scorer("need", "to"), taps("rat")))
     }
 
+    @Test fun aListedWordIsNotReadAsItsApostropheSpellingByThePlaceAlone() {
+        // "its" opening a sentence and "were" after "if", each with one tap a fifth of a key off its middle (so not
+        // every tap is well inside its key): the place expects "it's" and "we're", and no tap says so.
+        assertNull(ac.correct("its", scorer("^"), taps("its", 1 to (0f to 0.2f))))
+        assertNull(ac.correct("were", scorer("if"), taps("were", 1 to (0f to 0.2f))))
+        // A contraction typed without its apostrophe is mended as it always was.
+        assertEquals("I'm", ac.correct("im", scorer("^"), taps("im")))
+    }
+
     @Test fun thePersonsCountsAloneNeverTakeACommonWordsPlace() {
         // "Ken" after "hi" where "jen" has been typed there three or ten times: Ken stands, typed cleanly or with
         // its k a third of a key toward j.

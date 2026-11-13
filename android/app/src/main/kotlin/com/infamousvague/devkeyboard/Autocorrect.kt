@@ -755,8 +755,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         var bestWord: String? = null
         var bestScore = Float.NEGATIVE_INFINITY
+        // At a place, a listed typed word is never read as a word it differs from by apostrophes alone ([PLACE_APOSTROPHE]):
+        // an apostrophe has no tap, so nothing but the place would say so ("Its" opening a sentence is not "It's").
+        val noApostrophe = here != null && known != null && !PLACE_APOSTROPHE
         fun offer(word: String, score: Float, least: Float = bar) {
             if (word == lower || word == stands || score < least || score <= bestScore) return
+            if (noApostrophe && ('\'' in word || '’' in word) && word.length > lower.length && word.filter { it != '\'' && it != '’' } == lower) return
             bestWord = word; bestScore = score
         }
         // What a reading must be worth, less its slips, to take the typed word's place.
@@ -860,9 +864,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 if (made == null) none += a else afters[a] = made
                 return made
             }
-            // A word the rows there list is worth what it is worth at its place; any other word pays JOIN_UNSEEN
-            // as well as what the place holds it down by, so a pair the tables have evidence against never outranks
-            // one they know nothing of.
+            // A word the rows there list is worth what it is worth at its place; any other word pays JOIN_UNSEEN or
+            // what the place holds it down by, whichever is more, so a pair the tables have evidence against never
+            // outranks one they know nothing of. Measured 2026-11-13, joins fixed by the bench's normal and
+            // sloppy thumbs: paying both (as the code review put it) 63.6 / 58.6%, the bench's measure 94.51; this
+            // way 63.6 / 59.4%, 94.52; the rule before, a held-down word worth its place alone, 64.1 / 59.4% (at
+            // CLEAN_TAP 0.5: 94.44 against 94.42 for paying both). Seen and unseen the same all three ways.
             // Where there is no such place (prediction off, or no table that can be weighed has a row for the first
             // word: [Scorer.after] is null), the least share the first word's row lists: a second word the row does
             // not list follows it less often than that, however common it is elsewhere ("the" after "i": never, for
@@ -874,7 +881,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 after(a)?.let { at ->
                     val w = sorted[b]
                     val over = HERE_WEIGHT * at.over(w, z)
-                    return if (at.lists(w)) z + over else z - JOIN_UNSEEN + minOf(0f, over)
+                    return if (at.lists(w)) z + over else z + minOf(-JOIN_UNSEEN, over)
                 }
                 val row = lex.follows(sorted[a])
                 val share = row?.get(sorted[b]) ?: 0f
@@ -1411,10 +1418,33 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * widths squared (1 for a tap in the middle of a key, beside a key a width away; 0 on the line between two).
          * After the code review of 2026-11-13: with the place read, a right word with every tap in the middle of its
          * key was rewritten where the tables expect a neighbour ("Its" opening a sentence was always "It's"), and an
-         * apostrophe, a doubled letter or a letter added owe nothing to where the taps landed. PLACEHOLDER: set by
-         * the measures in the comment below.
+         * apostrophe, a doubled letter or a letter added owe nothing to where the taps landed. 0.7 is a tap within
+         * about 0.15 of a key of the middle, toward its nearest neighbour. Measured 2026-11-13 (the bench's measure,
+         * seen and unseen words wrong; then mended and broken against 0.5 on prose that is not Tatoeba's, this
+         * repository's documents and another project's, 7,119 words each typed by the three thumbs, tool/versus/whatif.py):
+         *
+         *     clean at   measure   seen     unseen   not Tatoeba's, against 0.5
+         *     never      94.58     5.34%    5.88%    +19 -16
+         *     0.7        94.51     5.38%    5.93%    +11 -10
+         *     0.5        94.42     5.51%    6.05%
+         *     0.3        94.35     5.59%    6.15%    (the careful thumb spoils 1.62 right words in 1000 for 1.93)
+         *
+         * With taps that scatter as the thumbs' do it is near nothing either way on prose that is not Tatoeba's; with
+         * every tap in the middle of its key (the code review's typing) it takes every change the place alone made
+         * away. 0.7 does that for 2 words of the seen set and 3 of the unseen.
          */
-        @JvmField var CLEAN_TAP = 0.5f
+        @JvmField var CLEAN_TAP = 0.7f
+        /**
+         * Whether at a place a listed typed word may be read as a word it differs from by apostrophes alone ("its" as
+         * "it's", "were" as "we're", "hell" as "he'll"). Off: an apostrophe is typed with no tap of its own, so the
+         * taps say nothing for such a reading and the place alone would make it, and Tatoeba's sentences, which the
+         * tables were counted from, all but never open with "Its". The code review of 2026-11-13 found 11 of the 14
+         * clean words the place changed in this repository's documents, and 16 of 33 in another project's, were
+         * its to it's. Measured 2026-11-13: on the seen and unseen sets and the bench nothing moves either way (no word
+         * mended there was such a reading); on the prose that is not Tatoeba's ([CLEAN_TAP]'s), allowing them breaks 19
+         * words and mends none.
+         */
+        @JvmField var PLACE_APOSTROPHE = false
         /** The most the slips may cost that turn one listed word into another. */
         @JvmField var LISTED_BUDGET = 3.4f
         /** The first of two words run together is at least this common; and what a second word costs that the tables never saw follow it. */

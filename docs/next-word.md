@@ -141,7 +141,8 @@ often they were seen together; a keyboard from before two-word rows skips that e
 English's one-word rows open with `=n` too (since 2026-11-12): how often the word was seen, a sentence's start for
 `^`. Autocorrect weighs the readings of a word's taps by how likely each is after the words before, and believes a
 row as far as it was seen (`Scorer.Here`; [versus.md](versus.md)). A keyboard from before that skips the entry; a
-table without it (every other language's, until it is made again) is read by its shares, as far as they say.
+table without it (every other language's, until it is made again) is not gone by for that: wherever such a table has
+a row for the words before, autocorrect weighs every word as it did before there was a `Scorer.Here`.
 In memory a context is its words' numbers, so the two-word rows cost no strings (English: about 10 MB). A word is written as it is usually cased in the
 middle of a sentence. `NOTICE.txt` and `CREDITS.txt` beside them carry the attribution.
 
