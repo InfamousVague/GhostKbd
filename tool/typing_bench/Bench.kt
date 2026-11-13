@@ -108,7 +108,12 @@ class Tally {
     ) + String.format("  [real-word slips %d, fixed %d; common words spoiled %d; splits %d]", realWord, realWordFixed, commonSpoiled, splits)
 }
 
-/** Names, handles and terms no word list has: typed on purpose, and to be left alone. Filtered against the lists at run time. */
+/**
+ * Names, handles and terms no word list has: typed on purpose, and to be left alone. Filtered against the lists at run time.
+ * -Dunknown=kekw,gyatt,... gives the words to use in their place: a longer word list knows some of these, and the
+ * sentences typed (and every tap after the first swapped word) are then other ones; two lists are compared on the
+ * same sentences by giving both the words that neither has.
+ */
 val UNKNOWN_WORDS = """
     kira nguyen okafor priyanka siobhan thandiwe zoltan anneke bjorn caoimhe dmitri eamon fenwick giulia hamza ingrid
     jovana kwame leilani mireille nikhil oksana piotr quillon raheem saoirse tadeusz ulrika vasil wyndham xiomara yusra
@@ -116,7 +121,7 @@ val UNKNOWN_WORDS = """
     grubhub doordashed venmoed ubered pogchamp kekw copium hopium ratioed doomscroll sigma mewing aura fanum looksmax
     kubectl nvim tmux zsh fastlane mapbox supabase vercel nextjs tailwind zustand pnpm turborepo vitest
     mattv attackfm ghostmd glacierui wispr mockbird kbd devkbd
-""".trim().split(Regex("\\s+"))
+""".trim().split(Regex("\\s+")).let { all -> System.getProperty("unknown")?.split(',')?.filter { it.isNotBlank() } ?: all }
 
 /** Words as they are commonly misspelled, and what was meant: typed on purpose, letter for letter, so no tap is on a line. */
 val MISSPELLINGS = """

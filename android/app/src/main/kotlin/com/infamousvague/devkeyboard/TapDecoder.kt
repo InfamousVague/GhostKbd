@@ -20,9 +20,11 @@ class Taps(val xs: FloatArray, val ys: FloatArray, val keys: Map<Char, Pair<Floa
  * ([best], a Zipf frequency, and [bestWord], its place), by which a search gives up on a branch that can no longer
  * win, and by which a word half typed is finished.
  *
- * Made from the lexicon's sorted words in one pass. Never changed once made, so any thread may read it.
+ * Made from the lexicon's sorted words in one pass. Never changed once made, so any thread may read it. [read] says
+ * which of the words are in it (all of them where it is null): a word left out keeps its place in the sorted list
+ * and is never a reading of anything (English's wider list has words that are known when typed and never offered).
  */
-class WordTrie(words: Array<String>, zipf: FloatArray) {
+class WordTrie(words: Array<String>, zipf: FloatArray, read: BooleanArray? = null) {
     val ch: CharArray
     val down: IntArray
     val next: IntArray
@@ -35,7 +37,11 @@ class WordTrie(words: Array<String>, zipf: FloatArray) {
         var n = 1
         var longest = 0
         var prev = ""
-        for (w in words) { n += w.length - shared(prev, w); if (w.length > longest) longest = w.length; prev = w }
+        for (index in words.indices) {
+            if (read != null && !read[index]) continue
+            val w = words[index]
+            n += w.length - shared(prev, w); if (w.length > longest) longest = w.length; prev = w
+        }
         size = n
         ch = CharArray(n)
         down = IntArray(n) { -1 }
@@ -50,7 +56,7 @@ class WordTrie(words: Array<String>, zipf: FloatArray) {
         prev = ""
         for (index in words.indices) {
             val w = words[index]
-            if (w.isEmpty()) continue
+            if (w.isEmpty() || (read != null && !read[index])) continue
             val keep = shared(prev, w)
             for (d in keep until w.length) {
                 val id = made++
