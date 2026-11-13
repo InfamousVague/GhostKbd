@@ -64,6 +64,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
+        /** What letters no list has are worth ([unlisted]), where the one list loaded has a table for it (English's): else null. */
+        val letters: LetterModel? = null,
     ) {
         /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
         val trie: WordTrie = WordTrie(sorted, sortedZipf)
@@ -285,9 +287,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 }
             }
         }
+        // English alone has a table of what its unlisted words are spelled like ([LetterModel]); any other set of
+        // lists holds letters no list has to the fixed bars, as before.
+        val letters = if (languages.size == 1 && languages[0] == "en") runCatching { LetterModel.read(open("dict/en_letters.tsv")) }.getOrNull() else null
         return Lexicon(
             key, w, f, c, sorted, FloatArray(sorted.size) { w[sorted[it]] ?: 0f }, plainKeys, plainWords, FloatArray(plainWords.size) { w[plainWords[it]] ?: 0f },
-            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows,
+            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows, letters,
         )
     }
 
@@ -690,8 +695,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      *
      * Every reading is worth its word's frequency, plus what the words before lift it by (at most [CONTEXT_PICK]),
      * less what its slips cost. The typed word is one of the readings, with no slips:
-     * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]):
-     *   any reading worth more replaces it;
+     * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]),
+     *   or less than either where English's letter table says its letters are no word's ([unlisted]): any reading
+     *   worth more replaces it;
      * - a rare listed word gives way to a reading worth [MARGIN_RARE] more than it;
      * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one, and only by slips of
      *   the thumb: "br" with its r tapped on the line between e and r is "be", and with the r tapped in the middle
@@ -718,8 +724,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         val common = known != null && known >= COMMON
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
-        // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
-        val unknown = if (known != null) UNKNOWN else unlisted(lower)
+        // it is long (a long word a letter from a common one is that word misspelled, far more often than a name),
+        // and next to nothing where its letters are ones no word puts together ([unlisted]).
+        val letters = letterTable(now, scorer)
+        val unknown = if (known != null) UNKNOWN else unlisted(now, lower, letters)
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
         val bar = when {
@@ -744,7 +752,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             if (plain != word && words.containsKey(plain)) continue
             val zipf = lex.sortedZipf[h.index]
             // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
-            val least = if (known == null && unknown < UNKNOWN && inflected(words, lower, word)) UNKNOWN else bar
+            val least = if (known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || letters == null) && inflected(words, lower, word)) UNKNOWN else bar
             offer(word, zipf + lift(word, zipf) - h.cost, least)
         }
         // The person's own words: never in the trie, so each is held up against the taps.
@@ -834,9 +842,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val locale = now.board.locale
         val words = lex.words
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        val letters = if (LETTERS_JOINS > 0f) letterTable(now, scorer) else null
         fun alone(word: String): Float {
             val l = word.lowercase(locale)
-            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(l)
+            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(now, l, letters)
         }
         val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
         val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
@@ -853,12 +862,46 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         return best?.let { recase(locale, first, capitalI(now, it)) }
     }
 
-    /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
-    private fun unlisted(lower: String): Float = when {
-        lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
-        lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
-        else -> UNKNOWN
+    /**
+     * What letters no list has are worth against a reading of their taps ([byTaps], [rejoin]), in the Zipf units a
+     * listed word's frequency is in.
+     *
+     * The fixed bars: [UNKNOWN], or [UNKNOWN_ODD] where the letters do not look like a word ([odd]), or
+     * [UNKNOWN_LONG] from [LONG_WORD] letters. A fixed bar cannot tell "prrsrnyable" from a name. Where the one list
+     * loaded has a letter table (English: [LetterModel]) the letters are also worth what the table makes of them,
+     * and the lesser of the two is the answer: the chance that a word no list has was meant here and is spelled so,
+     * which is the share of running words no list has times the letters' chance as such a word. In Zipf units that
+     * is 9 + log10(share), plus [LETTERS_SHIFT], less [LETTERS_WEIGHT] for each unit the letters cost
+     * ([LetterModel.cost]). It falls with every letter, and faster where the letters are ones no word puts
+     * together: "kira" and "berber" are worth what the fixed bars say, "prrsrnyable" less than nothing. Where the
+     * table has its say [odd] has none ([LETTERS_ODD]): the table says by how much letters do not look like a word.
+     *
+     * The table only ever lowers a bar, and is not taken at its word. Counted for all it says ([LETTERS_WEIGHT] 1,
+     * [LETTERS_SHIFT] 0, no bar for long words above it) it mends 85 of the 326 words the scoreboard's seen set has
+     * wrong and changes two in three of the names and terms the typing bench types on purpose: its chance is spread
+     * over every string that could be a word, and the words people do type are few of those, so a real name is
+     * worth far more than its letters say. docs/versus.md has the curve ("What letters no list has are worth").
+     */
+    private fun unlisted(now: Now, lower: String, model: LetterModel?): Float {
+        val fixed = when {
+            lower.length >= 4 && (model == null || LETTERS_ODD > 0f) && odd(lower) -> UNKNOWN_ODD
+            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
+            else -> UNKNOWN
+        }
+        if (model == null || lower.length < LETTERS_FROM.toInt()) return fixed
+        val cost = model.cost(now.board.script.plain(lower))
+        // A character the table has no letter for (another script's, a digit): the fixed bar alone.
+        if (cost.isNaN()) return fixed
+        return minOf(fixed, maxOf(LETTERS_FLOOR, model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost))
     }
+
+    /**
+     * The letter table [unlisted] answers from, or null for the fixed bars alone: English's, where it is on
+     * ([LETTERS]) and the words before are read ([scorer] not null, which it is wherever prediction is off), unless
+     * [LETTERS_UNSCORED] lets the table have its say there too.
+     */
+    private fun letterTable(now: Now, scorer: Scorer?): LetterModel? =
+        now.lexicon.letters?.takeIf { LETTERS > 0f && (scorer != null || LETTERS_UNSCORED > 0f) }
 
     /**
      * The likeliest word a slip or two from a typed one ([from] the candidate spelling it came by): its [score], what
@@ -1153,6 +1196,77 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
         @JvmField var UNKNOWN_LONG = 1.6f
         @JvmField var LONG_WORD = 6f
+        /**
+         * English's letter table ([LetterModel]) has a say in what letters no list has are worth ([unlisted]): at 0
+         * they are held to the fixed bars alone, as every other language's are, and the keyboard is as it was before
+         * there was a table (the scoreboard and the typing bench say so to the last word).
+         */
+        @JvmField var LETTERS = 1f
+        /**
+         * What is added to what the table makes letters worth, and how much of what the letters cost is counted.
+         * Measured on the typing bench's own measure (words right less four for every right word spoiled, and the
+         * misspellings mended: 93.76 without the table) with the scoreboard's two sets beside it. At a weight of
+         * 0.6 the measure is 94.57, 94.60, 94.64, 94.64, 94.62 and 94.52 for a shift of 1.25, 1, 0.75, 0.5, 0.25 and
+         * -0.25. Set 2026-11-13 to 1, the least shift tried at which no thumb has more right words spoiled, nor
+         * more of the right words no list has, than under the fixed bars, both on the bench's 12,000 words (1.01,
+         * 1.21 and 1.03 in a thousand for 1.22, 1.48 and 1.65; 0.8%, 3.0% and 3.6% for 1.5%, 4.3% and 7.1%) and on
+         * the tuner's own unseen stretch of the bench, which it was not set on (0.99, 1.14 and 1.36 for 1.18, 1.30
+         * and 1.49; 2.5%, 4.0% and 5.5% for 3.1%, 4.7% and 6.2%). 0.75, where it stood first, leaves six fewer of
+         * the seen set's words wrong and seven of the unseen set's (281 and 384 for 287 and 391), but on that
+         * stretch its sloppy thumb spoils 1.86 right words in a thousand and 8.3% of the unknown ones. Weights of
+         * 0.8 and 1 with the shift that suits each (3.05, 5.3) trace the same curve. docs/versus.md has every line.
+         */
+        @JvmField var LETTERS_SHIFT = 1f
+        @JvmField var LETTERS_WEIGHT = 0.6f
+        /**
+         * The least the table may make letters worth. None: most of what the table mends is long strings and words
+         * run together that are worth less than nothing. With a floor of 0, -1, -2, -3 and -4 the bench's measure is
+         * 94.23, 94.43, 94.55, 94.60 and 94.64, for 94.64 with none; and a floor gives back little of the time the
+         * lower bars cost the search (docs/versus.md).
+         */
+        @JvmField var LETTERS_FLOOR = -99f
+        /**
+         * 1 and letters that hold a run no common word has ([odd]) are still held to [UNKNOWN_ODD] where the table
+         * has its say; 0 and the table alone says what looks like a word. 0, as measured 2026-11-12: [odd] knows
+         * only "has such a run" or "has none", and holds "gyatt" and "kekw" as cheap as "hkpelwss". With it out of
+         * the way the bench's unknown words are spoiled as seldom as under the fixed bars at a shift a whole unit
+         * lower (0.75 for 1.75), where 11 fewer of the seen set's words and 15 fewer of the unseen set's are left
+         * wrong. What it costs: a short slip with such a run in it is no longer held cheap. "truk", "opej", "havun"
+         * and "cyss" on the seen set and "musz", "agajn" and "tcis" on the unseen, which the fixed bars mended, are
+         * not mended (5 and 3 words broken, as the scoreboard counts them).
+         */
+        @JvmField var LETTERS_ODD = 0f
+        /**
+         * The shortest string the table is asked about. 1, every string. With [LETTERS_ODD] 1 and 6 here (the table
+         * for long strings only, the fixed bars as they were for the rest) nothing the fixed bars mended is lost down
+         * to a shift of -0.25, where the bench's measure is 94.77, the highest of any setting tried; but with the
+         * bench's unknown words spoiled as under the fixed bars (a shift of 1.25) it leaves 286 and 396 words of the
+         * scoreboard's two sets wrong, where the table in [odd]'s place leaves 281 and 384. With [LETTERS_ODD] 0 it
+         * only costs (292 and 400: short strings are then held to [UNKNOWN] whatever their letters).
+         */
+        @JvmField var LETTERS_FROM = 1f
+        /**
+         * 1 and a typed word that looks like a listed word with an ending of its own ([inflected]) still gives way
+         * only to a reading worth [UNKNOWN], where the table has made it worth less. Left at 1: without the rule 12
+         * more of the bench's 264 misspellings are mended and 3 more of the seen set's words (the bench's measure
+         * 94.74 for 94.64), and 3 and 2 more of its careful and normal thumbs' unknown words are spoiled, which is
+         * what the rule is there to prevent.
+         */
+        @JvmField var LETTERS_INFLECTED = 1f
+        /**
+         * 1 and the table has its say where no [Scorer] is passed (prediction off, a terminal, or no place to read
+         * the words before from); 0 and those paths hold letters no list has to the fixed bars, as before the table.
+         * 0, by the rule that the path with prediction off behaves as it did (review of 2026-11-13). Measured
+         * 2026-11-13 with the typing bench's sentences typed with no Scorer at all (tool/typing_bench -Dscorer=none):
+         * docs/versus.md ("With prediction off") has both settings against the fixed bars.
+         */
+        @JvmField var LETTERS_UNSCORED = 0f
+        /**
+         * 1 and the scraps [rejoin] holds against two words put together are worth what the table says, as in
+         * [byTaps]; 0 and they are held to the fixed bars, as before the table. The joins are not this table's to
+         * change, so this keeps the two apart for whoever merges: docs/versus.md ("Joins") has both.
+         */
+        @JvmField var LETTERS_JOINS = 1f
         /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
         @JvmField var RARE_GAP = 2f
         @JvmField var RARE_BUDGET = 2.2f
@@ -1234,5 +1348,118 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             println printf stringify endpoint endpoints webhook webhooks dotfiles gradle flutter widget widgets
             refactor refactored refactoring deploy deployed deploys repo's monorepo submodule codebase
         """.trim().split(Regex("\\s+")).toSet()
+    }
+}
+
+/**
+ * How likely a string of letters is as a word no list has ([Autocorrect.unlisted]): runs of up to [order] letters
+ * with a start and an end mark, counted over the words of real sentences that are in no list, each kind of word
+ * once. Read from assets/dict/<language>_letters.tsv, which tool/letters.py makes (English's alone so far): its
+ * first line that is no comment holds the order and the [share] of running words that no list had, and every other
+ * line a run of letters ("^" a word's start, "$" its end, the apostrophe a letter), what its last letter costs after
+ * the ones before it, and what is added before going by one letter less where a longer run is not in the file. Costs
+ * are minus the log to base ten of a chance, in hundredths: the units of a Zipf frequency.
+ *
+ * A run is kept as a number, five bits a mark, so a look-up is a binary search of [keys] and nothing is made for it.
+ */
+internal class LetterModel private constructor(val order: Int, val share: Float, private val keys: IntArray, private val costs: ShortArray, private val backs: ShortArray) {
+    /** What a word no list has would be worth were every such word the same one: 9 + log10 of their [share] of running words. */
+    val base: Float = 9f + kotlin.math.log10(share)
+
+    /** How many runs the table holds. */
+    val size: Int get() = keys.size
+
+    /**
+     * What [word]'s letters cost: minus the log to base ten of its chance as a word no list has, so that
+     * [base] less this is what it is worth in Zipf units. NaN where it holds a character the table has no letter
+     * for (anything but a to z and the apostrophe: spell it plainly first, [Script.plain]).
+     */
+    fun cost(word: String): Float {
+        val mask = (1 shl (BITS * (order - 1))) - 1
+        var before = 0
+        repeat(order - 1) { before = (before shl BITS) or START }
+        var total = 0
+        for (i in 0..word.length) {
+            val c = if (i == word.length) END else letter(word[i])
+            if (c == 0) return Float.NaN
+            // The longest run the table has that ends in this letter: each shorter one tried costs what its longer
+            // one says is added for going without it.
+            var k = order - 1
+            while (true) {
+                val run = if (k == 0) 0 else before and ((1 shl (BITS * k)) - 1)
+                val at = java.util.Arrays.binarySearch(keys, (run shl BITS) or c)
+                if (at >= 0 && costs[at] >= 0) { total += costs[at]; break }
+                if (k == 0) { total += UNSEEN; break }
+                val b = java.util.Arrays.binarySearch(keys, run)
+                if (b >= 0) total += backs[b]
+                k--
+            }
+            before = ((before shl BITS) or c) and mask
+        }
+        return total / 100f
+    }
+
+    companion object {
+        private const val BITS = 5
+        private const val START = 28
+        private const val END = 29
+        /** A letter the file gives no cost at all, which no file tool/letters.py writes does: as dear as nine units. */
+        private const val UNSEEN = 900
+        /** The longest run a number holds: six marks of five bits. */
+        private const val MOST = 6
+
+        /** A letter of a word as the table counts it: 1 to 26 for a to z, 27 for an apostrophe, 0 for anything else. */
+        private fun letter(c: Char): Int = when (c) {
+            in 'a'..'z' -> c - 'a' + 1
+            '\'', '’' -> 27
+            else -> 0
+        }
+
+        /** A mark of a run in the file: a letter, or the start or the end of a word. */
+        private fun mark(c: Char): Int = when (c) {
+            '^' -> START
+            '$' -> END
+            else -> letter(c)
+        }
+
+        /** The table in [stream], or null where there is none or it is not one (the fixed bars then stand). */
+        fun read(stream: InputStream?): LetterModel? {
+            stream ?: return null
+            var order = 0
+            var share = 0f
+            // A row as one number, to sort by run without making an object a row: the run, then the cost and one
+            // (nothing where the file gives none), then what going one letter shorter adds.
+            var rows = LongArray(16_384)
+            var n = 0
+            stream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    if (line.isEmpty() || line[0] == '#') continue
+                    val f = line.split('\t')
+                    if (f[0] == "=") {
+                        var i = 1
+                        while (i + 1 < f.size) {
+                            when (f[i]) { "order" -> order = f[i + 1].toIntOrNull() ?: 0; "share" -> share = f[i + 1].toFloatOrNull() ?: 0f }
+                            i += 2
+                        }
+                        continue
+                    }
+                    if (f[0].length > MOST) continue
+                    var key = 0
+                    for (ch in f[0]) { val m = mark(ch); if (m == 0) { key = -1; break }; key = (key shl BITS) or m }
+                    if (key <= 0) continue
+                    val cost = f.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 32_000) ?: -1
+                    val back = f.getOrNull(2)?.toIntOrNull()?.coerceIn(0, 32_000) ?: 0
+                    if (n == rows.size) rows = rows.copyOf(n * 2)
+                    rows[n++] = (key.toLong() shl 32) or ((cost + 1).toLong() shl 16) or back.toLong()
+                }
+            }
+            if (order !in 1..MOST || share <= 0f || share > 1f || n == 0) return null
+            rows = rows.copyOf(n)
+            rows.sort()
+            return LetterModel(
+                order, share, IntArray(n) { (rows[it] ushr 32).toInt() },
+                ShortArray(n) { (((rows[it] ushr 16) and 0xFFFF).toInt() - 1).toShort() }, ShortArray(n) { (rows[it] and 0xFFFF).toInt().toShort() },
+            )
+        }
     }
 }

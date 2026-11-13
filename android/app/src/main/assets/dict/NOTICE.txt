@@ -25,6 +25,23 @@ frequency to two decimals, made by tool/dictionaries.py in Ghost Keyboard's repo
 - en.tsv, de.tsv, es.tsv, fr.tsv, it.tsv and pt.tsv are wordfreq's lists as they are.
 en_contractions.tsv and en_slang.txt are Ghost Keyboard's own and are not from wordfreq.
 
+en_letters.tsv
+--------------
+en_letters.tsv is not a word list and holds no word. It says how likely each run of up to three letters is in a
+word that none of the English lists here has, so that the keyboard can tell letters no word puts together from a
+name it has not met. It was made by tool/letters.py in Ghost Keyboard's repository.
+
+Counts derived from Tatoeba (CC BY 2.0 FR); the words left out of the count are those of the wordfreq list (CC BY-SA
+4.0).
+
+The counts are derived from the English sentences of Tatoeba (https://tatoeba.org), written by its contributors and
+released under the Creative Commons Attribution 2.0 France licence (https://creativecommons.org/licenses/by/2.0/fr/).
+The contributors whose sentences were counted are named in ngram/CREDITS.txt, beside this folder. What was changed:
+none of the sentences is here, and none of their words. The words of the sentences that are in none of the English
+lists were taken, each once however often it stood, and the file holds, for every run of letters seen in them, a
+number that says how often the run's last letter followed the letters before it. The file's own first lines say
+which export was read and how many words were counted.
+
 wordfreq's sources
 ------------------
 wordfreq contains data extracted from Google Books Ngrams (http://books.google.com/ngrams) and Google Books Syntactic

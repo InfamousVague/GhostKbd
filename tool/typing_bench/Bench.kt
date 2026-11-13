@@ -186,7 +186,10 @@ class Keyboard(root: File) {
     var swipeContext = true
     fun swipe(path: List<Pair<Float, Float>>, times: List<Long>, before: String, text: String? = null): List<String> =
         ac.swipePlain(path, Geo.centres, Geo.W, before, if (swipeContext && text != null) scorer(text) else null)
+    /** -Dscorer=none: every word is corrected as with prediction off (no Scorer), for measuring that path. */
+    private val noScorer = System.getProperty("scorer") == "none"
     fun scorer(before: String): Scorer? {
+        if (noScorer) return null
         val place = NextWordText.place(before, ::isWordChar, false) ?: return null
         val one = personal.followers(place.prev)
         val two = place.prev2?.takeIf { place.prev != NextWordText.START }?.let { personal.followers("$it ${place.prev}") } ?: emptyList()
