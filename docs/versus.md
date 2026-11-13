@@ -257,30 +257,44 @@ that read by taps, are as they were):
 - letters that spell a common word may have lost a letter, had one tapped twice or two swapped, each for at least
   `LISTED_EDIT` (2): th, ot, su, tae, ff and soo were kept as the common words the lists make them. A tap that
   doubles nothing is never taken out of one ("ink" is not "in");
-- a word typed as one letter may have lost its other for `LONE_OMIT` (1.4): "t" where "to" is likely is "to";
+- a word typed as one letter may have lost its other for `LONE_OMIT` (1.8): "t" where "to" is likely is "to";
 - one of two swapped taps may have landed on a neighbour's key as well (`SWAP_SLIP`): "iculs" is "could", and the
   swap steps over an apostrophe ("dotn" is "don't", not "dont");
 - a tap too many costs by where it landed, from `INSERT_DOUBLED` on the key beside it up to `REACH_INSERT` (3.4) in
-  the middle of a key of its own, and a letter left out costs `REACH_OMIT` (1.8; 2 elsewhere).
+  the middle of a key of its own, and a letter left out within the word costs `REACH_OMIT` (1.8; 2 elsewhere).
+  A letter left out after the last tap still costs 2 (`REACH_OMIT_END`), so a word typed whole is lengthened
+  ("civilize" made "civilized") no more readily than before.
+
+"English among the lists" means the board's lists, all of one script: with English and French both on, the French
+words typed on that board are read with the reach too. Each language alone is as it was (`tool/lang_check.sh`,
+line for line).
 
 | | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | the run's 900 typings, before | 2.48% | 5.42% | 10.89% | 6.26% | | |
-| after | 1.96% | 4.84% | 9.97% | 5.59% | 39 | 4 |
+| after | 2.02% | 4.84% | 9.91% | 5.59% | 38 | 3 |
 | the 900 unseen typings, before | 3.28% | 5.01% | 12.17% | 6.82% | | |
-| after | 2.67% | 4.45% | 11.42% | 6.18% | 44 | 3 |
+| after | 2.72% | 4.49% | 11.42% | 6.21% | 42 | 3 |
 
-On the bench's 12,000 words, words right go from 96.41%, 92.34% and 85.65% to 96.76%, 92.93% and 86.65% for the
-careful, normal and sloppy thumb; right words spoiled from 1.22, 1.48 and 1.65 in a thousand to 1.42, 1.61 and
-1.65; the right words no list has that are spoiled from 1.5%, 4.3% and 7.1% to 1.9%, 4.3% and 6.0%. What it spoils
-that was not spoiled: "kbd" made "kind", "nd" made "and" (the bench's "2nd" with its digit trimmed), "civilize"
-made "civilized" and "if" made "of"; no longer spoiled: "confidences" and "ratioed". Each dial's comment in `TapDecoder` has its neighbours on both sets and on the
-bench tuner's measure. Broken on the run: "o" for "on" twice, now "of" and "to" before the next space's
-`rejoin` sees it, which then holds the scrap at that word's whole frequency (rejoin's to mend); "im" read "on"
-for "in" because the word before it was mended; "colf" now "could" for "cold". The search's own visits in
-`byTaps` grow by about a fifth (1,124,411 to 1,360,472 on the run, the most in one search 2,966 to 3,810; on
-the bench 8,079,522 to 9,749,164); none of 5,016 such searches on the run, 6,177 on the unseen set or 35,148 on
-the bench reaches `MAX_VISITS` (40,000), before or after. Not yet typed on a device.
+On the bench's 12,000 words, words right go from 96.41%, 92.34% and 85.65% to 96.75%, 92.91% and 86.62% for the
+careful, normal and sloppy thumb; right words spoiled from 1.22, 1.48 and 1.65 in a thousand to 1.32, 1.48 and
+1.45; the right words no list has that are spoiled from 1.5%, 4.3% and 7.1% to 1.9%, 4.3% and 6.0%. What it spoils
+that was not spoiled: "kbd" made "kind" and "nd" made "and" (the bench's "2nd" with its digit trimmed) by the
+careful thumb, "if" made "of" by the normal one; no longer spoiled: "confidences" (twice) and "ratioed". Each dial's
+comment in `TapDecoder` has its neighbours on the seen set and on the bench tuner's measure. Broken on the run: "o"
+for "on", now "of" before the next space's `rejoin` sees it, which then holds the scrap at that word's whole
+frequency (rejoin's to mend); "im" read "on" for "in" because the word before it was mended; "colf" now "could"
+for "cold". The search's own visits in `byTaps` grow by about a fifth (1,124,411 to 1,359,884 on the run, the most
+in one search 2,966 to 3,810; on the bench 8,079,522 to 9,746,102); none of 5,016 such searches on the run, 6,177
+on the unseen set or 35,148 on the bench reaches `MAX_VISITS` (40,000), before or after. Processor time a word
+could not be told apart from the Mac's load (the least of nine rounds: careful 84 against 62 µs, normal 138
+against 101, sloppy 135 against 145, the tree second). Not yet typed on a device.
+
+`LONE_OMIT` was first set at 1.4 from a count of lone letters made over the seen and the unseen set together; the
+unseen set is for totals only, so it was recounted on the seen set alone (1.8). The other dials' grids had the
+unseen set's totals in them too; read on the seen set and the bench alone, each choice stands (`REACH_INSERT` 3.4
+and 3.8 leave 293 words wrong on the seen set, 3.1 leaves 294; `REACH_OMIT` 1.6 and 1.8 leave 293, 2.0 leaves 295,
+and 1.6 spoils more of the sloppy thumb's words).
 
 ### What the thumb had done
 
