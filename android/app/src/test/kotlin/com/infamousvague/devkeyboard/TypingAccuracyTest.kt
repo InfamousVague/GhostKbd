@@ -273,6 +273,12 @@ class TypingAccuracyTest {
         assertNull(mine.suggest("monday", null, taps("monday"), names = true).fix)
         assertEquals("monday", mine.correct("mondya", null, taps("mondya"), names = true))
         assertEquals("Tuesday", mine.correct("tuesday", names = true))
+        // A name kept in lower case keeps its plural and its possessive so (the list has Toms as a word of its own).
+        val tom = english()
+        assertEquals("Toms", tom.correct("toms", names = true))
+        tom.setLearned(setOf("tom"))
+        for (word in listOf("tom", "toms", "tom's")) assertEquals(word, tom.correct(word), tom.correct(word, names = true))
+        assertEquals("Mary", tom.correct("mary", names = true))
     }
 
     @Test fun aNameNoListHasIsLeftAsTyped() {

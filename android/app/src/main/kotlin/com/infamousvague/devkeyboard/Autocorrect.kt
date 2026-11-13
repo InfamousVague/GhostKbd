@@ -1190,7 +1190,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val caps = now.lexicon.capitals
         if (caps.isEmpty() || word.length < 3) return null
         if (word[0] == 'i' && now.board.locale.language == "tr") return null
-        caps[word]?.let { return if (kept(word)) null else it }
+        // Nor its plural where the person keeps the name in lower case (Toms is a word of the list of its own).
+        caps[word]?.let { return if (kept(word) || (word[word.length - 1] == 's' && word.length > 3 && kept(word.substring(0, word.length - 1)) && word.substring(0, word.length - 1) in caps)) null else it }
         // A name's possessive is the name's.
         if (word.length > 3 && word[word.length - 1] == 's' && (word[word.length - 2] == '\'' || word[word.length - 2] == '’')) {
             val name = word.substring(0, word.length - 2)
