@@ -392,8 +392,18 @@ It is not a recommendation to set fourteen dials: the next part says which of th
 half the sentences and judged by the other half: a random half of each set's sentences (`--holdout 1`, and
 `--other-half`: 150 sentences of each set, 450 typings), with the whole bench as the guard.
 
-<!-- SCALED-HALVES -->Fitted as the whole was, the bench counting for the share of the words fitted on: not through when this was
-written (`build/versus/logs/search-s1a.out`, `search-s1b.out`).
+<!-- SCALED-HALVES -->Fitted as the whole was (the bench counting for the share of the words fitted on):
+
+| Fitted on | Settings tried | The half it was fitted on | The half held out | over 2,000 resamplings | seen, all | unseen, all | mended | broken |
+| --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: |
+| the tree | | | | | 326 | 437 | | |
+| half A | 516 | 382 wrong to 313 (6.45% to 5.28%), 69 fewer | 381 to 326 (6.70% to 5.73%), 55 fewer | 72 to 37 fewer | 275 | 364 | 136 | 12 |
+| half B | not through when this was written (`build/versus/logs/search-s1b.out`) | | | | | | | |
+
+Fitted on half A the search made the moves the search fitted on everything made, `MARGIN_COMMON` to 1.3 among
+them, and ended at nearly the same setting (the table of dials below). On the half it never saw it left 55 fewer
+words wrong of 381, four fifths of the 69 it gained on its own half, and no resampling of that half's sentences
+gives fewer than 37.
 
 And by a search twice as wary of the bench, which charges its penalty whole against half the sentences'
 words (`--whole-bench`; the first two searches run, before the share was counted):
