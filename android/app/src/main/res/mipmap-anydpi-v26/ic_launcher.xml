@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The app's icon (art/app-icon.png, Matt's new_kbd, 2026-11-10): the ghost over keys on a violet gradient. The
-     foreground is the picture shrunk into the mask's safe circle, its gradient carried on past the picture's edges; the
-     monochrome layer is the ghost and the keys alone, for Android's themed icons. -->
+<!-- The app's icon (art/app-icon.png, Matt's GhostKBD, 2026-11-13; tool/app_icon.py): the white keycap with the ghost's
+     eyes, on black. The foreground is the picture shrunk into the mask's safe circle, its black carried on past the
+     picture's edges; the monochrome layer is the keycap alone, for Android's themed icons. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />

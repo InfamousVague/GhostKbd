@@ -159,6 +159,11 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
 
+## 0.17.3
+
+- **A new app icon**: a white keycap with the ghost's eyes, on black (art/app-icon.png, made into every size by
+  tool/app_icon.py). Themed icons on Android get the keycap alone.
+
 ## 0.17.2
 
 - **The word before two scraps is read again once they are put together** ([docs/versus.md](docs/versus.md), "The
