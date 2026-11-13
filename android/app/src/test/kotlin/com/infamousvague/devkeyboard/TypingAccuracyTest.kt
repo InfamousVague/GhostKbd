@@ -179,7 +179,7 @@ class TypingAccuracyTest {
         assertEquals(setOf("th"), few.read("th", taps("th"), listed = true, reach = false).keys)
         assertEquals(setOf("ot"), few.read("ot", taps("ot"), listed = true, reach = false).keys)
         // With it: a letter left out, two swapped, a letter tapped twice, each for LISTED_EDIT at the least.
-        assertEquals(maxOf(TapDecoder.OMIT, TapDecoder.LISTED_EDIT), few.read("th", taps("th"), listed = true).getValue("the"), 0.01f)
+        assertEquals(maxOf(TapDecoder.REACH_OMIT, TapDecoder.LISTED_EDIT), few.read("th", taps("th"), listed = true).getValue("the"), 0.01f)
         assertEquals(maxOf(TapDecoder.SWAP, TapDecoder.LISTED_EDIT), few.read("ot", taps("ot"), listed = true).getValue("to"), 0.01f)
         assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("soo", taps("soo"), listed = true).getValue("so"), 0.01f)
         assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("inn", taps("inn"), listed = true).getValue("in"), 0.01f)
@@ -188,7 +188,8 @@ class TypingAccuracyTest {
         assertEquals(TapDecoder.INSERT_DOUBLED, few.read("soo", taps("soo")).getValue("so"), 0.01f)
         // A tap that doubles nothing is never taken out of a common word: "ink" is not "in" with a k too many.
         assertNull(few.read("ink", taps("ink"), listed = true)["in"])
-        assertEquals(TapDecoder.INSERT, few.read("ink", taps("ink")).getValue("in"), 0.01f)
+        // Where they spell no word, the k in the middle of its own key is a tap of its own, for REACH_INSERT.
+        assertEquals(TapDecoder.REACH_INSERT, Few("in").read("ink", taps("ink")).getValue("in"), 0.01f)
         // Against the real lists, where the words before make the other word likely: and not without them.
         assertEquals("the", ac.correct("th", after("it was th"), taps("th")))
         assertEquals("to", ac.correct("ot", after("we are going ot"), taps("ot")))
@@ -211,9 +212,14 @@ class TypingAccuracyTest {
     @Test fun aTapTooManyCostsByWhereItLanded() {
         val the = Few("the")
         // "thre" for "the": the r is one tap too many. On the line beside e it is all but e tapped twice; in the
-        // middle of its own key it is a tap of its own, and costs what any stray tap costs.
+        // middle of its own key it is INSERT_DOUBLED and what a tap in the middle of the key beside costs to read as
+        // e (1.5); a tap far from both keys beside it is a tap of its own, for REACH_INSERT.
         assertEquals(TapDecoder.INSERT_DOUBLED + 0.15f, the.read("thre", taps("thre", 2 to (-0.45f to 0f))).getValue("the"), 0.01f)
-        assertEquals(TapDecoder.INSERT, the.read("thre", taps("thre")).getValue("the"), 0.01f)
+        assertEquals(TapDecoder.INSERT_DOUBLED + 1.5f, the.read("thre", taps("thre")).getValue("the"), 0.01f)
+        assertEquals(TapDecoder.REACH_INSERT, the.read("thpe", taps("thpe")).getValue("the"), 0.01f)
+        // Without the reach the plain costs stand: r is e's neighbour, p is nobody's here.
+        assertEquals(TapDecoder.INSERT_NEAR, the.read("thre", taps("thre"), reach = false).getValue("the"), 0.01f)
+        assertEquals(TapDecoder.INSERT, the.read("thpe", taps("thpe"), reach = false).getValue("the"), 0.01f)
         // The same key twice is a doubled letter, as it always was.
         assertEquals(TapDecoder.INSERT_DOUBLED, the.read("thee", taps("thee")).getValue("the"), 0.01f)
         // A character with no tap of its own (NaN) still goes by which keys are neighbours: r is e's.
@@ -228,9 +234,10 @@ class TypingAccuracyTest {
         val wrik = taps("wrik", 2 to (0.4f to 0f))
         assertEquals(TapDecoder.SWAP + 0.3f, few.read("wrik", wrik).getValue("work"), 0.01f)
         // Without the reach, and with the tap in the middle of the i key (an i: more than SWAP_SLIP), "work" is
-        // reached only as an o left out and an i too many.
-        assertEquals(TapDecoder.OMIT + TapDecoder.INSERT, few.read("wrik", wrik, reach = false).getValue("work"), 0.01f)
-        assertEquals(TapDecoder.OMIT + TapDecoder.INSERT, few.read("wrik", taps("wrik")).getValue("work"), 0.01f)
+        // reached only as an o left out and an i too many: without the reach at the plain costs (i is k's
+        // neighbour), with it at REACH_OMIT and REACH_INSERT (a tap in the middle of i is far from both r and k).
+        assertEquals(TapDecoder.OMIT + TapDecoder.INSERT_NEAR, few.read("wrik", wrik, reach = false).getValue("work"), 0.01f)
+        assertEquals(TapDecoder.REACH_OMIT + TapDecoder.REACH_INSERT, few.read("wrik", taps("wrik")).getValue("work"), 0.01f)
         // Both of the two on a neighbour's key ("weik": the r on e and the o on i) is not read: one slip to a swap.
         assertNull(few.read("weik", taps("weik", 1 to (0.4f to 0f), 2 to (0.4f to 0f)))["work"])
         // "iculs" for "could": c and o swapped, the o on i, and the d on s besides.

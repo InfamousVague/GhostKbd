@@ -96,8 +96,8 @@ class WordTrie(words: Array<String>, zipf: FloatArray) {
  *   the typed key's ([SPATIAL] a key width squared: a tap on the line between two keys costs nothing either way, one
  *   in the middle of a key costs about [SPATIAL] to read as its neighbour). A letter far from the tap can still be
  *   meant, as a misspelling rather than a slip of the thumb: any letter costs at most [far];
- * - the tap as one too many ([INSERT]; less the nearer it landed to the key typed beside it, down to
- *   [INSERT_DOUBLED] on that key itself: a letter tapped twice);
+ * - the tap as one too many ([INSERT]; less where it doubles the letter beside it or is that letter's neighbour,
+ *   and where the search reaches, by how near it landed to the key typed beside it, [REACH_INSERT] at the most);
  * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less);
  * - two taps in the wrong order ([SWAP]), one of which may have landed on a neighbour's key besides ([SWAP_SLIP]).
  * A branch is given up as soon as its cost is more than the commonest word under it could repay ([WordTrie.best]),
@@ -249,8 +249,9 @@ class TapDecoder(
         if (i == 0) return INSERT_FIRST
         // A second tap of the key typed before it or after it, by where it landed: on that key again it is a letter
         // tapped twice, just over the line from that key it is nearly one, and in the middle of another key it is a
-        // tap of its own. A character with no tap goes by which keys are neighbours, as every one did.
-        if (aimed[i]) return minOf(INSERT, INSERT_DOUBLED + again[i])
+        // tap of its own, up to [REACH_INSERT]. Only where the search reaches: elsewhere, and a character with no tap,
+        // goes by which keys are neighbours, as every one did.
+        if (reaching && aimed[i]) return minOf(REACH_INSERT, INSERT_DOUBLED + again[i])
         val c = tk[i]
         val before = tk[i - 1]
         val after = if (i + 1 < n) tk[i + 1] else 0.toChar()
@@ -263,6 +264,7 @@ class TapDecoder(
     private fun omit(c: Char, last: Char): Float = when {
         c == '\'' || c == '’' -> APOSTROPHE
         c == last -> OMIT_DOUBLED
+        reaching -> REACH_OMIT
         else -> OMIT
     }
 
@@ -289,7 +291,8 @@ class TapDecoder(
      * - letters that spell a common word may have had a letter left out, a letter tapped twice or two swapped,
      *   each for at least [LISTED_EDIT];
      * - a letter left out of a word typed as one letter costs [LONE_OMIT];
-     * - one of two taps in the wrong order may have landed on a neighbour's key ([SWAP_SLIP]).
+     * - one of two taps in the wrong order may have landed on a neighbour's key ([SWAP_SLIP]);
+     * - a tap too many costs by where it landed ([REACH_INSERT]) and a letter left out [REACH_OMIT].
      */
     fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false, reach: Boolean = false): List<Hit> {
         hits.clear()
@@ -476,6 +479,8 @@ class TapDecoder(
         val m = word.length
         val len = n - from
         if (m == 0 || kotlin.math.abs(m - len) > MAX_OMITS + MAX_INSERTS + 2) return Float.POSITIVE_INFINITY
+        // The plain costs, whatever the last search reached for: [insert] and [omit] go by [reaching].
+        reaching = false
         // cost[j][i]: the first j letters of the word against the first i taps.
         var before2 = FloatArray(len + 1)
         var before = FloatArray(len + 1)
@@ -589,31 +594,45 @@ class TapDecoder(
         /** A neighbouring key in place of a character that had no tap of its own. */
         @JvmField var NEIGHBOUR = 1.6f
         /**
-         * A tap too many ([insert]). [INSERT] is a tap of its own, [INSERT_DOUBLED] a second tap on the key typed
-         * before it or after it, and between the two it goes by where the tap landed: [INSERT_DOUBLED] and what
-         * the tap would cost to read as that key, [INSERT] at the most. [INSERT_FIRST] is the word's first tap.
-         * [INSERT_NEAR] was any tap on a key next to its neighbour's, wherever on that key it landed, and is that
-         * still for a character with no tap of its own.
-         *
-         * By where it landed since 2026-11-12. A thumb that taps a letter twice scatters the second tap as it does
-         * any, so "thre" with its r just over the line from e is "the" for little more than "thee" is; and a tap in
-         * the middle of a key next door was being read out of words for 2: "fole" for "file" came out "for", and
-         * "wer" for "wear" came out "we". On the decoder with the short word's reach, the common word's edits and
-         * the lone letter's, before the swap's (the scoreboard's seen and unseen sets, then tool/typing_bench.sh
-         * tune's measure, words right less four for every right word spoiled, on its 12,000 words and on its other
-         * 20,000): 5 words mended and none broken, 9 and 1, 94.13 to 94.22 and 94.36 to 94.47; and fewer right
-         * words spoiled on the 20,000, 1.30 and 1.46
-         * in a thousand to 1.18 and 1.38 for the careful and the normal thumb, the right words no list has 3.1%
-         * and 4.7% to 2.7% and 4.4%. The costs themselves are as they were set. [INSERT] at 3.4 reads better still
-         * (298 words wrong to 295 on the seen set, 405 to 402 on the unseen, 94.30 to 94.36), but the bench's thumb
-         * never adds a tap that is not a letter twice, so neither it nor the sets can say what a stray tap is
-         * worth: not changed here.
+         * A tap too many ([insert]): [INSERT] a tap of its own, [INSERT_NEAR] one on a key next to the key typed
+         * beside it, [INSERT_DOUBLED] a second tap on that key itself, [INSERT_FIRST] the word's first tap. A letter
+         * with no tap ([omit]): [OMIT], [OMIT_DOUBLED] where it doubles the letter before it. Set as they were
+         * before 2026-11-12, and every search but [Autocorrect.byTaps]' own still goes by them.
          */
         @JvmField var INSERT = 2.8f
         @JvmField var INSERT_NEAR = 2.0f
         @JvmField var INSERT_DOUBLED = 1.4f
         @JvmField var INSERT_FIRST = 4.0f
         @JvmField var OMIT = 2.0f
+        /**
+         * Where the search reaches ([search]'s reach), a tap too many goes by where it landed: [INSERT_DOUBLED] and
+         * what the tap costs to read as the key typed before it or after it, [REACH_INSERT] at the most. A thumb
+         * that taps a letter twice scatters the second tap as it does any, so "thre" with its r just over the line
+         * from e is "the" for little more than "thee" is; and a tap in the middle of a key next door was read out
+         * of words for [INSERT_NEAR] (2): "fole" for "file" came out "for", "wer" for "wear" came out "we".
+         *
+         * Set on the scoreboard's seen and unseen sets and tool/typing_bench.sh tune's measure (words right less four
+         * for every right word spoiled, on its 12,000 words and on its other 20,000). On the decoder with the short
+         * word's reach, the common word's edits and the lone letter's, before the swap's: by where it landed at
+         * [INSERT]'s 2.8, 5 words mended and none broken on the seen set, 9 and 1 on the unseen, the measures 94.13
+         * to 94.22 and 94.36 to 94.47, and fewer right words spoiled on the 20,000 (1.30 and 1.46 in a thousand to
+         * 1.18 and 1.38 for the careful and the normal thumb). With the rest of the reach (298 words wrong on the
+         * seen set, 405 on the unseen, 94.30 and 94.55), against [REACH_OMIT] 1.8: 3.1 leaves 294 and 397, 94.38 and
+         * 94.58; 3.4 leaves 293 and 396, 94.40 and 94.60; 3.8 leaves 293 and 395, 94.40 and 94.61. The bench's
+         * thumb never adds a tap that is not a letter twice and the sets' thumbs seldom do, so past 3.4, where the
+         * gain is one word, neither can say what a stray tap is worth.
+         */
+        @JvmField var REACH_INSERT = 3.4f
+        /**
+         * A letter with no tap where the search reaches ([search]'s reach), but for a doubled letter or an
+         * apostrophe. Set as [REACH_INSERT] was, with it at 3.4 (OMIT 2.0 there: 295 words wrong on the seen set,
+         * 402 on the unseen, 94.36 and 94.56): 1.6 leaves 293 and 392, 94.40 and 94.63, but spoils more of the
+         * sloppy thumb's words (1.61 in a thousand to 1.74 on the 20,000, and of the right words no list has 6.2%
+         * to 6.9%); 1.8 leaves 293 and 396, 94.40 and 94.60, for one right word more spoiled by the careful thumb
+         * (1.24 to 1.30) and one fewer by the normal one (1.38 to 1.30). A letter left out is the slip most often
+         * still lost to Gboard (docs/versus.md).
+         */
+        @JvmField var REACH_OMIT = 1.8f
         @JvmField var OMIT_DOUBLED = 1.2f
         @JvmField var APOSTROPHE = 0.2f
         @JvmField var SWAP = 1.1f
