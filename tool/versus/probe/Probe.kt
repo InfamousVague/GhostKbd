@@ -236,7 +236,7 @@ fun time(root: File, boardFile: File, show: Int) {
     val board = Board.recorded(boardFile)
     val decoder = Decoder(root)
     val (keys, keyW, space) = board.tapKeys
-    class Token(val id: String, val typed: String, val before: String, val taps: Taps) { var nanos = 0L; var work = 0 }
+    class Token(val id: String, val typed: String, val before: String, val taps: Taps) { var nanos = 0L; var work = 0; var parted = false }
     val tokens = ArrayList<Token>()
     val lines = generateSequence { readLine() }.toList()
     fun scorerFor(t: Token) = (t.before + t.typed).let { text -> runCatching { NextWordText.place(text.takeLast(96), { c -> Words.isWordChar(c, decoder.state.joiners) }, text.length >= 96, decoder.state.locale, "")?.let { decoder.at(it) } }.getOrNull() }
@@ -254,7 +254,7 @@ fun time(root: File, boardFile: File, show: Int) {
                 val scorer = scorerFor(t)
                 // The quickest of three: one reading of the clock is as often the JVM's pause as the decoder's work.
                 t.nanos = Long.MAX_VALUE
-                repeat(if (pass == 0) 1 else 3) { TapDecoder.JOIN_WORK_LAST = 0; val t0 = clock(); decoder.ac.correct(t.typed, scorer, t.taps); t.nanos = minOf(t.nanos, clock() - t0) }
+                repeat(if (pass == 0) 1 else 3) { TapDecoder.JOIN_WORK_LAST = 0; val t0 = clock(); val out = decoder.ac.correct(t.typed, scorer, t.taps); t.nanos = minOf(t.nanos, clock() - t0); t.parted = out != null && ' ' in out }
                 t.work = TapDecoder.JOIN_WORK_LAST
                 tokens += t
                 run.clear()
@@ -283,6 +283,10 @@ fun time(root: File, boardFile: File, show: Int) {
     val works = tokens.filter { it.work > 0 }.sortedByDescending { it.work }
     println("work: %d of the words were looked at for a join; the search's work a word: mean %.0f, most %d (it stops at %d): %s".format(
         works.size, works.map { it.work }.average(), works.firstOrNull()?.work ?: 0, TapDecoder.MAX_JOIN_WORK, works.take(6).joinToString(", ") { "${it.typed} ${it.work}" }))
+    // What the search needed where it did part a word: the cap is to be set well over this, and no higher than that asks.
+    val parted = works.filter { it.parted }
+    println("work: %d words were parted; the search's work for those: mean %.0f, most %d: %s".format(
+        parted.size, parted.map { it.work }.average(), parted.firstOrNull()?.work ?: 0, parted.take(6).joinToString(", ") { "${it.typed} ${it.work}" }))
 }
 
 /**

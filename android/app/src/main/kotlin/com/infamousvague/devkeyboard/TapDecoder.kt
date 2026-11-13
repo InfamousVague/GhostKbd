@@ -218,6 +218,22 @@ class TapDecoder(
         return most
     }
 
+    /**
+     * What it costs to read tap [i] as the letter [c] by a slip of the thumb alone: how much further that key's
+     * middle is from the tap than the typed key's, and never for a key the tap was nowhere near. [sub] lets one
+     * vowel stand for another wherever it was tapped as well, which is how a word is misspelled and not how a
+     * thumb slips: a first word of a join is read by this ([starts]).
+     */
+    private fun slip(i: Int, c: Char): Float {
+        if (c == typed[i]) return 0f
+        val k = key(c)
+        if (k == 0.toChar()) return Float.POSITIVE_INFINITY
+        if (k == tk[i]) return 0f
+        val chars = nearCh[i]
+        for (j in chars.indices) if (chars[j] == k) return nearCost[i][j]
+        return Float.POSITIVE_INFINITY
+    }
+
     /** What it costs to take tap [i] as one too many. */
     private fun insert(i: Int): Float {
         // The space bar's own tap is a space or a letter that missed its key, never nothing at all.
@@ -604,7 +620,7 @@ class TapDecoder(
             var q = trie.down[node]
             while (q >= 0) {
                 val c = trie.ch[q]
-                val s = sub(i, c)
+                val s = slip(i, c)
                 if (s < far) go(q, i + 1, cost + s, slipped, c)
                 if (c == '\'' || c == '’') go(q, i, cost + APOSTROPHE, slipped, c)
                 else if (!slipped && omit(c, last) <= JOIN_SLIP) go(q, i, cost + omit(c, last), true, c)
@@ -682,9 +698,13 @@ class TapDecoder(
         const val MAX_VISITS = 40_000
         /**
          * [joins] stops with what it has at this much work: trie nodes walked, [ALIGN_WORK] for every word held up
-         * against the taps, and one for every pair of words weighed.
+         * against the taps, and one for every pair of words weighed. The likeliest first words are tried first, so
+         * what is found is found early and the rest of the work is looking for better: of the 1,800 typings of
+         * tool/versus/scoreboard.py not one reads otherwise at 5,000, 10,000, 20,000, 30,000 or 60,000 (at 3,000
+         * eleven words do), and the bench's 12,000 words are the same at 16,000 as at 60,000, which is what it was
+         * first set to. 16,000 is three times what any of them needed.
          */
-        const val MAX_JOIN_WORK = 60_000
+        @JvmField var MAX_JOIN_WORK = 16_000
         const val ALIGN_WORK = 8
         /** The work the last [joins] did, and the most any has done since this was set to 0: read by the tools and the tests, never by the keyboard. */
         @JvmField var JOIN_WORK_LAST = 0
