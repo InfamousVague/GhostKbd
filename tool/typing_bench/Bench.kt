@@ -58,8 +58,12 @@ val NOISES = listOf(
 /** One word as the thumb typed it: the letters the keys gave, and where each tap landed (NaN for an apostrophe). */
 class Typed(val text: String, val xs: FloatArray, val ys: FloatArray)
 
-/** What came of a stretch of the sentence: the words meant, the tokens typed, and what the keyboard left there. */
-class Unit(val targets: List<String>, val typed: List<String>, val out: List<String>) {
+/**
+ * What came of a stretch of the sentence: the words meant, the tokens typed, and what the keyboard left there.
+ * (It was called Unit until tool/versus/replay/Sweep.kt was compiled beside this file: a class of that name here
+ * takes kotlin.Unit's place in every file of the package.)
+ */
+class Stretch(val targets: List<String>, val typed: List<String>, val out: List<String>) {
     val right get() = out.joinToString(" ").lowercase() == targets.joinToString(" ")
     val typedRight get() = typed.joinToString(" ") == targets.joinToString(" ")
 }
@@ -75,7 +79,7 @@ class Tally {
     var realWordFixed = 0
     var commonSpoiled = 0
     var isWord: (String) -> Boolean = { false }
-    fun add(u: Unit, oovWords: Set<String>) {
+    fun add(u: Stretch, oovWords: Set<String>) {
         words += u.targets.size
         if (u.right) right += u.targets.size
         if (u.typedRight) rawRight += u.targets.size
@@ -153,8 +157,9 @@ fun misspellings(kb: Keyboard, useTaps: Boolean, show: Boolean = false): Pair<In
     return fixed to asked
 }
 
-class Sentences(root: File) {
-    val lines: List<String> = File(root, "build/typing-bench/en-heldout.txt").readLines()
+/** The held-out sentences, or only the first [most] lines of them (the sweep must not be able to read the lines kept for the end). */
+class Sentences(root: File, most: Int = Int.MAX_VALUE) {
+    val lines: List<String> = File(root, "build/typing-bench/en-heldout.txt").useLines { it.take(most).toList() }
     /** A sentence's words in lower case: letters and apostrophes only; anything else (a number, a symbol) is dropped with its context. */
     fun words(line: String): List<String> = line.split(Regex("\\s+")).map { it.trim { c -> !c.isLetter() }.replace('’', '\'') }
         // An acronym (NASA, TV) is typed in capitals and never touched: it is not what is measured here.
@@ -200,7 +205,7 @@ fun typeAll(
     /** The letters the person goes for in place of a word's own (a habit of theirs), or null for the word as it is spelled. */
     habit: ((String) -> String?)? = null,
     /** Told what came of each stretch, once the keyboard has had it. */
-    after: ((Unit) -> kotlin.Unit)? = null,
+    after: ((Stretch) -> Unit)? = null,
     fix: (typed: Typed, before: String) -> String?,
 ): Tally {
     val rnd = Random(seed)
@@ -222,7 +227,7 @@ fun typeAll(
         }
         fun endUnit() {
             if (meant.isEmpty()) return
-            val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
+            val unit = Stretch(meant.toList(), tokens.toList(), outs.toList())
             tally.add(unit, oov)
             after?.invoke(unit)
             meant.clear(); tokens.clear(); outs.clear()
@@ -262,23 +267,22 @@ fun typeAll(
 
 val SPACE = floatArrayOf(Geo.SPACE_LEFT, Geo.SPACE_TOP, Geo.SPACE_RIGHT, Geo.SPACE_TOP + Geo.H)
 
+/**
+ * The tap test's reading of one typed word: autocorrect with the words before it and where its taps landed. Its own
+ * function so that tool/versus/replay/Sweep.kt, which types the tap test again for every setting it tries, reads
+ * each word exactly as [taps] does.
+ */
+fun byTheTaps(kb: Keyboard, t: Typed, before: String): String? = kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE))
+
 fun taps(root: File) {
     val kb = Keyboard(root)
     val all = Sentences(root)
     val limit = System.getProperty("words", "30000").toInt()
     val seed = System.getProperty("seed", "7").toLong()
     val verbose = System.getProperty("verbose") == "true"
-    val oovList = UNKNOWN_WORDS.filter { !kb.ac.isWord(it) }.distinct()
-    val oov = oovList.toSet()
-    val rnd = Random(seed)
-    val sentences = ArrayList<List<String>>()
-    var n = 0
-    for (line in all.lines) {
-        if (n >= limit) break
-        val words = all.words(line).map { if (rnd.nextFloat() < 0.03f) oovList[rnd.nextInt(oovList.size)] else it }
-        if (words.isEmpty()) continue
-        sentences += words; n += words.size
-    }
+    // The file's first sentences ([sample] from its first line): the sweep takes the same ones the same way.
+    val (sentences, oov) = sample(kb, all, 0, limit, seed)
+    val n = sentences.sumOf { it.size }
     println("tap typing: $n words in ${sentences.size} held-out sentences, 3% of them swapped for words no list has (${oov.size} of them)")
     misspellings(kb, false, verbose).let { (f, a) -> println("misspellings mended, by neighbours: $f of $a") }
     misspellings(kb, true, true).let { (f, a) -> println("misspellings mended, by the taps:   $f of $a") }
@@ -291,7 +295,7 @@ fun taps(root: File) {
         println(context.line("${noise.name}: with context"))
         val t0 = System.nanoTime()
         var calls = 0
-        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; byTheTaps(kb, t, before) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1)))
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }

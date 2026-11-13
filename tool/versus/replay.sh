@@ -21,6 +21,16 @@ if [ -n "$overlay" ]; then
   done
   sources="$picked"
 fi
+# `replay.sh sweep ...` is tool/versus/sweep.py's worker (replay/Sweep.kt), which tries the decoder's dials one
+# setting after another in one JVM: the sources above with the typing bench, whose tap test it types too, in a jar
+# of its own. A jar of two files that each have a main names no main class, so this one is started by its class,
+# and the replay's own jar stays what it was.
+main=""
+if [ "$1" = sweep ]; then
+  jar="${jar%.jar}-sweep.jar"
+  sources="$sources tool/typing_bench/Bench.kt tool/versus/replay/Sweep.kt"
+  main=SweepKt
+fi
 stale=0
 [ -f "$jar" ] || stale=1
 for f in $sources; do [ "$f" -nt "$jar" ] && stale=1; done
@@ -30,4 +40,5 @@ if [ "$stale" = 1 ]; then
   kotlinc $sources -include-runtime -d "$jar" 2>&1 | grep -v "^warning:" >&2 || true
   [ -f "$jar" ] || { echo "versus replay: did not compile" >&2; exit 1; }
 fi
+[ -z "$main" ] || exec java -Xmx2g $JAVA_OPTS -cp "$jar" "$main" . "$@"
 exec java -Xmx2g $JAVA_OPTS -jar "$jar" . "$@"
