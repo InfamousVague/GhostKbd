@@ -159,6 +159,23 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
 
+## 0.16.5
+
+- **Tap autocorrect mends more slips** ([docs/versus.md](docs/versus.md)). Three changes, each measured by typing the
+  same taps into Ghost Keyboard and Gboard on the emulator with three simulated thumbs (careful, leaning, sloppy) and
+  replaying them through the decoder on a computer, where the decoder gives the emulator's text in 900 of 900
+  sentences. Words left wrong on 300 held-out sentences go from 8.9% to 6.3% (Gboard on the same taps: 3.8%); on 300
+  others that no change was made from, 8.7% with the first change alone and 6.8% with all three (Gboard: 3.5%). The
+  cost, on the typing bench's 12,000 words: right words that no word list has (names, slang) are changed a little
+  more often, 4.3% of them for a normal thumb where it was 2.4%.
+  - A word ended by a question mark or comma from the ?123 page keeps the taps it was typed with, so it is read by
+    where they landed and not as bare letters.
+  - A letter whose tap landed all but on the next key counts as part of a change, not a whole one, so a short word
+    with two near misses ("it" typed "ur") is read at all.
+  - A word that a tap on the top edge of the space bar cut in two is put back together when its second half ends.
+  Seen on the emulator: the emulator typed what the replay says in all 104 sentences these changes alter and in 40
+  they leave alone. Not yet felt on a phone.
+
 ## 0.16.4
 
 - **Rewrite on this phone** (`LocalAi.kt`, `LocalModels.kt`, `android/llm`; Settings › AI › Rewrite › On this phone;
