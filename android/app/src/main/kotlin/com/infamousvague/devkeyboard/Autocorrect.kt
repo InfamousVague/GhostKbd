@@ -776,8 +776,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         if (!common && lower.length >= 3 && JOINS) {
             val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + MARGIN_RARE
             // Letters that look like no word are no word the longer they are: see [JOIN_FALL]. Where they look like
-            // none is kept, since where two words meet they need not look like one.
-            val oddAt = if (known == null && lower.length > JOIN_LONG) oddRuns(lower) else null
+            // none is kept, since where two words meet they need not look like one. With English loaded only: it
+            // was set on English typing, and a language that writes its compounds as one word (German) has long
+            // words no list holds that are meant, whose bar is left where it was.
+            val oddAt = if (known == null && now.board.english && lower.length > JOIN_LONG) oddRuns(lower) else null
             val fallen = if (oddAt != null) joinBar - JOIN_FALL * (lower.length - JOIN_LONG) else joinBar
             val sorted = lex.sorted
             val zipfs = lex.sortedZipf
@@ -1317,6 +1319,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * as before there was any fall). Without the second, two words that each have a slip
          * in them and still look like words were held for a compound ("petsonvtteating" for "person treating"):
          * 4 more words of the seen set left wrong and 2 of the unseen.
+         *
+         * The fall is for English being loaded: it was set on English typing alone, and the bar of a language
+         * that writes a compound as one word is left as it was.
          *
          * Set on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it stands. Words left wrong of 5,205
          * seen and of 6,408 unseen; then the bench's right words spoiled in a thousand and its unknown words
