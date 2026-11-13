@@ -775,8 +775,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // Two or three words run together, where what was typed is no common word.
         if (!common && lower.length >= 3 && JOINS) {
             val joinBar = if (known == null) minOf(bar, JOIN_BAR) else known + MARGIN_RARE
-            // Where a tap is read as the bar, a string no list has is worth less the longer it is: see [JOIN_FALL].
-            val barred = if (known == null) joinBar - JOIN_FALL * (lower.length - JOIN_LONG).coerceAtLeast(0f) else joinBar
+            // Letters that look like no word are no word the longer they are: see [JOIN_FALL]. Where they look like
+            // none is kept, since where two words meet they need not look like one.
+            val oddAt = if (known == null && lower.length > JOIN_LONG) oddRuns(lower) else null
+            val fallen = if (oddAt != null) joinBar - JOIN_FALL * (lower.length - JOIN_LONG) else joinBar
             val sorted = lex.sorted
             val zipfs = lex.sortedZipf
             // The least share a first word's row lists: a second word the row does not list follows it less often
@@ -793,11 +795,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 val floor = least.getOrPut(a) { 9f + kotlin.math.log10(row.values.min() * JOIN_UNLISTED) }
                 return minOf(unseen, floor)
             }
-            // What a word is worth as the first of them: its frequency and what the words before lift it by.
+            // What a word is worth as the first of them: its frequency, and [JOIN_LIFT] of what the words before lift it by.
             fun head(i: Int) = zipfs[i] + JOIN_LIFT * lift(sorted[i], zipfs[i])
             // A join has the best single word to beat as well as its bar: the search is told, and looks no lower.
             val joins = decoder.joins(
-                maxOf(joinBar, bestScore), maxOf(barred, bestScore), JOIN_FIRST,
+                maxOf(fallen, bestScore), JOIN_FIRST,
                 first = { i -> if (zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER)) head(i) else Float.NEGATIVE_INFINITY },
                 second = ::worth,
                 followers = { a -> lex.followers(sorted[a]) },
@@ -807,7 +809,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 var text = capitalI(now, a) + " " + capitalI(now, b)
                 var score = head(j.first) + worth(j.first, j.second) - 9f - j.cost
                 if (j.third >= 0) { text += " " + capitalI(now, sorted[j.third]); score += worth(j.second, j.third) - 9f }
-                offer(text, score, if (j.bars > 0) barred else joinBar)
+                // Letters that look like no word only where these words meet are two words set side by side, which
+                // is how a word no list has is made ("worktree", "windowpane"): they are held to the bar as it was.
+                val odd = oddAt != null && oddAt.indices.any { i -> oddAt[i] && !meets(i, j.from2, j.barred2) && (j.third < 0 || !meets(i, j.from3, j.barred3)) }
+                offer(text, score, if (odd) fallen else joinBar)
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
@@ -1028,6 +1033,27 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /**
+     * Where [lower] looks like no word: for each letter, whether the run of three it is the middle of is one no
+     * common word has (a word's edge counts as a letter, so the first and the last have runs too). Null where
+     * every run is some word's, which is [odd] false.
+     */
+    private fun oddRuns(lower: String): BooleanArray? {
+        val seen = runs()
+        var out: BooleanArray? = null
+        var i = 0
+        eachRun(lower) { if (!seen.get(it)) { val o = out ?: BooleanArray(lower.length).also { made -> out = made }; o[i] = true }; i++ }
+        return out
+    }
+
+    /**
+     * Whether the run of three letters with [middle] in its middle lies across the place two words of a join meet:
+     * the second starts at the letter [from], and [barred] says the letter before it was the space's own tap,
+     * landed on a key. A run across that place is no word's because two words meet there ("rkt" in "worktree"),
+     * not because a thumb slipped: it has both letters either side of the gap, or the stray letter, in it.
+     */
+    private fun meets(middle: Int, from: Int, barred: Boolean) = middle == from - 1 || middle == from || (barred && middle == from - 2)
+
+    /**
      * [lower] is a word nobody would fix: common in a loaded language, a contraction typed without its apostrophe,
      * a word spelled without its accents, a learned word, or texting slang (the whole list, its switch on or off).
      */
@@ -1173,12 +1199,47 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** The least two words run together must be worth to replace a word no list has. */
         @JvmField var JOIN_BAR = 0f
         /**
-         * Where one of the spaces was a tap that landed on a letter above the bar, that bar falls by this much for
-         * every letter the typed string has over [JOIN_LONG].
+         * Letters that look like no word ([oddRuns]) are no word the longer they are: for every letter they have
+         * over [JOIN_LONG], two or three words run together need be worth this much less to replace them. A thumb
+         * that misses the space between two long words, or lands it on a letter, and slips on a letter or two
+         * besides, leaves a dozen letters that nobody means ("frimsteangerz" for "from strangers", "gadvzritchds"
+         * for "had stitches"). What such letters are worth as a word no list has falls by about one, a letter's
+         * worth of chance, with each letter more; [JOIN_BAR] alone held them all to the bar of a six-letter name,
+         * and most of the joins of 2026-11-11's run that were still lost had been found and left for that.
+         *
+         * Only where they look like no word somewhere other than where the join's words meet ([meets]): letters
+         * that are odd only there are two words set side by side, which is how a name or a compound no list has
+         * is made, and they keep [JOIN_BAR] at any length. Without that, at 0.75 a letter, "infamousvague",
+         * "ghostkeyboard" and "mergeconflict" typed with every tap in the middle of its key came out as two words,
+         * and at 1 "worktree" and "midjourney" as well (tool/versus/probe.py words, 166 names and compounds no
+         * list has: with the rule the same 4 are changed as before there was any fall, up to 1.5 a letter).
+         *
+         * Set on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it then stood. Words left wrong of
+         * 5,205 seen and of 6,408 unseen; then the bench's right words spoiled in a thousand and its unknown words
+         * spoiled, for its three thumbs. No fall: 318, 429; 1.22/1.48/1.45, 1.5%/4.3%/7.1%. 0.5 a letter over 6:
+         * 309, 422. 0.75: 305, 420. 1: 302, 420. 1.25: 302, 420, the bench the same at all four. 1.5: 299, 420;
+         * 1.42/1.61/1.65, 2.3%/4.9%/8.3%. 2: 298, 420; 1.83/1.88/1.86, 3.8%/6.1%/9.5%. 1 a letter over 5: 301, 420;
+         * 1.62/2.02/1.86, 3.0%/6.7%/9.5%. Over 7: 305, 421, the bench as at 6. Taken at 1 over 6, in the middle of
+         * what spoils nothing: more buys no unseen word and begins to part the bench's names.
          */
-        @JvmField var JOIN_FALL = 0f
-        @JvmField var JOIN_LONG = 7f
-        @JvmField var JOIN_LIFT = 1f
+        @JvmField var JOIN_FALL = 1.0f
+        @JvmField var JOIN_LONG = 6f
+        /**
+         * How much of what the words before lift a join's first word by counts ([Scorer.boost], held to
+         * [CONTEXT_PICK] first). All of it, as a single word has, parts names no list has into words that are
+         * likely where they stand; none of it leaves joins unparted that their place makes plain ("obfrwam" is
+         * "I dream", not "a dream"). Set on tool/versus/scoreboard.py --bench, 2026-11-12, the fall as above.
+         * Words left wrong of 5,205 seen and of 6,408 unseen, with how many of each the tree before had right;
+         * then the bench's joins fixed, right words spoiled in a thousand and unknown words spoiled, for its
+         * three thumbs:
+         *   0     309 (1), 424 (0);  63.3/72.3/68.8%;  1.22/1.48/1.65;  1.5/4.3/7.1%
+         *   0.25  306 (1), 420 (0);  67.8/74.4/69.3%;  1.22/1.48/1.65;  1.5/4.3/7.1%
+         *   0.5   302 (0), 420 (0);  72.2/75.4/70.6%;  1.22/1.48/1.45;  1.5/4.3/7.1%
+         *   0.75  304 (2), 420 (2);  72.2/75.9/71.6%;  1.42/1.48/1.65;  1.9/4.3/8.3%
+         *   1     301 (2), 420 (2);  73.3/77.9/71.8%;  1.42/1.75/1.86;  1.9/5.5/9.5%
+         * Half is the only one that breaks nothing and spoils nothing more than no join search at all does.
+         */
+        @JvmField var JOIN_LIFT = 0.5f
         /** The least a word must be worth to be offered as what a half-typed word with a slip in it was the start of. */
         @JvmField var FINISH_LEAST = 2.5f
         /** How much more than a listed word a reading must be worth to replace it: a rare word's, and a common word's. */

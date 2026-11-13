@@ -175,6 +175,26 @@ class TypingAccuracyTest {
         assertNull(ac.correct("understand", null, taps("understand")))
     }
 
+    @Test fun lettersThatLookLikeNoWordArePartedTheLongerTheyAre() {
+        // "from strangers" with the space missed, the o tapped on the i's side of their line, the r on the e's and
+        // the s on the z under it: thirteen letters nobody means. Two words as rare together as these are worth
+        // less than JOIN_BAR, and are taken all the same, the letters being no word (Autocorrect.JOIN_FALL).
+        assertEquals("from strangers", ac.correct("frimsteangerz", null, taps("frimsteangerz", 2 to (0.45f to 0f), 6 to (0.45f to 0f), 12 to (0f to -0.45f))))
+        // "had stitches", its space landed on the v over the bar and four letters on the keys beside their own.
+        assertEquals("had stitches", ac.correct("gadvzritchds", null, taps("gadvzritchds", 0 to (0.45f to 0f), 3 to (0f to 0.45f), 4 to (0f to -0.45f), 5 to (0.45f to 0f), 10 to (-0.3f to -0.4f))))
+        // The same letters with every tap in the middle of its key are what was typed: nothing near enough to part them into.
+        assertNull(ac.correct("gadvzritchds", null, taps("gadvzritchds")))
+    }
+
+    @Test fun twoWordsSetSideBySideMayBeOneWordNoListHas() {
+        // Letters that look like no word only where two listed words meet ("rkt" in worktree, "owp" in windowpane)
+        // are a name or a compound no list has, however long: the bar for parting them does not fall.
+        for (word in listOf("worktree", "infamousvague", "ghostkeyboard", "mergeconflict", "midjourney", "windowpane", "tablecloth", "fastlane", "churchgoers")) {
+            if (ac.isWord(word)) continue
+            assertNull("$word, every tap in the middle of its key", ac.correct(word, null, taps(word)))
+        }
+    }
+
     @Test fun theRowOffersTheWordTheTapsAreTheStartOf() {
         val words = ac.suggest("tomm", null, taps("tomm")).words.map { it.lowercase() }
         assertTrue("$words", "tommy" in words || "tomorrow" in words)

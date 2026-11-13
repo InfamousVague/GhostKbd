@@ -63,7 +63,7 @@ class Inside(val ac: Autocorrect) {
 fun found(inside: Inside, d: TapDecoder, typed: String, taps: Taps, show: Int) {
     val least = -30f
     d.load(typed, taps)
-    val joins = d.joins(least, least, Autocorrect.JOIN_FIRST, first = { i -> if (inside.zipfs[i] >= Autocorrect.JOIN_FIRST && (inside.sorted[i].length >= 2 || inside.zipfs[i] >= SwipeDecoder.ONE_LETTER)) inside.zipfs[i] else Float.NEGATIVE_INFINITY },
+    val joins = d.joins(least, Autocorrect.JOIN_FIRST, first = { i -> if (inside.zipfs[i] >= Autocorrect.JOIN_FIRST && (inside.sorted[i].length >= 2 || inside.zipfs[i] >= SwipeDecoder.ONE_LETTER)) inside.zipfs[i] else Float.NEGATIVE_INFINITY },
         second = { a, b -> inside.worth(inside.sorted[a], inside.sorted[b]).first },
         followers = { a -> inside.follows(inside.sorted[a])?.keys?.mapNotNull { w -> inside.index(w).takeIf { it >= 0 } }?.toIntArray()?.also { it.sort() } ?: IntArray(0) })
     val ranked = joins.map { j ->
@@ -171,8 +171,9 @@ fun probe(root: File, boardFile: File, show: Int) {
                     prev = word
                     at = (gap ?: (to - 1)) + 1
                 }
-                val fall = Autocorrect.JOIN_FALL * (typed.length - Autocorrect.JOIN_LONG).coerceAtLeast(0f)
-                println("       as meant it is worth %.2f less %.2f = %.2f; the bar for a join is %.2f, and %.2f where a tap is read as the bar".format(total, cost, total - cost, Autocorrect.JOIN_BAR, Autocorrect.JOIN_BAR - fall))
+                // Autocorrect.byTaps's bar for a join: lower by JOIN_FALL a letter over JOIN_LONG where the letters look like no word.
+                val fall = if (known == null && typed.length >= 4 && inside.odd(typed)) Autocorrect.JOIN_FALL * (typed.length - Autocorrect.JOIN_LONG).coerceAtLeast(0f) else 0f
+                println("       as meant it is worth %.2f less %.2f = %.2f, before what the words before lift it by; the bar for a join of these letters is %.2f".format(total, cost, total - cost, Autocorrect.JOIN_BAR - fall))
                 found(inside, d, typed, taps, show)
             }
             run.clear()
