@@ -309,7 +309,9 @@ fun taps(root: File) {
 /** A cost by name ("A.UNKNOWN" is Autocorrect's, "T.OMIT" is TapDecoder's), for trying others. */
 fun setCost(name: String, value: Float) {
     val cls = if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java
-    cls.getField(name.substring(2)).setFloat(null, value)
+    val field = cls.getField(name.substring(2))
+    // A switch (T.JOIN_THREE) is off at 0 and on at anything else.
+    if (field.type == java.lang.Boolean.TYPE) field.setBoolean(null, value != 0f) else field.setFloat(null, value)
 }
 fun getCost(name: String): Float = (if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java).getField(name.substring(2)).getFloat(null)
 
@@ -919,7 +921,7 @@ fun turns(root: File) {
 
 fun main(args: Array<String>) {
     val root = File(args.getOrNull(0) ?: ".")
-    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setCost(k, v.toFloat()) }
+    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setCost(k, v.toFloatOrNull() ?: if (v.toBoolean()) 1f else 0f) }
     when (args.getOrNull(1) ?: "all") {
         "taps" -> taps(root)
         "tune" -> tune(root)

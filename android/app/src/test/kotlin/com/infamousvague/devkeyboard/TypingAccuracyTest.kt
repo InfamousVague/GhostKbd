@@ -307,6 +307,87 @@ class TypingAccuracyTest {
         assertNull(ac.rejoin("o", "", "o", null, cut("o", "", 'n', 0.5f)))
     }
 
+    @Test fun aWordMendedAtTheBarsTapIsHeldAtWhatTheMendCost() {
+        // "women" with its w tapped as e and its n on the bar: the space made "some" of "eome", by reading the e as
+        // an s a row away. What stands is worth less by that, and "women" reads the same taps for less.
+        assertEquals("women", ac.rejoin("eome", "", "some", null, cut("eome", "", 'n', 0.05f)))
+        // "wome" was made "women" at the space by a letter nobody typed. With the bar's tap for that letter it is
+        // "women" as it stands, and the second space is its space: it comes back, so that no full stop is made.
+        assertEquals("women", ac.rejoin("wome", "", "women", null, cut("wome", "", 'n', 0.07f)))
+        // In the middle of the bar the tap was the space, the letter was left out, and two spaces are a full stop.
+        assertNull(ac.rejoin("wome", "", "women", null, cut("wome", "", 'n', 0.5f)))
+    }
+
+    @Test fun aWordWhoseFirstLetterLandedOnTheBarIsPutTogether() {
+        // The tap came straight after a space and ended no word: there is no first scrap. "ery" after it is "very".
+        assertEquals("very", ac.rejoin("", "ery", "", null, cut("", "ery", 'v', 0.07f)))
+        assertEquals("begin", ac.rejoin("", "egin", "", null, cut("", "egin", 'b', 0.07f)))
+        // At the start of a sentence the capital is the word's; where the tap made a full stop of the space before
+        // it, the capital was that full stop's, and goes with it.
+        assertEquals("Begin", ac.rejoin("", "Egin", "", null, cut("", "egin", 'b', 0.07f)))
+        assertEquals("very", ac.rejoin("", "Ery", "", null, cut("", "ery", 'v', 0.07f), stopped = true))
+        // A word that stands after a full stop is not made a longer one: "It was. Ever since" is not "never".
+        assertNull(ac.rejoin("", "Ever", "", null, cut("", "ever", 'n', 0.07f), stopped = true))
+        assertNull(ac.rejoin("", "An", "", null, cut("", "an", 'c', 0.07f), stopped = true))
+        assertNull(ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.07f), stopped = true))
+        // Unless the two taps that made the full stop landed apart: no double tap, and nobody's full stop.
+        assertEquals("near", ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.07f), stopped = true, doubled = false))
+        // In the middle of the bar the tap was a space wherever the other landed.
+        assertNull(ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.5f), stopped = true, doubled = false))
+        // Letters that make a better word by themselves keep it: "thr" after a full stop is "the", whatever the bar's tap was under.
+        assertNull(ac.rejoin("", "Thr", "", null, cut("", "thr", 'b', 0.07f), stopped = true))
+    }
+
+    @Test fun aSecondSpaceAfterASentenceLeavesTheNextWordAlone() {
+        // Two spaces after a full stop (or a newline and a space) arm DevKeyboardService's Cut with no first scrap,
+        // so the word typed next is offered to rejoin with the second space's tap as its first letter. A word that
+        // stands is not made a longer one: "ice" is not "nice", "all" not "ball". A second space is tapped where the
+        // first was, well inside the bar; from a third of the way down nothing changes. On the bar's very top edge,
+        // where a letter of the bottom row lands, a word far rarer than the longer one gives way to it ("ow" under
+        // the n is "now", "ore" under the m "more"), and no common one does.
+        for (word in listOf("ice", "ear", "ever", "one", "all", "an", "at", "and", "ow", "ore", "old", "it", "a", "us", "is")) {
+            for (under in "cvbnm") {
+                for (down in floatArrayOf(0.07f, 0.3f, 0.5f, 0.8f)) {
+                    val got = ac.rejoin("", word, "", null, cut("", word, under, down))
+                    val edge = down < 0.1f && (word == "ow" && under == 'n' || word == "ore" && under == 'm')
+                    if (edge) assertEquals("$word under $under at $down", "$under$word", got) else assertNull("$word under $under at $down", got)
+                }
+            }
+        }
+    }
+
+    @Test fun withoutEnglishTheJoinsAndTheRejoinReadAsBefore() {
+        // The join search with its fallen bar, slips in a first word and three words, and rejoin's reading of no
+        // first scrap and of a closing mark, were set on English typing alone. With German alone loaded the joins
+        // go by TapDecoder.pairs, as before them: the new search never runs (its work is never counted).
+        val de = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val state = LanguageState.of(listOf("de"), emptyMap(), "")
+        de.loadNow(state.dictionaries, state.board)
+        TapDecoder.JOIN_WORK_LAST = -1
+        assertEquals("ich bin", de.correct("ichbin", null, taps("ichbin")))
+        de.correct("rinfachzuviel", null, taps("rinfachzuviel"))
+        assertEquals(-1, TapDecoder.JOIN_WORK_LAST)
+        assertEquals("in the", ac.correct("inthe", null, taps("inthe")))
+        assertTrue(TapDecoder.JOIN_WORK_LAST >= 0)
+        // No first scrap ("ery" after a second space, "very" in English) and a closing mark after the space are English's alone.
+        assertEquals("very", ac.rejoin("", "ery", "", null, cut("", "ery", 'v', 0.07f)))
+        assertNull(de.rejoin("", "ie", "", null, cut("", "ie", 'n', 0.07f)))
+        assertEquals("tragic", ac.rejoin("tragi", "", "tragi", null, cut("tragi", "", 'c', 0.07f), doubled = false, mark = true))
+        assertNull(de.rejoin("ihne", "", "ihne", null, cut("ihne", "", 'n', 0.07f), doubled = false, mark = true))
+        // A word cut in two with both scraps reads in German as it did ("ih en" for "ihnen", under the n).
+        assertEquals("ihnen", de.rejoin("ih", "en", "ih", null, cut("ih", "en", 'n', 0.07f)))
+    }
+
+    @Test fun twoTapsOnTheBarThatLandedApartAreNoDoubleTap() {
+        // "i" and two spaces is "I." where the two were one double tap, as it always was.
+        assertNull(ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f)))
+        // Where the second landed away from the first, the first is held as no likelier a space than its place
+        // says: on the top edge of the bar, beneath the n, "i" is as well "in", which is the commoner word.
+        assertEquals("in", ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f), doubled = false))
+        // A word that is far commoner than the longer one still stands.
+        assertNull(ac.rejoin("the", "", "the", null, cut("the", "", 'n', 0f), doubled = false))
+    }
+
     @Test fun twoWordsThatAreTwoWordsStand() {
         // However high on the bar the space was tapped.
         for ((a, b) in listOf("is" to "a", "to" to "go", "in" to "the", "it" to "was", "we" to "can", "a" to "man", "be" to "nice")) {
@@ -334,6 +415,30 @@ class TypingAccuracyTest {
         // A long word is not cut in two.
         assertNull(ac.correct("something", null, taps("something")))
         assertNull(ac.correct("understand", null, taps("understand")))
+    }
+
+    @Test fun lettersThatLookLikeNoWordArePartedTheLongerTheyAre() {
+        // "from strangers" with the space missed, the o tapped on the i's side of their line, the r on the e's and
+        // the s on the z under it: thirteen letters nobody means. Two words as rare together as these are worth
+        // less than JOIN_BAR, and are taken all the same, the letters being no word (Autocorrect.JOIN_FALL).
+        assertEquals("from strangers", ac.correct("frimsteangerz", null, taps("frimsteangerz", 2 to (0.45f to 0f), 6 to (0.45f to 0f), 12 to (0f to -0.45f))))
+        // "had stitches", its space landed on the v over the bar and four letters on the keys beside their own.
+        assertEquals("had stitches", ac.correct("gadvzritchds", null, taps("gadvzritchds", 0 to (0.45f to 0f), 3 to (0f to 0.45f), 4 to (0f to -0.45f), 5 to (0.45f to 0f), 10 to (-0.3f to -0.4f))))
+        // The same letters with every tap in the middle of its key are what was typed: nothing near enough to part them into.
+        assertNull(ac.correct("gadvzritchds", null, taps("gadvzritchds")))
+        // "person treating", the space on the v and an r tapped as t in each: both halves still look like words,
+        // and the only letters that look like none are where they meet. Neither half is a word as typed, so
+        // they are no two words set side by side, and the bar falls for them too.
+        assertEquals("person treating", ac.correct("petsonvtteating", null, taps("petsonvtteating", 2 to (-0.45f to 0f), 6 to (0f to 0.45f), 8 to (-0.45f to 0f))))
+    }
+
+    @Test fun twoWordsSetSideBySideMayBeOneWordNoListHas() {
+        // Letters that look like no word only where two listed words meet ("rkt" in worktree, "owp" in windowpane)
+        // are a name or a compound no list has, however long: the bar for parting them does not fall.
+        for (word in listOf("worktree", "infamousvague", "ghostkeyboard", "mergeconflict", "midjourney", "windowpane", "tablecloth", "fastlane", "churchgoers")) {
+            if (ac.isWord(word)) continue
+            assertNull("$word, every tap in the middle of its key", ac.correct(word, null, taps(word)))
+        }
     }
 
     @Test fun theRowOffersTheWordTheTapsAreTheStartOf() {
