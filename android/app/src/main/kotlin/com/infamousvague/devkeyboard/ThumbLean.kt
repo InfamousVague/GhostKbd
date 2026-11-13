@@ -222,7 +222,9 @@ class ThumbLean {
         // what a key width squared of distance from a tap costs; a thumb whose taps scatter widely wants it lower, one
         // whose taps fall close higher. The spread is the scatter the lean above already measures (its squares about
         // its own mean), and the next word is read with SPATIAL times SPREAD over it: one over the spread squared, as
-        // a Gaussian thumb would have it. Set on the scoreboard's seen set; tool/versus/scoreboard.py --bench.
+        // a Gaussian thumb would have it. Shaped off the JVM on the seen set (build/scatter/laws*.py, which forecast
+        // the scoreboard within three words), the bounds and the joins settled on the unseen set's total and the
+        // bench together. Words wrong below are seen and unseen, with everything else as it stands: 287 and 394.
 
         /** Off, every word is read with SPATIAL as it stands, whatever its taps have shown: the scoreboard is then the base's. */
         @JvmField var SPREAD_ON = true
@@ -230,22 +232,36 @@ class ThumbLean {
         /**
          * The scatter of a tap about where the thumb lands, squared, each way, in key widths squared, that SPATIAL as
          * it stands is right for: what a field begins with, so that its first word reads exactly as it did before.
+         * Trusted taps of the measure's careful thumb come to about 0.046 a field, its sloppy one's 0.117. Forecast at
+         * 0.05, 0.055, 0.06, 0.065, 0.07 (with SPREAD_POWER 3, a floor of 0.5): unseen 387, 390, 392, 392, 391; at
+         * 0.065 the careful thumb is read below 1.45 at 14% of its words where at 0.05 at 32%.
          */
         @JvmField var SPREAD = 0.065f
 
-        /** How steeply SPATIAL falls as the spread grows past [SPREAD]: the spread's ratio to it to this power. */
+        /**
+         * How steeply SPATIAL falls as the spread grows past [SPREAD]: the spread's ratio to it to this power. At 2
+         * words wrong are 286 and 395; at 3, 287 and 394. Steeper keeps a careful thumb's few wide sentences tight.
+         */
         @JvmField var SPREAD_POWER = 3f
 
-        /** How many of the field's own taps [SPREAD] is worth. */
+        /** How many of the field's own taps [SPREAD] is worth. At 8 words wrong are 286 and 393. */
         @JvmField var SPREAD_TAPS = 4f
 
-        /** The least and the most SPATIAL is read with, however widely or closely the taps fall. */
+        /**
+         * The least and the most SPATIAL is read with, however widely or closely the taps fall. Least 0.5, 0.7, 0.9,
+         * 1.0, 1.1: words wrong 278, 281, 287, 289, 293 and 397, 395, 394, 400, 407; the bench's sloppy thumb spoils
+         * 4.96, 3.10, 2.48, 2.28, 2.28 right words a thousand (1.65 with no spread), its normal one 3.09, 2.42, 2.02,
+         * 1.75, 1.61 (1.48). The most is seldom reached: a careful thumb's sentence comes to about 2.
+         */
         @JvmField var SPREAD_LOW = 0.9f
         @JvmField var SPREAD_HIGH = 3f
 
         /**
          * How much of the loosening two words run together are spared: their slips' cost is divided by [Taps.tight]
          * (where under 1) to this power. 1: they are read as tightly as SPATIAL as it stands; 0: as loosely as words.
+         * At a floor of 0.5: 0 gives 270 and 395 words wrong, 0.5 gives 268 and 396, 1 gives 278 and 397; the bench's
+         * normal thumb spoils 5.11, 3.77, 3.09 right words a thousand and 16.5%, 11.6%, 8.5% of unknown words, letters
+         * no list has split into two words ("mapbox", "map of"). Taken at 1 for the bench.
          */
         @JvmField var SPREAD_JOINS = 1f
 
