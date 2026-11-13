@@ -402,8 +402,8 @@ half the sentences and judged by the other half: a random half of each set's sen
 
 Fitted on half A the search made the moves the search fitted on everything made, `MARGIN_COMMON` to 1.3 among
 them, and ended at nearly the same setting (the table of dials below). On the half it never saw it left 55 fewer
-words wrong of 381, four fifths of the 69 it gained on its own half, and no resampling of that half's sentences
-gives fewer than 37.
+words wrong of 381, four fifths of the 69 it gained on its own half; over 2,000 resamplings of that half's
+sentences, 95 in a hundred fall between 72 fewer and 37 fewer.
 
 And by a search twice as wary of the bench, which charges its penalty whole against half the sentences'
 words (`--whole-bench`; the first two searches run, before the share was counted):
