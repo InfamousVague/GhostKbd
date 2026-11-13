@@ -236,6 +236,37 @@ class WideWordsTest {
         assertEquals("plans", plain.correct("plan's", null, taps("plan's")))
     }
 
+    @Test fun aCautiousListLeavesEnglishAsItWas() {
+        // A list beyond the first six beside English: no taps are read, and English is held exactly as with en.tsv alone.
+        val later = LanguageState.of(listOf("en", "pl"), emptyMap(), "")
+        val withIt = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }.also { it.loadNow(later.dictionaries, later.board) }
+        val without = Autocorrect { name -> File(assets, name).takeIf { it.exists() && name != "dict/en_wide.tsv" }?.inputStream() }.also { it.loadNow(later.dictionaries, later.board) }
+        assertTrue(withIt.active && withIt.settled)
+        for (word in listOf("yurt", "stammer", "okafor", "plan's", "yurt's", "the", "definately")) {
+            assertEquals(word, without.isWord(word), withIt.isWord(word))
+            assertEquals(word, without.correct(word), withIt.correct(word))
+            assertEquals(word, without.correct(word, null, taps(word)), withIt.correct(word, null, taps(word)))
+        }
+        assertFalse(withIt.isWord("yurt"))
+    }
+
+    @Test fun aNameOnlyWritingVouchesForIsHeldNoLessThanWhenNoListHadIt() {
+        // "piotr", typed as meant, was "poor" on the bench's careful thumb once it became a rare listed word; held at
+        // the bar of letters no list has as well ([Autocorrect.WIDE_HOLD]) it stands, as it did unlisted.
+        assertEquals(1f, Autocorrect.WIDE_HOLD, 0f)
+        for (word in listOf("piotr", "okafor", "zoltan")) {
+            assertEquals("$word: only writing vouches for it", "w", marks[word])
+            assertNull(word, english.correct(word, null, taps(word)))
+        }
+        // Its i tapped on the line to o: held by the rare-word rule alone it would be "poor"; held as before, it stands.
+        val slip = taps("piotr", 1 to (0.5f to 0f))
+        assertNull(english.correct("piotr", null, slip))
+        try {
+            Autocorrect.WIDE_HOLD = 0f
+            assertEquals("poor", english.correct("piotr", null, slip))
+        } finally { Autocorrect.WIDE_HOLD = 1f }
+    }
+
     @Test fun theFirstListIsInUseBeforeTheWiderOneIsRead() {
         val ac = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
         val state = LanguageState.of(listOf("en"), emptyMap(), "")
@@ -245,7 +276,8 @@ class WideWordsTest {
         val until = System.currentTimeMillis() + 60_000
         while (!ac.settled && System.currentTimeMillis() < until) Thread.sleep(10)
         assertTrue(ac.settled)
-        Thread.sleep(50)
+        // The second onLoaded comes just after settled turns true: wait for it, with a deadline, not a fixed sleep.
+        while (synchronized(told) { told.size } < 2 && System.currentTimeMillis() < until) Thread.sleep(10)
         // Told twice: when en.tsv was in (the first words typed are corrected by it), and again with the wider list.
         assertEquals(listOf(false, true), synchronized(told) { told.toList() })
         assertTrue(ac.isWord("the") && ac.isWord("yurt"))

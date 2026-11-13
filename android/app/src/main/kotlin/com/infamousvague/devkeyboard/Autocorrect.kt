@@ -119,8 +119,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * none of them, and eleven in twelve of such questions are answered without halving anything.
      */
     private class Listed(private val first: Map<String, Float>, private val sorted: Array<String>, private val zipf: FloatArray) : AbstractMap<String, Float>() {
-        private val maybe = java.util.BitSet(BITS).also { bits -> for (w in sorted) if (!first.containsKey(w)) bits.set(spot(w)) }
-        private fun spot(key: String): Int = key.hashCode().let { it xor (it ushr 15) } and (BITS - 1)
+        /** [maybe]'s size, a power of two ([WIDE_BITS] as this map was made). */
+        private val bits = Integer.highestOneBit(WIDE_BITS.coerceIn(64, 1 shl 26))
+        private val maybe = java.util.BitSet(bits).also { set -> for (w in sorted) if (!first.containsKey(w)) set.set(spot(w)) }
+        private fun spot(key: String): Int = key.hashCode().let { it xor (it ushr 15) } and (bits - 1)
         /** [key]'s place in [sorted] where it is one of the wider list's words, else a negative number. */
         private fun wider(key: String): Int = if (maybe.get(spot(key))) java.util.Arrays.binarySearch(sorted, key) else -1
         override val size: Int get() = sorted.size
@@ -134,11 +136,6 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 override fun hasNext() = i < sorted.size
                 override fun next(): Map.Entry<String, Float> = java.util.AbstractMap.SimpleImmutableEntry(sorted[i], zipf[i]).also { i++ }
             }
-        }
-
-        private companion object {
-            /** [maybe]'s bits: a million, of which the list's 87,000 words set one in twelve. */
-            const val BITS = 1 shl 20
         }
     }
 
@@ -256,8 +253,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 val made = runCatching { load(key, lists, script, gone) }.getOrNull()
                 val inUse = synchronized(this) {
                     when {
-                        wantedKey != key -> { if (made != null && key in keep) { cache[key] = made; if (wider(lists)) widening += key }; false }
-                        made != null -> { cache[key] = made; if (wider(lists)) widening += key; now = Now(wantedBoard, made); true }
+                        wantedKey != key -> { if (made != null && key in keep) { cache[key] = made; if (wider(lists, made)) widening += key }; false }
+                        made != null -> { cache[key] = made; if (wider(lists, made)) widening += key; now = Now(wantedBoard, made); true }
                         else -> { wantedKey = ""; loader = null; return }
                     }
                 }
@@ -280,8 +277,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
     }
 
-    /** Whether [lists] have a wider list to be read after them: English's, while [WIDE] is on. */
-    private fun wider(lists: List<String>) = WIDE > 0f && "en" in lists
+    /**
+     * Whether [lists], read into [lex], have a wider list to be read after them: English's, while [WIDE] is on, and
+     * never into a [Lexicon.cautious] one. Such a lexicon (a list beyond the first six is loaded) reads no taps, and
+     * English beside it is held exactly as it was before there was a wider list.
+     */
+    private fun wider(lists: List<String>, lex: Lexicon) = WIDE > 0f && "en" in lists && !lex.cautious
 
     /**
      * Reads [languages]' lists for [script] into a [Lexicon].
@@ -406,7 +407,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * list), and null where [gone] says another lexicon is wanted now. Nothing here opens a connection.
      */
     private fun widen(lex: Lexicon, gone: () -> Boolean = { false }): Lexicon? {
-        if (lex.marks != null) return lex
+        if (lex.marks != null || lex.cautious) return lex
         val stream = open("dict/en_wide.tsv") ?: return lex
         val first = lex.words
         var words = arrayOfNulls<String>(1 shl 17)
@@ -416,8 +417,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         var inOrder = true
         // What the list says of the words the first lists have.
         val said = HashMap<String, Byte>(1 shl 15)
+        var read = 0
         stream.bufferedReader().useLines { lines ->
             for (line in lines) {
+                // A language switch made meanwhile is not kept waiting for the rest of the file.
+                if (++read and 4095 == 0 && gone()) return null
                 val tab = line.indexOf('\t')
                 val tab2 = if (tab > 0) line.indexOf('\t', tab + 1) else -1
                 if (tab2 < 0) continue
@@ -427,8 +431,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 if (first.containsKey(word)) { if (mark != 0) said[word] = mark.toByte(); continue }
                 // None of these words is common (the first list would have had it): a file that says otherwise is not believed.
                 val zipf = minOf(line.substring(tab + 1, tab2).toFloatOrNull() ?: continue, COMMON - 0.01f)
-                // Plain letters with at most an apostrophe inside, as the tool writes them: nothing else is taken.
-                if (zipf < WIDE_LEAST || word.isEmpty() || !word.all { it in 'a'..'z' || it == '\'' } || word[0] == '\'' || word[word.length - 1] == '\'') continue
+                // Plain letters with at most one apostrophe inside, as the tool writes them: nothing else is taken.
+                if (zipf < WIDE_LEAST || word.isEmpty() || !word.all { it in 'a'..'z' || it == '\'' } || word[0] == '\'' || word[word.length - 1] == '\'' || word.indexOf('\'') != word.lastIndexOf('\'')) continue
                 if (n == words.size) { words = words.copyOf(n * 2); zipfs = zipfs.copyOf(n * 2); marks = marks.copyOf(n * 2) }
                 if (n > 0 && words[n - 1]!! >= word) inOrder = false
                 val unread = zipf < (if (mark and WRITTEN != 0) WIDE_READ_WRITTEN else WIDE_READ)
@@ -491,10 +495,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val key = key(board.script, dictionaries)
         val first = if (key.isEmpty()) Lexicon("") else load(key, dictionaries, board.script) ?: Lexicon("")
         // English's wider list with them, read here and now as the rest is.
-        val made = if (key.isNotEmpty() && wider(dictionaries)) runCatching { widen(first) }.getOrNull() ?: first else first
+        val made = if (key.isNotEmpty() && wider(dictionaries, first)) runCatching { widen(first) }.getOrNull() ?: first else first
         synchronized(this) {
             wantedKey = key; wantedLists = dictionaries; wantedBoard = board; keep = setOf(key)
-            widening.clear()
+            // Only this key is read whole here: another English lexicon still cached keeps its place to be widened.
+            widening -= key
             if (key.isNotEmpty()) cache[key] = made
             now = Now(board, made)
         }
@@ -975,9 +980,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         val common = known != null && known >= COMMON
         // A rare word that a dictionary vouches for (English's wider list says which): a word, not a misspelling.
-        val sure = known != null && !common && SURE_STANDS > 0f && lex.mark(lower) and SURE != 0
+        val mark = if (known != null && !common) lex.mark(lower) else 0
+        val sure = known != null && !common && SURE_STANDS > 0f && mark and SURE != 0
         // Any other rare listed word: only writing vouches for it, or a larger dictionary's less sure pages.
         val doubtful = known != null && !common && !sure
+        // One of those that only the wider list has: it was letters no list has before, and is held no less ([WIDE_HOLD]).
+        val held = doubtful && WIDE_HOLD > 0f && mark and (WIDER or SURE) == WIDER
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
         val unknown = if (known != null) UNKNOWN else unlisted(lower)
@@ -989,6 +997,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val bar = when {
             known == null -> unknown
             sure -> known + lift(stands, known) + SURE_MARGIN
+            held -> unlisted(lower)
             !common -> Float.NEGATIVE_INFINITY
             else -> known + lift(stands, known) + MARGIN_COMMON
         }
@@ -1463,6 +1472,22 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var WIDE_READ_WRITTEN = 9f
         @JvmField var WIDE_SWIPE = 2f
         @JvmField var WIDE_UNTAPPED = 0f
+        /**
+         * The size in bits of the hash filter in front of the wider list's lookups ([Listed]; a power of two, read as
+         * a lexicon is widened). Not tuned: 1 shl 20 (128 KB), so the 87,000 words set about one bit in twelve and
+         * eleven in twelve lookups of letters that are no word of the list skip the binary search. It changes no
+         * reading, only how fast a lookup that finds nothing is (and that was not measurable on a loaded Mac).
+         */
+        @JvmField var WIDE_BITS = 1 shl 20
+        /**
+         * A word of the wider list that no dictionary vouches for at a spelling checker's size (`w`, written only, and
+         * `l`, a larger dictionary's pages): before there was a wider list it was letters no list has, and gave way to
+         * any reading worth more than [unlisted] says such letters are. On (1), it is held at that bar AND by the rule
+         * for a doubtful rare word (a reading must also be [RARE_GAP] commoner and a cheap slip away), so knowing it
+         * never makes it weaker than it was unlisted ("piotr" is not "poor"). Off, only the rare-word rule holds it.
+         * Set by measurement: see docs/wide-words.md, "A word only writing vouches for".
+         */
+        @JvmField var WIDE_HOLD = 1f
         /**
          * A rare word that a dictionary vouches for ([SURE]) stands as typed unless a reading of its taps is worth
          * [SURE_MARGIN] more than the word itself ([SURE_STANDS] 0: such a word is as doubtful as any rare word, which
