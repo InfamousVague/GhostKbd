@@ -139,6 +139,8 @@ class TapDecoder(
     private var spaceCost = FloatArray(0)
     private val keyCache = HashMap<Char, Char>()
     private var visits = 0
+    /** The most nodes a [search] may walk: [MAX_VISITS], or less where [joins] has only that much work left. */
+    private var visitCap = MAX_VISITS
 
     private fun key(c: Char): Char = keyCache.getOrPut(c) { keyOf(c) }
 
@@ -323,7 +325,7 @@ class TapDecoder(
     private var finishing = false
 
     private fun walk(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, last: Char, budget: Float, changed: Int) {
-        if (trie.best[node] - cost < floor || cost > budget || ++visits > MAX_VISITS) return
+        if (trie.best[node] - cost < floor || cost > budget || ++visits > visitCap) return
         val more = changed + 100 <= changes
         if (i == n) {
             if (finishing) { val w = trie.bestWord[node]; if (w >= 0) offer(w, cost); return }
@@ -461,9 +463,14 @@ class TapDecoder(
         val tailsFrom = FloatArray(n)
         fun tails(from: Int, need: Float): List<Hit> {
             tails[from]?.let { if (tailsFrom[from] <= need) return it }
-            val found = search(need, JOIN_BUDGET, from).sortedByDescending { zipfs[it.index] - it.cost }
-            joinWork += visits
-            tails[from] = found; tailsFrom[from] = need
+            // No more nodes than the work left: the search's own bound is otherwise 40,000, past the whole cap.
+            val left = (MAX_JOIN_WORK - joinWork).toInt()
+            if (left <= 0) return emptyList()
+            visitCap = minOf(MAX_VISITS, left)
+            val found = try { search(need, JOIN_BUDGET, from).sortedByDescending { zipfs[it.index] - it.cost } } finally { visitCap = MAX_VISITS }
+            joinWork += minOf(visits, left)
+            // A search cut short is not all there is: never kept for another first word to take as the whole.
+            if (visits <= left) { tails[from] = found; tailsFrom[from] = need }
             return found
         }
         // The last word after [before], from the tap [from]: [have] is what the words and slips before it come to.
@@ -500,7 +507,7 @@ class TapDecoder(
         }
         // Every first word with the space after it, the likeliest first: where the search has to stop, it has looked at those.
         val leads = ArrayList<Lead>()
-        for (head in starts(0, common)) {
+        for (head in starts(0, common, MAX_JOIN_WORK * JOIN_START_SHARE)) {
             val z = first(head.index)
             if (z == Float.NEGATIVE_INFINITY) continue
             for (spaced in 0..1) {
@@ -525,7 +532,7 @@ class TapDecoder(
         for (lead in leads) {
             if (joinWork > MAX_JOIN_WORK) break
             if (n - lead.from < 3 || lead.have + 2 * most < maxOf(least, best)) continue
-            val middles = mids[lead.from] ?: starts(lead.from, common).filter { first(it.index) != Float.NEGATIVE_INFINITY }.also { mids[lead.from] = it }
+            val middles = mids[lead.from] ?: starts(lead.from, common, MAX_JOIN_WORK).filter { first(it.index) != Float.NEGATIVE_INFINITY }.also { mids[lead.from] = it }
             for (mid in middles) {
                 if (joinWork > MAX_JOIN_WORK) break
                 if (lead.have - mid.cost + 2 * most < maxOf(least, best)) continue
@@ -610,12 +617,13 @@ class TapDecoder(
      * letters read as keys their taps were near ([slip]: a thumb's slips, and no misspelling), and at most one
      * letter missed, added or swapped ("mnoey" is "money", "gve" is "gave"), within [JOIN_BUDGET] in all. Only
      * words at least [common], and never one that takes every tap that is left: another word is to follow. One
-     * walk finds them for every place such a word could end.
+     * walk finds them for every place such a word could end. It walks the trie in the order of the letters, so it
+     * stops at [until] (the join search's work so far, this walk's included) with whichever words it reached.
      */
-    private fun starts(from: Int, common: Float): List<Start> {
+    private fun starts(from: Int, common: Float, until: Float): List<Start> {
         val found = HashMap<Long, Float>()
         fun go(node: Int, i: Int, cost: Float, slipped: Boolean, last: Char) {
-            if (cost > JOIN_BUDGET || trie.best[node] < common || ++joinWork > MAX_JOIN_WORK) return
+            if (cost > JOIN_BUDGET || trie.best[node] < common || ++joinWork > until) return
             if (i >= n) return
             val w = trie.word[node]
             if (w >= 0 && i > from && zipfs[w] >= common) { val key = (w.toLong() shl 16) or i.toLong(); val had = found[key]; if (had == null || cost < had) found[key] = cost }
@@ -774,8 +782,12 @@ class TapDecoder(
         const val MAX_VISITS = 40_000
         /**
          * [joins] stops with what it has at this much work: trie nodes walked, [ALIGN_WORK] for every word held up
-         * against the taps, and one for every pair of words weighed. The likeliest first words are tried first, so
-         * what is found is found early and the rest of the work is looking for better. Set on
+         * against the taps, and one for every pair of words weighed. Each search for a last word walks no more
+         * nodes than the work left, so the bound is a whole one, but for one [fits] (a word's letters against the
+         * taps, held as [ALIGN_WORK]) and Autocorrect's own single search after it. The first words found are
+         * tried likeliest first, so what is found is found early and the rest of the work is looking for better;
+         * the walk that finds them goes in the order of the letters, and has [JOIN_START_SHARE] of the work at
+         * most, so that it never leaves the rest none. Set on
          * tool/versus/scoreboard.py --bench, 2026-11-12: its 1,800 typings and the bench's 12,000 words read the
          * same at 16,000 as at 60,000, which is what it was first set to; at 8,000 the typings are still the same
          * and the bench's sloppy thumb has one join fewer parted; at 5,000 three words of the typings are lost,
@@ -784,6 +796,11 @@ class TapDecoder(
          * that the bench can set it by name.
          */
         @JvmField var MAX_JOIN_WORK = 16_000f
+        /**
+         * The share of [MAX_JOIN_WORK] the walk for a join's first words ([starts]) may take before the rest has
+         * any: where it took the lot, no join was looked for at all. Set to a half by reasoning, not measured.
+         */
+        @JvmField var JOIN_START_SHARE = 0.5f
         const val ALIGN_WORK = 8
         /** The work the last [joins] did, and the most any has done since this was set to 0: read by the tools and the tests, never by the keyboard. */
         @JvmField var JOIN_WORK_LAST = 0

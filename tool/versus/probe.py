@@ -30,6 +30,7 @@ parted right.
 The JVM only: no emulator. Compiled into build/versus/probe.jar with the decoder's sources as they stand.
 """
 import argparse
+import itertools
 import os
 import subprocess
 import sys
@@ -98,7 +99,8 @@ def main():
         if last > 90000:
             raise SystemExit("probe: lines past 90,000 are the seen, unseen and final sets")
         with open(th.HELD_OUT, encoding="utf-8") as f:
-            text = "".join(line for n, line in enumerate(f, 1) if first <= n <= last)
+            # Stops at [last]: the lines after it are never read at all, let alone kept.
+            text = "".join(line for n, line in enumerate(itertools.islice(f, last), 1) if n >= first)
     else:
         records = scoreboard.kept("ghost.jsonl.gz") if args.which == "seen" else scoreboard.unseen(scoreboard.UNSEEN_FIRST, 300)
         text = "\n".join(line_of(r) for r in records if (not args.thumb or r["thumb"] == args.thumb) and (not args.line or r["line"] == args.line)) + "\n"
