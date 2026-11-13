@@ -523,7 +523,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             decoder.load(lower, taps)
             for (h in decoder.finish(least - (if (scorer == null) 0f else CONTEXT_PICK))) {
                 val word = now.lexicon.sorted[h.index]
-                if (word == lower || h.cost <= 0f) continue
+                // Nothing amiss: a word the typed letters begin, found above (with a lean off the taps, the letters aimed at).
+                if (word == lower || (h.cost <= 0f && decoder.own <= 0f)) continue
                 val zipf = now.lexicon.sortedZipf[h.index]
                 val lift = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
                 top += word to zipf + lift - h.cost
@@ -738,11 +739,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             bestWord = word; bestScore = score
         }
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
-        val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET } + (if (TapDecoder.LEAN_BUDGET == 1) typedCost else 0f)
-        val floor = if (known != null && !common) known + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
+        val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
+        // The least frequency a rare typed word gives way to: RARE_GAP over its own, less what its own taps cost it.
+        val off = if (ThumbLean.RARE) typedCost else 0f
+        val gap = if (known != null && !common) known + RARE_GAP - off else Float.NEGATIVE_INFINITY
+        val floor = if (known != null && !common) gap - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
         for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
             val word = lex.sorted[h.index]
-            if (known != null && !common && lex.sortedZipf[h.index] < known + RARE_GAP) continue
+            if (lex.sortedZipf[h.index] < gap) continue
             // Typed plainly with a slip: the plain word where there is one (esra is esta, not está).
             val plain = script.plain(word)
             if (plain != word && words.containsKey(plain)) continue
@@ -754,7 +758,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // The person's own words: never in the trie, so each is held up against the taps.
         for (l in learned + own) {
             if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
-            if (known != null && LEARNED_ZIPF < known + RARE_GAP) continue
+            if (known != null && LEARNED_ZIPF < known + RARE_GAP - off) continue
             val cost = decoder.align(l, 0, budget)
             if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
         }
@@ -869,6 +873,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     fun settled(lean: ThumbLean, typed: String, fixed: String?, taps: Taps?) {
         val now = now
         val lex = now.lexicon
+        lean.pass()
         if (taps == null || !TAPS || lex.cautious || lex.words.isEmpty() || taps.xs.size != typed.length) return
         val locale = now.board.locale
         val lower = typed.lowercase(locale)

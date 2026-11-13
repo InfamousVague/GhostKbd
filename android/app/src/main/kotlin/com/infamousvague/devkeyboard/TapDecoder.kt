@@ -11,115 +11,11 @@ package com.infamousvague.devkeyboard
  * a tap in the middle of a key was that key. Without them it goes by which keys are neighbours, as it always did.
  *
  * [leanX] and [leanY] are how far from where it aims this thumb is taken to be landing just now, in key widths across
- * and down ([ThumbLean]): the taps are read as having landed that much nearer where they were aimed. Nothing where
- * that is not known, and the word is then read exactly as it was before there was a lean.
+ * and down ([ThumbLean.read] sets them): the taps are read as having landed that much nearer where they were aimed
+ * ([TapDecoder.load]). Nothing where that is not known, and the word is then read exactly as before there was a lean.
  */
 class Taps(val xs: FloatArray, val ys: FloatArray, val keys: Map<Char, Pair<Float, Float>>, val keyW: Float, val space: FloatArray? = null, val leanX: Float = 0f, val leanY: Float = 0f) {
     fun has(i: Int) = i < xs.size && !xs[i].isNaN() && !ys[i].isNaN()
-}
-
-/**
- * Where this thumb is landing, in the text field being typed in: how far from the middle of the key it aims at its
- * taps fall, in key widths across ([x]) and down ([y]).
- */
-class ThumbLean {
-    /** The taps that have taught it: how many they count as, their misses summed each way (key widths), and the misses' squares. */
-    private var n = 0f
-    private var sumX = 0f
-    private var sumY = 0f
-    private var squares = 0f
-    /** As they were before the last word taught it, for [unlearn]. */
-    private val was = FloatArray(4)
-
-    /** The lean as it is estimated now, across and down, in key widths. */
-    var x = 0f
-        private set
-    var y = 0f
-        private set
-
-    /** A text field is entered: nothing is known of the thumb in it. */
-    fun newField() {
-        if (KEEP) return
-        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f
-        was.fill(0f)
-    }
-
-    /** [taps] to be read by the lean as it is estimated now: the same taps, where nothing is estimated. */
-    fun read(taps: Taps): Taps = if (!ON || (x == 0f && y == 0f)) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, x * SHARE, y * SHARE)
-
-    /** The scatter of one tap about where the thumb lands, each way, squared: [NOISE] until the field's own taps say. */
-    private fun scatter(): Float {
-        if (n <= 0f) return NOISE * NOISE
-        val about = (squares - (sumX * sumX + sumY * sumY) / n).coerceAtLeast(0f) / 2f
-        return (NOISE_TAPS * NOISE * NOISE + about) / (NOISE_TAPS + (n - 1f).coerceAtLeast(0f))
-    }
-
-    /**
-     * A word has been settled, and its taps say where the thumb landed for it: [meant] is the key each tap is now
-     * taken to have been meant for (0 where it has none), [typed] the key it typed.
-     */
-    fun learn(typed: CharArray, meant: CharArray, taps: Taps) {
-        was[0] = n; was[1] = sumX; was[2] = sumY; was[3] = squares
-        val w = taps.keyW
-        if (w <= 0f) return
-        for (i in meant.indices) {
-            if (!taps.has(i)) continue
-            val at = taps.keys[meant[i]] ?: continue
-            val weight = if (meant[i] == typed[i]) 1f else CHANGED
-            if (weight <= 0f) continue
-            val dx = (taps.xs[i] - at.first) / w
-            val dy = (taps.ys[i] - at.second) / w
-            // A tap far from where this thumb has been landing says nothing of its lean.
-            val mx = if (n > 0f) sumX / n else 0f
-            val my = if (n > 0f) sumY / n else 0f
-            if ((dx - mx) * (dx - mx) + (dy - my) * (dy - my) > GATE * GATE * 2f * scatter()) continue
-            n += weight; sumX += weight * dx; sumY += weight * dy; squares += weight * (dx * dx + dy * dy)
-            count++
-        }
-        // It holds no more than [MEMORY] taps: what is older fades, so that it follows a change of hand or grip.
-        if (n > MEMORY) { val f = MEMORY / n; n *= f; sumX *= f; sumY *= f; squares *= f }
-        estimate()
-    }
-
-    private fun estimate() {
-        if (n <= 0f) { x = 0f; y = 0f; return }
-        val mx = sumX / n; val my = sumY / n
-        // How far the mean stands out of what scatter alone would make of it.
-        val s2 = scatter()
-        val t2 = (mx * mx + my * my) / (s2 / n)
-        val f = when (FORM) {
-            0 -> if (t2 <= PRIOR) 0f else 1f - PRIOR / t2
-            1 -> if (t2 <= PRIOR) 0f else 1f - 2f / t2
-            else -> {
-                // Spike and slab: most thumbs land where they aim; one in ODDS + 1 leans, by about TAU each way.
-                val r = n * TAU * TAU / s2
-                val w = 1.0 / (1.0 + ODDS * (1.0 + r) * Math.exp(-0.5 * t2 * r / (1.0 + r)))
-                (w * r / (1.0 + r)).toFloat()
-            }
-        }
-        x = mx * f; y = my * f
-    }
-
-    var count = 0
-    fun debug() = "$count\t${if (n > 0f) (sumX * sumX + sumY * sumY) / n / scatter() else 0f}"
-
-    /** The last word that taught it was not what was meant after all (its fix was taken back): it is as it was before. */
-    fun unlearn() { n = was[0]; sumX = was[1]; sumY = was[2]; squares = was[3]; estimate() }
-
-    companion object {
-        @JvmField var ON = true
-        @JvmField var PRIOR = 2f
-        @JvmField var FORM = 0
-        @JvmField var TAU = 0.3f
-        @JvmField var ODDS = 4f
-        @JvmField var NOISE = 0.3f
-        @JvmField var NOISE_TAPS = 4f
-        @JvmField var MEMORY = 100f
-        @JvmField var GATE = 3f
-        @JvmField var CHANGED = 1f
-        @JvmField var SHARE = 1f
-        @JvmField var KEEP = false
-    }
 }
 
 /**
@@ -241,29 +137,28 @@ class TapDecoder(
     private fun key(c: Char): Char = keyCache.getOrPut(c) { keyOf(c) }
 
     /**
-     * What the letters as typed cost, read by the taps as [load] has them: nothing where no lean is taken off the
-     * taps, since the typed letters are then the keys every cost is counted from. With a lean taken off, a tap may
-     * be nearer another key than the one it typed, and the typed letter then costs what any other reading of that
-     * tap would. [Autocorrect.byTaps] and [Autocorrect.rejoin] take it off what the typed word is worth.
+     * What the letters as typed cost as a reading of their own taps, once [load] has read them in. Nothing where no
+     * lean is taken off the taps: the typed letters are then the keys every cost is counted from. With a lean taken
+     * off, a tap may be nearer another key than the one it typed, and the typed letter then costs what any other
+     * reading of that tap would. [Autocorrect.byTaps] and [Autocorrect.rejoin] take it off what the typed word is
+     * worth.
      */
     var own = 0f
         private set
-    /** Each key's cost for the tap in hand, before the least of them is taken off: [load]'s own. */
-    private var ownAt = FloatArray(0)
-    private var keyCh = CharArray(0)
-    private var keyCost = FloatArray(0)
 
     /**
      * Reads the evidence in: the word as typed (lower case) and where its taps landed.
      *
-     * With a lean on the taps ([Taps.leanX], [Taps.leanY]) each tap is read as having landed that much nearer where
-     * it was aimed. A key's cost for a tap is then what it was (how much further from the tap than the typed key,
-     * never below nothing) and what the lean adds to it or takes off: twice the lean along the line from the typed
-     * key to it, so the keys the thumb leans away from come cheaper and the keys it leans toward dearer. The
-     * cheapest key is the one the tap is taken to have been aimed at, and every other key's cost counts from it,
-     * the typed key's among them: the word is read as if the aimed keys had been typed, and what the typed letters
-     * cost that way is [own]. With no lean nothing is added, the typed key is the cheapest, and every number is as
-     * it was.
+     * With a lean on the taps ([Taps.leanX], [Taps.leanY]: where this thumb is landing in the field, [ThumbLean])
+     * each tap is read as having landed that much nearer where it was aimed. A key's cost for a tap is then what it
+     * was (how much further from the tap than the typed key, never below nothing) and what the lean adds to it or
+     * takes off: twice the lean along the line from the typed key to it, which is what moving the tap back by the
+     * lean does to the two distances. Keys the thumb leans away from come cheaper, keys it leans toward dearer. The
+     * cheapest key is the one the tap is taken to have been aimed at, and every cost counts from it, the typed key's
+     * among them: the word is read as if the aimed keys had been typed ("ton" with its last tap leaning onto n from
+     * m's side is read as "tom" typed), and what the typed letters cost as a reading of that is [own]. The space
+     * bar's tap is read the same way, as a letter ([Autocorrect.rejoin]) and as a space run into a word
+     * ([spaceCost]). With no lean nothing is added, the typed key is the cheapest, and every number is as it was.
      */
     fun load(lower: String, taps: Taps?) {
         typed = lower
@@ -272,14 +167,12 @@ class TapDecoder(
         far = if (n >= LONG) FAR else FAR_SHORT
         spaceCost = FloatArray(n) { Float.POSITIVE_INFINITY }
         own = 0f
-        ownAt = FloatArray(n)
         val w2 = if (taps != null) taps.keyW * taps.keyW else 1f
-        // The lean in the taps' own units.
+        // The lean in the taps' own units, and the word as the aimed keys spell it, where that is not as typed.
         val lx = if (taps != null) taps.leanX * taps.keyW else 0f
         val ly = if (taps != null) taps.leanY * taps.keyW else 0f
         val leaning = lx != 0f || ly != 0f
         var aimed: CharArray? = null
-        if (taps != null && keyCh.size < taps.keys.size) { keyCh = CharArray(taps.keys.size); keyCost = FloatArray(taps.keys.size) }
         nearCh = Array(n) { EMPTY_CHARS }
         nearCost = Array(n) { EMPTY_COSTS }
         for (i in 0 until n) {
@@ -293,26 +186,24 @@ class TapDecoder(
                     val x = taps.xs[i]; val y = taps.ys[i]
                     val mid = (bar[1] + bar[3]) / 2
                     val d0 = (y - mid) * (y - mid) / w2
-                    // With a lean, by how much nearer the key the tap as corrected is, and further the bar's line:
-                    // where a key is then the nearer, the costs count from it, and the space itself costs the rest.
-                    var m = 0
+                    // With the lean off it the tap is that much nearer a key and further from the bar's line (or the
+                    // other way): where a key is then nearer than the line, the costs count from the nearest, and
+                    // the space that was typed costs the difference.
+                    fun leant(cost: Float, c: Pair<Float, Float>) = cost.coerceAtLeast(0f) + SPATIAL * (lx * (lx - 2f * (x - c.first)) + 2f * ly * (c.second - mid)) / w2
                     var least = 0f
+                    if (leaning) for (c in taps.keys.values) {
+                        val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
+                        least = minOf(least, leant(SPATIAL * (d - d0), c))
+                    }
+                    own -= least
+                    val chars = ArrayList<Char>(6)
+                    val costs = ArrayList<Float>(6)
                     for ((k, c) in taps.keys) {
                         val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
                         var cost = SPATIAL * (d - d0)
-                        if (leaning) {
-                            cost = cost.coerceAtLeast(0f) + SPATIAL * (lx * (lx - 2f * (x - c.first)) + 2f * ly * (c.second - mid)) / w2
-                            if (cost < least) least = cost
-                        }
-                        keyCh[m] = k; keyCost[m] = cost; m++
+                        if (leaning) cost = leant(cost, c) - least
+                        if (cost < far) { chars += k; costs += cost.coerceAtLeast(0f) }
                     }
-                    val chars = ArrayList<Char>(6)
-                    val costs = ArrayList<Float>(6)
-                    for (j in 0 until m) {
-                        val cost = keyCost[j] - least
-                        if (cost < far) { chars += keyCh[j]; costs += cost.coerceAtLeast(0f) }
-                    }
-                    own -= least
                     nearCh[i] = chars.toCharArray()
                     nearCost[i] = costs.toFloatArray()
                 }
@@ -328,53 +219,30 @@ class TapDecoder(
             }
             val x = taps.xs[i]; val y = taps.ys[i]
             val d0 = ((x - at.first) * (x - at.first) + (y - at.second) * (y - at.second)) / w2
-            var m = 0
+            // With the lean off it: the key the tap is then nearest ([aim]), and by how much nearer than the typed one.
+            fun leant(cost: Float, c: Pair<Float, Float>) = cost.coerceAtLeast(0f) + SPATIAL * 2f * (lx * (c.first - at.first) + ly * (c.second - at.second)) / w2
             var least = 0f
             var aim = t
-            for ((k, c) in taps.keys) {
+            if (leaning) for ((k, c) in taps.keys) {
                 if (k == t) continue
                 val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
-                var cost = SPATIAL * (d - d0)
-                if (leaning) {
-                    cost = cost.coerceAtLeast(0f) + SPATIAL * 2f * (lx * (c.first - at.first) + ly * (c.second - at.second)) / w2
-                    if (cost < least) { least = cost; aim = k }
-                }
-                keyCh[m] = k; keyCost[m] = cost; m++
+                val cost = leant(SPATIAL * (d - d0), c)
+                if (cost < least) { least = cost; aim = k }
             }
             val chars = ArrayList<Char>(6)
             val costs = ArrayList<Float>(6)
-            if (LEAN_MODE == 0) {
-            for (j in 0 until m) {
-                if (keyCh[j] == aim) continue
-                val cost = keyCost[j] - least
-                if (cost < far) { chars += keyCh[j]; costs += cost.coerceAtLeast(0f) }
+            for ((k, c) in taps.keys) {
+                if (k == t || k == aim) continue
+                val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
+                var cost = SPATIAL * (d - d0)
+                if (leaning) cost = leant(cost, c) - least
+                if (cost < far) { chars += k; costs += cost.coerceAtLeast(0f) }
             }
             if (aim != t) {
-                // The tap is taken to have been aimed at another key than it typed: that key is read for nothing,
-                // and the typed one for what it is further off.
+                // Aimed at another key than it typed: that key is read for nothing, the typed one for what it is further off.
                 if (-least < far) { chars += t; costs += -least }
-                val read = aimed ?: lower.toCharArray().also { aimed = it }
-                read[i] = aim
+                (aimed ?: lower.toCharArray().also { aimed = it })[i] = aim
                 tk[i] = aim
-            }
-            } else if (LEAN_MODE == 1) {
-                // X: the typed key stays the word's own; it pays what it is further off than the aimed one.
-                for (j in 0 until m) {
-                    val cost = keyCost[j] - least
-                    if (cost < far) { chars += keyCh[j]; costs += cost.coerceAtLeast(0f) }
-                }
-                ownAt[i] = minOf(-least, far)
-                own += ownAt[i]
-            } else {
-                // R: a key costs the lesser of what it cost as the tap landed and what it costs with the lean off it.
-                for (j in 0 until m) {
-                    val c = taps.keys.getValue(keyCh[j])
-                    val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
-                    val old = SPATIAL * (d - d0)
-                    val cost = if (leaning) minOf(old.coerceAtLeast(0f), keyCost[j] - least) else old
-                    if (cost < far) { chars += keyCh[j]; costs += cost.coerceAtLeast(0f) }
-                }
-                if (LEAN_MODE == 3) own += minOf(-least, far)
             }
             nearCh[i] = chars.toCharArray()
             nearCost[i] = costs.toFloatArray()
@@ -397,10 +265,10 @@ class TapDecoder(
 
     /** What it costs to read tap [i] as the letter [c] of a word. */
     private fun sub(i: Int, c: Char): Float {
-        if (c == typed[i]) return ownAt[i]
+        if (c == typed[i]) return 0f
         val k = key(c)
         if (k == 0.toChar()) return Float.POSITIVE_INFINITY
-        if (k == tk[i]) return ownAt[i]
+        if (k == tk[i]) return 0f
         val chars = nearCh[i]
         // One vowel for another is how words are misspelled (definately, seperate): never dearer than [VOWEL].
         val most = if (k in VOWELS && tk[i] in VOWELS) minOf(far, VOWEL) else far
@@ -519,7 +387,7 @@ class TapDecoder(
         var q = trie.down[node]
         while (q >= 0) {
             val c = trie.ch[q]
-            if (c == exact) walk(q, i + 1, cost + ownAt[i], omits, inserts, c, budget, changed)
+            if (c == exact) walk(q, i + 1, cost, omits, inserts, c, budget, changed)
             q = trie.next[q]
         }
         q = trie.down[node]
@@ -528,7 +396,7 @@ class TapDecoder(
             if (c != exact) {
                 val s = sub(i, c)
                 // The same key under another letter (é for e) is no change; a misspelling is not a slip of the thumb.
-                val same = key(c) == tk[i]
+                val same = s == 0f && key(c) == tk[i]
                 val w = if (same) 0 else counts(s)
                 if (cost + s <= budget && (same || (changed + w <= changes && !(only && s >= far)))) walk(q, i + 1, cost + s, omits, inserts, c, budget, changed + w)
             }
@@ -656,8 +524,6 @@ class TapDecoder(
 
         /** What a key width squared of extra distance from a tap costs: about 0.434 / (2σ²), with σ a thumb's scatter in key widths. */
         @JvmField var SPATIAL = 1.5f
-        @JvmField var LEAN_MODE = 0
-        @JvmField var LEAN_BUDGET = 0
         /** The most any letter costs in place of the one typed: a misspelling, not a slip ([FAR_SHORT] in a word under [LONG] letters). */
         @JvmField var FAR = 3.8f
         @JvmField var FAR_SHORT = 4.4f

@@ -18,7 +18,7 @@ for t in $tests; do files="$files $tst/$t.kt"; done
 jar=build/versus/unit.jar
 mkdir -p build/versus
 rm -f "$jar"
-kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/SwipeDecoder.kt" "$src/TapDecoder.kt" "$src/MistakeMemory.kt" "$src/SampleCleaner.kt" "$src/NextWordModel.kt" \
+kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/SwipeDecoder.kt" "$src/TapDecoder.kt" "$src/ThumbLean.kt" "$src/MistakeMemory.kt" "$src/SampleCleaner.kt" "$src/NextWordModel.kt" \
   tool/lang_check/stubs/android/graphics/PointF.kt $files -cp "$junit:$hamcrest" -include-runtime -d "$jar" 2>&1 | grep -v "warning:" | grep -E "error:|^e: " >&2 || true
 [ -f "$jar" ] || { echo "unit: did not compile" >&2; exit 1; }
 classes=""

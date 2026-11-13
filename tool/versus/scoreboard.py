@@ -147,7 +147,7 @@ def changes(now, then, show):
 def bench(overlay, java, dials):
     """The typing bench's tap test on its own sentences: the "by the taps" lines."""
     src = "android/app/src/main/kotlin/com/infamousvague/devkeyboard"
-    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
+    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "ThumbLean.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
     if overlay:
         files = [os.path.join(overlay, os.path.basename(f)) if os.path.exists(os.path.join(overlay, os.path.basename(f))) else f for f in files]
     jar = os.path.join("build", "versus", "bench-%s.jar" % (os.path.basename(overlay.rstrip("/")) if overlay else "tree"))
