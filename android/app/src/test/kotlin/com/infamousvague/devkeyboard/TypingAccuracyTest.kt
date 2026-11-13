@@ -779,6 +779,25 @@ class TypingAccuracyTest {
         assertNull(texting.suggest("stan", null, taps("stan"), names = true).fix)
     }
 
+    @Test fun slangTypedOnItsKeysStandsAndASlipNearTheLineIsRead() {
+        // "ur" is texting slang and a listed word: typed on its own keys it stands, whatever the place. With both its
+        // taps on the lines toward i and t after "sort", the taps spell "it" (Autocorrect.SLANG_SLIP).
+        val texting = english()
+        texting.setSlang(true)
+        Thread.sleep(400) // the slang list is read on its own thread
+        val sort = PlaceWorthTest.scorer("we", "will", "try", "to", "sort")
+        val onTheLines = taps("ur", 0 to (0.49f to 0f), 1 to (0.49f to 0f))
+        assertNull(texting.correct("ur", sort, taps("ur")))
+        assertEquals("it", texting.correct("ur", sort, onTheLines))
+        assertEquals("it", texting.suggest("ur", sort, onTheLines).fix)
+        val was = Autocorrect.SLANG_SLIP
+        try {
+            Autocorrect.SLANG_SLIP = -1f
+            assertNull(texting.correct("ur", sort, onTheLines))
+            assertNull(texting.suggest("ur", sort, onTheLines).fix)
+        } finally { Autocorrect.SLANG_SLIP = was }
+    }
+
     @Test fun withoutEnglishLoadedAskingForNamesChangesNothing() {
         // The list is English's. German capitalises every noun by rules of its own, and its list has tom, berlin and
         // montag in lower case as English's has them: asked for names or not, every answer is the same.

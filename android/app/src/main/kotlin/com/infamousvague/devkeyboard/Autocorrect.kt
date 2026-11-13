@@ -705,6 +705,22 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     private fun eszettWord(lower: String, words: Map<String, Float>) = 'ß' in lower && words.containsKey(lower.replace("ß", "ss"))
 
     /**
+     * Texting slang is left as typed, but a slang word the lists also have ("ur", "sm", "eta") may be a slip for
+     * another word: [fix], what its taps read as, is taken only where that is a common listed word whose slips cost
+     * no more than [SLANG_SLIP] by those taps (the taps all but on its keys); else null, and the slang stands.
+     */
+    private fun slangSlip(now: Now, lower: String, fix: String, scorer: Scorer?, taps: Taps?): String? {
+        if (taps == null || taps.xs.size != lower.length || !now.lexicon.words.containsKey(lower)) return null
+        val zipf = now.lexicon.words[fix.lowercase(now.board.locale)] ?: return null
+        if (zipf < COMMON || ' ' in fix) return null
+        val decoder = tapDecoder(now, taps)
+        decoder.load(lower, aimed(now, spread(now, scorer, taps), scorer))
+        val cost = decoder.align(fix.lowercase(now.board.locale), 0, TapDecoder.BUDGET)
+        TRACE?.invoke("slang $lower: read as $fix, slips $cost (at most $SLANG_SLIP)")
+        return fix.takeIf { cost <= SLANG_SLIP }
+    }
+
+    /**
      * What [typed] should become, or null to leave it. [typed] is letters, their marks and the layout's joiners (an
      * apostrophe, a half-space) only. [scorer] is what is likely at this place in the text, where prediction is on.
      * [taps] are where the fingers landed for it, where the keyboard knows (see [byTaps]): the fix may then be two
@@ -722,8 +738,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         if (typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase(now.board.locale)
         // One of the person's own often-typed words is left alone, unless they have been putting it right by hand.
-        if ((kept(lower) && remembered(now, lower) == null) || eszettWord(lower, now.lexicon.words)) return null
+        val slangOnly = SLANG_SLIP >= 0f && lower in slang && lower !in learned && lower !in own && remembered(now, lower) == null
+        if (!slangOnly && ((kept(lower) && remembered(now, lower) == null) || eszettWord(lower, now.lexicon.words))) return null
         val fixed = best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.takeIf { it.sure }?.word
+            ?.let { if (slangOnly) slangSlip(now, lower, it, scorer, taps) else it }
         // With names a mend has its names' capitals, and a word left as typed is looked at again only where it is a
         // name ([name]): any other word is left without being asked how its capitals would be written back.
         val word = when {
@@ -756,7 +774,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val contractions = now.lexicon.contractions
         val eszett = eszettWord(lower, words)
         val isWord = kept(lower) || (words[lower] ?: 0f) > 0f || contractions.containsKey(lower) || eszett || isPossessive(now.lexicon, lower)
-        val mend = if ((kept(lower) && remembered(now, lower) == null) || eszett) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
+        // Slang the lists also have is offered a mend, as [correct] makes it, only where [slangSlip] lets it through.
+        val slangOnly = SLANG_SLIP >= 0f && lower in slang && lower !in learned && lower !in own && remembered(now, lower) == null
+        val mend = if (!slangOnly && ((kept(lower) && remembered(now, lower) == null) || eszett)) null
+            else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })?.let { m -> if (!slangOnly) m else if (m.sure) slangSlip(now, lower, m.word, scorer, taps)?.let { m } else null }
         val sure = mend?.takeIf { it.sure }?.word
         // What the space will leave: the mend, and a name's capital where the field wants them, as [correct] has it
         // (which leaves capitals typed on purpose alone: TOM, tOm; a word the person keeps is no name: [name]).
@@ -2172,6 +2193,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * the bench's careful thumb spoiled 1.83 right words per 1000 where 0 spoiled 1.62. 1 and more lost words on unseen.
          */
         @JvmField var AGAIN_BACK = 0.5f
+        /**
+         * The most the slips may cost for a slang word the lists also have to be read as another common word by its
+         * taps ([slangSlip]); below 0, slang is always left as typed. Set on 2026-11-13 by tool/versus/scoreboard.py
+         * --bench and a fresh draw of the bench (docs/versus.md, "Squeezing 0.17.0"): 0.5, a tap near the line, mends
+         * "ur" for it and "sm" for an (seen 121 to 119, unseen 194 to 190, nothing broken, the bench's spoils the same
+         * on both draws); 1.2 lets a swap through as well ("eta" for eat: 118 and 188) but would read deliberate
+         * slang typed cleanly as its swap ("ts" as st), which no bench types, and was left out.
+         */
+        @JvmField var SLANG_SLIP = 0.5f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh; 3.1 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (3.2 before). */
         @JvmField var UNKNOWN = 3.1f
         @JvmField var UNKNOWN_ODD = 1.8f
