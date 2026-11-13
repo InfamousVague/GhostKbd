@@ -107,8 +107,8 @@ object SmsCodes {
     /** The switch in Settings › Row tools, which is the clipboard plugin's: without the plugin there is nowhere to show a code. */
     fun wanted(prefs: KeyboardPrefs) = prefs.smsCodes && Plugins.isOn(prefs, Plugins.CLIPBOARD)
 
-    /** Codes are shown at all: either way they come is switched on. */
-    fun shown(prefs: KeyboardPrefs) = wanted(prefs) || MailCodes.wanted(prefs)
+    /** Codes are shown at all: one of the ways they come is switched on. */
+    fun shown(prefs: KeyboardPrefs) = wanted(prefs) || MailCodes.wanted(prefs) || GhostMessagingCodes.wanted(prefs)
 
     /** Whether Android lets the app receive text messages. */
     fun allowed(context: Context) = context.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED

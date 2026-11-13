@@ -325,6 +325,12 @@ object Updater {
         if (theirs.isNotEmpty() && ours.isNotEmpty() && theirs != ours) throw IllegalStateException("The download is not signed by this app's key.")
     }
 
+    /** The SHA-256 of each certificate [pkg] is signed with, in hex; none where it is not on this phone. */
+    fun certificates(context: Context, pkg: String): Set<String> = runCatching {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+        signers(context.packageManager.getPackageInfo(pkg, flags))
+    }.getOrDefault(emptySet())
+
     private fun signers(info: PackageInfo): Set<String> {
         val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             info.signingInfo?.let { if (it.hasMultipleSigners()) it.apkContentsSigners else it.signingCertificateHistory }

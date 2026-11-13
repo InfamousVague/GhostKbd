@@ -86,9 +86,10 @@ class SmsCodesSourceTest {
         // No other source reads the codes: not the clipboard history's file, not the AI, not the reports, not the stats.
         val readers = kotlin.listFiles()!!.filter { it.extension == "kt" && code(it.name).contains(Regex("SmsCodes\\.(live|fresh|take)\\(")) }.map { it.name }.sorted()
         assertEquals(listOf("DevKeyboardService.kt", "SmsCodes.kt"), readers)
-        // And only a mail app's notification puts one there besides a text (MailCodes.kt).
+        // And only a mail app's notification (MailCodes.kt) and Ghost Messaging's answer (GhostMessagingCodes.kt) put
+        // one there besides a text.
         val holders = kotlin.listFiles()!!.filter { it.extension == "kt" && code(it.name).contains(Regex("SmsCodes\\.hold\\(")) }.map { it.name }.sorted()
-        assertEquals(listOf("MailCodes.kt"), holders)
+        assertEquals(listOf("GhostMessagingCodes.kt", "MailCodes.kt"), holders)
         for (name in listOf("ClipHistory.kt", "Ghostwriter.kt", "AiClient.kt", "Mockingbird.kt", "Reports.kt", "TypingStats.kt", "TypingProfile.kt", "Rewrite.kt")) {
             assertFalse(name, code(name).contains("SmsCodes") || code(name).contains("OtpCodes"))
         }

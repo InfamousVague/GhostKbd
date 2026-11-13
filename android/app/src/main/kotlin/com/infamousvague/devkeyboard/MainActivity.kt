@@ -60,6 +60,8 @@ class MainActivity : FlutterActivity() {
         return mapOf("count" to all.size, "pinned" to pins.size, "pins" to pins.map { it.text }, "maxPins" to ClipList.MAX_PINS)
     }
 
+    private fun ghostMessagingState(): Map<String, Any?> = mapOf("on" to prefs.ghostMessagingCodes, "here" to GhostMessagingCodes.here(this))
+
     private fun smsState(): Map<String, Any?> = mapOf(
         "on" to prefs.smsCodes,
         "allowed" to SmsCodes.allowed(this),
@@ -267,6 +269,7 @@ class MainActivity : FlutterActivity() {
                         // The codes' switch by this door too: Android's receiver follows it (never the permission).
                         if (ok && key == KeyboardPrefs.SMS_CODES) SmsCodes.apply(this@MainActivity)
                         if (ok && key == KeyboardPrefs.MAIL_CODES) MailCodes.apply(this@MainActivity)
+                        if (ok && key == KeyboardPrefs.GHOST_MESSAGING_CODES) GhostMessagingCodes.apply(this@MainActivity)
                         if (ok) result.success(null) else result.error("bad_setting", "Unknown setting or wrong type: $key", null)
                     }
                     "status" -> result.success(status())
@@ -348,6 +351,13 @@ class MainActivity : FlutterActivity() {
                     // What the keyboard last found under its keys (SystemStrip.kt): whether the phone's own buttons are
                     // there, and one line of the numbers for a report. Null until the keys have been shown.
                     "stripState" -> result.success(SystemStrip.seen?.let { mapOf("buttons" to it.buttons.name.lowercase(), "galaxy" to it.phone.galaxy, "line" to it.line()) })
+                    // One-time codes from Ghost Messaging (GhostMessagingCodes.kt): the switch, and whether it is on this phone.
+                    "ghostMessagingCodesState" -> result.success(ghostMessagingState())
+                    "setGhostMessagingCodes" -> {
+                        prefs.set(KeyboardPrefs.GHOST_MESSAGING_CODES, call.argument<Boolean>("on") == true)
+                        GhostMessagingCodes.apply(this@MainActivity)
+                        result.success(ghostMessagingState())
+                    }
                     "mailCodesState" -> result.success(mailState())
                     "setMailCodes" -> {
                         // On: the switch, Android's listener, and Android's own page where access has not been given.

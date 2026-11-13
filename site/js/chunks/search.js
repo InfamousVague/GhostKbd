@@ -202,6 +202,7 @@ const SECTIONS = [
     ['Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.'],
     ['One-time codes from texts', 'A code that arrives by text message shows above the keys, a tap to type it. Android will ask to let Ghost Keyboard receive texts.'],
     ['One-time codes from email', 'A code that arrives in Gmail or another mail app shows above the keys, a tap to type it. It is read from the mail app’s notification, on this phone: there is no account to connect. Android will ask to let Ghost Keyboard see notifications.'],
+    ['One-time codes from Ghost Messaging', 'Ghost Messaging, as the phone’s texting app, hands the keyboard the code of a text the moment it arrives: only the code. It shows above the keys, a tap to type it, with nothing to allow in Android.'],
     ['Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.'],
     ['Emoji', 'A key next to ?123, beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.'],
     ['GIFs', 'Search GIPHY and send one.'],

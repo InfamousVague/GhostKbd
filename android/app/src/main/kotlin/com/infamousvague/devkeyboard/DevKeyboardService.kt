@@ -407,6 +407,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // One-time codes from texts: Android's receiver is made to match the switch, and a code that arrives redraws the row.
         SmsCodes.apply(this)
         MailCodes.apply(this)
+        GhostMessagingCodes.apply(this)
         SmsCodes.addListener(onSmsCode)
         // Whether the phone draws its own buttons under the keyboard (SystemStrip.kt): read now, and again when the
         // person changes it in the phone's settings, so the keys move without the keyboard being restarted.
@@ -585,6 +586,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun startView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         runCatching { AppProfiles.seen(this, prefs, info.packageName) }
+        // Ghost Messaging may have been installed since the keyboard started: its codes are watched for from then.
+        if (!restarting) GhostMessagingCodes.apply(this)
         // What Mockingbird heard in apps of this kind (a chat, or anything else) counts most toward the next word here.
         runCatching { nextWords.chat = AppContext.kind(info.packageName) == AppKind.CHAT }
         // A field is asked about once, as it is entered: an app restarting its input (many do, mid-typing) must not

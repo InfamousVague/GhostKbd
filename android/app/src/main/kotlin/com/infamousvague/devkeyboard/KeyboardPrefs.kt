@@ -254,6 +254,8 @@ class KeyboardPrefs(context: Context) {
     val smsCodes: Boolean get() = bool(SMS_CODES)
     /** And its "One-time codes from email" (MailCodes.kt): off until switched on, and Android's notification access given. */
     val mailCodes: Boolean get() = bool(MAIL_CODES)
+    /** One-time codes that Ghost Messaging, the phone's SMS app, hands over (GhostMessagingCodes.kt). */
+    val ghostMessagingCodes: Boolean get() = bool(GHOST_MESSAGING_CODES)
     /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
     val slang: Boolean get() = bool(SLANG)
     /**
@@ -409,6 +411,7 @@ class KeyboardPrefs(context: Context) {
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
         const val MAIL_CODES = "mail_codes"
+        const val GHOST_MESSAGING_CODES = "ghost_messaging_codes"
         const val SLANG = "slang"
         const val SHORTCUTS_AUTO = "shortcuts_auto"
         const val WIDE_LAYOUT = "wide_layout"
@@ -504,6 +507,8 @@ class KeyboardPrefs(context: Context) {
             ARROW_KEYS to false,
             SMS_CODES to false,
             MAIL_CODES to false,
+            // On to start: it asks Android for nothing, and does nothing on a phone without Ghost Messaging.
+            GHOST_MESSAGING_CODES to true,
             SLANG to true,
             SHORTCUTS_AUTO to true,
             WIDE_LAYOUT to "split",

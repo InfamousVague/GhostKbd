@@ -148,6 +148,9 @@
         <package android:name="com.mattssoftware.glyph.perf" />
         <provider android:authorities="com.mattssoftware.glyph.keyboard" />
         <provider android:authorities="com.mattssoftware.glyph.flutter.keyboard" />
+        <!-- Ghost Messaging, the SMS app: the one-time codes it hands over (GhostMessagingCodes.kt). -->
+        <package android:name="com.infamousvague.ghostmessaging" />
+        <provider android:authorities="com.infamousvague.ghostmessaging.codes" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

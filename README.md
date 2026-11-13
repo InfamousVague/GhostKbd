@@ -244,6 +244,13 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   mobile keyboard. From Android 15, Android hides most code-bearing notifications from an app like this one until the
   phone's owner lets them through (a command from a computer, or Android's Enhanced notifications turned off); Settings
   says so, and says when Android has hidden one. Seen on the emulator; not with a real mail in a real Gmail.
+- **One-time codes from Ghost Messaging** (`GhostMessagingCodes.kt`; Settings › Row tools, on to start;
+  [docs/ghost-messaging-codes.md](docs/ghost-messaging-codes.md)): where Ghost Messaging (ghost-sms.com) is the
+  phone's SMS app, it hands the keyboard the code of a text the moment it arrives, and the code is a chip at the
+  start of the row as any code from a text is. Nothing to allow in Android, and nothing Android 15 or 17 holds
+  back: one app answers another on the phone. Only the code and its time are handed over. Each app knows the other
+  by its package and the certificate its releases are signed with. Seen on an emulator with both apps' release
+  builds; not on a phone.
 - **The keys sit lower where the phone's own buttons are off** (`SystemStrip.kt`;
   [docs/system-strip.md](docs/system-strip.md)): Space under the keys › Auto still keeps 48dp for Android's hide and
   switch-keyboard buttons, but only the gesture bar's room where a Galaxy's own settings say both are switched off.

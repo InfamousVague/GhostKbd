@@ -99,6 +99,7 @@ class SettingsStore extends ChangeNotifier {
     'onboarded': false,
     'sms_codes': false,
     'mail_codes': false,
+    'ghost_messaging_codes': true,
     'ai_provider': 'anthropic',
     'ai_base_url': '',
     'mockingbird_collect': true,
@@ -371,6 +372,7 @@ class SettingsStore extends ChangeNotifier {
     notifyListeners();
     await refreshSmsCodes();
     await refreshMailCodes();
+    await refreshGhostMessagingCodes();
     await refreshStrip();
   }
 
@@ -542,6 +544,37 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> askForTexts() => _call('askForTexts');
+
+  /// One-time codes from Ghost Messaging (android GhostMessagingCodes.kt): the phone's SMS app hands the keyboard the
+  /// code of a text as it arrives. The switch (`on`), and whether Ghost Messaging is on this phone (`here`).
+  Map<String, Object?> ghostMessagingCodes = const {'on': true, 'here': false};
+
+  void _setGhostMessagingCodes(Object? raw) {
+    if (raw is! Map) return;
+    ghostMessagingCodes = raw.map((k, v) => MapEntry('$k', v as Object?));
+    _values['ghost_messaging_codes'] = ghostMessagingCodes['on'] == true;
+    notifyListeners();
+  }
+
+  /// Read again each time the app comes back to the front: Ghost Messaging may have been installed meanwhile.
+  Future<void> refreshGhostMessagingCodes() async {
+    try {
+      _setGhostMessagingCodes(await _channel.invokeMethod<Object>('ghostMessagingCodesState'));
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> setGhostMessagingCodes(bool on) async {
+    _values['ghost_messaging_codes'] = on;
+    ghostMessagingCodes = {...ghostMessagingCodes, 'on': on};
+    notifyListeners();
+    try {
+      _setGhostMessagingCodes(await _channel.invokeMethod<Object>('setGhostMessagingCodes', {'on': on}));
+    } on MissingPluginException {
+      return;
+    }
+  }
 
   /// One-time codes from email (android MailCodes.kt): read from a mail app's own notification, on the phone. The
   /// switch (`on`), whether Android has given the app notification access (`allowed`), the Android version

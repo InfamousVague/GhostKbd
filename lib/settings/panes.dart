@@ -645,6 +645,31 @@ List<Widget> _dictation(BuildContext context, SettingsStore store) {
 
 // --- Developer ----------------------------------------------------------------------------------------------------
 
+/// One-time codes from Ghost Messaging (android GhostMessagingCodes.kt, docs/ghost-messaging-codes.md), under the
+/// codes from email. Ghost Messaging is the phone's SMS app where it is used, so it has a code's text the moment it
+/// arrives and hands the keyboard the code: nothing to allow in Android, and nothing Android holds back.
+List<Widget> _ghostMessagingCodesRows(SettingsStore store) {
+  final s = store.ghostMessagingCodes;
+  final on = s['on'] == true;
+  final here = s['here'] == true;
+  final String hint;
+  if (!here) {
+    hint = 'Ghost Messaging isn’t on this phone (ghost-sms.com). As the phone’s texting app it hands the keyboard a code the moment its text arrives, with nothing to allow in Android.';
+  } else if (!on) {
+    hint = 'Ghost Messaging is on this phone. On, the code of a text that arrives there shows above the keys, a tap to type it.';
+  } else {
+    hint = 'Ghost Messaging hands over the code of a text as it arrives: only the code, never the words or who sent them. It shows above the keys for three minutes and in the clipboard for ten, or until you use it, and is kept in memory only. There is nothing to allow in Android.';
+  }
+  return [
+    SettingRow(
+      label: 'One-time codes from Ghost Messaging',
+      hint: Text(hint),
+      icon: AppIcon(Lucide.ghost, size: 18),
+      control: GlacierSwitch(checked: on, onCheckedChange: store.setGhostMessagingCodes, ariaLabel: 'One-time codes from Ghost Messaging'),
+    ),
+  ];
+}
+
 /// One-time codes from email (android MailCodes.kt, docs/mail-codes.md), under the codes from texts. Read from the
 /// mail app's own notification, on the phone: there is no account to connect and nothing leaves the phone. The
 /// switch can be on before Android has given notification access: the row then says it is waiting, with Android's
@@ -1359,6 +1384,7 @@ List<Widget> _rowToolsPage(BuildContext context, SettingsStore store) {
         _plugin(store, 'clipboard', 'Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.', Lucide.clipboardPaste),
         if (store.pluginOn('clipboard')) ..._smsCodesRows(store),
         if (store.pluginOn('clipboard')) ..._mailCodesRows(store),
+        if (store.pluginOn('clipboard')) ..._ghostMessagingCodesRows(store),
         _plugin(store, 'undo', 'Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.', Lucide.undo2),
         _plugin(store, 'emoji', 'Emoji', 'A key next to ?123, beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.', LucideMore.smile),
         _plugin(store, 'gifs', 'GIFs', 'Search GIPHY and send one.', Lucide.image),
