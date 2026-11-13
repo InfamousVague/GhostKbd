@@ -1090,45 +1090,46 @@ class Scorer(
     }
 
     /**
-     * [key]'s row in [table], or null. How often the row's words were seen is the table's own count where it has
-     * one ([NgramTable.seen]: every two-word row, and English's one-word rows). Where it has none it is told from
-     * the shares: a follower is listed from [SEEN_LEAST] sightings, so the least share is about that many over the
-     * count. The very last followers of a row are often names the table's maker scaled down ("taught ... Tom:8
-     * Layla:1"), which would make the count thousands too many, so the least share that two followers have is gone
-     * by: in English's rows that is over twice the true count for 1 row in 100 where the least share of all is
-     * for 6, and both are under half of it for 9 or 10 (a row of one or two followers cannot say).
+     * [key]'s row in [table], or null where it has none, or the row does not say how often its words were seen
+     * ([NgramTable.seen]: every two-word row says, and the one-word rows of a table made since 2026-11-12, which is
+     * English's). The shares cannot stand in for the count. A follower is listed from [SEEN_LEAST] sightings, so
+     * the least share should be that many over the count; but the last followers of a row are often names the
+     * table's maker scaled down ("taught ... Tom:8 Layla:1"), and a row of one follower says nothing of it: in
+     * English's rows that guess is within a quarter of the count for 72 in 100, more than twice it for 6 and under
+     * half it for 9.
      */
     private fun row(table: NgramTable, key: String, prior: Float): Row? {
+        val n = table.seen(key).toFloat()
+        if (n <= 0f) return null
         val range = table.range(key)
         if (range.isEmpty()) return null
         val shares = HashMap<String, Float>((range.last - range.first + 1) * 2)
         var sum = 0f
         var least = 1f
-        var twice = 0f
-        var before = -1f
         for (i in range) {
             val s = table.shareAt(i)
             shares[table.lowerAt(i)] = s
             sum += s
             if (s < least) least = s
-            // Likeliest first: equal shares stand together, and the last such pair is the least.
-            if (s == before) twice = s
-            before = s
         }
-        val seen = table.seen(key)
-        val n = if (seen > 0) seen.toFloat() else SEEN_LEAST / (if (twice > 0f) twice else least)
         // A word the row does not list was seen fewer than SEEN_LEAST times after it, or, where the row is full,
         // no more often than its last follower.
         val bound = UNLISTED * maxOf(least, SEEN_LEAST / n)
         return Row(shares, (1f - sum).coerceAtLeast(0f), bound, n / (n + prior))
     }
 
-    /** Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one. */
+    /**
+     * Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one.
+     * None at all where a table has a row for [prev] that does not say how often it was seen (a language whose
+     * table has not been made again): that table's say cannot be weighed, and leaving it out would read its
+     * language's words by another's rows. The place is then read as it was before there was a [Here].
+     */
     private fun rows(prev2: String?, prev: String, own: (String) -> Float?): List<Rows> {
         val key2 = prev2?.takeIf { prev != NextWordText.START }?.let { "$it $prev" }
         val out = ArrayList<Rows>(tables.size)
         for (t in tables.indices) {
             val table = tables[t]
+            if (table.seen(prev) <= 0 && !table.range(prev).isEmpty()) return emptyList()
             val one = row(table, prev, PRIOR_HERE_ONE)
             val two = if (key2 == null) null else row(table, key2, PRIOR_HERE_TWO)
             if (one == null && two == null) continue
@@ -1149,19 +1150,24 @@ class Scorer(
 
     /**
      * What the words before make of every word at one place: how likely each is there. Where a word's frequency
-     * says how common it is anywhere, this says how likely it is here, and that can be far less ("is" after "the")
-     * as well as far more ("you" after "thank"). Autocorrect weighs every reading of a word's taps by it, and the
-     * typed word itself ([Autocorrect.byTaps]).
+     * says how common it is anywhere, this says how likely it is here, and that can be far less ("of" after
+     * "thank") as well as far more ("you" after "thank"). Autocorrect weighs every reading of a word's taps by it,
+     * and the typed word itself ([Autocorrect.byTaps]). The row above the keys does not go by it: [top], [following]
+     * and [boost] are as they were.
      *
      * How likely, by one table ([Rows.of]): the share the two-word row gives the word, else the share the one-word
      * row gives it, each row believed as far as it was seen ([Row.trust]) and the word's own frequency for the rest.
      * A word a row does not list has its part of the share the row leaves over, by its own frequency among the
-     * unlisted, and at most [UNLISTED] of the least share listed. Several languages' tables are weighed as [weights]
-     * has them, a table with no row here having no say.
+     * unlisted, and no more than the row could have left unlisted ([Row.bound], [UNLISTED]). Several languages'
+     * tables are weighed as [weights] has them, a table with no row here having no say.
      *
      * The person's own counts lift a word they have typed here, by the blend the row above the keys shows
      * ([Scorer]'s own comment). They never lower one: the counts kept for a place are its 32 most typed followers,
      * faded, which says what the person does type there and little of what they never would.
+     *
+     * The shares are of everything that followed the words before, a sentence's end and words no list has among
+     * them, so over the listed words they sum to less than one (0.87 on average on held-out sentences). Nothing is
+     * made of that: a reading is only ever weighed against other readings at the same place.
      */
     class Here internal constructor(
         private val rows: List<Rows>,

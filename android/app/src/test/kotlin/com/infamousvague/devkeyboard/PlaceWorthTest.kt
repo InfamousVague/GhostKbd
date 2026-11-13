@@ -111,19 +111,21 @@ class PlaceWorthTest {
         assertEquals(0, english.seen("walrusish"))
     }
 
-    @Test fun aTableWithoutCountsIsReadByItsShares() {
+    @Test fun aTableWhoseRowsDoNotSayHowOftenTheyWereSeenIsNotGoneBy() {
         // As tables were made before 2026-11-12, and as every language's but English's still is: no "=n" on a
-        // one-word row. The last followers are names scaled down; "for" and "kids" were each seen three times in
-        // about 1,400, and that is what the row is taken to have been seen.
-        val old = table("taught\tme:2348 you:728 him:347 all:28 how:28 for:21 kids:21 Tom:8 Layla:1")
+        // one-word row. Its last followers are names scaled down, and nothing in it says the word was seen 1,429
+        // times and not 30,000: the place is read as it was before, by frequency and a lift.
+        val old = table("taught\tme:2348 you:728 him:347 all:28 how:28 for:21 kids:21 Tom:8 Layla:1", "she taught\t=50 me:3200 him:1000")
         assertEquals(0, old.seen("taught"))
+        assertNull(here("taught", table = old))
+        assertNull(here("she", "taught", table = old))
+        assertTrue(scorer("taught", table = old).boost("me", z("me")) > 1f)
         val counted = table("taught\t=1429 me:2348 you:728 him:347 all:28 how:28 for:21 kids:21 Tom:8 Layla:1")
         assertEquals(1429, counted.seen("taught"))
-        // "it" is not listed: it followed at most twice in those 1,400, not twice in the 30,000 that "Layla:1" would say.
-        val byShares = here("taught", table = old)!!.share("it", z("it"))
-        val byCount = here("taught", table = counted)!!.share("it", z("it"))
-        assertEquals(byCount, byShares, byCount * 0.02f)
-        assertTrue("it after taught: $byShares", byShares > 0.5f * Scorer.UNLISTED * 0.0021f)
+        // "it" is not listed: it followed at most twice in those 1,429, and is held to a share of three in them,
+        // not of the one in ten thousand that "Layla:1" stands for.
+        val it = here("taught", table = counted)!!.share("it", z("it"))
+        assertTrue("it after taught: $it", it > 0.5f * Scorer.UNLISTED * 3f / 1429f && it < 3f / 1429f)
     }
 
     @Test fun whatThePersonTypesAtAPlaceLiftsAWordAndNeverLowersOne() {
@@ -135,5 +137,39 @@ class PlaceWorthTest {
         // A word they have not typed there is worth what it was.
         assertEquals(plain.worth("door", z("door")), mine.worth("door", z("door")), 0.001f)
         assertEquals(plain.worth("otter", z("otter")), mine.worth("otter", z("otter")), 0.001f)
+    }
+
+    // --- autocorrect at a place --------------------------------------------------------------------------------------
+
+    private val ac get() = TypingAccuracyTest.ac
+    private fun taps(word: String, vararg off: Pair<Int, Pair<Float, Float>>) = TypingAccuracyTest.taps(word, *off)
+
+    @Test fun aCommonWordWhereItAllButNeverStandsGivesWayToTheWordThatDoes() {
+        // "need to rat more": the r landed a third of a key toward e. "rat" is a common word, and stood however
+        // its tap leaned until the place was read: "eat" is what follows "need to".
+        val leaning = taps("rat", 0 to (-0.33f to 0f))
+        assertEquals("eat", ac.correct("rat", scorer("need", "to"), leaning))
+        // With no words before to go by, and after words no table has a row for, it stands as it did.
+        assertNull(ac.correct("rat", null, leaning))
+        assertNull(ac.correct("rat", scorer("walrusish"), leaning))
+    }
+
+    @Test fun aWordThePlaceExpectsStandsThoughItsTapLeans() {
+        // "eat" after "need to", its e a third of a key toward r: "rat" is not what follows.
+        assertNull(ac.correct("eat", scorer("need", "to"), taps("eat", 0 to (0.33f to 0f))))
+        // "you" after "thank", the y most of the way to t.
+        assertNull(ac.correct("you", scorer("thank"), taps("you", 0 to (-0.45f to 0f))))
+    }
+
+    @Test fun aRightWordRareInItsPlaceStandsWhenItsTapsAreOnTheirKeys() {
+        // "the walrus", "need to rest", "thank them": none is what the tables expect first, all are what was typed.
+        assertNull(ac.correct("walrus", scorer("the"), taps("walrus")))
+        assertNull(ac.correct("rest", scorer("need", "to"), taps("rest")))
+        assertNull(ac.correct("them", scorer("thank"), taps("them")))
+    }
+
+    @Test fun lettersNoListHasAreReadAsTheWordThePlaceExpects() {
+        // "thank yoi": the i is beside u and o, and "you" is what follows "thank".
+        assertEquals("you", ac.correct("yoi", scorer("thank"), taps("yoi")))
     }
 }
