@@ -10,7 +10,7 @@ typing bench's tap test (12,000 words by three thumbs). Its numbers are scoreboa
                                       by reflection), what the tree sets it to, and which a search takes unasked
   sweep.py line [SETTING ...]         each setting as scoreboard.py --bench prints it, with what the objective makes
                                       of it. A SETTING is one argument: "Autocorrect.UNKNOWN=2.4 TapDecoder.OMIT=1.8";
-                                      "-" is the tree as it is
+                                      "-" is the tree as it is. --words N lists the words it mends and breaks
   sweep.py grid DIAL[=VALUES] [DIAL[=VALUES]] [--with SETTING]
                                       one dial: a row a value. Two: a table. VALUES are 1.6,2.0,2.4 or 1.6:3.2:0.4
                                       (from, to, step); left out, seven values about the tree's
@@ -153,7 +153,10 @@ class Sets:
             self.records = {"seen": scoreboard.kept("ghost.jsonl.gz"), "unseen": scoreboard.unseen(scoreboard.UNSEEN_FIRST, 300)}
         finally:
             th.sentences = _sentences
-        self.clean = {name: [score.classes(r, score.landed(r))[0] for r in self.records[name]] for name in SETS}
+        classes = {name: [score.classes(r, score.landed(r)) for r in self.records[name]] for name in SETS}
+        self.clean = {name: [c[0] for c in classes[name]] for name in SETS}
+        # What the keys gave for each word, before anything was corrected: for saying which words a setting changes.
+        self.typed = {name: [c[1] for c in classes[name]] for name in SETS}
         self.gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])]
                        for r in scoreboard.kept("gboard.jsonl.gz")}
         board = score.board_file(scoreboard.GEOMETRY)
@@ -181,6 +184,17 @@ class Sets:
         if i != len(bits):
             raise SystemExit("sweep: the worker answered for %d words of %s, and the set has %d" % (len(bits), name, i))
         return out
+
+    def changed(self, name, bits, base):
+        """The words of a set that [bits] has right and [base] had wrong, and the other way: each as the word
+        meant, what the keys gave for it, and whose typing of which line it is."""
+        mended, broken, i = [], [], 0
+        for r, typed in zip(self.records[name], self.typed[name]):
+            for j, w in enumerate(r["words"]):
+                if bits[i] != base[i]:
+                    (mended if bits[i] == "0" else broken).append("%s: typed %s (%s, line %d)" % (w, typed[j].strip() or "nothing", r["thumb"], r["line"]))
+                i += 1
+        return mended, broken
 
     def halves(self, seed, other):
         """For each set, a True for every word of a sentence in the half that is fitted on: a random half of the
@@ -528,6 +542,15 @@ def cmd_line(sw, args):
         if fit is not None:
             for ln in halves_lines(sw, obj, base, answer):
                 print("  " + ln)
+        if args.words:
+            # Which words: the worker keeps a verdict a word, not what stands (scoreboard.py --against shows that).
+            for name in SETS:
+                mended, broken = sw.sets.changed(name, answer["sets"][name]["wrong"], base["sets"][name]["wrong"])
+                print("  %s, against the tree: %d mended, %d broken" % (name, len(mended), len(broken)))
+                for w in mended[:args.words]:
+                    print("      mended  " + w)
+                for w in broken[:args.words]:
+                    print("      BROKEN  " + w)
         # As it happened to be typed when the answer was kept (a worker's first typing is its slowest): `time` clocks settings against each other.
         print("  microseconds a word as this was typed: " + micros_text(micros(answer)))
 
@@ -952,6 +975,7 @@ def main():
     ap.add_argument("--without", action="append", default=[], metavar="DIAL", help="scan, search: a dial to leave out")
     ap.add_argument("--seed", default="1", help="again: which kept answers are drawn")
     ap.add_argument("--show", type=int, default=40, help="front: the most rows to print")
+    ap.add_argument("--words", type=int, default=0, metavar="N", help="line: also up to N of the words each setting mends and breaks in each set, as they were typed")
     ap.add_argument("--times", type=int, default=3, help="time, and a search's last lines: how many times each setting is typed to be clocked (0: a search clocks nothing)")
     ap.add_argument("--with", dest="with_setting", metavar="SETTING", help="grid, scan: a setting every other is tried with")
     ap.add_argument("--from", dest="from_setting", metavar="SETTING", help="search: where it starts")
