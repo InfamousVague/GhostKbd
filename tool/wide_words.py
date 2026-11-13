@@ -649,6 +649,32 @@ def vouched(db, word, size, level, sure, sure_level, spared=()):
     return ("d" if is_sure else "l") + ("n" if named else ""), min(p.size for p in took), took
 
 
+def why_not(db, word, args, bad, never):
+    """Why [word], which the database has and wordfreq shows written, is not taken: for the report's counts."""
+    if word.endswith("'s"):
+        return "a possessive (known by its word)"
+    if not typable(word):
+        return "not 3 to 24 plain letters"
+    if word in never:
+        return "a contraction or slang the keyboard has lists of its own for"
+    if bad is not None and word in bad:
+        return "on the LDNOOBW list"
+    places = [p for written in db.lower.get(word, ()) for p in db.places[written]]
+    inside = [p for p in places if p.size <= args.size]
+    if not inside:
+        return "only at a size over %d" % args.size
+    live = [p for p in inside if p.level <= args.level and "@" not in p.rank]
+    if not live:
+        return "only as an archaic form or spelling"
+    words = [p for p in live if not (p.pos in ("abbr", "pre", "suf", "x") or p.cls.startswith("abbr") or p.category == "roman-numerals")]
+    if not words:
+        return "an abbreviation, a prefix, a suffix or a Roman numeral"
+    clean = [p for p in words if p.usage not in ("offensive-1", "offensive-2", "vulgar-1")]
+    if not clean:
+        return "marked offensive or vulgar by the database"
+    return "written all in capitals, or with a mark"
+
+
 #: A Roman numeral, which wordfreq lists among its words (xxvii).
 ROMAN = re.compile(r"m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})\Z")
 #: A word stretched for effect, or laughed (sooooo, aaand, hahahaha): a letter three times running, or a pair.
@@ -697,15 +723,15 @@ def choose(args, first, written, db, more, bad, never, pairs=None):
                     if v and v[0].startswith("d"):
                         said[word] = v[0]
                 continue
-            if not allowed(word):
-                continue
-            v = vouched(db, word, args.size, args.level, args.sure, args.sure_level)
+            z = written.get(word) if written is not None else None
+            v = vouched(db, word, args.size, args.level, args.sure, args.sure_level) if allowed(word) else None
             if v is None:
+                if z is not None:
+                    notes["in the database and written: " + why_not(db, word, args, bad, never)] += 1
                 continue
             mark = v[0]
             if "n" in mark and not args.names:
                 continue
-            z = written.get(word) if written is not None else None
             if z is None or z < args.floor:
                 continue
             kind = ("dictionary" if mark[0] == "d" else "larger dictionary") + (" name" if "n" in mark else "")

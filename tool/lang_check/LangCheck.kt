@@ -255,8 +255,15 @@ private fun golden(repo: File) {
     println("autocorrect, against what it said before layouts (QWERTY)")
     val dir = File(repo, "tool/lang_check/golden")
     val keys = Golden.QWERTY.keys.associateWith { c -> Golden.centre(c)!!.let { PointF(it.first, it.second) } }
+    // English's wider list (assets/dict/en_wide.tsv, tool/wide_words.py): its words, which the golden, recorded
+    // with en.tsv alone, never saw. Where English is loaded they are words when typed, join the row as completions
+    // and are read from a stroke; nothing else of what the golden recorded may change, and no other language's does.
+    val first = Golden.words(File(repo, "android/app/src/main/assets/dict"), "en").toSet()
+    val wide: Set<String> = File(repo, "android/app/src/main/assets/dict/en_wide.tsv").takeIf { it.isFile }
+        ?.useLines { lines -> lines.map { it.substringBefore('\t') }.filter { it.isNotEmpty() && it !in first }.toSet() }.orEmpty()
     for (set in Golden.SETS) {
         val ac = autocorrect(repo, set, "qwerty")
+        val wider = if (english(set)) wide else emptySet()
         var rows = Golden.read(Golden.file(dir, set))
         check(rows.size > 1500) { "${set.joinToString(",")}: the golden has ${rows.size} rows" }
         // A stroke drawn straight over a word's keys reads as that word first, whatever else the readings are: the
@@ -293,6 +300,10 @@ private fun golden(repo: File) {
                     got == row.words -> same++
                     !english(set) && got.map { it.lowercase() } == row.words.map { it.lowercase() } -> differs("\"i\" is a capital only in English", "swipe ${row.input}: ${row.words} → $got")
                     (got + row.words).any { w -> w.any { it in NEW_PLAIN } } -> differs("ł ø đ ı now count as l o d i", "swipe ${row.input}: ${row.words} → $got")
+                    // The readings the golden has, in its order, with readings that have a word of the wider list among them (the row holds five).
+                    got.filter { it !in row.words }.let { added -> added.isNotEmpty() && added.all { r -> r.lowercase().split(' ').any { it in wider } } } &&
+                        (got.size == 5 || row.words.all { it in got }) && got.filter { it in row.words } == row.words.filter { it in got } ->
+                        differs("words of English's wider list among a stroke's readings", "swipe ${row.input}: ${row.words} → $got")
                     else -> { differs("UNEXPLAINED", "swipe ${row.input}: ${row.words} → $got"); failures++ }
                 }
                 continue
@@ -315,6 +326,16 @@ private fun golden(repo: File) {
                     (gone.isEmpty() || s.words.size == 5) && s.words.filter { it in row.words } == row.words.filter { it in s.words } ->
                     differs("accented completions of a plain prefix (caf → café)", line)
                 (row.words + s.words + listOf(row.correct, correct)).any { w -> w.any { it in NEW_PLAIN } } -> differs("ł ø đ ı now count as l o d i", line)
+                // The same answer, with words of English's wider list joining the row (and pushing its tail out where it
+                // was full), beside the accented completions of the plain prefix where another language is loaded too.
+                correct == row.correct && fix == row.fix && s.typedIsWord == row.isWord && added.any { it.lowercase() in wider } &&
+                    added.all { w -> w.lowercase() in wider || (Script.LATIN.plain(w.lowercase()).startsWith(plainTyped) && !w.lowercase().startsWith(lower)) } &&
+                    (gone.isEmpty() || s.words.size == 5) && s.words.filter { it in row.words } == row.words.filter { it in s.words } ->
+                    differs("words of English's wider list join the row", line)
+                // What was typed is one of those words: it is a word now, where it was letters no list had.
+                lower in wider && s.typedIsWord && !row.isWord -> differs("what was typed is a word of English's wider list", line)
+                // Or the possessive of a word, which no list has itself: with the wider list read in, it is known by its word.
+                wider.isNotEmpty() && lower.endsWith("'s") && s.typedIsWord && !row.isWord && ac.isWord(lower.dropLast(2)) -> differs("a possessive is known by its word", line)
                 else -> { differs("UNEXPLAINED", line); failures++ }
             }
         }
@@ -485,7 +506,8 @@ private fun reviewed(repo: File) {
         state = LanguageState.of(round, emptyMap(), state.next)
     }
     Thread.sleep(50)
-    same(loads, 3, "nine turns of the globe key read three lists")
+    // English tells twice: when its first list is in, and again when its wider one is (assets/dict/en_wide.tsv).
+    same(loads, if (File(repo, "android/app/src/main/assets/dict/en_wide.tsv").isFile) 4 else 3, "nine turns of the globe key read three lists")
     // A language turned off lets its list go; turning it on again reads it.
     val fewer = LanguageState.of(listOf("en", "ru"), emptyMap(), "")
     ac.setLanguages(fewer.dictionaries, fewer.board, fewer.lexicons)
