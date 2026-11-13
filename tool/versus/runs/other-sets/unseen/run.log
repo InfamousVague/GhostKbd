@@ -1,0 +1,68 @@
+a sleep of 70 ms came 9 ms late at the middle, 14 at the ninth in ten, 15 at the worst: calm enough to type on
+snapshot: the keyboard in use is com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME; Ghost Keyboard's data, 41420800 bytes, sha256 c9be678c3fe9
+-rw-r--r--@ 1 matt  staff  12715 Nov 12 18:50 build/versus/versus-field.apk
+/dev/disk3s3s1    948534  25110    144624    15%  481133 1480957440    0%   /
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 88 ms
+Gboard: its learned words and data deleted (it asked for 4823)
+18:51:13 Gboard 15.1.08.726012951-preload-arm64-v8a on emulator-5584: 300 sentences x 3 thumbs, 900 to type (0 already there)
+18:54:31   25 of 900 (careful-100034); 7.8 s a sentence, about 114 min to go
+18:57:27   50 of 900 (careful-100062); 7.4 s a sentence, about 105 min to go
+19:00:57   75 of 900 (careful-100091); 7.8 s a sentence, about 106 min to go
+19:02:17   careful-100101: a touch took 277 ms from going down to lifting; again
+19:04:47   100 of 900 (careful-100119); 8.1 s a sentence, about 108 min to go
+19:08:54   125 of 900 (careful-100149); 8.5 s a sentence, about 109 min to go
+19:11:34   careful-100168: a touch took 291 ms from going down to lifting; again
+19:12:18   careful-100171: a touch took 254 ms from going down to lifting; again
+19:13:51   150 of 900 (careful-100179); 9.0 s a sentence, about 112 min to go
+19:14:22   careful-100185: a touch took 564 ms from going down to lifting; again
+19:16:27   careful-100198: a touch took 279 ms from going down to lifting; again
+19:17:58   careful-100208: a touch took 270 ms from going down to lifting; again
+19:18:18   175 of 900 (careful-100209); 9.3 s a sentence, about 112 min to go
+19:22:50   200 of 900 (careful-100252); 9.5 s a sentence, about 110 min to go
+19:24:18   careful-100259: a touch took 313 ms from going down to lifting; again
+19:24:23   careful-100259: the emulator is not keeping time (a 70 ms sleep 20 ms late at the ninth in ten, 153 at the worst); waiting
+19:24:35   the emulator keeps time again (after 15 s)
+19:27:46   225 of 900 (careful-100281); 9.7 s a sentence, about 109 min to go
+19:31:52   careful-100308: a touch took 517 ms from going down to lifting; again
+19:32:15   250 of 900 (careful-100309); 9.8 s a sentence, about 106 min to go
+19:36:31   275 of 900 (careful-100338); 9.9 s a sentence, about 102 min to go
+19:37:23   careful-100342: a touch took 255 ms from going down to lifting; again
+19:38:07   careful-100343: a touch took 279 ms from going down to lifting; again
+19:42:05   300 of 900 (careful-100374); 10.2 s a sentence, about 101 min to go
+19:45:44   325 of 900 (leaning-100034); 10.1 s a sentence, about 96 min to go
+19:48:21   leaning-100058: a touch took 267 ms from going down to lifting; again
+19:49:19   350 of 900 (leaning-100062); 10.0 s a sentence, about 91 min to go
+19:52:17   leaning-100084: a touch took 453 ms from going down to lifting; again
+19:53:26   leaning-100091: a touch took 340 ms from going down to lifting; again
+19:53:41   375 of 900 (leaning-100091); 10.0 s a sentence, about 87 min to go
+19:54:18   leaning-100097: a touch took 257 ms from going down to lifting; again
+19:57:14   400 of 900 (leaning-100119); 9.9 s a sentence, about 82 min to go
+20:01:01   425 of 900 (leaning-100149); 9.8 s a sentence, about 77 min to go
+20:04:56   450 of 900 (leaning-100179); 9.8 s a sentence, about 73 min to go
+20:08:14   475 of 900 (leaning-100209); 9.7 s a sentence, about 68 min to go
+20:12:18   500 of 900 (leaning-100252); 9.7 s a sentence, about 64 min to go
+20:16:10   525 of 900 (leaning-100281); 9.7 s a sentence, about 60 min to go
+20:20:01   550 of 900 (leaning-100309); 9.7 s a sentence, about 56 min to go
+20:23:54   575 of 900 (leaning-100338); 9.7 s a sentence, about 52 min to go
+20:27:54   600 of 900 (leaning-100374); 9.7 s a sentence, about 48 min to go
+20:31:05   625 of 900 (sloppy-100034); 9.6 s a sentence, about 43 min to go
+20:34:02   650 of 900 (sloppy-100062); 9.5 s a sentence, about 39 min to go
+20:37:27   675 of 900 (sloppy-100091); 9.4 s a sentence, about 35 min to go
+20:40:20   700 of 900 (sloppy-100119); 9.3 s a sentence, about 31 min to go
+20:43:44   725 of 900 (sloppy-100149); 9.3 s a sentence, about 27 min to go
+20:47:28   750 of 900 (sloppy-100179); 9.3 s a sentence, about 23 min to go
+20:50:35   775 of 900 (sloppy-100209); 9.2 s a sentence, about 19 min to go
+20:54:17   800 of 900 (sloppy-100252); 9.2 s a sentence, about 15 min to go
+20:57:50   825 of 900 (sloppy-100281); 9.2 s a sentence, about 11 min to go
+21:01:22   850 of 900 (sloppy-100309); 9.2 s a sentence, about 7 min to go
+21:04:58   875 of 900 (sloppy-100338); 9.2 s a sentence, about 3 min to go
+21:08:50   900 of 900 (sloppy-100374); 9.2 s a sentence, about 0 min to go
+21:08:50 Gboard: done, build/versus/runs/other-sets/unseen/gboard.jsonl
+21:08:54 Gboard 15.1.08.726012951-preload-arm64-v8a on emulator-5584: 0 sentences x 3 thumbs, 0 to type (0 already there)
+21:08:56 Gboard: done, build/versus/runs/other-sets/final/gboard.jsonl
+Ghost Keyboard's data put back (the same, byte for byte)
+the keyboard in use: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME; in front: com.google.android.apps.nexuslauncher/.NexusLauncherActivity

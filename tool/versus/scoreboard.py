@@ -11,9 +11,14 @@ says how many words are left wrong, by thumb:
            same three thumbs laid on the same keys. Nothing was looked at there but these totals: what a change
            does to these is what it does.
 
-  --final          also types a third set, kept for the end: 300 more held-out sentences from line 110,001 on.
+  --final          also types a third set, kept for the end: 300 more held-out sentences from line 101,001 on
+                   (the file has 102,028 lines; until 2026-11-12 this said line 110,001, where there is nothing).
                    Only its totals are ever printed (no --show, no --save of its words), so that nothing can be
                    fitted to it: look at it when the work is done, not while it is being done
+
+Where the unseen or the final set has been typed into Gboard on the emulator since (tool/versus/other-sets.sh, kept
+under tool/versus/runs/other-sets or still in build/versus/runs/other-sets), its line is printed beside that set's
+too, over the typings it has got through.
   --save NAME      keeps every word's verdict under build/versus/scoreboard/NAME.json
   --against NAME   and says, set by set, how many words are mended and how many broken since then (--show N of each)
   --bench          also runs the typing bench's own tap test (tool/typing_bench.sh taps, 12,000 words): words right,
@@ -41,12 +46,34 @@ RUN = os.path.join(HERE, "runs", "2026-11-11")
 GEOMETRY = os.path.join(RUN, "ghost.geometry.json")
 THUMBS = ["careful", "leaning", "sloppy"]
 UNSEEN_FIRST = 100000
-FINAL_FIRST = 110000
+FINAL_FIRST = 101000
 
 
 def kept(name):
     with gzip.open(os.path.join(RUN, name), "rt", encoding="utf-8") as f:
         return [r for r in (json.loads(line) for line in f) if not r.get("stalled")]
+
+
+def other(name, keyboard="gboard"):
+    """What another keyboard made of the unseen or the final set (tool/versus/other-sets.sh), as verdicts; None where it was never typed."""
+    for folder in (os.path.join(HERE, "runs", "other-sets", name), os.path.join(ROOT, "build", "versus", "runs", "other-sets", name)):
+        for file, opener in ((keyboard + ".jsonl.gz", gzip.open), (keyboard + ".jsonl", open)):
+            path = os.path.join(folder, file)
+            if not os.path.exists(path):
+                continue
+            records = {}
+            with opener(path, "rt", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    # A typing that stalled was typed again: the later record of it is the one that counts.
+                    if not r.get("stalled"):
+                        records[(r["thumb"], r["line"])] = r
+            if records:
+                return {"%s/%d" % k: [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for k, r in records.items()}
+    return None
 
 
 def unseen(first, count, seed="7"):
@@ -95,6 +122,12 @@ def line(name, v, beside=None):
         lost = sum(1 for k in v for a, b in zip(v[k], beside.get(k, [])) if not a[0] and b[0])
         won = sum(1 for k in v for a, b in zip(v[k], beside.get(k, [])) if a[0] and not b[0])
         text += "   | words Gboard got and this did not: %d, the other way: %d" % (lost, won)
+        if len(beside) < len(v):
+            # Gboard has not been given every typing of this set yet: the same typings, side by side.
+            mine = tally({k: v[k] for k in beside if k in v})
+            text += "\n         over the %d typings Gboard has had: this %s  all %.2f%% (%d of %d)" % (
+                len(beside), "  ".join("%.2f%%" % (100.0 * mine[t][1] / max(1, mine[t][0])) for t in THUMBS),
+                100.0 * sum(r[1] for r in mine.values()) / max(1, sum(r[0] for r in mine.values())), sum(r[1] for r in mine.values()), sum(r[0] for r in mine.values()))
     return text
 
 
@@ -152,9 +185,12 @@ def main():
     now = {"seen": typed(seen_records), "unseen": typed(unseen(args.unseen_first, args.sentences))}
     gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in kept("gboard.jsonl.gz")}
     print(line("seen", now["seen"], gboard))
-    print(line("unseen", now["unseen"]))
+    print(line("unseen", now["unseen"], other("unseen") if args.unseen_first == UNSEEN_FIRST else None))
     if args.final:
-        print(line("final", typed(unseen(FINAL_FIRST, args.sentences))))
+        last = unseen(FINAL_FIRST, args.sentences)
+        if len(last) != 3 * args.sentences:
+            raise SystemExit("scoreboard: the final set has %d typings, not %d: the held-out file has no %d sentences after line %d" % (len(last), 3 * args.sentences, args.sentences, FINAL_FIRST))
+        print(line("final", typed(last), other("final")))
     folder = os.path.join(ROOT, "build", "versus", "scoreboard")
     if args.against:
         then = json.load(open(os.path.join(folder, args.against + ".json")))

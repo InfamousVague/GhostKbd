@@ -1,0 +1,47 @@
+a sleep of 70 ms came 5 ms late at the middle, 6 at the ninth in ten, 6 at the worst: calm enough to type on
+-rw-r--r--@ 1 matt  staff  12715 Nov 12 18:26 build/versus/versus-field.apk
+/dev/disk3s3s1    948534  25110    148377    15%  481133 1519382200    0%   /
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 161 ms
+/dev/disk3s3s1    948534  25110    148377    15%  481133 1519382200    0%   /
+Success
+Success
+Ghost Keyboard: default settings, nothing learned
+Ghost Keyboard: not measured; letters as in tool/versus/runs/2026-11-11/ghost.geometry.json, the rest from the layout code; wrote build/versus/runs/device-check-2/ghost.geometry.json
+104 of 900 typings come out otherwise: build/versus/runs/device-check-2/altered.txt
+104 altered typings and 40 others to type
+18:27:25 Ghost Keyboard 0.16.3 on emulator-5584: 300 sentences x 3 thumbs, 117 to type (27 already there)
+18:30:15   25 of 117 (sloppy-90328); 6.7 s a sentence, about 10 min to go
+18:31:17   sloppy-90214: a touch took 373 ms from going down to lifting; again
+18:31:41   sloppy-90263: a touch took 335 ms from going down to lifting; again
+18:31:54   sloppy-90263: the emulator is not keeping time (a 70 ms sleep 681 ms late at the ninth in ten, 1656 at the worst); waiting
+18:32:07   the emulator keeps time again (after 24 s)
+18:32:28   sloppy-90263: a touch took 1884 ms from going down to lifting; again
+18:32:55   careful-90271: a touch took 289 ms from going down to lifting; again
+18:33:11   careful-90271: a touch took 350 ms from going down to lifting; again
+18:34:10   leaning-90322: a touch took 746 ms from going down to lifting; again
+18:34:47   leaning-90241: a touch took 1197 ms from going down to lifting; again
+18:34:53   leaning-90241: the emulator is not keeping time (a 70 ms sleep 99 ms late at the ninth in ten, 156 at the worst); waiting
+18:35:23   the emulator keeps time again (after 33 s)
+18:35:44   leaning-90288: a touch took 296 ms from going down to lifting; again
+18:36:21   sloppy-90339: a touch took 407 ms from going down to lifting; again
+18:37:17   sloppy-90171: a touch took 3102 ms from going down to lifting; again
+18:37:22   sloppy-90171: the emulator is not keeping time (a 70 ms sleep 46 ms late at the ninth in ten, 84 at the worst); waiting
+18:37:35   the emulator keeps time again (after 15 s)
+18:37:47   sloppy-90171: a touch took 305 ms from going down to lifting; again
+18:38:57   50 of 117 (leaning-90255); 13.8 s a sentence, about 15 min to go
+18:39:12   sloppy-90029: a touch took 711 ms from going down to lifting; again
+18:44:36   75 of 117 (leaning-90272); 13.7 s a sentence, about 9 min to go
+18:47:17   100 of 117 (careful-90002); 11.9 s a sentence, about 3 min to go
+18:49:55   117 of 117 (careful-90172); 11.5 s a sentence, about 0 min to go
+18:49:56 Ghost Keyboard: done, build/versus/runs/device-check-2/ghost.jsonl
+typed: 104 of the altered typings, 40 others
+  altered: the emulator's text is this tree's in 104 of 104, and the base's in 0
+  others:  the emulator's text is this tree's in 40 of 40
+Success
+Ghost Keyboard 0.15.0 (80) is installed again, the build the snapshot was taken of
+Ghost Keyboard's data put back (the same, byte for byte)
+the keyboard in use: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME; in front: com.google.android.apps.nexuslauncher/.NexusLauncherActivity
