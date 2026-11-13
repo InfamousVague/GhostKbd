@@ -695,8 +695,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      *
      * Every reading is worth its word's frequency, plus what the words before lift it by (at most [CONTEXT_PICK]),
      * less what its slips cost. The typed word is one of the readings, with no slips:
-     * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]):
-     *   any reading worth more replaces it;
+     * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]),
+     *   or less than either where English's letter table says its letters are no word's ([unlisted]): any reading
+     *   worth more replaces it;
      * - a rare listed word gives way to a reading worth [MARGIN_RARE] more than it;
      * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one, and only by slips of
      *   the thumb: "br" with its r tapped on the line between e and r is "be", and with the r tapped in the middle
@@ -723,7 +724,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         val common = known != null && known >= COMMON
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
-        // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
+        // it is long (a long word a letter from a common one is that word misspelled, far more often than a name),
+        // and next to nothing where its letters are ones no word puts together ([unlisted]).
         val unknown = if (known != null) UNKNOWN else unlisted(now, lower)
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
@@ -869,12 +871,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * which is the share of running words no list has times the letters' chance as such a word. In Zipf units that
      * is 9 + log10(share), plus [LETTERS_SHIFT], less [LETTERS_WEIGHT] for each unit the letters cost
      * ([LetterModel.cost]). It falls with every letter, and faster where the letters are ones no word puts
-     * together: "berber" and "kira" are worth what the fixed bars say, "prrsrnyable" next to nothing.
+     * together: "kira" and "berber" are worth what the fixed bars say, "prrsrnyable" less than nothing. Where the
+     * table has its say [odd] has none ([LETTERS_ODD]): the table says by how much letters do not look like a word.
      *
-     * The table only ever lowers a bar. Counted for all it says ([LETTERS_WEIGHT] 1, [LETTERS_SHIFT] 0, no fixed
-     * bar above it) it mends more of the slips and changes two in three of the names and terms the typing bench
-     * types on purpose: its chance is spread over every string that could be a word, and the words people do type
-     * are few of those, so a real name is worth far more than its letters say. docs/versus.md has the curve.
+     * The table only ever lowers a bar, and is not taken at its word. Counted for all it says ([LETTERS_WEIGHT] 1,
+     * [LETTERS_SHIFT] 0, no bar for long words above it) it mends 85 of the 326 words the scoreboard's seen set has
+     * wrong and changes two in three of the names and terms the typing bench types on purpose: its chance is spread
+     * over every string that could be a word, and the words people do type are few of those, so a real name is
+     * worth far more than its letters say. docs/versus.md has the curve ("What letters no list has are worth").
      */
     private fun unlisted(now: Now, lower: String): Float {
         val model = now.lexicon.letters?.takeIf { LETTERS > 0f }
@@ -1183,13 +1187,60 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
         @JvmField var UNKNOWN_LONG = 1.6f
         @JvmField var LONG_WORD = 6f
-        /** TO BE SET: the letter table's dials ([unlisted]); see docs/versus.md. */
+        /**
+         * English's letter table ([LetterModel]) has a say in what letters no list has are worth ([unlisted]): at 0
+         * they are held to the fixed bars alone, as every other language's are, and the keyboard is as it was before
+         * there was a table (the scoreboard and the typing bench say so to the last word).
+         */
         @JvmField var LETTERS = 1f
-        @JvmField var LETTERS_SHIFT = 1.75f
+        /**
+         * What is added to what the table makes letters worth, and how much of what the letters cost is counted.
+         * Set 2026-11-12 on the typing bench's own measure (words right less four for every right word spoiled, and
+         * the misspellings mended: 93.76 without the table) with the scoreboard's two sets beside it. At a weight of
+         * 0.6 the measure is 94.57, 94.60, 94.64, 94.64, 94.62 and 94.52 for a shift of 1.25, 1, 0.75, 0.5, 0.25 and
+         * -0.25, and 0.75 is the least of those at which the bench's unknown words are spoiled no more often than
+         * under the fixed bars (1.5%, 4.3% and 4.8% for its three thumbs, where the fixed bars have 1.5%, 4.3% and
+         * 7.1%). Under it a quarter less leaves some six fewer of the scoreboard's 5,205 seen words wrong (281, 275,
+         * 270) and spoils four, then eight, more of the bench's 511 unknown words (15, 19, 27). Weights of 0.8 and 1
+         * with the shift that suits each (3.05, 5.3) leave 3 and 7 fewer of the seen set's words wrong and 2 more of
+         * the unseen set's. docs/versus.md has every line.
+         */
+        @JvmField var LETTERS_SHIFT = 0.75f
         @JvmField var LETTERS_WEIGHT = 0.6f
+        /**
+         * The least the table may make letters worth. None: most of what the table mends is long strings and words
+         * run together that are worth less than nothing. With a floor of 0, -1, -2, -3 and -4 the bench's measure is
+         * 94.23, 94.43, 94.55, 94.60 and 94.64, for 94.64 with none; and a floor gives back little of the time the
+         * lower bars cost the search (docs/versus.md).
+         */
         @JvmField var LETTERS_FLOOR = -99f
-        @JvmField var LETTERS_ODD = 1f
+        /**
+         * 1 and letters that hold a run no common word has ([odd]) are still held to [UNKNOWN_ODD] where the table
+         * has its say; 0 and the table alone says what looks like a word. 0, as measured 2026-11-12: [odd] knows
+         * only "has such a run" or "has none", and holds "gyatt" and "kekw" as cheap as "hkpelwss". With it out of
+         * the way the bench's unknown words are spoiled as seldom as under the fixed bars at a shift a whole unit
+         * lower (0.75 for 1.75), where 11 fewer of the seen set's words and 15 fewer of the unseen set's are left
+         * wrong. What it costs: a short slip with such a run in it is no longer held cheap. "truk", "opej", "havun"
+         * and "cyss" on the seen set and "musz", "agajn" and "tcis" on the unseen, which the fixed bars mended, are
+         * not mended (5 and 3 words broken, as the scoreboard counts them).
+         */
+        @JvmField var LETTERS_ODD = 0f
+        /**
+         * The shortest string the table is asked about. 1, every string. With [LETTERS_ODD] 1 and 6 here (the table
+         * for long strings only, the fixed bars as they were for the rest) nothing the fixed bars mended is lost down
+         * to a shift of -0.25, where the bench's measure is 94.77, the highest of any setting tried; but with the
+         * bench's unknown words spoiled as under the fixed bars (a shift of 1.25) it leaves 286 and 396 words of the
+         * scoreboard's two sets wrong, where the table in [odd]'s place leaves 281 and 384. With [LETTERS_ODD] 0 it
+         * only costs (292 and 400: short strings are then held to [UNKNOWN] whatever their letters).
+         */
         @JvmField var LETTERS_FROM = 1f
+        /**
+         * 1 and a typed word that looks like a listed word with an ending of its own ([inflected]) still gives way
+         * only to a reading worth [UNKNOWN], where the table has made it worth less. Left at 1: without the rule 12
+         * more of the bench's 264 misspellings are mended and 3 more of the seen set's words (the bench's measure
+         * 94.74 for 94.64), and 3 and 2 more of its careful and normal thumbs' unknown words are spoiled, which is
+         * what the rule is there to prevent.
+         */
         @JvmField var LETTERS_INFLECTED = 1f
         /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
         @JvmField var RARE_GAP = 2f

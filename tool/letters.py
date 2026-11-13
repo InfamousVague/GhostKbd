@@ -32,7 +32,8 @@ so that file names everyone whose sentences this table is derived from.
 
 A word is one that no list has when the keyboard, with English alone loaded, would hold it to Autocorrect.unlisted:
 it is not in assets/dict/en.tsv nor in any other English list beside it (an en_*.tsv of words and frequencies), is
-not typed for a contraction (en_contractions.tsv), is not slang (en_slang.txt) nor one of Autocorrect's DEV_WORDS.
+not typed for a contraction (en_contractions.tsv), is not slang (en_slang.txt, which autocorrect leaves alone while
+its switch is on) nor one of Autocorrect's DEV_WORDS.
 Words in capitals throughout are left out (an acronym is typed in capitals, and autocorrect leaves those alone),
 and so is anything code-shaped or longer than a word may be (next_words.learnable). Accents are folded as a hurried
 thumb types them (Script.plain: é is e), and a word with any character left that is not a to z or an apostrophe is
@@ -42,7 +43,8 @@ What is written
 ---------------
 Runs of up to ORDER letters with a start mark and an end mark (ORDER 3: "^^b", "^be", "ber", "erb", "rbe", "ber",
 "er$" for berber), each word that no list has counted once however often it stood: Tatoeba's sentences are full of
-Ziri, Yanni and Skura, and counted by how often they stood a third of the table would be those five names.
+Ziri, Yanni, Rima, Skura and Mennad, and counted by how often they stood a third of the table would be those five
+names.
 Witten-Bell smoothing, each length of run interpolated with the one shorter, down to all 28 marks alike. The file
 holds every run seen with what its last letter costs after the ones before (minus 100 times the log to base ten
 of its chance), and for every run that others continue, what is added before going by one letter less where the
@@ -52,7 +54,8 @@ The first line that is no comment holds the facts the keyboard reads: the order,
 that no list has (unlisted words over all words, in the counted sentences). What a string is worth is then
 9 + log10(share) + log10(its chance by the table), in the Zipf units every listed word's frequency is in:
 the chance that the next word typed is in no list, and is spelled so. Autocorrect.unlisted has two dials on that
-(LETTERS_SHIFT, LETTERS_WEIGHT) and never lets it raise a bar; docs/versus.md says how they were set.
+(LETTERS_SHIFT, LETTERS_WEIGHT) and never lets it raise a bar; docs/versus.md says how they were set ("What letters
+no list has are worth").
 
 A comment line beginning "# check:" holds a few strings with what each costs by the file, in hundredths:
 LetterModelTest reads the file as the keyboard does and must find the same, so the two readers cannot part.
