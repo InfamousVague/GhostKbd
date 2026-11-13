@@ -1,6 +1,6 @@
 // tool/versus/sweep.py's worker: the decoder's dials tried one setting after another, in one JVM.
 //
-//   tool/versus/replay.sh sweep --sets <file> [--bench-words 12000] [--threads 4]
+//   tool/versus/replay.sh sweep --sets <file> [--bench-words 12000] [--threads 4] [--last-line 110000]
 //   tool/versus/replay.sh sweep --dials             every dial there is and what the tree sets it to; loads nothing
 //
 // tool/versus/scoreboard.py --set starts a JVM, reads the word lists and types 1,800 sentences and the typing bench
@@ -12,10 +12,14 @@
 // (an empty line or "-" is the tree as it is) and answers each with one line on standard output: the words left wrong
 // in each set of sentences, by thumb and in all; the typing bench's tap test for its three thumbs (words right, right
 // words spoiled in a thousand, right words no list has that were spoiled) and its misspellings; the seconds it took;
-// and, after a tab, the same as JSON with every count behind those figures and every word's verdict, which is what
-// sweep.py reads. The first line of all is "ready", a tab, and what was loaded. "only=sets" or "only=bench" on a
-// line types that part alone and answers with that part alone (the sets are half the work, and a search needs the
-// bench only for the settings the sets have not already ruled out).
+// and, after a tab, the same as JSON, which is what sweep.py reads: every count behind those figures, every word's
+// verdict, and the microseconds a word that each set and each thumb of the bench cost (the typing threads' own
+// computing time, [sweepThreadNanos]). The first line of all is "ready", a tab, and what was loaded.
+//
+// "only=sets" or "only=bench" on a line types that part alone and answers with that part alone (the sets are half
+// the work, and a search needs the bench only for the settings the sets have not already ruled out). A line that
+// cannot be read, or a setting the decoder throws at, is answered "error ..." and the worker goes on to the next
+// line with every dial put back.
 //
 // The numbers are scoreboard.py's for the same setting, to the word (`sweep.py check` holds one against the other):
 // - the sets are typed by Replay.kt's own Typist on a run's own keys, a typing at a time, and scored as score.py
@@ -49,6 +53,33 @@ import java.util.concurrent.Executors
  * been tried on them.
  */
 const val SWEEP_LAST_LINE = 110_000
+
+private val sweepCpu = runCatching {
+    java.lang.management.ManagementFactory.getThreadMXBean().takeIf { it.isCurrentThreadCpuTimeSupported }?.also { if (!it.isThreadCpuTimeEnabled) it.isThreadCpuTimeEnabled = true }
+}.getOrNull()
+
+/**
+ * What the calling thread has spent computing so far, in nanoseconds: its own time on a core, which on a Mac that
+ * other work is loading is far less than the time that went by (and is what a setting costs the decoder). Where the
+ * JVM cannot say, the clock.
+ */
+fun sweepThreadNanos(): Long = sweepCpu?.currentThreadCpuTime ?: System.nanoTime()
+
+/**
+ * A digest of every class the worker was compiled from but Kotlin's own: the keyboard's, the replay's, the bench's
+ * and this file's. sweep.py keeps its answers by it, so a jar made again from the same sources keeps them, and a
+ * change to any source (a dial added, a rule changed) starts afresh.
+ */
+fun sweepBuild(): String {
+    val where = File(Autocorrect::class.java.protectionDomain.codeSource.location.toURI())
+    val md = java.security.MessageDigest.getInstance("SHA-256")
+    if (where.isDirectory) {
+        for (f in where.walkTopDown().filter { it.isFile && it.name.endsWith(".class") }.sortedBy { it.relativeTo(where).path }) { md.update(f.relativeTo(where).path.toByteArray()); md.update(f.readBytes()) }
+    } else java.util.zip.ZipFile(where).use { zip ->
+        for (e in zip.entries().asSequence().filter { it.name.endsWith(".class") && !it.name.startsWith("kotlin/") }.sortedBy { it.name }) { md.update(e.name.toByteArray()); md.update(zip.getInputStream(e).readBytes()) }
+    }
+    return md.digest().joinToString("") { "%02x".format(it) }
+}
 
 /** The decoder's dials, by name ("Autocorrect.UNKNOWN"), each with the value the tree gives it. */
 class SweepDials {
@@ -211,7 +242,7 @@ class SweepSets(root: File, file: File) {
  * words before a token as the keyboard left them), any sentence on any thread, and tallies the stretches in the
  * order the bench does.
  */
-class SweepBench(root: File, words: Int, private val seed: Long) {
+class SweepBench(root: File, words: Int, private val seed: Long, lastLine: Int = SWEEP_LAST_LINE) {
     class Planned(val stretches: List<Stretch>, val tokens: List<Typed>)
 
     val kb = Keyboard(root)
@@ -220,7 +251,7 @@ class SweepBench(root: File, words: Int, private val seed: Long) {
     val plans: List<Pair<Noise, List<Planned>>>
 
     init {
-        val picked = sample(kb, Sentences(root, SWEEP_LAST_LINE), 0, words, seed)
+        val picked = sample(kb, Sentences(root, minOf(lastLine, SWEEP_LAST_LINE)), 0, words, seed)
         sentences = picked.first
         oov = picked.second
         plans = NOISES.map { it to plan(it) }
@@ -292,6 +323,7 @@ fun sweep(root: File, args: List<String>) {
     var benchWords = 12_000
     var benchSeed = 7L
     var threads = 4
+    var lastLine = SWEEP_LAST_LINE
     var dialsOnly = false
     var i = 0
     while (i < args.size) {
@@ -300,6 +332,8 @@ fun sweep(root: File, args: List<String>) {
             "--bench-words" -> benchWords = args[++i].toInt()
             "--bench-seed" -> benchSeed = args[++i].toLong()
             "--threads" -> threads = args[++i].toInt().coerceAtLeast(1)
+            // Never past SWEEP_LAST_LINE, whatever is asked: sweep.py passes scoreboard.py's own bound, should that come to be lower.
+            "--last-line" -> lastLine = args[++i].toInt().coerceIn(0, SWEEP_LAST_LINE)
             "--dials" -> dialsOnly = true
             else -> { System.err.println("sweep: unknown option ${args[i]}"); kotlin.system.exitProcess(2) }
         }
@@ -308,11 +342,12 @@ fun sweep(root: File, args: List<String>) {
     val began = System.nanoTime()
     val dials = SweepDials()
     val dialsJson = dials.all.values.joinToString(",") { sweepJson(it.name) + ":{\"type\":" + sweepJson(it.type) + ",\"default\":" + sweepJson(it.default.toString()) + "}" }
-    if (dialsOnly) { println("ready\t{\"dials\":{$dialsJson}}"); return }
+    val build = sweepBuild()
+    if (dialsOnly) { println("ready\t{\"dials\":{$dialsJson},\"build\":${sweepJson(build)}}"); return }
 
     val sets = setsFile?.let { SweepSets(root, it) }
     val decoder = sets?.let { Decoder(root) }
-    val bench = if (benchWords > 0) SweepBench(root, benchWords, benchSeed) else null
+    val bench = if (benchWords > 0) SweepBench(root, benchWords, benchSeed, lastLine) else null
     decoder?.let { sweepAwaitSlang(root, it.ac) }
     bench?.let { sweepAwaitSlang(root, it.kb.ac) }
     val pool = Executors.newFixedThreadPool(threads) { r -> Thread(r, "sweep").also { it.isDaemon = true } }
@@ -320,7 +355,7 @@ fun sweep(root: File, args: List<String>) {
 
     val setsJson = sets?.let { s -> s.names.indices.joinToString(",") { k -> sweepJson(s.names[k]) + ":{\"typings\":" + s.typings.count { it.set == k } + ",\"words\":" + s.typings.filter { it.set == k }.sumOf { it.words.size } + "}" } } ?: ""
     val benchJson = bench?.let { "{\"words\":${it.sentences.sumOf { s -> s.size }},\"sentences\":${it.sentences.size},\"unknown\":${it.oov.size},\"seed\":$benchSeed}" } ?: "null"
-    out.println("ready\t{\"dials\":{$dialsJson},\"sets\":{$setsJson},\"thumbs\":[${sets?.thumbs?.joinToString(",") { sweepJson(it) } ?: ""}],\"bench\":$benchJson,\"threads\":$threads,\"seconds\":${"%.2f".format(Locale.ROOT, (System.nanoTime() - began) / 1e9)}}")
+    out.println("ready\t{\"dials\":{$dialsJson},\"build\":${sweepJson(build)},\"sets\":{$setsJson},\"thumbs\":[${sets?.thumbs?.joinToString(",") { sweepJson(it) } ?: ""}],\"bench\":$benchJson,\"threads\":$threads,\"seconds\":${"%.2f".format(Locale.ROOT, (System.nanoTime() - began) / 1e9)}}")
     out.flush()
 
     // A few typings or sentences a task: small enough that no thread is left idle at the end, large enough that handing them out costs nothing.
@@ -353,21 +388,33 @@ fun sweep(root: File, args: List<String>) {
         var misspelled: Pair<Int, Int>? = null
         val tasks = ArrayList<Callable<Unit>>()
         if (typed != null) for (chunk in typingChunks) tasks += Callable {
-            val began = System.nanoTime()
-            for (k in chunk) wrong[k] = typed.typings[k].wrong(typed.board, decoder!!)
-            val took = System.nanoTime() - began
-            synchronized(setNanos) { setNanos[typed.typings[chunk[0]].set] += took }
+            // A chunk may hold the last typings of one set and the first of the next: each is clocked for its own.
+            for (k in chunk) {
+                val began = sweepThreadNanos()
+                wrong[k] = typed.typings[k].wrong(typed.board, decoder!!)
+                val took = sweepThreadNanos() - began
+                synchronized(setNanos) { setNanos[typed.typings[k].set] += took }
+            }
         }
         if (benched != null) {
             for ((n, chunks) in benchChunks.withIndex()) for (chunk in chunks) tasks += Callable {
-                val began = System.nanoTime()
+                val began = sweepThreadNanos()
                 for (k in chunk) read[n][k] = benched.read(benched.plans[n].second[k])
-                val took = System.nanoTime() - began
+                val took = sweepThreadNanos() - began
                 synchronized(benchNanos) { benchNanos[n] += took }
             }
             tasks += Callable { misspelled = misspellings(benched.kb, true) }
         }
-        for (f in pool.invokeAll(tasks)) f.get()
+        // Every task is waited for, so nothing of this setting is still typing when the next one's dials are set.
+        val failed = pool.invokeAll(tasks).firstNotNullOfOrNull { f -> runCatching { f.get() }.exceptionOrNull() }
+        if (failed != null) {
+            dials.apply("")
+            val cause = failed.cause ?: failed
+            val why = ("the decoder threw at this setting: " + cause.toString()).replace('\t', ' ').replace('\n', ' ')
+            out.println("error $why\t{\"error\":${sweepJson(why)}}")
+            out.flush()
+            continue
+        }
 
         val human = StringBuilder()
         val json = StringBuilder("{\"setting\":{" + set.entries.joinToString(",") { sweepJson(it.key) + ":" + sweepJson(it.value) } + "}")

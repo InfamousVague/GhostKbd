@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Many settings of the decoder's dials, a few seconds each: tool/versus/sweep.py dials | line | grid | scan | search | check
+"""Many settings of the decoder's dials, a few seconds each: tool/versus/sweep.py dials | line | grid | scan | search | front | time | check | again
 
 scoreboard.py --set starts a JVM, reads the word lists and types everything, for each setting it is asked about.
 This keeps one JVM (tool/versus/replay.sh sweep: replay/Sweep.kt) that has read everything once and types it all
@@ -22,9 +22,19 @@ typing bench's tap test (12,000 words by three thumbs). Its numbers are scoreboa
                                       turn is tried a step down and a step up, and moved where that lowers the
                                       objective by --least or more (and on the same way while it still does); when
                                       a whole round moves nothing the steps are halved, --halvings times. With no
-                                      DIAL, every number of Autocorrect and TapDecoder that these tests can see
+                                      DIAL, every number of the decoder's that a tap can reach (dials says which).
+                                      A switch is tried the other way, a whole number by ones: name them, or add
+                                      them to the usual ones with --also DIAL; --without DIAL leaves one out
+  sweep.py front [--show 40]          of every setting answered so far, those no other beats on words wrong, listed
+                                      words spoiled and unknown words spoiled together: the choice the objective
+                                      weighs, laid out
   sweep.py check [SETTING ...]        holds this tool to scoreboard.py --bench for the tree and three other settings
                                       (or those given): the same lines, and the same verdict on every word
+  sweep.py again [N | SETTING ...]    types N kept answers again (20), or those given, and holds each to what was
+                                      kept: a setting comes out the same whenever and on whichever threads it is typed
+  sweep.py time [SETTING ...]         what each setting costs the decoder beside the tree, in microseconds a word:
+                                      each typed --times times (3), turn about, the least taken. --threads 1 is the
+                                      steadiest
 
 The objective, which a search makes as small as it can: the words left wrong on seen and unseen together, and a
 penalty for each figure of the bench that is worse than the tree's own, so that words cannot be bought on these
@@ -37,16 +47,20 @@ each spoiled one four times over, to the objective whether or not they are worse
 
   --holdout [SEED]   fit on a random half of each set's sentences (a sentence goes whole, all three thumbs) and
                      report the other half beside it: a setting that was found gains on both, one that was fitted
-                     gains on the half it saw. --other-half fits on the half this leaves out
+                     gains on the half it saw. --other-half fits on the half this leaves out. (Give the seed, or
+                     put the option last: a dial's name straight after it would be taken for one)
   --threads N        how many threads type a setting (4). Settings are tried one at a time: the dials are static,
                      and a setting's typings are independent of each other, so the threads share one setting
   --bench-words N    the bench's words (12000, as scoreboard.py --bench has it); 0 leaves the bench out
   --overlay DIR, --java OPTS     as tool/versus/whatif.py has them
 
-Every answer is kept under build/versus/sweep/, by what was compiled and what was typed, so a grid or a search run
-again, or run on after being stopped, asks only for what it has not seen. Nothing here can read the held-out
+Every answer is kept under build/versus/sweep/, by what was compiled (a digest of the worker's classes), what was
+typed (the sets, the bench's sentences) and English's lists (the files of assets/dict and assets/ngram that begin
+"en"), so a grid or a search run again, or run on after being stopped, asks only for what it has not seen, and a
+change to the decoder or a list starts afresh. --no-cache asks again regardless. Nothing here can read the held-out
 sentences from line 110,001 on, which are kept for the end (scoreboard.py --final): the unseen set is made from a
-copy of the file that stops at line 110,000, and Sweep.kt reads no further.
+copy of the file that stops at line 110,000 (or at scoreboard.py's own FINAL_FIRST, should that be lower), and
+Sweep.kt is told the same bound and reads no further.
 """
 import argparse
 import hashlib
@@ -79,6 +93,10 @@ WEIGHTS = {"seen": 1.0, "unseen": 1.0, "spoiled": 4.0, "unknown": 4.0, "right": 
 CHECKS = ["-", "Autocorrect.UNKNOWN_ODD=0", "Autocorrect.MARGIN_COMMON=0.6 Autocorrect.UNKNOWN=1.6", "TapDecoder.SPATIAL=1.0 TapDecoder.OMIT=1.8 TapDecoder.WHOLE_CHANGE=3"]
 
 
+class Refused(Exception):
+    """The worker could not type a setting: the decoder threw at it."""
+
+
 def note(text):
     sys.stderr.write(text + "\n")
     sys.stderr.flush()
@@ -104,6 +122,13 @@ def bounded_heldout():
             g.writelines(itertools.islice(f, LAST_LINE))
         os.replace(dst + ".tmp", dst)
     return dst
+
+
+def english_lists():
+    """The lists the decoder reads for English (dict/en.tsv, en_contractions.tsv, en_slang.txt, ngram/en.tsv) and
+    any that a change puts beside them: every file of assets/dict and assets/ngram whose name begins with "en"."""
+    assets = os.path.join(ROOT, "android", "app", "src", "main", "assets")
+    return [os.path.join(assets, folder, n) for folder in ("dict", "ngram") for n in sorted(os.listdir(os.path.join(assets, folder))) if n.startswith("en")]
 
 
 _sentences = th.sentences
@@ -183,7 +208,7 @@ class Worker:
     def __init__(self, sets_path, bench_words, threads, env):
         os.makedirs(WORK, exist_ok=True)
         self.log = open(os.path.join(WORK, "worker.log"), "a")
-        self.p = subprocess.Popen(["sh", os.path.join(HERE, "replay.sh"), "sweep", "--sets", sets_path, "--bench-words", str(bench_words), "--threads", str(threads)],
+        self.p = subprocess.Popen(["sh", os.path.join(HERE, "replay.sh"), "sweep", "--sets", sets_path, "--bench-words", str(bench_words), "--threads", str(threads), "--last-line", str(LAST_LINE)],
                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.log, universal_newlines=True, bufsize=1, env=env)
         head = self.p.stdout.readline()
         if not head.startswith("ready\t"):
@@ -221,7 +246,10 @@ class Sweep:
         p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), "sweep", "--dials"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=self.env)
         if p.returncode != 0 or not p.stdout.startswith("ready\t"):
             raise SystemExit("sweep: replay.sh sweep --dials failed: " + p.stderr[-1500:])
-        self.dials = json.loads(p.stdout.split("\t", 1)[1])["dials"]
+        ready = json.loads(p.stdout.split("\t", 1)[1])
+        self.dials = ready["dials"]
+        # A digest of the classes the worker was compiled from (Sweep.kt's sweepBuild): what its answers are kept by.
+        self.build = ready["build"]
         self.defaults = {name: self.value(name, d["default"]) for name, d in self.dials.items()}
         self.worker = None
         self.asked = 0
@@ -262,13 +290,16 @@ class Sweep:
         if self.sets is not None:
             return
         self.sets = Sets()
+        # Kept by everything an answer depends on: the classes the worker was compiled from (not the jar's bytes,
+        # which change each time it is made), the typings, the bench's sentences, English's lists, and the options
+        # the JVM was given. The threads are not among them: they change no number.
         h = hashlib.sha256()
-        jar = os.path.join(ROOT, "build", "versus", "replay%s-sweep.jar" % ("-" + os.path.basename(self.args.overlay.rstrip("/")) if self.args.overlay else ""))
-        assets = os.path.join(ROOT, "android", "app", "src", "main", "assets")
-        for path in [jar, self.sets.path, bounded_heldout()] + [os.path.join(assets, p) for p in ("dict/en.tsv", "dict/en_contractions.tsv", "dict/en_slang.txt", "ngram/en.tsv")]:
+        h.update(self.build.encode("utf-8"))
+        for path in [self.sets.path, bounded_heldout()] + english_lists():
+            h.update(os.path.basename(path).encode("utf-8"))
             with open(path, "rb") as f:
                 h.update(hashlib.sha256(f.read()).digest())
-        h.update(("%d|%s" % (self.args.bench_words, self.args.java or "")).encode("utf-8"))
+        h.update(("%d|%d|%s" % (self.args.bench_words, LAST_LINE, self.env["JAVA_OPTS"].strip())).encode("utf-8"))
         self.cache_file = os.path.join(WORK, "answers-%s.jsonl" % h.hexdigest()[:12])
         if os.path.exists(self.cache_file) and not self.args.no_cache:
             for line in open(self.cache_file, encoding="utf-8"):
@@ -296,19 +327,32 @@ class Sweep:
         want = [p for p in parts if p not in have and (p == "sets" or self.args.bench_words > 0)]
         if not want:
             return have
-        if self.worker is None:
-            t0 = time.time()
-            self.worker = Worker(self.sets.path, self.args.bench_words, self.args.threads, self.env)
-            note("sweep: the worker is up in %.0f s: %d threads, %s" % (time.time() - t0, self.args.threads, ", ".join(
-                "%s %d words" % (k, v["words"]) for k, v in self.worker.ready["sets"].items()) + (", the bench's %d words a thumb" % self.worker.ready["bench"]["words"] if self.worker.ready["bench"] else ", no bench")))
-        answer = self.worker.ask(("only=%s " % want[0] if len(want) == 1 and self.args.bench_words > 0 else "") + key)
+        answer = self.start().ask(("only=%s " % want[0] if len(want) == 1 and self.args.bench_words > 0 else "") + key)
         if "error" in answer:
-            raise SystemExit("sweep: %s" % answer["error"])
+            raise Refused("%s: %s" % (key, answer["error"]))
         self.asked += 1
         self.seconds += answer["seconds"]
         with open(self.cache_file, "a", encoding="utf-8") as f:
             f.write(json.dumps({"setting": key, "answer": answer}) + "\n")
         return self.merge(key, answer)
+
+    def start(self):
+        if self.worker is None:
+            t0 = time.time()
+            self.worker = Worker(self.sets.path, self.args.bench_words, self.args.threads, self.env)
+            note("sweep: the worker is up in %.0f s: %d threads, %s" % (time.time() - t0, self.args.threads, ", ".join(
+                "%s %d words" % (k, v["words"]) for k, v in self.worker.ready["sets"].items()) + (", the bench's %d words a thumb" % self.worker.ready["bench"]["words"] if self.worker.ready["bench"] else ", no bench")))
+        return self.worker
+
+    def afresh(self, key, bench=True):
+        """What the worker makes of the setting kept as [key], asked now whatever is kept, and not kept."""
+        self.load()
+        answer = self.start().ask(("only=sets " if not bench and self.args.bench_words > 0 else "") + key)
+        if "error" in answer:
+            raise Refused("%s: %s" % (key, answer["error"]))
+        self.asked += 1
+        self.seconds += answer["seconds"]
+        return answer
 
     def close(self):
         if self.worker is not None:
@@ -435,10 +479,28 @@ def first_step(sw, name, scale):
     return scale if d <= 8 else round(d * scale / 1.6, 4)
 
 
+def a_step_away(sw, name, now, lo, hi, step):
+    """[(way, value)]: [now] a step down and a step up, within the dial's bounds; for a switch, its other position."""
+    kind = sw.dials[name]["type"]
+    if kind == "switch":
+        return [(1, not now)]
+    out = []
+    for way in (-1, 1):
+        v = min(hi, max(lo, now + way * step))
+        v = int(round(v)) if kind == "int" else round(v, 4)
+        if fmt(v) != fmt(now):
+            out.append((way, v))
+    return out
+
+
+def searched(sw, name):
+    """Whether a search takes this dial when it is given none: see NOT_SEARCHED."""
+    return sw.dials[name]["type"] == "float" and not name.startswith(NOT_SEARCHED) and name not in NOT_SEARCHED
+
+
 def cmd_dials(sw, args):
     for name, d in sw.dials.items():
-        taken = d["type"] == "float" and not name.startswith(NOT_SEARCHED) and name not in NOT_SEARCHED
-        print("%-28s %-6s %-8s %s" % (name, d["type"], d["default"], "searched" if taken else ""))
+        print("%-28s %-6s %-8s %s" % (name, d["type"], d["default"], "searched" if searched(sw, name) else ""))
 
 
 def cmd_line(sw, args):
@@ -457,9 +519,8 @@ def cmd_line(sw, args):
         if fit is not None:
             for ln in halves_lines(sw, obj, base, answer):
                 print("  " + ln)
-        # What the typing itself took, as its threads clocked it: a dial that widens a search shows here.
-        print("  microseconds a word: %s%s" % (", ".join("%s %.0f" % (n, answer["sets"][n]["micros"]) for n in SETS),
-                                               "; the bench's thumbs %s" % ", ".join("%.0f" % t["micros"] for t in answer["bench"].values()) if "bench" in answer else ""))
+        # As it happened to be typed when the answer was kept (a worker's first typing is its slowest): `time` clocks settings against each other.
+        print("  microseconds a word as this was typed: " + micros_text(micros(answer)))
 
 
 def table_head(first, width, obj):
@@ -520,7 +581,7 @@ def cmd_grid(sw, args):
 
 def cmd_scan(sw, args):
     """Each dial alone, a step down and a step up: which of them these tests can feel, and which way."""
-    dials = search_dials(sw, args.dials, args.step)
+    dials = search_dials(sw, args)
     fixed = sw.parse(args.with_setting or "-")
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
@@ -533,13 +594,15 @@ def cmd_scan(sw, args):
     for name, lo, hi, step in dials:
         now = fixed.get(name, sw.defaults[name])
         felt = False
-        for way in (-1, 1):
-            v = round(min(hi, max(lo, now + way * step)), 4)
-            if fmt(v) == fmt(now):
-                continue
+        for _, v in a_step_away(sw, name, now, lo, hi, step):
             setting = dict(fixed)
             setting[name] = v
-            a = sw.ask(setting)
+            try:
+                a = sw.ask(setting)
+            except Refused as e:
+                print("%-34s  %s" % ("%s=%s" % (name, fmt(v)), e))
+                felt = True
+                continue
             if outcome(a) == outcome(start):
                 continue
             felt = True
@@ -554,15 +617,24 @@ def cmd_scan(sw, args):
     print("the lowest objectives a step away: " + ", ".join("%s %s" % (label, fmt(j)) for j, label in sorted(rows)[:8]))
 
 
-def search_dials(sw, specs, scale):
-    """[(dial, least, most, first step)] for a search: those asked for, or every number of the decoder's that is not
-    in NOT_SEARCHED."""
-    out = []
-    for spec in specs or [n for n, d in sw.dials.items() if d["type"] == "float" and not n.startswith(NOT_SEARCHED) and n not in NOT_SEARCHED]:
+def search_dials(sw, args):
+    """[(dial, least, most, first step)] for a scan or a search: those asked for, or every number of the decoder's
+    that is not in NOT_SEARCHED; then --also's, less --without's. A switch has no bounds and no step (None)."""
+    specs = list(args.dials) or [n for n in sw.dials if searched(sw, n)]
+    out, seen = [], set(args.without)
+    for spec in specs + list(args.also):
         name, eq, text = spec.partition("=")
         if name not in sw.dials:
             raise SystemExit("sweep: %s: no such dial (sweep.py dials lists them)" % name)
-        lo, hi, step = (0.0 if sw.defaults[name] >= 0 else float("-inf")), float("inf"), first_step(sw, name, scale)
+        if name in seen:
+            continue
+        seen.add(name)
+        if sw.dials[name]["type"] == "switch":
+            if eq:
+                raise SystemExit("sweep: %s is a switch: it is tried the other way, and takes no range" % name)
+            out.append((name, None, None, None))
+            continue
+        lo, hi, step = (0.0 if sw.defaults[name] >= 0 else float("-inf")), float("inf"), first_step(sw, name, args.step)
         if eq:
             f = [float(x) for x in text.split(":")]
             if len(f) not in (2, 3):
@@ -570,6 +642,9 @@ def search_dials(sw, specs, scale):
             lo, hi = f[0], f[1]
             step = f[2] if len(f) == 3 else step
         out.append((name, lo, hi, step))
+    for name in args.without:
+        if name not in sw.dials:
+            raise SystemExit("sweep: --without %s: no such dial (sweep.py dials lists them)" % name)
     return out
 
 
@@ -599,8 +674,45 @@ def halves_lines(sw, obj, base, answer):
                 n_held, was, now, now - was, 100.0 * was / n_held, 100.0 * now / n_held, low, high)]
 
 
+def micros(answer):
+    """The microseconds a word an answer's typing took: each set's, then each thumb's of the bench."""
+    return [answer["sets"][n]["micros"] for n in SETS] + [t["micros"] for t in answer.get("bench", {}).values()]
+
+
+def micros_text(m):
+    return ", ".join("%s %.0f" % (n, v) for n, v in zip(SETS, m)) + ("; the bench's thumbs %s" % ", ".join("%.0f" % v for v in m[len(SETS):]) if len(m) > len(SETS) else "")
+
+
+def clocked(sw, settings, times):
+    """What each of [settings] costs the decoder, in microseconds a word: each typed afresh [times] times, turn and
+    turn about, after one typing that is thrown away (a JVM compiles what it runs as it runs it, and its first
+    typing is its slowest), and the least of them taken for each set and each thumb. The time is the typing
+    threads' own on a core (Sweep.kt's sweepThreadNanos), so other work on the Mac stretches it little; it is still
+    a JVM on a desk and not a phone, and says how one setting stands to another, not how long a word takes."""
+    sw.afresh("")
+    least = [None] * len(settings)
+    for _ in range(max(1, times)):
+        for k, setting in enumerate(settings):
+            m = micros(sw.afresh(sw.canon(setting)))
+            least[k] = m if least[k] is None else [min(u, v) for u, v in zip(least[k], m)]
+    return least
+
+
+def cmd_time(sw, args):
+    """The tree and each setting given, clocked against each other ([clocked])."""
+    settings = [{}] + [st for st in (sw.parse(text) for text in args.items) if sw.canon(st)]
+    rows = clocked(sw, settings, args.times)
+    width = min(96, max(len(sw.canon(st)) for st in settings) + 2)
+    width = max(width, 14)
+    print("microseconds a word, the least of %d typings each (the typing threads' own time, %d threads)" % (args.times, args.threads))
+    print("%-*s  %6s %6s  %s   against the tree" % (width, "", "seen", "unseen", "bench: careful normal sloppy" if len(rows[0]) > len(SETS) else ""))
+    for st, m in zip(settings, rows):
+        against = "" if not st else "   " + " ".join("%+.0f%%" % (100.0 * (v / max(b, 1e-9) - 1)) for v, b in zip(m, rows[0]))
+        print("%-*s  %6.0f %6.0f  %s%s" % (width, (sw.canon(st) or "as the tree is")[:width], m[0], m[1], "       " + " ".join("%6.0f" % v for v in m[len(SETS):]) if len(m) > len(SETS) else "", against))
+
+
 def cmd_search(sw, args):
-    dials = search_dials(sw, args.dials, args.step)
+    dials = search_dials(sw, args)
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
     obj = Objective(args.weights, base, fit)
@@ -617,14 +729,23 @@ def cmd_search(sw, args):
     def judge(name, v):
         """The objective with [name] at [v] and the rest as they stand, the answer, and whether that is the whole
         objective. The sets are typed first: no penalty is less than nothing, so where they alone leave the
-        objective too high for a move the bench is not typed, and what comes back is only a floor."""
+        objective too high for a move the bench is not typed, and what comes back is only a floor. A setting the
+        decoder throws at is as bad as can be."""
         setting = dict(x)
         setting[name] = v
         tried[0] += 1
-        a = sw.ask(setting, ("sets",))
-        if "bench" not in a and args.bench_words > 0 and obj.of(a) <= best - args.least:
-            a = sw.ask(setting)
+        try:
+            a = sw.ask(setting, ("sets",))
+            if "bench" not in a and args.bench_words > 0 and obj.of(a) <= best - args.least:
+                a = sw.ask(setting)
+        except Refused as e:
+            print("  %s" % e)
+            return float("inf"), None, True
         return obj.of(a), a, "bench" in a or args.bench_words <= 0
+
+    def same(a):
+        """[a] reads every word as the setting the search stands at does (and the bench too, where it was typed)."""
+        return a is not None and all(a["sets"][n]["wrong"] == here["sets"][n]["wrong"] for n in SETS) and ("bench" not in a or outcome(a) == outcome(here))
 
     for level in range(args.halvings + 1):
         shrink = 2 ** level
@@ -637,21 +758,24 @@ def cmd_search(sw, args):
             for name, lo, hi, step0 in dials:
                 if name in inert or tried[0] >= args.budget:
                     continue
-                whole = sw.dials[name]["type"] == "int" or name in WHOLE
-                step = max(1, int(round(step0 / shrink))) if whole else step0 / shrink
-                if whole and level and step0 / shrink < 1:
-                    continue  # a whole number has no smaller step than the one already tried
+                kind = sw.dials[name]["type"]
+                whole = kind == "int" or name in WHOLE
+                if kind == "switch":
+                    step = None
+                elif whole:
+                    if level and step0 / shrink < 1:
+                        continue  # a whole number has no smaller step than the one already tried
+                    step = max(1, int(round(step0 / shrink)))
+                else:
+                    step = step0 / shrink
                 now = x.get(name, sw.defaults[name])
-                tries = []
-                for way in (-1, 1):
-                    v = round(min(hi, max(lo, now + way * step)), 4)
-                    if fmt(v) != fmt(now):
-                        tries.append(judge(name, v) + (way, v))
+                tries = [judge(name, v) + (way, v) for way, v in a_step_away(sw, name, now, lo, hi, step)]
                 if not tries:
                     continue
-                if all(t[1]["sets"] and all(t[1]["sets"][n]["wrong"] == here["sets"][n]["wrong"] for n in SETS) and ("bench" not in t[1] or outcome(t[1]) == outcome(here)) for t in tries):
+                if all(same(t[1]) for t in tries):
                     inert.add(name)
                     continue
+                # Of two as good, the one nearer the tree's own value.
                 j, a, whole_objective, way, v = min(tries, key=lambda t: (t[0], abs(t[4] - sw.defaults[name])))
                 if j > best - args.least or not whole_objective:
                     continue
@@ -659,14 +783,14 @@ def cmd_search(sw, args):
                 x[name], here, best = v, a, j
                 moved += 1
                 # On the same way while it still pays.
-                for _ in range(args.run):
-                    v2 = round(min(hi, max(lo, x[name] + way * step)), 4)
-                    if fmt(v2) == fmt(x[name]) or tried[0] >= args.budget:
+                for _ in range(0 if kind == "switch" else args.run):
+                    further = [v2 for way2, v2 in a_step_away(sw, name, x[name], lo, hi, step) if way2 == way]
+                    if not further or tried[0] >= args.budget:
                         break
-                    j2, a2, whole_objective = judge(name, v2)
+                    j2, a2, whole_objective = judge(name, further[0])
                     if j2 > best - args.least or not whole_objective:
                         break
-                    x[name], here, best = v2, a2, j2
+                    x[name], here, best = further[0], a2, j2
                 print("  %-26s %5s to %-5s  objective %s to %s  (seen %d, unseen %d, bench %s)" % (
                     name, fmt(was_v), fmt(x[name]), fmt(was_j), fmt(best), obj.wrong(here, "seen"), obj.wrong(here, "unseen"), fmt(obj.penalty(here))))
                 sys.stdout.flush()
@@ -688,11 +812,74 @@ def cmd_search(sw, args):
     for label, a in (("tree   ", base), ("found  ", here)):
         for ln in board_lines(sw, a, label):
             print(ln)
+    if found and args.times > 0:
+        # What the setting found costs a word beside the tree, the two clocked turn about.
+        was, now = clocked(sw, [{}, x], args.times)
+        print("microseconds a word, the least of %d typings each: the tree %s" % (args.times, micros_text(was)))
+        print("%s found    %s" % (" " * len("microseconds a word, the least of %d typings each:" % args.times), micros_text(now)))
     mended, broken = churn(here, base)
     print("objective %s to %s; against the tree, over both sets: %d mended, %d broken" % (fmt(obj.of(base)), fmt(best), mended, broken))
     if fit is not None:
         for ln in halves_lines(sw, obj, base, here):
             print(ln)
+
+
+def cmd_again(sw, args):
+    """Kept answers typed again and held to what was kept: every word's verdict in both sets, and the bench's lines.
+    The settings given, or as many kept ones as the number given, drawn at random (20 with nothing given). It says
+    that a setting comes out the same whenever it is typed and whichever threads type it, which a thing shared
+    between the threads that should not be would sooner or later break."""
+    sw.load()
+    whole = sorted(k for k, a in sw.cache.items() if "sets" in a)
+    if not args.items or (len(args.items) == 1 and args.items[0].isdigit()):
+        n = int(args.items[0]) if args.items else 20
+        keys = random.Random(args.seed).sample(whole, min(n, len(whole)))
+    else:
+        keys = [sw.canon(sw.parse(text)) for text in args.items]
+    bad = 0
+    for key in keys:
+        kept = sw.cache.get(key)
+        if kept is None or "sets" not in kept:
+            print("%s: nothing is kept of it" % (key or "as the tree is"))
+            continue
+        now = sw.afresh(key, bench="bench" in kept)
+        differ = sum(1 for n in SETS for u, v in zip(kept["sets"][n]["wrong"], now["sets"][n]["wrong"]) if u != v)
+        lines = sum(1 for t in kept.get("bench", {}) if kept["bench"][t]["line"] != now["bench"][t]["line"]) + (1 if kept.get("misspellings") != now.get("misspellings") else 0)
+        ok = differ == 0 and lines == 0
+        bad += 0 if ok else 1
+        print("%s  %s%s" % ("the same" if ok else "NOT THE SAME: %d words of the sets, %d lines of the bench" % (differ, lines), key or "as the tree is", "" if "bench" in kept else "   (sets only)"))
+        sys.stdout.flush()
+    print("%d kept answers typed again: %d the same, %d not" % (len(keys), len(keys) - bad, bad))
+    if bad:
+        raise SystemExit("sweep: %d settings do not come out as they did" % bad)
+
+
+def cmd_front(sw, args):
+    """Of every setting answered so far with its bench, those that no other beats on all three of: words wrong on
+    the two sets, right words of the lists spoiled on the bench (its three thumbs together), and right words no
+    list has spoiled there. The objective is one way to weigh those against each other; this is the choice itself,
+    as far as the settings tried so far show it (a search's path, not the whole space)."""
+    base = sw.ask({})
+    obj = Objective(args.weights, base)
+    rows = []
+    for key, a in sw.cache.items():
+        if "sets" in a and "bench" in a:
+            ts = list(a["bench"].values())
+            rows.append((sum(a["sets"][n]["wrong"].count("1") for n in SETS), sum(t["spoiled"] - t["oovSpoiled"] for t in ts), sum(t["oovSpoiled"] for t in ts), len(key.split()), key, a))
+    # Fewest words wrong first: whatever beats a setting comes before it, so each is held to the front so far.
+    rows.sort(key=lambda r: r[:5])
+    front = []
+    for r in rows:
+        if not any(f[1] <= r[1] and f[2] <= r[2] for f in front):
+            front.append(r)
+    print("%d settings have been answered with their bench; no other beats these %d on words wrong, listed words spoiled and unknown words spoiled together" % (len(rows), len(front)))
+    width = min(96, max([len(r[4]) for r in front[:args.show]] + [14]))
+    print("%s  %s" % (table_head("setting", width, obj), "spoiled: listed unknown"))
+    for r in front[:args.show]:
+        print("%s  %15d %7d" % (table_row((r[4] or "as the tree is")[:width], width, r[5], base, obj), r[1], r[2]))
+    if len(front) > args.show:
+        print("... and %d more with more words wrong (--show %d)" % (len(front) - args.show, len(front)))
+    print(table_foot(sw) + " Spoiled: the bench's right words changed, its three thumbs together, those a list has and those none has.")
 
 
 def cmd_check(sw, args):
@@ -750,8 +937,13 @@ def weights(text):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["dials", "line", "grid", "scan", "search", "check"])
-    ap.add_argument("items", nargs="*", help="settings (line, check) or dials (grid, search)")
+    ap.add_argument("command", choices=["dials", "line", "grid", "scan", "search", "check", "again", "front", "time"])
+    ap.add_argument("items", nargs="*", help="settings (line, check, again) or dials (grid, scan, search)")
+    ap.add_argument("--also", action="append", default=[], metavar="DIAL", help="scan, search: a dial to take besides (a switch, a whole number, another class's)")
+    ap.add_argument("--without", action="append", default=[], metavar="DIAL", help="scan, search: a dial to leave out")
+    ap.add_argument("--seed", default="1", help="again: which kept answers are drawn")
+    ap.add_argument("--show", type=int, default=40, help="front: the most rows to print")
+    ap.add_argument("--times", type=int, default=3, help="time, and a search's last lines: how many times each setting is typed to be clocked (0: a search clocks nothing)")
     ap.add_argument("--with", dest="with_setting", metavar="SETTING", help="grid, scan: a setting every other is tried with")
     ap.add_argument("--from", dest="from_setting", metavar="SETTING", help="search: where it starts")
     ap.add_argument("--step", type=float, default=0.4, help="search, scan: the first step of a cost")
@@ -768,11 +960,14 @@ def main():
     ap.add_argument("--overlay")
     ap.add_argument("--java")
     ap.add_argument("--no-cache", action="store_true", help="ask the worker again for what was answered before")
-    args = ap.parse_args()
+    # Options may stand among the settings or dials as well as after them.
+    args = ap.parse_intermixed_args()
     args.settings = args.dials = args.items
     sw = Sweep(args)
     try:
-        {"dials": cmd_dials, "line": cmd_line, "grid": cmd_grid, "scan": cmd_scan, "search": cmd_search, "check": cmd_check}[args.command](sw, args)
+        {"dials": cmd_dials, "line": cmd_line, "grid": cmd_grid, "scan": cmd_scan, "search": cmd_search, "check": cmd_check, "again": cmd_again, "front": cmd_front, "time": cmd_time}[args.command](sw, args)
+    except Refused as e:
+        raise SystemExit("sweep: %s" % e)
     finally:
         sw.close()
 
