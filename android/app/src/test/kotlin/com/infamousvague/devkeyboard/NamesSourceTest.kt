@@ -83,6 +83,13 @@ class NamesSourceTest {
         assertTrue(correct.contains("if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)"))
     }
 
+    @Test fun `a listed name's capital is never what a correction teaches`() {
+        // What a fix is remembered as keeps a capital only for a word no list has (a name of the person's own). Of
+        // two words it is the first that is asked about: "Tom is" is remembered as "tom is", as it was before names.
+        val meant = body("private fun meantAs(stands: String, opens: Boolean): String")
+        assertTrue(meant, meant.contains("&& !autocorrect.isListed(lower.substringBefore(' '))) stands else lower"))
+    }
+
     @Test fun `the replay on the JVM asks for names where the service does`() {
         val file = listOf("tool/versus/replay/Replay.kt", "../../tool/versus/replay/Replay.kt", "../tool/versus/replay/Replay.kt").map(::File).firstOrNull { it.exists() }
         // Only where the tools are there to read: a copy of the app's sources alone has no replay to hold.
