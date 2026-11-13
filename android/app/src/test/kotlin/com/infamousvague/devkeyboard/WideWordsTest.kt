@@ -258,12 +258,15 @@ class WideWordsTest {
             assertEquals("$word: only writing vouches for it", "w", marks[word])
             assertNull(word, english.correct(word, null, taps(word)))
         }
-        // Its i tapped on the line to o: held by the rare-word rule alone it would be "poor"; held as before, it stands.
-        val slip = taps("piotr", 1 to (0.5f to 0f))
-        assertNull(english.correct("piotr", null, slip))
+        // "adil" with its i tapped on the line to u: held by the rare-word rule alone it would be "adult"; held as
+        // before, it stands. (This was "piotr" with its i on the line to o, read as "poor", until the search's reach
+        // made the dropped t dearer and "poor" went out of reach with the hold off too.)
+        assertEquals("w", marks["adil"])
+        val slip = taps("adil", 2 to (-0.5f to 0f))
+        assertNull(english.correct("adil", null, slip))
         try {
             Autocorrect.WIDE_HOLD = 0f
-            assertEquals("poor", english.correct("piotr", null, slip))
+            assertEquals("adult", english.correct("adil", null, slip))
         } finally { Autocorrect.WIDE_HOLD = 1f }
     }
 

@@ -102,9 +102,11 @@ class WordTrie(words: Array<String>, zipf: FloatArray, read: BooleanArray? = nul
  *   the typed key's ([SPATIAL] a key width squared: a tap on the line between two keys costs nothing either way, one
  *   in the middle of a key costs about [SPATIAL] to read as its neighbour). A letter far from the tap can still be
  *   meant, as a misspelling rather than a slip of the thumb: any letter costs at most [far];
- * - the tap as one too many ([INSERT]; less where it doubles the letter beside it or is that letter's neighbour);
- * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less);
- * - two taps in the wrong order ([SWAP]).
+ * - the tap as one too many ([INSERT]; less where it doubles the letter beside it or is that letter's neighbour,
+ *   and where the search reaches, by how near it landed to the key typed beside it, [REACH_INSERT] at the most);
+ * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less,
+ *   and where the search reaches [REACH_OMIT], [REACH_OMIT_END] after the last tap, [LONE_OMIT] where one letter was typed);
+ * - two taps in the wrong order ([SWAP]), one of which may have landed on a neighbour's key besides ([SWAP_SLIP]).
  * A branch is given up as soon as its cost is more than the commonest word under it could repay ([WordTrie.best]),
  * so the search stays a few thousand nodes however many words the lists have.
  *
@@ -133,6 +135,12 @@ class TapDecoder(
     private var nearCost = emptyArray<FloatArray>()
     private var far = FAR
     private var spaceCost = FloatArray(0)
+    /** Whether each character had a tap of its own, and what that tap costs to read as the key typed before or after it. */
+    private var aimed = BooleanArray(0)
+    private var again = FloatArray(0)
+    /** For each tap, the other keys it landed within [SWAP_SLIP] of, and what each costs: see [swap]. */
+    private var slipCh = emptyArray<CharArray>()
+    private var slipCost = emptyArray<FloatArray>()
     private val keyCache = HashMap<Char, Char>()
     private var visits = 0
 
@@ -148,6 +156,7 @@ class TapDecoder(
         val w2 = if (taps != null) taps.keyW * taps.keyW else 1f
         nearCh = Array(n) { EMPTY_CHARS }
         nearCost = Array(n) { EMPTY_COSTS }
+        aimed = BooleanArray(n)
         for (i in 0 until n) {
             val t = tk[i]
             // A tap that typed a space, in letters a stray one may have cut in two ([Autocorrect.rejoin]): read as a
@@ -179,6 +188,7 @@ class TapDecoder(
                 nearCost[i] = FloatArray(near.size) { NEIGHBOUR }
                 continue
             }
+            aimed[i] = true
             val x = taps.xs[i]; val y = taps.ys[i]
             val d0 = ((x - at.first) * (x - at.first) + (y - at.second) * (y - at.second)) / w2
             val chars = ArrayList<Char>(6)
@@ -199,6 +209,41 @@ class TapDecoder(
                 spaceCost[i] = (SPATIAL * (d - d0)).coerceAtLeast(0f)
             }
         }
+        reachReady = false
+    }
+
+    /** Whether [again], [slipCh] and [slipCost] are this word's: only a search asked to reach reads them, and builds them. */
+    private var reachReady = false
+
+    /** [search]'s reach reads, of each tap, what it costs as the key beside it ([again]) and the keys it slipped onto ([slipCh]). */
+    private fun readyReach() {
+        if (reachReady) return
+        reachReady = true
+        again = FloatArray(n) { i -> minOf(if (i > 0) lands(i, tk[i - 1]) else Float.POSITIVE_INFINITY, if (i + 1 < n) lands(i, tk[i + 1]) else Float.POSITIVE_INFINITY) }
+        slipCh = Array(n) { EMPTY_CHARS }
+        slipCost = Array(n) { EMPTY_COSTS }
+        val slip = SWAP_SLIP
+        if (slip > 0f) for (i in 0 until n) {
+            if (!aimed[i]) continue
+            val costs = nearCost[i]
+            var some = 0
+            for (c in costs) if (c <= slip) some++
+            if (some == 0) continue
+            val chars = CharArray(some)
+            val theirs = FloatArray(some)
+            var at = 0
+            for (j in costs.indices) if (costs[j] <= slip) { chars[at] = nearCh[i][j]; theirs[at++] = costs[j] }
+            slipCh[i] = chars
+            slipCost[i] = theirs
+        }
+    }
+
+    /** What it costs to read tap [i] as the key [k], by where it landed: nothing where that is the key it typed. */
+    private fun lands(i: Int, k: Char): Float {
+        if (k == tk[i]) return 0f
+        val chars = nearCh[i]
+        for (j in chars.indices) if (chars[j] == k) return nearCost[i][j]
+        return Float.POSITIVE_INFINITY
     }
 
     /** What it costs to read tap [i] as the letter [c] of a word. */
@@ -219,6 +264,11 @@ class TapDecoder(
         // The space bar's own tap is a space or a letter that missed its key, never nothing at all.
         if (tk[i] == ' ') return Float.POSITIVE_INFINITY
         if (i == 0) return INSERT_FIRST
+        // A second tap of the key typed before it or after it, by where it landed: on that key again it is a letter
+        // tapped twice, just over the line from that key it is nearly one, and in the middle of another key it is a
+        // tap of its own, up to [REACH_INSERT]. Only where the search reaches: elsewhere, and a character with no tap,
+        // goes by which keys are neighbours, as every one did.
+        if (reaching && aimed[i]) return minOf(REACH_INSERT, INSERT_DOUBLED + again[i])
         val c = tk[i]
         val before = tk[i - 1]
         val after = if (i + 1 < n) tk[i + 1] else 0.toChar()
@@ -231,6 +281,15 @@ class TapDecoder(
     private fun omit(c: Char, last: Char): Float = when {
         c == '\'' || c == '’' -> APOSTROPHE
         c == last -> OMIT_DOUBLED
+        reaching -> REACH_OMIT
+        else -> OMIT
+    }
+
+    /** A letter with no tap after the last tap: as [omit], but [REACH_OMIT_END] where the search reaches. */
+    private fun omitAfter(c: Char, last: Char): Float = when {
+        c == '\'' || c == '’' -> APOSTROPHE
+        c == last -> OMIT_DOUBLED
+        reaching -> REACH_OMIT_END
         else -> OMIT
     }
 
@@ -249,8 +308,18 @@ class TapDecoder(
     /**
      * The words the taps of [from] onward could be, each with its cost: those scoring (frequency less cost) at least
      * [least], and within [KEEP] of the best found. [budget] is the most the slips may cost.
+     *
+     * [slipsOnly] is for letters that spell a common word: no misspelling is read into one, and no letter left out,
+     * added or swapped, unless [reach] is asked too. [reach] is [Autocorrect.byTaps] asking for the word as it was
+     * typed, and reads further than the rest do (two words run together, a word cut in two, a word half typed):
+     * - a word of up to [SHORT] letters may be changed by [SHORT_MORE] more than its one change, for [SHORT_PAST];
+     * - letters that spell a common word may have had a letter left out, a letter tapped twice or two swapped,
+     *   each for at least [LISTED_EDIT];
+     * - a letter left out of a word typed as one letter costs [LONE_OMIT];
+     * - one of two taps in the wrong order may have landed on a neighbour's key ([SWAP_SLIP]);
+     * - a tap too many costs by where it landed ([REACH_INSERT]) and a letter left out [REACH_OMIT].
      */
-    fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false): List<Hit> {
+    fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false, reach: Boolean = false): List<Hit> {
         hits.clear()
         floor = least
         top = Float.NEGATIVE_INFINITY
@@ -260,7 +329,19 @@ class TapDecoder(
         // A short word changed in most of its letters is another word, not a slip of this one. In hundredths of a
         // change: a letter read as the key its tap all but landed on counts for less than one ([counts]).
         val len = n - from
-        changes = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
+        bound = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
+        changes = bound
+        past = 0f
+        edits = !slipsOnly
+        dear = 0f
+        lone = false
+        reaching = reach
+        if (reach) {
+            if (len <= SHORT.toInt()) { changes = bound + (SHORT_MORE * 100f).toInt(); past = SHORT_PAST }
+            if (slipsOnly && LISTED_EDIT < NEVER) { edits = true; dear = LISTED_EDIT }
+            lone = len == 1
+            readyReach()
+        }
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
         for ((index, cost) in hits) if (zipfs[index] - cost >= floor) out += Hit(index, cost)
@@ -279,7 +360,13 @@ class TapDecoder(
         visits = 0
         only = false
         finishing = true
-        changes = 100 * when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
+        bound = 100 * when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
+        changes = bound
+        past = 0f
+        edits = true
+        dear = 0f
+        lone = false
+        reaching = false
         walk(0, 0, 0f, 0, 0, 0.toChar(), budget, 0)
         finishing = false
         val out = ArrayList<Hit>(hits.size)
@@ -288,23 +375,40 @@ class TapDecoder(
     }
 
     /**
-     * [search]'s bounds: only slips of the thumb (no letter missed, added or swapped, no misspelling), and how many
-     * changes at most, in hundredths of a change.
+     * [search]'s bounds. [only]: the letters spell a common word, and no misspelling is read into them. [bound]: how
+     * many changes at most, in hundredths of a change, and [changes] the same with what a short word is let past it,
+     * each reading that goes past it costing [past] more. [edits]: whether a letter may have been left out, added or
+     * swapped, each for at least [dear]. [lone]: the word was typed as one letter. [reaching]: the search was asked
+     * to reach, which [swap] goes by too.
      */
     private var only = false
+    private var bound = 400
     private var changes = 400
+    private var past = 0f
+    private var edits = true
+    private var dear = 0f
+    private var lone = false
+    private var reaching = false
 
     /**
      * What a letter read as another key for [s] counts against [changes], in hundredths: a whole change from
      * [WHOLE_CHANGE] up, and its share of one below that. A letter missed, added or swapped is always a whole one.
      */
     private fun counts(s: Float): Int = if (s >= WHOLE_CHANGE) 100 else (s / WHOLE_CHANGE * 100f).toInt()
+    /** What it costs more to count [w] on top of [changed]: [past], the once that takes a reading over the [bound]. */
+    private fun beyond(changed: Int, w: Int): Float = if (changed <= bound && changed + w > bound) past else 0f
+    /** A letter left out, added or swapped where the letters spell a common word: never less than [dear]. */
+    private fun edit(e: Float): Float = if (e < dear) dear else e
+    /** Whether tap [i] typed the key of the tap before it or after it over again: a letter tapped twice. */
+    private fun twice(i: Int): Boolean = (i > 0 && tk[i] == tk[i - 1]) || (i + 1 < n && tk[i] == tk[i + 1])
     /** [finish] is asking: where the taps run out, the commonest word under the node is taken, whether or not a word ends there. */
     private var finishing = false
 
     private fun walk(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, last: Char, budget: Float, changed: Int) {
         if (trie.best[node] - cost < floor || cost > budget || ++visits > MAX_VISITS) return
-        val more = changed + 100 <= changes
+        // A letter left out, added or swapped is a whole change: whether one more is allowed, and what it costs past the bound.
+        val more = edits && changed + 100 <= changes
+        val over = beyond(changed, 100)
         if (i == n) {
             if (finishing) { val w = trie.bestWord[node]; if (w >= 0) offer(w, cost); return }
             val w = trie.word[node]
@@ -315,7 +419,7 @@ class TapDecoder(
                 val c = trie.ch[q]
                 val free = c == '\'' || c == '’'
                 if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-                else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 100)
+                else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omitAfter(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
                 q = trie.next[q]
             }
             return
@@ -336,19 +440,60 @@ class TapDecoder(
                 // The same key under another letter (é for e) is no change; a misspelling is not a slip of the thumb.
                 val same = s == 0f && key(c) == tk[i]
                 val w = if (same) 0 else counts(s)
-                if (cost + s <= budget && (same || (changed + w <= changes && !(only && s >= far)))) walk(q, i + 1, cost + s, omits, inserts, c, budget, changed + w)
+                val t = if (same) 0f else s + beyond(changed, w)
+                if (cost + t <= budget && (same || (changed + w <= changes && !(only && s >= far)))) walk(q, i + 1, cost + t, omits, inserts, c, budget, changed + w)
             }
             // An apostrophe is nearly free and is not counted as a letter missed.
             val free = c == '\'' || c == '’'
             if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-            else if (!only && more && omits < MAX_OMITS) walk(q, i, cost + omit(c, last), omits + 1, inserts, c, budget, changed + 100)
+            else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omit(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
             q = trie.next[q]
         }
-        if (only || !more) return
-        if (inserts < MAX_INSERTS) walk(node, i + 1, cost + insert(i), omits, inserts + 1, last, budget, changed + 100)
-        if (i + 1 < n && typed[i] != typed[i + 1]) {
-            val a = trie.child(node, typed[i + 1])
-            if (a >= 0) { val b = trie.child(a, typed[i]); if (b >= 0) walk(b, i + 2, cost + SWAP, omits, inserts, typed[i], budget, changed + 100) }
+        if (!more) return
+        // One tap too many. From letters that spell a common word only a letter tapped twice is ever taken away:
+        // "inn" may be "in", and "ink" is never "in" with a k too many.
+        if (inserts < MAX_INSERTS && (!only || twice(i))) walk(node, i + 1, cost + edit(insert(i)) + over, omits, inserts + 1, last, budget, changed + 100)
+        if (i + 1 < n) swap(node, i, cost + edit(SWAP), omits, inserts, budget, changed)
+    }
+
+    /**
+     * Taps [i] and [i] + 1 in the wrong order: the later one read as the word's next letter and the earlier as the
+     * letter after that. [cost] has what the swap costs in it already. Where the search was asked to reach, one of
+     * the two (never both) may have landed on a neighbour's key as well, for what any tap read as that key costs:
+     * "iculs" is "could" with its c and o in the wrong order and the o tapped on i.
+     */
+    private fun swap(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
+        // Nothing under this node can repay the swap: [walk] would say so of each pair, one look at a time.
+        if (trie.best[node] - cost < floor || cost > budget) return
+        val first = typed[i + 1]
+        val second = typed[i]
+        pair(node, i, first, second, cost, 0f, omits, inserts, budget, changed)
+        // Two taps on one key are not read as swapped, whichever of them was nearer another key.
+        if (!reaching || tk[i] == tk[i + 1]) return
+        val a = slipCh[i + 1]
+        for (j in a.indices) pair(node, i, a[j], second, cost, slipCost[i + 1][j], omits, inserts, budget, changed)
+        val b = slipCh[i]
+        for (j in b.indices) pair(node, i, first, b[j], cost, slipCost[i][j], omits, inserts, budget, changed)
+    }
+
+    /** [swap]'s two letters, [a] then [b], with what the one that slipped cost ([s], nothing where neither did). */
+    private fun pair(node: Int, i: Int, a: Char, b: Char, cost: Float, s: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
+        // The same letter twice is no swap: read in order, the taps say as much for less.
+        if (a == b) return
+        val w = 100 + counts(s)
+        if (changed + w > changes) return
+        val p = trie.child(node, a)
+        if (p < 0) return
+        val q = trie.child(p, b)
+        if (q >= 0) walk(q, i + 2, cost + s + beyond(changed, w), omits, inserts, b, budget, changed + w)
+        if (!reaching) return
+        // An apostrophe between the two is stepped over, as [walk] steps over any: "dotn" is "don't", and without
+        // this the swap reached only "dont", which the lists hold too.
+        for (mark in APOSTROPHES) {
+            val h = trie.child(p, mark)
+            if (h < 0) continue
+            val r = trie.child(h, b)
+            if (r >= 0) walk(r, i + 2, cost + s + APOSTROPHE + beyond(changed, w), omits, inserts, b, budget, changed + w)
         }
     }
 
@@ -360,6 +505,8 @@ class TapDecoder(
         val m = word.length
         val len = n - from
         if (m == 0 || kotlin.math.abs(m - len) > MAX_OMITS + MAX_INSERTS + 2) return Float.POSITIVE_INFINITY
+        // The plain costs, whatever the last search reached for: [insert] and [omit] go by [reaching].
+        reaching = false
         // cost[j][i]: the first j letters of the word against the first i taps.
         var before2 = FloatArray(len + 1)
         var before = FloatArray(len + 1)
@@ -468,14 +615,63 @@ class TapDecoder(
         /** One vowel typed for another, wherever the tap landed: a misspelling. */
         @JvmField var VOWEL = 2.2f
         const val VOWELS = "aeiou"
+        private const val APOSTROPHES = "'’"
         const val LONG = 5
         /** A neighbouring key in place of a character that had no tap of its own. */
         @JvmField var NEIGHBOUR = 1.6f
+        /**
+         * A tap too many ([insert]): [INSERT] a tap of its own, [INSERT_NEAR] one on a key next to the key typed
+         * beside it, [INSERT_DOUBLED] a second tap on that key itself, [INSERT_FIRST] the word's first tap. A letter
+         * with no tap ([omit]): [OMIT], [OMIT_DOUBLED] where it doubles the letter before it. Set as they were
+         * before 2026-11-12. Where [search] is asked to reach ([Autocorrect.byTaps] on a board with English among its
+         * lists), [REACH_INSERT] and [REACH_OMIT] stand in for [INSERT], [INSERT_NEAR] and [OMIT] on taps that landed
+         * somewhere; [INSERT_DOUBLED], [INSERT_FIRST] and [OMIT_DOUBLED] still count there. Every other search, and
+         * byTaps on any other board, goes by these alone.
+         */
         @JvmField var INSERT = 2.8f
         @JvmField var INSERT_NEAR = 2.0f
         @JvmField var INSERT_DOUBLED = 1.4f
         @JvmField var INSERT_FIRST = 4.0f
         @JvmField var OMIT = 2.0f
+        /**
+         * Where the search reaches ([search]'s reach), a tap too many goes by where it landed: [INSERT_DOUBLED] and
+         * what the tap costs to read as the key typed before it or after it, [REACH_INSERT] at the most. A thumb
+         * that taps a letter twice scatters the second tap as it does any, so "thre" with its r just over the line
+         * from e is "the" for little more than "thee" is; and a tap in the middle of a key next door was read out
+         * of words for [INSERT_NEAR] (2): "fole" for "file" came out "for", "wer" for "wear" came out "we".
+         *
+         * Set on the scoreboard's seen and unseen sets and tool/typing_bench.sh tune's measure (words right less four
+         * for every right word spoiled, on its 12,000 words and on its other 20,000). On the decoder with the short
+         * word's reach, the common word's edits and the lone letter's, before the swap's: by where it landed at
+         * [INSERT]'s 2.8, 5 words mended and none broken on the seen set, 9 and 1 on the unseen, the measures 94.13
+         * to 94.22 and 94.36 to 94.47, and fewer right words spoiled on the 20,000 (1.30 and 1.46 in a thousand to
+         * 1.18 and 1.38 for the careful and the normal thumb). With the rest of the reach (298 words wrong on the
+         * seen set, 405 on the unseen, 94.30 and 94.55), against [REACH_OMIT] 1.8: 3.1 leaves 294 and 397, 94.38 and
+         * 94.58; 3.4 leaves 293 and 396, 94.40 and 94.60; 3.8 leaves 293 and 395, 94.40 and 94.61. The bench's
+         * thumb never adds a tap that is not a letter twice and the sets' thumbs seldom do, so past 3.4, where the
+         * gain is one word, neither can say what a stray tap is worth.
+         */
+        @JvmField var REACH_INSERT = 3.4f
+        /**
+         * A letter with no tap where the search reaches ([search]'s reach), but for a doubled letter or an
+         * apostrophe. Set as [REACH_INSERT] was, with it at 3.4 (OMIT 2.0 there: 295 words wrong on the seen set,
+         * 402 on the unseen, 94.36 and 94.56): 1.6 leaves 293 and 392, 94.40 and 94.63, but spoils more of the
+         * sloppy thumb's words (1.61 in a thousand to 1.74 on the 20,000, and of the right words no list has 6.2%
+         * to 6.9%); 1.8 leaves 293 and 396, 94.40 and 94.60, for one right word more spoiled by the careful thumb
+         * (1.24 to 1.30) and one fewer by the normal one (1.38 to 1.30). A letter left out is the slip most often
+         * still lost to Gboard (docs/versus.md).
+         */
+        @JvmField var REACH_OMIT = 1.8f
+        /**
+         * [REACH_OMIT] for a letter left out after the last tap, where the search reaches: a word typed whole that
+         * a listed word goes on from by a letter ("civilize", and any word with a -d or -s of its own to come). At
+         * [REACH_OMIT] the bench's careful thumb had "civilize" made "civilized" three times in 12,000 words. Set
+         * on the tree with the rest of the reach (LONE_OMIT 1.8): 2.0, as [OMIT], against 1.8 leaves 291 words
+         * wrong on the seen set for 290 and 398 for 397 on the unseen, and on the bench's 12,000 words right words
+         * spoiled 1.42, 1.61 and 1.65 in a thousand for the three thumbs to 1.32, 1.48 and 1.45 (1.22, 1.48 and
+         * 1.65 before the reach), words right 96.75, 92.91 and 86.61% to 96.75, 92.91 and 86.62%.
+         */
+        @JvmField var REACH_OMIT_END = 2.0f
         @JvmField var OMIT_DOUBLED = 1.2f
         @JvmField var APOSTROPHE = 0.2f
         @JvmField var SWAP = 1.1f
@@ -503,6 +699,90 @@ class TapDecoder(
          * (6.0% to 7.1% for the sloppy one, 1.5% either way for the careful one).
          */
         @JvmField var WHOLE_CHANGE = 2.0f
+        /**
+         * A word of up to [SHORT] letters may be changed by [SHORT_MORE] more than its one change where
+         * [Autocorrect.byTaps] asks ([search]'s reach), and a reading that goes past the one change costs
+         * [SHORT_PAST] more than its slips. One change does not cover a thumb that scatters over a word this
+         * short: "the" comes out "yhw" and "rhd", "you" comes out "yih", "with" comes out "eit" (the h left out
+         * and the w tapped on e), and none of those was read at all: 18 of the 199 words still lost to Gboard on
+         * 2026-11-12 (docs/versus.md). Half a change more reads taps that were, between them, up to a change and
+         * a half from the keys meant; two in the middles of the wrong keys ("tbr" typed squarely) are a change and
+         * three quarters and are still another word.
+         *
+         * Set on the scoreboard's two sets and the bench's tuner together (tool/versus/scoreboard.py; tool/
+         * typing_bench.sh tune, whose measure is words right less four for every right word spoiled, on its 12,000
+         * words and on its other 20,000). On the decoder of 9468bfd with nothing else changed, as words mended and
+         * broken on the seen set, the same on the unseen set, and the two measures (93.76 and 94.13 before): more
+         * 0.25, 9 and 1, 4 and 1, 93.89 and 94.21; more 0.5, 12 and 1, 6 and 2, 93.92 and 94.23; more 0.5 past
+         * 0.5, 11 and 0, 5 and 0, 93.91 and 94.22; more 0.5 past 1, 10 and 0, 5 and 0, 93.89 and 94.20; more 1
+         * past 1, 10 and 0, 5 and 0, 93.92 and 94.21. With nothing to pay, more of the bench's right words that no
+         * list has are spoiled (4.7% to 5.1% for its normal thumb on the 20,000); from half a point up they are
+         * not. Reading past the bound only toward a word of some frequency (5, then 6) did nothing the half point
+         * had not. Four letters and five ([SHORT] 4, 5) gain no word on either set and lose on the bench. In the
+         * tree with the rest of the reach, taking this out leaves 309 words wrong on the seen set for 298, 413 for
+         * 405 on the unseen, and 94.13 and 94.45 for 94.30 and 94.55.
+         */
+        @JvmField var SHORT = 3f
+        @JvmField var SHORT_MORE = 0.5f
+        @JvmField var SHORT_PAST = 0.5f
+        /**
+         * The least a letter left out, a letter tapped twice or two letters swapped costs where the typed letters
+         * spell a common word and [Autocorrect.byTaps] asks ([search]'s reach); from [NEVER] up none is read, as
+         * none was before 2026-11-12. A common word was read as another by slips of the thumb alone, and the lists
+         * hold th, ot, su, tae, ff, ni, ou and soo as common words: they stood for the, to, us, take, off, in, out
+         * and so however likely those were. The plain costs ([SWAP] 1.1, [OMIT_DOUBLED] 1.2, [INSERT_DOUBLED] 1.4)
+         * were set where the typed letters are no word and little competes; against a word the lists hold each is
+         * held to this. A tap that doubles nothing is never taken out of a common word, at any cost: tried, the
+         * bench's "ink" came out "in" three times in 12,000 words.
+         *
+         * Set as [SHORT_MORE] was. On the decoder of 9468bfd with nothing else changed, as words mended and broken
+         * on the seen set, the same on the unseen set and the two measures (93.76 and 94.13 before): no least, 12
+         * and 4, 10 and 2, 93.94 and 94.23; 1.5, 11 and 2, 9 and 1, 93.93 and 94.24; 2, 11 and 2, 9 and 0, 93.92
+         * and 94.23; 2.4, 5 and 1, 7 and 0, 93.84 and 94.19. In the tree with the rest of the reach (298 and 405
+         * words wrong, 94.30 and 94.55): 1.6 leaves 298 and 409; 2.4 leaves 302 and 410, 94.27 and 94.53; never
+         * leaves 308 and 418, 94.09 and 94.41. What it spoils on the bench is "th" made "the" five times and "nd"
+         * made "and" once in 96,000 words typed, which are the bench's own "5th" and "2nd" with their digits
+         * trimmed: the keyboard itself corrects nothing that follows a digit.
+         */
+        @JvmField var LISTED_EDIT = 2.0f
+        /**
+         * What a letter left out costs where the word was typed as one letter ("t" for "to", "n" for "in") and
+         * [Autocorrect.byTaps] asks; from [NEVER] up, never. It stands in for [REACH_OMIT] and is held to no
+         * [LISTED_EDIT], though every letter is a listed word. The lists hold each letter about as common as "ask"
+         * (s 5.86, d 5.46, t 5.43, n 5.15, o 5.12), which a letter typed by itself is not: of the letters other than
+         * a and i that the seen set typed alone and that were no slip of a or i, 10 were a word of two letters with
+         * one of them gone (o for no, on and of, s for is, t, n and d for to, in and do) and 3 were meant (the "d"
+         * of one sentence, by its three thumbs). A reading has still to beat the letter as the common word the lists
+         * make it. 1.8 is an estimate: what a letter left out costs a thumb (0.4% of letters, 2.4) less how far
+         * that count puts a lone letter under its listed frequency (3 meant in 5,205 words, among some ten letters,
+         * is about 4.8 each, against 5.4: 0.6). One sentence is a thin count, and the estimate no finer than that.
+         *
+         * Until 2026-11-13 this was 1.4, from the same count made over the seen and the unseen set together, which
+         * the unseen set is not to be used for; recounted on the seen set alone it is 1.8. In the tree with the rest
+         * of the reach ([REACH_OMIT_END] 2.0), as words wrong on the seen set, the unseen set's total, and the
+         * bench tuner's measure on its 12,000 words and its other 20,000: 1.8, 291, 398, 94.39 and 94.55; 1.4, 292,
+         * 397, 94.41 and 94.59. With [REACH_OMIT_END] at 1.8: 1.0, 289, 395, 94.39 and 94.61; 1.4, 291, 396, 94.37
+         * and 94.59; 1.8, 290, 397, 94.35 and 94.56; never, 292, 399, 94.27 and 94.54. The bench would take it a
+         * little cheaper (no right word more spoiled either way); the seen set's count and its total say 1.8. Two
+         * of the words it breaks on the seen set are [Autocorrect.rejoin]'s to mend: "o" and a tap on the bar's
+         * edge was "on", and is "of" or "to" now by the time the next space asks (see docs/versus.md).
+         */
+        @JvmField var LONE_OMIT = 1.8f
+        /**
+         * The most that one of two taps in the wrong order may cost to read as a neighbour's key, where
+         * [Autocorrect.byTaps] asks ([swap]); at 0 two letters are swapped letter for letter or not at all, as
+         * before 2026-11-12. A thumb that types two letters in the wrong order scatters no less for it: "iculs" is
+         * "could" with its c and o swapped and the o tapped on i, "conevrned" is "concerned". Never both of the
+         * two: tried, it read the same words.
+         *
+         * In the tree with the rest of the reach (298 and 405 words wrong, 94.30 and 94.55): 0 leaves 302 and 411,
+         * 94.22 and 94.48; 0.5 leaves 299 and 409, 94.28 and 94.53; 1.5 reads the same words as 1 but two. It
+         * spoils one more of the bench's right words that no list has ("nvim" made "nick" by the careful thumb:
+         * 2.7% to 2.9% of 479 on the 20,000).
+         */
+        @JvmField var SWAP_SLIP = 1.0f
+        /** From this up, [LISTED_EDIT] and [LONE_OMIT] mean never. */
+        const val NEVER = 90f
         /** Readings this far under the best one found are let go. */
         @JvmField var KEEP = 3f
         const val MAX_OMITS = 2
