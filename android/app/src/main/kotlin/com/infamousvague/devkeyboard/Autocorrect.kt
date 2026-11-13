@@ -520,7 +520,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             top.sortByDescending { it.second }
             val least = (top.getOrNull(4)?.second ?: 0f).coerceAtLeast(FINISH_LEAST)
             val decoder = tapDecoder(now, taps!!)
-            decoder.load(lower, taps)
+            decoder.load(lower, spread(now, scorer, taps))
             for (h in decoder.finish(least - (if (scorer == null) 0f else CONTEXT_PICK))) {
                 val word = now.lexicon.sorted[h.index]
                 // Nothing amiss: a word the typed letters begin, found above (with a lean off the taps, the letters aimed at).
@@ -715,7 +715,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val words = lex.words
         val script = now.board.script
         val decoder = tapDecoder(now, taps)
-        decoder.load(lower, taps)
+        decoder.load(lower, spread(now, scorer, taps))
         // With this thumb's lean taken off the taps ([ThumbLean]) the typed letters are not always the keys nearest
         // them: what the typed word then costs as a reading of its own taps comes off what it is worth. Nothing,
         // where no lean is estimated.
@@ -848,7 +848,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
         val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
         val decoder = tapDecoder(now, taps)
-        decoder.load(typed.lowercase(locale), taps)
+        decoder.load(typed.lowercase(locale), spread(now, scorer, taps))
         var best: String? = null
         // What stands pays for its own taps as the lean has them ([TapDecoder.own]): the letters', and the bar's as a space.
         var bestScore = asItStands - decoder.own + (if (second.isEmpty() && !isWord(stands.lowercase(locale))) 0f else REJOIN_MARGIN)
@@ -885,6 +885,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         fun key(c: Char): Char = if (keys.containsKey(c)) c else script.plain(c.toString()).let { p -> if (p.length == 1 && keys.containsKey(p[0])) p[0] else 0.toChar() }
         lean.learn(CharArray(letters.length) { key(letters[it]) }, taps)
     }
+
+    /**
+     * [taps] as they are read: with how tightly this thumb types ([Taps.tight], [ThumbLean]) only in English with the
+     * next-word model on, where that was measured; elsewhere every cost is as it was before there was an estimate.
+     */
+    private fun spread(now: Now, scorer: Scorer?, taps: Taps): Taps = if (scorer != null && now.board.english) taps else taps.loose()
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
     private fun unlisted(lower: String): Float = when {

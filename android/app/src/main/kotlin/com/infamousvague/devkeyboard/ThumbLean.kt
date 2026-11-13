@@ -45,13 +45,20 @@ class ThumbLean {
     var y = 0f
         private set
 
+    /**
+     * How tightly this thumb's taps fall about where it lands, against the thumb [TapDecoder.SPATIAL] is set for: the
+     * factor on [TapDecoder.SPATIAL] the next word's taps are read with ([Taps.tight]). 1 until a word has taught it.
+     */
+    var tight = 1f
+        private set
+
     /** How many taps it holds: never more than [MEMORY]. */
     val taps: Float get() = n
 
     /** A text field is entered, or left: nothing is known of the thumb in the next one. */
     fun newField() {
         if (KEEP) return
-        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f
+        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; x = 0f; y = 0f; tight = 1f
         was.fill(0f)
     }
 
@@ -60,10 +67,11 @@ class ThumbLean {
      * is then read exactly as it was before there was a lean.
      */
     fun read(taps: Taps): Taps {
-        if (!ON) return taps
+        val k = if (SPREAD_FIXED > 0f) SPREAD_FIXED / TapDecoder.SPATIAL else if (SPREAD_ON) tight else 1f
+        if (!ON) return if (k == 1f) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0f, 0f, k)
         val lx = if (FIXED_X != 0f || FIXED_Y != 0f) FIXED_X else x
         val ly = if (FIXED_X != 0f || FIXED_Y != 0f) FIXED_Y else y
-        return if (lx == 0f && ly == 0f) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, lx, ly)
+        return if (lx == 0f && ly == 0f && k == 1f) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, lx, ly, k)
     }
 
     /**
@@ -97,10 +105,17 @@ class ThumbLean {
     fun unlearn() { n = was[0]; sumX = was[1]; sumY = was[2]; squares = was[3]; estimate() }
 
     private fun estimate() {
-        if (n <= 0f) { x = 0f; y = 0f; return }
+        if (n <= 0f) { x = 0f; y = 0f; tight = 1f; return }
         val mx = sumX / n; val my = sumY / n
         // The scatter of one tap about where the thumb lands, each way, squared: NOISE's until the field's own taps say.
         val about = (squares - (sumX * sumX + sumY * sumY) / n).coerceAtLeast(0f) / 2f
+        // The same scatter as the spread the taps are read by: SPREAD's, worth SPREAD_TAPS taps, until the field's say.
+        val v = (SPREAD_TAPS * SPREAD + about) / (SPREAD_TAPS + (n - 1f).coerceAtLeast(0f))
+        // Read tighter as one over the spread squared; looser more steeply, so that a careful thumb's few wider
+        // sentences are seldom read loosely while a sloppy thumb's are soon.
+        val q = SPREAD / v
+        val k = if (q >= 1f) q else Math.pow(q.toDouble(), SPREAD_POWER.toDouble()).toFloat()
+        tight = (TapDecoder.SPATIAL * k).coerceIn(SPREAD_LOW, SPREAD_HIGH) / TapDecoder.SPATIAL
         val s2 = (NOISE_TAPS * NOISE * NOISE + about) / (NOISE_TAPS + (n - 1f).coerceAtLeast(0f))
         // How far the mean stands out of what that scatter alone would make of it, and how much a lean of LEAN's size
         // would have shown in so many taps.
@@ -202,5 +217,33 @@ class ThumbLean {
          */
         @JvmField var FIXED_X = 0f
         @JvmField var FIXED_Y = 0f
+
+        // How tightly this thumb's taps fall (docs/versus.md, "How tightly this thumb types"). TapDecoder.SPATIAL is
+        // what a key width squared of distance from a tap costs; a thumb whose taps scatter widely wants it lower, one
+        // whose taps fall close higher. The spread is the scatter the lean above already measures (its squares about
+        // its own mean), and the next word is read with SPATIAL times SPREAD over it: one over the spread squared, as
+        // a Gaussian thumb would have it. Set on the scoreboard's seen set; tool/versus/scoreboard.py --bench.
+
+        /** Off, every word is read with SPATIAL as it stands, whatever its taps have shown: the scoreboard is then the base's. */
+        @JvmField var SPREAD_ON = true
+
+        /**
+         * The scatter of a tap about where the thumb lands, squared, each way, in key widths squared, that SPATIAL as
+         * it stands is right for: what a field begins with, so that its first word reads exactly as it did before.
+         */
+        @JvmField var SPREAD = 0.065f
+
+        /** How steeply SPATIAL falls as the spread grows past [SPREAD]: the spread's ratio to it to this power. */
+        @JvmField var SPREAD_POWER = 3f
+
+        /** How many of the field's own taps [SPREAD] is worth. */
+        @JvmField var SPREAD_TAPS = 4f
+
+        /** The least and the most SPATIAL is read with, however widely or closely the taps fall. */
+        @JvmField var SPREAD_LOW = 0.5f
+        @JvmField var SPREAD_HIGH = 3f
+
+        /** For measuring, and nothing: a SPATIAL to read every word with in place of the estimate's (the ceiling runs). */
+        @JvmField var SPREAD_FIXED = 0f
     }
 }
