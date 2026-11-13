@@ -582,6 +582,15 @@ with capitals aside), and `check` passes over scoreboard.py's capitals lines. Th
 beside it, as scoreboard.py's has had since the unseen set was typed into Gboard. `check` on the merged tree: the
 four settings of `CHECKS` the same, 6 lines of 6 and 0 of 11,613 words.
 
+### A guard other than the tree (2026-11-13)
+
+`--guard SETTING` counts the bench's penalty against that setting's bench and misspellings in place of the tree's
+(the sets are still counted against the tree). A search held to a guard that spoils fewer words than the tree
+gains nothing by spoiling back up to the tree's count. The joint tuning of 0.17.0 used `--guard
+ThumbLean.SPREAD_LOW=0.85` ([versus.md](versus.md), "Squeezing 0.17.0"). The bench a guard is read from is still
+the one draw of 12,000 words; a search can fit its handful of spoils, so a setting found that way is worth typing
+again on another draw (`java -Dwords=24000 -Dseed=11 -jar build/versus/bench-tree.jar . taps`).
+
 ## What these numbers are not
 
 - **One thumb model.** The sets and the bench are both a simulated thumb's: the sets' three are the bench's

@@ -1457,6 +1457,99 @@ for a capital in all of them (24 and 4 differ: "Did tim survive?" is "Did Tim su
 phone to say is whether the service asks where its lines say it does: `device-check.sh` against a commit from
 before names types exactly the typings a name's capital alters.
 
+### Squeezing 0.17.0 (2026-11-13)
+
+Matt, 2026-11-13: "see if there is anywhere we can squeeze out just a few more points". 0.17.0 was ten tracks merged
+one at a time and never tuned together; the scatter track's spread had raised the normal and sloppy thumbs' right
+words spoiled on the bench from 1.48 and 1.65 a thousand to 2.01 and 2.43 (build/merge-notes.md, m7).
+
+**The joint tuning.** `sweep.py search` over nineteen dials (the spread's `SPATIAL`, `SPREAD_LOW`, `SPREAD`,
+`SPREAD_POWER`, `SPREAD_TAPS`; `HERE_WEIGHT`, `HERE_COMMON`, `LETTERS_SHIFT`, `MARGIN_COMMON`, `MARGIN_RARE`,
+`UNKNOWN`, `UNKNOWN_ODD`, `UNKNOWN_LONG`, `WHOLE_CHANGE`; the second look's `AGAIN_MARGIN`, `AGAIN_LEAST`, `AGAIN_LOW`,
+`AGAIN_BACK`, `AGAIN_UNKNOWN`), each on a fine step of its own, fitted on one half of the sentences and then on the
+other (`--holdout 1`, `--other-half`). The objective would not have asked for fewer spoils (it charges only spoils
+over the tree's), so `sweep.py` has a `--guard SETTING`: the bench's penalty is counted against that setting's bench.
+The guard was `ThumbLean.SPREAD_LOW=0.85`, which alone takes the normal and sloppy thumbs back to 1.47 and 1.62 (seen
++6 words wrong, unseen +1), and each search started there. Half A moved ten dials, half B seven; five moves were made
+by both, and only those are kept: `SPREAD_LOW` 0.6 to 0.85, `SPREAD` 0.065 to 0.07, `AGAIN_MARGIN` and `AGAIN_LEAST`
+0.5 to 0.4, `UNKNOWN` 3.2 to 3.1, `UNKNOWN_LONG` 1.6 to 1.5 (b937695). B's `LETTERS_SHIFT` 0.8 (four more words) was
+left out: on a fresh draw of the bench it spoiled more (below).
+
+| | seen careful | leaning | sloppy | all | unseen careful | leaning | sloppy | all |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.17.0 | 1.15% | 1.79% | 3.92% | 2.29% (119) | 1.69% | 1.73% | 6.13% | 3.18% (204) |
+| tuned | 1.15% | 1.61% | 4.21% | 2.32% (121) | 1.54% | 1.64% | 5.90% | 3.03% (194) |
+| Gboard | 1.84% | 3.23% | 6.40% | 3.82% | 1.64% | 2.39% | 6.32% | 3.45% |
+
+Seen 8 mended, 10 broken; unseen 18 mended, 8 broken. The careful thumb on unseen, the one place Gboard was ahead
+(1.69% to its 1.64%), is now ahead of it (1.54%). On the bench (words right, right words spoiled a thousand,
+unknown words spoiled):
+
+| | careful | normal | sloppy | misspellings |
+| --- | --- | --- | --- | ---: |
+| 0.16.5 | 96.41%, 1.22, 1.5% | 92.34%, 1.48, 4.3% | 85.65%, 1.65, 7.1% | 232 |
+| 0.17.0 | 97.62%, 1.32, 1.6% | 95.14%, 2.01, 4.3% | 90.83%, 2.43, 7.1% | 235 |
+| tuned | 97.63%, 1.32, 1.6% | 95.13%, 1.47, 2.5% | 90.43%, 1.62, 3.5% | 235 |
+
+Per thumb, plainly: the careful thumb gains a little in words right and spoils exactly what it did; the normal
+thumb spoils 4 fewer right words of some 7,460 (3 fewer of its 162 unknown ones) for 1 fewer word right in all; the sloppy thumb
+spoils 4 fewer of some 4,930 (3 fewer of its 85 unknown ones) and has 48 fewer words right of 12,002 (90.83% to 90.43%): that is
+the part of the spread's gain the floor gives back. Held out: the setting has fewer words wrong than 0.17.0 on the
+half not fitted in two of three random draws of halves (-3, +1, -6 words; every interval holds 0), so the sets'
+gain is within noise; what is certain is the spoils.
+
+**A fresh draw of the bench.** The guard was the bench's own 12,000 words with seed 7, and so the search could fit
+its few spoils. Typed again with other taps and other unknown words (`-Dwords=24000 -Dseed=11`), right words spoiled
+a thousand and unknown words spoiled, careful / normal / sloppy: 0.17.0 0.86, 2.43, 2.81 and 1.1%, 5.9%, 8.4%;
+tuned 0.91, 1.89, 2.39 and 1.5%, 4.5%, 6.6%; with `LETTERS_SHIFT` 0.8 as well 0.96, 2.29, 2.39 and 1.7%, 6.2%, 6.6%.
+The fall is smaller than on the guard's own draw (normal 2.43 to 1.89 where 2.01 to 1.47), and the careful thumb
+spoils one word more of 543 unknown ones and one more right word.
+
+**Tried and left out** (each measured, none in the tree):
+
+- *Sparing a listed word the loosening* (`SPREAD_LISTED`, `SPREAD_COMMON`): the spoils the spread added are not
+  listed words read loosely but mostly unknown ones ("zsh" as "as", "devkbd" as "second", "jovana" as "jobs a");
+  sparing listed words cost words right on the bench and gained nothing. *Sparing a word typed with every tap well
+  inside its key* (`SPREAD_CLEAN`): a loose thumb's right words seldom are, and nothing changed.
+- *Holding letters no list has more when the thumb is loose* (`UNKNOWN_LOOSE`): per spoil saved it cost more words
+  wrong than the floor does.
+- *A lower bar where letters no list has all but spell a word* (`UNKNOWN_NEAR` 0.9 for readings whose slips cost
+  0.5 or less: "uury" with its u on the line is "yurt", "redi" is "redo"): seen 121 to 118, unseen 194 to 191, 7
+  mended and 1 broken, the bench's lines the same; but on the fresh draw the normal thumb spoiled 3 more unknown
+  words of 357 and the careful one 1 more. At a cost of 0.25 it is clean on both draws and gains 2 words. Left out.
+- *Less of a common word's guard at the second look* (`AGAIN_GUARD`): 0.6 gives seen 118 and unseen 192, but the
+  careful thumb's right words spoiled rise to 1.42 and the normal one's to 1.88.
+- *The tap costs* (a second pair of half searches over `INSERT_NEAR`, `NO_SPACE`, `INSERT`, `OMIT`, `INSERT_DOUBLED`,
+  `OMIT_DOUBLED`, `FAR_SHORT`, `SWAP`, `LISTED_EDIT`, `LONE_OMIT`, `RARE_GAP`, `RARE_BUDGET`, `REJOIN_MARGIN`,
+  `JOIN_UNSEEN`, `SURE_MARGIN`, `LISTED_BUDGET`, `HERE_WEIGHT`, `MARGIN_RARE`, `CLEAN_TAP`): the only move both made
+  is `NO_SPACE` 2.8, 3 mended and none broken, the bench's lines the same or better; on the fresh draw the normal
+  thumb spoils 3 more unknown words (two words run together read where a name was). Left out.
+
+**What is still lost to Gboard.** On seen, 55 words Gboard got and this does not (`why.py --set seen --lost`), by
+what the decoder weighed: the space run together or split, so no word was read (11); letters no list has whose
+meant word is near but worth less than the bar for letters no list has (10: yurt, redo, crab, woken);
+a common word typed for another, the meant word under the common word's margin (12: "is" for us twice, "top" for
+too, "nor" for not, "lime" for line, "be" for he); letters two keys or more of slips from the meant word (7:
+"beeaofaz" for breakfast); words never read by the taps because a list keeps them as typed (7: "ur", "eta", "sm");
+the meant word read but another or none chosen (4); a rare listed word kept (3: "truk", "dour", "hymie"); one name
+no list has. Counted the same way over every word left wrong, the unseen set's 194 (counts only): a common word
+typed for another 52, letters two keys or more off 46, near but under the bar 24, the space 22, another reading
+chosen 15, kept as typed by a list 14, a rare listed word 11, a name no list has 7, other 3. The careful thumb's 33
+on unseen: 12 a common word typed for another, 7 two keys or more off, 6 near but under the bar, 3 a rare listed
+word, 2 the space, 3 other. Every class that is left is one where the bench's unknown words pull the other way:
+the bar for letters no list has, the common word's margin and the tap costs are each at the bottom of their valley
+as the bench's spoils see them.
+
+**Time** (`sweep.py time --threads 1`, the threads' own processor time, least of four): the tree 275 and 290 µs a
+word on seen and unseen, 106, 145, 200 on the bench's three thumbs; 0.17.0's dials 280, 294, 106, 155, 218. The
+higher floor reads a sloppy thumb less loosely, so the search does less: 7% and 9% faster for the normal and sloppy
+thumbs. The second look and the spread together (`AGAIN=false ThumbLean.SPREAD_ON=false` against the tree) cost
+about a fifth on the sets (225 and 235 without) and nearly half again on the bench (54, 81, 121 without).
+
+Checks: unit.sh 184, lang_check 17,245, next_word_check 585, swipe-selfcheck 8, 587 Gradle unit tests, 74 Flutter
+tests. ThumbLeanTest's wild tap in a careful field's second word now loosens 10 fields of 20 (15 or more at
+`SPREAD` 0.065: the prior holds a little more). Not typed on the emulator or a phone.
+
 ### Where Ghost Keyboard wins
 
 64 words it got and Gboard did not: short words (19), one key off (12), a right word changed (11), the space (7).
