@@ -334,7 +334,21 @@ step lowers the objective by more than a point, `OMIT`, and the two the searches
 | 5.6 | 326 | 437 | 96.41 92.34 85.65 | 1.22 1.48 1.65 | 1.5 4.3 7.1 | 232 | 0 | 0 | 763 |
 
 A grid of two dials prints a table for each of the words wrong, the bench's penalty and the objective, one dial
-down and the other across. <!-- TWO-DIALS -->(One of `UNKNOWN_ODD` by `SPATIAL` was not through when this was written.)
+down and the other across. One was run, `UNKNOWN_ODD` by `INSERT` with `INSERT_NEAR` at 2.8, the two moves the
+searches below make together (`build/versus/logs/grid2-ODD-x-INSERT.out`); the objective, with the words wrong on
+the two sets and the bench's penalty in brackets:
+
+| `UNKNOWN_ODD` \ `INSERT` | 2.8, the tree's | 3.2 | 3.6 |
+| --- | ---: | ---: | ---: |
+| 1 | 807 (703 + 104) | 799 (700 + 99) | 713 (698 + 15) |
+| 1.4 | 811 (723 + 88) | 723 (720 + 3) | 721 (718 + 3) |
+| **1.8**, the tree's | 753 (753 + 0) | 753 (750 + 3) | 752 (749 + 3) |
+
+(The tree's own corner is 753, not 763: `INSERT_NEAR` at 2.8 is already in every cell.) Along the bottom row and
+the left column each dial alone buys little or costs much; together, `UNKNOWN_ODD` at 1.4 and `INSERT` at 3.2 or
+more take 33 and 35 words for 3 of penalty, and at 1 with `INSERT` at 3.6, 55 words for 15. That is the shape coordinate
+descent can follow only because the cheap step (`INSERT`) comes first. A grid of `UNKNOWN_ODD` by `SPATIAL` was
+planned and not run.
 
 ## Many at once
 
@@ -393,18 +407,27 @@ It is not a recommendation to set fourteen dials: the next part says which of th
 half the sentences and judged by the other half: a random half of each set's sentences (`--holdout 1`, and
 `--other-half`: 150 sentences of each set, 450 typings), with the whole bench as the guard.
 
-<!-- SCALED-HALVES -->Fitted as the whole was (the bench counting for the share of the words fitted on):
+Fitted as the whole was (the bench counting for the share of the words fitted on):
 
 | Fitted on | Settings tried | The half it was fitted on | The half held out | over 2,000 resamplings | seen, all | unseen, all | mended | broken |
 | --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: |
 | the tree | | | | | 326 | 437 | | |
 | half A | 516 | 382 wrong to 313 (6.45% to 5.28%), 69 fewer | 381 to 326 (6.70% to 5.73%), 55 fewer | 72 to 37 fewer | 275 | 364 | 136 | 12 |
-| half B | not through when this was written (`build/versus/logs/search-s1b.out`) | | | | | | | |
+| half B | 411 | 381 wrong to 322 (6.70% to 5.66%), 59 fewer | 382 to 329 (6.45% to 5.55%), 53 fewer | 71 to 36 fewer | 278 | 373 | 124 | 12 |
 
 Fitted on half A the search made the moves the search fitted on everything made, `MARGIN_COMMON` to 1.3 among
 them, and ended at nearly the same setting (the table of dials below). On the half it never saw it left 55 fewer
 words wrong of 381, four fifths of the 69 it gained on its own half; over 2,000 resamplings of that half's
-sentences, 95 in a hundred fall between 72 fewer and 37 fewer.
+sentences, 95 in a hundred fall between 72 fewer and 37 fewer. Fitted on half B it gained 59 there and 53 on half
+A, which it never saw (71 to 36 fewer over the resamplings). Both halves moved `MARGIN_COMMON` (to 1.3 and 1.4),
+and with it the sloppy thumb's right words spoiled on the bench went up, as they did for the search fitted on
+everything:
+
+| | bench: words right % | right words spoiled in 1,000 | unknown words spoiled % | misspellings |
+| --- | --- | --- | --- | ---: |
+| the tree | 96.41 92.34 85.65 | 1.22 1.48 1.65 | 1.5 4.3 7.1 | 232 |
+| fitted on half A | 96.65 93.01 86.59 | 1.32 1.61 2.07 | 1.5 4.3 7.1 | 232 |
+| fitted on half B | 96.53 92.86 86.48 | 1.22 1.48 2.28 | 1.5 4.3 8.3 | 232 |
 
 And by a search twice as wary of the bench, which charges its penalty whole against half the sentences'
 words (`--whole-bench`; the first two searches run, before the share was counted):
@@ -429,47 +452,87 @@ the tree, of which one more is a word no list has: 8 of 164 where the tree spoil
 
 What each search moved, and where to:
 
-| Dial | The tree | Fitted on everything | Half A, the bench whole | Half B, the bench whole |
-| --- | ---: | ---: | ---: | ---: |
-| `Autocorrect.UNKNOWN_ODD` | 1.8 | 1 | 1 | 1.3 |
-| `Autocorrect.RARE_GAP` | 2 | 1.6 | 1.6 | 1.6 |
-| `TapDecoder.INSERT` | 2.8 | 3.6 | 3.6 | 3.6 |
-| `TapDecoder.INSERT_NEAR` | 2 | 3.1 | 3.2 | 2.6 |
-| `TapDecoder.NO_SPACE` | 3.2 | 2.8 | 2.8 | 2.8 |
-| `Autocorrect.MARGIN_COMMON` | 1.6 | 1.3 | | |
-| `Autocorrect.REJOIN_MARGIN` | 1 | 0.2 | 0.2 | |
-| `TapDecoder.OMIT_DOUBLED` | 1.2 | 0.8 | 0.8 | |
-| `TapDecoder.SWAP` | 1.1 | 0.9 | 0.7 | |
-| `Autocorrect.RARE_BUDGET` | 2.2 | 2.4 | | 2.4 |
-| `TapDecoder.FAR_SHORT` | 4.4 | 4.8 | | 4.8 |
-| `TapDecoder.INSERT_DOUBLED` | 1.4 | 1.7 | | 1.9 |
-| `TapDecoder.VOWEL` | 2.2 | 2.4 | | 2.3 |
-| `TapDecoder.APOSTROPHE` | 0.2 | 0 | | |
-| `TapDecoder.INSERT_FIRST` | 4 | | 4.8 | |
-| `Autocorrect.UNKNOWN_LONG` | 1.6 | | 1.7 | |
+| Dial | The tree | Fitted on everything | Half A | Half B | Half A, the bench whole | Half B, the bench whole |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Autocorrect.UNKNOWN_ODD` | 1.8 | 1 | 1 | 1 | 1 | 1.3 |
+| `Autocorrect.RARE_GAP` | 2 | 1.6 | 1.6 | 1.6 | 1.6 | 1.6 |
+| `TapDecoder.INSERT` | 2.8 | 3.6 | 3.6 | 3.6 | 3.6 | 3.6 |
+| `TapDecoder.INSERT_NEAR` | 2 | 3.1 | 2.8 | 3.2 | 3.2 | 2.6 |
+| `TapDecoder.NO_SPACE` | 3.2 | 2.8 | 2.8 | | 2.8 | 2.8 |
+| `Autocorrect.MARGIN_COMMON` | 1.6 | 1.3 | 1.3 | 1.4 | | |
+| `Autocorrect.REJOIN_MARGIN` | 1 | 0.2 | 0.2 | | 0.2 | |
+| `TapDecoder.OMIT_DOUBLED` | 1.2 | 0.8 | 0.6 | | 0.8 | |
+| `TapDecoder.SWAP` | 1.1 | 0.9 | 0.7 | 0.6 | 0.7 | |
+| `Autocorrect.RARE_BUDGET` | 2.2 | 2.4 | 2.4 | 2.4 | | 2.4 |
+| `TapDecoder.FAR_SHORT` | 4.4 | 4.8 | | 4.8 | | 4.8 |
+| `TapDecoder.INSERT_DOUBLED` | 1.4 | 1.7 | | 1.8 | | 1.9 |
+| `TapDecoder.VOWEL` | 2.2 | 2.4 | 2.4 | 2.4 | | 2.3 |
+| `TapDecoder.APOSTROPHE` | 0.2 | 0 | 0 | | | |
+| `TapDecoder.INSERT_FIRST` | 4 | | 4.8 | | 4.8 | |
+| `Autocorrect.UNKNOWN_LONG` | 1.6 | | | 1.5 | 1.7 | |
+| `TapDecoder.OMIT` | 2 | | | 2.1 | | |
 
-Five dials go the same way in all three, to much the same place: letters that look like no word held less
+Five dials go the same way in the three searches with the bench whole, to much the same place: letters that look like no word held less
 dear, a rare word giving way sooner, a tap too many dearer (both kinds), and a missed space cheaper. Those are
 the finding. The others moved in one half and not the other, each for one to three words of that half
 (`INSERT_FIRST` for eleven, every one of them penalty taken off the bench after `UNKNOWN_ODD` had put it there):
 the other half's sentences did not ask for them, and they are what fitting looks like. `MARGIN_COMMON` is the one
 dial the search fitted on everything moved that neither wary half did: 1.6 to 1.4 bought 19 words of the two sets
 for 12 more of penalty, and 1.3 four words more. It is the dial whose grid above says it spoils right common
-words in step with what it mends, and the three more right words the sloppy thumb spoils came in with it.
+words in step with what it mends, and the three more right words the sloppy thumb spoils came in with it. With
+the bench counted for the share of the words fitted on, both halves moved it too (1.3 and 1.4), and both spoil
+more for the sloppy thumb (2.07 and 2.28 in 1,000 where the tree has 1.65): the sentences do ask for it, at a
+price on the bench that only a lighter guard pays. Whether to pay it is a judgement, not something these numbers
+settle. `RARE_BUDGET` 2.4, `SWAP` lower and `VOWEL` 2.4 also moved in both of those halves.
 
 The largest single move is the one [versus.md](versus.md) could not take alone. From the tree, `UNKNOWN_ODD` at
 1.4 leaves 27 fewer words wrong on the two sets and costs 98 on the bench (the table above). In both wary
 searches it came after a tap too many had been made dearer (`INSERT` 3.6, `INSERT_NEAR` 2.8), and the same step
-then bought 15 and 18 words of half the sentences for a penalty of 8 and of nothing.<!-- UNKNOWN-ODD-WITH -->
+then bought 15 and 18 words of half the sentences for a penalty of 8 and of nothing. The grid of the two (above)
+says the same of all the sentences: with `INSERT` at 3.6 and `INSERT_NEAR` at 2.8, `UNKNOWN_ODD` at 1.4 leaves 31
+fewer words wrong than at 1.8 for no more penalty, and at 1, 51 fewer for 12 more.
 
-<!-- CORE -->
+**The five that every search took, alone.** A search over just the six dials both wary halves moved (`RARE_GAP`,
+`UNKNOWN_ODD`, `INSERT`, `INSERT_NEAR`, `INSERT_FIRST`, `NO_SPACE`), fitted on everything: 90 settings, two minutes
+(`build/versus/logs/search-core.out`). It moved five of them and left `INSERT_FIRST` where it was:
+
+    --set Autocorrect.RARE_GAP=1.6 --set Autocorrect.UNKNOWN_ODD=1.1 --set TapDecoder.INSERT=3.6 --set TapDecoder.INSERT_NEAR=3.2 --set TapDecoder.NO_SPACE=2.8
+
+| | seen | unseen | bench: words right % | right words spoiled in 1,000 | unknown words spoiled % | misspellings |
+| --- | --- | --- | --- | --- | --- | ---: |
+| the tree | 326, 6.26% (2.48, 5.42, 10.89) | 437, 6.82% (3.28, 5.01, 12.17) | 96.41 92.34 85.65 | 1.22 1.48 1.65 | 1.5 4.3 7.1 | 232 |
+| the five | 288, 5.53% (2.25, 4.50, 9.86) | 387, 6.04% (2.86, 4.49, 10.77) | 96.63 92.83 86.38 | 1.12 1.48 1.65 | 1.5 4.9 7.1 | 232 |
+
+88 fewer words wrong on the two sets (92 mended, 4 broken), objective 763 to 679, for a penalty of 4: the careful
+thumb spoils one right word fewer, the normal thumb one more word no list has (8 of 164 where the tree spoils 7),
+and nothing else on the bench is worse. `scoreboard.py --bench` gives the same lines for it, word for word
+(`check3.out`, and `check4.out` with the worker as it now is). It is about seven tenths of what the fourteen dials
+fitted on everything gain (126 words), with none of the sloppy thumb's extra spoiling; it is the setting this
+report would hand the lead as found rather than fitted.
 
 **What it costs a word.** Clocked against the tree, turn about, the least of three typings each (four threads,
 load average 130 to 240): the setting fitted on everything takes 639 and 684 microseconds a word on the seen and
 unseen sets where the tree takes 577 and 606, about an eighth more, and 152, 255 and 366 on the bench's three
-thumbs where the tree takes 148, 241 and 353, a twentieth more.<!-- TIME -->
+thumbs where the tree takes 148, 241 and 353, a twentieth more. On one thread, by the typing threads' own time
+(`time --threads 1`, the least of three each, `time1.out`):
 
-<!-- FRONT -->
+| microseconds a word | seen | unseen | bench: careful | normal | sloppy |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| the tree | 218 | 233 | 54 | 89 | 129 |
+| fitted on everything | 245 (+12%) | 259 (+11%) | 55 (+2%) | 92 (+3%) | 134 (+4%) |
+| the five | 219 (+0%) | 232 (-0%) | 55 (+3%) | 92 (+3%) | 134 (+4%) |
+
+The fourteen's eighth more comes from the dials the five do not set (which of them was not timed); the five cost
+the sets nothing and the bench a few in a hundred.
+
+**The choice the objective makes.** `sweep.py front` lists, of every setting answered so far with its bench (1,449
+then), those no other beats on all three of words wrong on the two sets, right words of the lists spoiled on the
+bench and right words no list has spoiled there (the tree: 763, 14 and 17). Thirty are on that front
+(`front.out`). At one end, 608 words wrong (263 and 345) for 21 and 30 spoiled, with `SPATIAL` at 1.3 among
+fifteen dials; 624 (271 and 353) for 18 and 25, the setting fitted on everything with `SPATIAL` at 1.4. Then 635
+(273 and 362) for 18 and 17, nearly the setting fitted on everything; 664 (284 and 380) for 12 and 17, fewer right
+words spoiled than the tree, but 220 misspellings mended where the tree mends 232; and 736 for 11 and 15. The
+objective's four words for a right word spoiled picks from the middle of it; `--weights` moves along it.
 
 ## After a merge
 
