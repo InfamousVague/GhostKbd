@@ -15,7 +15,9 @@ package com.infamousvague.devkeyboard
  * It begins at nothing as a field is entered ([newField]). Every word autocorrect has settled teaches it ([learn]:
  * the letters that stand, each against its own tap; [Autocorrect.settled] says which words may), and the next
  * word's taps are read by it ([read], [TapDecoder.load]). It is in memory only, for the field being typed in:
- * nothing here can write it down, and it is gone when the field is left.
+ * nothing here can write it down, and it is gone when the field is left, or when the keys change width under it.
+ * It is read only on an English board with prediction on ([Autocorrect.aimed]), which is all it has been measured
+ * on; on any other board it learns nothing ([Autocorrect.settled]).
  *
  * The estimate is the lean to expect, given the taps. Most thumbs are taken to land where they aim, and one in
  * [ODDS] + 1 to lean, by about [LEAN] of a key each way. The taps' mean miss is then worth as much of itself as
@@ -25,7 +27,7 @@ package com.infamousvague.devkeyboard
  * too widely for its mean to stand out often: it is given a tenth of a key's lean or more in two or three
  * sentences of a hundred (tool/versus/leanlog.py). One lean serves the whole board: a field's taps are a few
  * dozen, which is enough for one pair of numbers and not for one a row or a side (Gboard's own model keeps 800 taps
- * for seven groups of keys: docs/versus-research.md).
+ * for seven groups of keys: Sivek and Riley, "Spatial model personalization in Gboard", PACM HCI 2022).
  *
  * Plain Kotlin with no Android in it: tool/typing_bench.sh, tool/versus/replay.sh and the unit tests run the very
  * code the phone does.
@@ -40,6 +42,8 @@ class ThumbLean {
     private var held = 0f
     /** As they were before the last word was settled, for [unlearn]. */
     private val was = FloatArray(5)
+    /** The key width the taps that taught it were tapped on (0 before any): the board it holds for. */
+    private var width = 0f
 
     /** The lean as it is estimated now, across and down, in key widths. */
     var x = 0f
@@ -60,15 +64,19 @@ class ThumbLean {
     /** A text field is entered, or left: nothing is known of the thumb in the next one. */
     fun newField() {
         if (KEEP) return
-        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; held = 0f; x = 0f; y = 0f; tight = 1f
+        n = 0f; sumX = 0f; sumY = 0f; squares = 0f; held = 0f; x = 0f; y = 0f; tight = 1f; width = 0f
         was.fill(0f)
     }
 
     /**
      * [taps] to be read by the lean as it is estimated now. The very same taps where nothing is estimated: the word
-     * is then read exactly as it was before there was a lean.
+     * is then read exactly as it was before there was a lean. Where the keys are not the width they were as it was
+     * taught (the Fold opened or shut, one-handed or split mode turned on in the field), a thumb reaching over
+     * another board leans otherwise: it begins again at nothing, as for a new field.
      */
     fun read(taps: Taps): Taps {
+        // On keys of another width than it was taught on, the lean and the spread are another board's: begin again.
+        if (width != 0f && taps.keyW != width) newField()
         val k = if (SPREAD_FIXED > 0f) SPREAD_FIXED / TapDecoder.SPATIAL else if (SPREAD_ON) tight else 1f
         if (!ON) return if (k == 1f) taps else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0f, 0f, k)
         val lx = if (FIXED_X != 0f || FIXED_Y != 0f) FIXED_X else x
@@ -86,6 +94,9 @@ class ThumbLean {
         pass()
         val w = taps.keyW
         if (w <= 0f) return
+        // Taught on keys of another width than before: what it held was for that board.
+        if (width != 0f && w != width) newField()
+        width = w
         for (i in meant.indices) {
             if (!taps.has(i)) continue
             val at = taps.keys[meant[i]] ?: continue
@@ -164,20 +175,22 @@ class ThumbLean {
 
         /**
          * How far a thumb that leans is taken to lean, each way, in key widths. A quarter to a third of a key is
-         * what has been measured of people (2.24 mm low on one phone, Henze 2012; docs/versus-research.md) and what
-         * tool/versus's thumb has. It matters little: at 0.2 words wrong are 43, 76, 191 and 70, 88, 258; at 0.45,
-         * 43, 76, 192 and 71, 87, 260.
+         * what has been measured of people (players of a typing game hit 2.24 mm below the keys' middles on one
+         * phone: Henze, Rukzio and Boll, "Observational and experimental investigation of typing behaviour using
+         * virtual keyboards", MobileHCI 2012) and what tool/versus's thumb has. It matters little: at 0.2 words wrong
+         * are 43, 76, 191 and 70, 88, 258; at 0.45, 43, 76, 192 and 71, 87, 260.
          */
         @JvmField var LEAN = 0.3f
 
         /**
          * The scatter of a tap about where the thumb lands, each way, in key widths, taken before the field's own
          * taps say; [NOISE_TAPS] is how many of the field's taps that is worth. People's thumbs were measured to
-         * scatter 0.32 of a key across and 0.20 of a key's height down (Fowler 2015, docs/versus-research.md): about
-         * 0.3 of a width each way. Lower, the measure's leaning thumb (which scatters 0.20) is believed sooner and
-         * its sloppy thumb (0.34, no lean) pays: at 0.2 words wrong are 43, 69, 195 and 70, 86, 261; at 0.4, 43, 79,
-         * 188 and 71, 88, 259. Worth one tap in place of four: 43, 74, 189 and 70, 86, 259; worth sixteen: 43, 78,
-         * 191 and 71, 87, 259.
+         * scatter 0.32 of a key across and 0.20 of a key's height down (Azenkot and Zhai's 1.97 mm across and 1.88 mm
+         * down on keys 6.16 mm by 9.42 mm, as Fowler et al. take them in "Effects of language modeling and its
+         * personalization on touchscreen typing performance", CHI 2015): about 0.3 of a width each way. Lower, the
+         * measure's leaning thumb (which scatters 0.20) is believed sooner and its sloppy thumb (0.34, no lean) pays:
+         * at 0.2 words wrong are 43, 69, 195 and 70, 86, 261; at 0.4, 43, 79, 188 and 71, 88, 259. Worth one tap in
+         * place of four: 43, 74, 189 and 70, 86, 259; worth sixteen: 43, 78, 191 and 71, 87, 259.
          */
         @JvmField var NOISE = 0.3f
         @JvmField var NOISE_TAPS = 4f

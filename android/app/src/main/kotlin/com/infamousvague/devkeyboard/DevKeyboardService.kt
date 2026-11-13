@@ -1007,6 +1007,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = sentence, mark = mark) ?: return false
         // A second space is the word's own and stays; anything else that ended it was typed, and the fix takes it in.
         if (!editor.replaceBefore(standing, c.was + whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty() && separator == " ") "" else separator)) return false
+        // The scrap before the bar was the last word settled, and it taught the lean letters that are not the word's.
+        lean.unlearn()
         stats { TypingStats.correction(this) }
         // Backspace straight after puts the two scraps back, as it puts back any word a fix replaced.
         lastCorrection = Triple(standing, c.was + whole, separator)
@@ -1119,8 +1121,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         val taps = tapsFor(word)
         val found = autocorrect.correct(word, scorer, taps)
-        // The word is settled: where it can be trusted, its taps say where the thumb is landing in this field.
-        autocorrect.settled(lean, word, found, taps)
+        // The word is settled as typed: where it can be trusted, its taps say where the thumb is landing in this
+        // field. A fix teaches once it is in the field (below), and not where it could not be put there.
+        if (found == null) autocorrect.settled(lean, word, null, taps)
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
         // Ended by the bar's own tap: kept, in case that tap was this word's next letter.
@@ -1175,7 +1178,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         val fixed = found ?: return false
         // One step in the history, after the separator as typed: undo gives back the word as typed, with its space.
-        if (!editor.replaceBefore(word, fixed + separator, Kind.CORRECTION, typedFirst = separator)) return false
+        if (!editor.replaceBefore(word, fixed + separator, Kind.CORRECTION, typedFirst = separator)) { lean.pass(); return false }
+        autocorrect.settled(lean, word, fixed, taps)
         adaptiveCorrected(word, fixed)
         stats { TypingStats.correction(this) }
         lastCorrection = Triple(word, fixed, separator)

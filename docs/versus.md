@@ -912,7 +912,9 @@ The leaning thumb of the run is the careful one with a lean: every tap lands 0.2
 of a key's height below where it aims. Ghost Keyboard left 2.5% of the careful thumb's words wrong and 5.4% of the
 leaning one's, so half of what the leaning thumb loses is the lean and nothing else. A person's thumb leans too,
 by hand, grip and phone, and not the same way from one sitting to the next
-([versus-research.md](versus-research.md), section 4). The keyboard had two things for that: offsets measured from
+(players of a typing game hit below the keys' middles, by 2.24 mm on one phone, and differently on each key: Henze,
+Rukzio and Boll, MobileHCI 2012; each of Gboard's study users has a pattern of their own: Sivek and Riley, PACM HCI
+2022. The research track's docs/versus-research.md, section 4, has more). The keyboard had two things for that: offsets measured from
 one person's taps (`KeyboardView.LETTER_OFFSETS_DP`) and the adaptive keys plugin, which moves single keys over
 weeks. Neither knows where the thumb is landing now, and neither is changed by this.
 
@@ -1036,7 +1038,7 @@ Words right:
 
 **One lean for the whole board.** A field's taps are a few dozen: enough for one pair of numbers, not for a pair
 a row or a side (Gboard keeps 800 taps for seven groups of keys, and found that the number of groups made no
-difference a user could see; versus-research.md). What that leaves out shows on a thumb that aims at the keys as
+difference a user could see: Sivek and Riley, "Spatial model personalization in Gboard", PACM HCI 2022). What that leaves out shows on a thumb that aims at the keys as
 they are drawn (`whatif.py --aim drawn`): the keyboard's own correction lifts its taps more the higher the row, so
 its misses differ by row, and one lean fits the top rows and is wrong for the bottom one. Words wrong on the run's
 sentences with no estimate and with it: careful 47 and 51, leaning 136 and 94, sloppy 217 and 215. The leaning
@@ -1221,6 +1223,44 @@ a division and a power once a settled word.
 
 **Not measured.** People, whose scatter is not one Gaussian with one wild share; a phone. The spread is one number
 for the board; a thumb that is tight across and loose down is read by their mean.
+
+**After the review (2026-11-13).** What the review of this work asked, and what came of it:
+
+- *Every language, and prediction off.* The lean was read on every board and with no scorer, and measured only in
+  English. It is now read only on an English board with prediction on (`Autocorrect.aimed` takes it off the taps
+  again anywhere else, at all three readings), and `Autocorrect.settled` learns nothing on another board and lets
+  go of what it held, so the globe key in mid-field brings nothing over. Every other language, and English with
+  prediction off, read each word exactly as before there was a lean (`ThumbLeanTest`). The scoreboard did not move
+  (0 mended, 0 broken on both sets against the tree before).
+- *When it begins again.* Also when the keys change width under it (the Fold opened or shut, one-handed or split
+  mode in the field). The service teaches a fix only once it is in the field (not where `replaceBefore` failed),
+  and two scraps rejoined take back the first scrap's lesson; the Typist does the same. No word moved.
+- *A rare word typed right and spoiled* ("doodled" read as "doodles" on the seen set, leaning thumb). That is the
+  lean itself, not the typed word's cost coming off the rare word's gap: with the gap left as the base has it
+  (the typed cost never taken off) "doodled" is still read as "doodles", and the seen set loses two "Tom"s (typed
+  "yom") and a "cases" (typed "vases"); capped at half a point or a point it is the same as uncapped. The trade is
+  that a letter landed on the side of its key away from the lean is read as aimed at the neighbour there; on the
+  bench, with leaning thumbs, right words spoiled still fall with the lean (2.07, 1.59, 2.05 in a thousand to 1.78,
+  0.91, 1.71).
+- *The clamp, and the bar as the aimed key.* Costs counted from the unclamped distances: for the thumb aiming at
+  the keys as drawn 0 mended and 0 broken (careful, leaning), 1 broken (sloppy); on the seen set 1 broken ("tbale"
+  left as typed); on the bench with leaning thumbs 93.50%, 88.52%, 80.59% words right where 93.47%, 88.49%,
+  80.51%, spoiled the same. The bar allowed to be the aimed key in a letter's tap (the typed word paying what the
+  bar is nearer): nothing moved anywhere. "Amenas" is split by neither: it is the one lean for the board. Both
+  were measured on the seen set, the drawn aim and the bench, and neither is kept; the clamp is what makes the
+  reading move smoothly from no lean, where a key the tap is nearer than the typed one by the keys' own
+  geometry (they listen where one thumb was measured) would otherwise become the aimed key at the least lean.
+- *Speed.* `tool/typing_bench.sh leantime` calls correct twice for each of the bench's 12,000 words, with and
+  without the lean it was read by, timed by processor time around correct alone, on a Mac with a load average of
+  4 to 7: fastest of six rounds 122.5 µs a word with the lean and 124.8 without, for a normal thumb leaning 0.24
+  and 0.18 (10,566 of 12,187 words read by a lean); 104.8 and 105.6 for one that does not lean (10,248 of 11,864
+  read by some lean, mostly a few hundredths). No cost that can be seen.
+- *The service never compiled.* Still no Gradle, but kotlinc has now compiled every source of the app's main set
+  but the few that import Flutter, against Android 36's android.jar with androidx's annotation and autofill
+  classes from the Gradle cache and stand-ins for BuildConfig and MainActivity.EXTRA_OPEN: no errors, and
+  DevKeyboardService with its new lines among them. It has still not been built by Gradle or typed on.
+- *Unseen as the check only.* The dials' comments give unseen figures from when they were set; nothing chosen
+  since has been chosen on them (the experiments above were judged on seen, the drawn aim and the bench).
 
 ### What the thumb had done
 

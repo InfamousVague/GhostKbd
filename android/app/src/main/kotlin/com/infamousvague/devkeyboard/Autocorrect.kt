@@ -771,7 +771,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             top.sortByDescending { it.second }
             val least = (top.getOrNull(4)?.second ?: 0f).coerceAtLeast(FINISH_LEAST)
             val decoder = tapDecoder(now, taps!!)
-            decoder.load(lower, spread(now, scorer, taps))
+            decoder.load(lower, aimed(now, spread(now, scorer, taps), scorer))
             for (h in decoder.finish(least - (if (scorer == null) 0f else CONTEXT_PICK))) {
                 val word = now.lexicon.sorted[h.index]
                 // Nothing amiss: a word the typed letters begin, found above (with a lean off the taps, the letters aimed at).
@@ -1009,7 +1009,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val words = lex.words
         val script = now.board.script
         val decoder = tapDecoder(now, taps)
-        decoder.load(lower, spread(now, scorer, taps))
+        decoder.load(lower, aimed(now, spread(now, scorer, taps), scorer))
         // With this thumb's lean taken off the taps ([ThumbLean]) the typed letters are not always the keys nearest
         // them: what the typed word then costs as a reading of its own taps comes off what it is worth. Nothing,
         // where no lean is estimated.
@@ -1407,7 +1407,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             bestScore = asItStands + (if (second.isEmpty() && (!isWord(stood) || !doubled)) 0f else REJOIN_MARGIN)
             trace?.invoke("cut in two, $first and ${second.ifEmpty { "nothing" }}: as it stands ($stands) worth $one" + (if (second.isEmpty()) "" else " and $then after it, $asItStands in all") + (if (mended > 0f) ", the mend costing $mended" else "") + "; one word needs $bestScore")
         }
-        decoder.load(typed.lowercase(locale), if (ThumbLean.SPREAD_REJOIN) spread(now, scorer, taps) else taps.loose())
+        decoder.load(typed.lowercase(locale), aimed(now, if (ThumbLean.SPREAD_REJOIN) spread(now, scorer, taps) else taps.loose(), scorer))
         // What stands pays for its own taps as the lean has them ([TapDecoder.own]): the letters', and the bar's as a space.
         bestScore -= decoder.own
         var best: String? = null
@@ -1564,6 +1564,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     fun settled(lean: ThumbLean, typed: String, fixed: String?, taps: Taps?) {
         val now = now
         val lex = now.lexicon
+        // Measured in English only: on any other board it learns nothing, and what it held from an English board in
+        // the same field (the globe key) is let go, so that nothing is read by it there or back on English.
+        if (!now.board.english) { lean.newField(); return }
         lean.pass()
         if (taps == null || !TAPS || lex.cautious || lex.words.isEmpty() || taps.xs.size != typed.length) return
         val locale = now.board.locale
@@ -1623,6 +1626,17 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         return any
     }
+
+    /**
+     * [taps] as the decoder is to read them. By this thumb's lean ([ThumbLean], [Taps.leanX]) only on an English
+     * board with prediction on (a [scorer]): that is all it has been measured on (docs/versus.md, "Where this thumb
+     * lands"). Anywhere else the lean is taken off again, and every other language, and English with prediction
+     * off, reads each word exactly as it did before there was a lean. How tightly the thumb types ([Taps.tight]) is
+     * [spread]'s to keep or drop, and is kept here.
+     */
+    private fun aimed(now: Now, taps: Taps, scorer: Scorer?): Taps =
+        if ((taps.leanX == 0f && taps.leanY == 0f) || (now.board.english && scorer != null)) taps
+        else Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0f, 0f, taps.tight)
 
     /**
      * What letters no list has are worth against a reading of their taps ([byTaps], [rejoin]), in the Zipf units a
