@@ -1182,8 +1182,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val fresh = lower !in prefs.learnedWords
         if (!incognito) { prefs.learn(typed, locale); autocorrect.setLearned(prefs.learnedWords) }
         // The fix was not wanted: it is no lesson. Should another word be typed over this one next, the spelling put
-        // back was no word either, and is let go again ([retyped]).
-        if (mistakesOn()) mistakes.forget(lower, fixed)
+        // back was no word either, and is let go again ([retyped]). A fix that only gave the word a capital (a name's,
+        // or I) taught nothing to take back, and forgetting it would take away what is counted of the word's having
+        // stood as typed ([Mistakes.kept]): the undo says it did.
+        if (mistakesOn() && !fixed.equals(typed, ignoreCase = true)) mistakes.forget(lower, fixed)
         if (reporting()) Reports.undone(this, lower, fixed)
         if (fresh && !incognito && !keepSeparator) ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.taught = true
         scheduleRow()

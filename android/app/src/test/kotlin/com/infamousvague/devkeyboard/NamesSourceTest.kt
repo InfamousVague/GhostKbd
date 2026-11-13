@@ -79,6 +79,9 @@ class NamesSourceTest {
         val undo = body("private fun undoCorrection(ic: InputConnection, keepSeparator: Boolean): Boolean")
         assertTrue(undo.contains("editor.replaceBefore(tail, if (keepSeparator) typed + separator else typed, Kind.CORRECTION)"))
         assertTrue(undo.contains("if (!incognito) { prefs.learn(typed, locale); autocorrect.setLearned(prefs.learnedWords) }"))
+        // A fix that only gave a capital taught the mistakes nothing: there is nothing of it to forget, and the count
+        // of the word having stood as typed is not to go with it.
+        assertTrue(undo.contains("if (mistakesOn() && !fixed.equals(typed, ignoreCase = true)) mistakes.forget(lower, fixed)"))
         // A word given only its capital stood in the letters it was typed in.
         assertTrue(correct.contains("if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)"))
     }
