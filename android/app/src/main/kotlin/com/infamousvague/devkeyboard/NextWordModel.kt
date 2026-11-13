@@ -1048,10 +1048,10 @@ class Scorer(
 
     /**
      * One row of a starter table as it bears on every word, listed in it or not: each follower it lists with its
-     * share of what followed ([shares]), the share it leaves over ([left]), the most a word it does not list can
-     * have followed ([bound]) and how far it is believed ([trust], under 1). [rest] is the words it does not list
-     * as a share of all words: one, less the listed words' own shares (for a two-word row, less what the one-word
-     * row makes of them).
+     * share of what followed ([shares]), the share it leaves over ([left]), what a word it does not list is held
+     * to ([bound]: [UNLISTED] of the most it can have followed and stayed unlisted) and how far the row is believed
+     * ([trust], under 1). [rest] is the words it does not list as a share of all words: one, less the listed
+     * words' own shares (for a two-word row, less what the one-word row makes of them).
      */
     internal class Row(val shares: HashMap<String, Float>, val left: Float, val bound: Float, val trust: Float) {
         var rest = 1f
@@ -1288,7 +1288,23 @@ class Scorer(
         @JvmField var LIFT_WEIGHT = 40f
         @JvmField var LIFT_CAP = 6f
         /**
-         * [Here]'s numbers, PLACEHOLDER.
+         * [Here]'s numbers. Set on Tatoeba's held-out sentences below line 90,000 (tool/versus/likelihood.sh, on
+         * 2026-11-12), never on the sentences autocorrect is scored on; the keyboard never changes them. The figure
+         * gone by is what a written word was worth among all the listed words at its place, their shares there
+         * made to sum to one: 5.979 by frequency alone on lines 1 to 60,000, and 7.006 by these.
+         *
+         * [UNLISTED]: a word a row does not list is taken to have followed at most this share of what would have
+         * got it listed ([Row.bound]). At 0.2 the 60 commonest words are expected 5,082 times where no row lists
+         * them and were written there 5,391 times (3,716 at 0.1, 6,112 at 0.3, 7,734 at 0.5), and a word is worth
+         * 7.006 (7.004, 7.005, 7.000). On lines 60,001 to 90,000, which chose nothing: expected 3,978 times, written
+         * 3,990, and a word worth 6.735 for 5.921 by frequency.
+         *
+         * [PRIOR_HERE_ONE] and [PRIOR_HERE_TWO]: a one-word and a two-word row seen n times are believed n in n plus
+         * this ([Row.trust]). Neither is a sensitive number where every row says how often it was seen: 4 and 60
+         * for the first give 7.006 and 7.005, and for the second 7.008 and 6.998. Both are what [PRIOR_TABLE_TWO] is.
+         *
+         * [SEEN_LEAST]: how many sightings get a follower listed (tool/next_words.py's minimum for a language of
+         * 300,000 sentences or more).
          */
         @JvmField var UNLISTED = 0.2f
         @JvmField var PRIOR_HERE_ONE = 15f

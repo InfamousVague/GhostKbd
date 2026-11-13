@@ -244,6 +244,125 @@ landed on the bar (" egim" for "begin": the tap comes after the last word's own 
 it), and scraps that were mended at the bar's tap into a word too good to give up ("eome" made "some", for
 "women").
 
+### A word weighed by its place in the sentence (made 2026-11-12)
+
+A reading of a word's taps was worth its word's frequency plus a lift from the words before, capped at 1.5, and a
+common typed word gave way only to a reading worth 1.6 more. So the words before could choose between two good
+readings and could never say that a word does not come here: "forgot about is", "need to rat more" and "I'd tell
+you of I knew" stood, is, rat and of being common words. 23 of the 199 words still lost to Gboard were slips that
+spell a common word, 9 spelled a rare one ("yom" for Tom, five times), and in others a wrong reading was put first.
+
+`Scorer.Here` (NextWordModel.kt) now says how likely a word is after the one or two words before it, by the starter
+tables. A follower a row lists has its share of what followed. A word the row does not list has its part of what
+the row leaves over, by its own frequency, and is held to a fifth of the most it could have followed and stayed
+unlisted (`UNLISTED`). A row is believed as far as it was seen, and the word's own frequency for the rest. The
+person's own counts lift a word as they do in the row above the keys, which is itself unchanged.
+`Autocorrect.byTaps`, `rejoin` and the second of two words run together weigh every reading by it, and the typed
+word too (`atPlace`): a word no row bears on is worth its frequency exactly, a listed one more ("your" after "with"
+6.94 for 6.53), and a common word in a place it all but never stands less ("of" after "tell you" 6.09 for 7.4), so
+that it is cheap to replace. The words a row lists are each held up against the taps, since the search goes by
+frequency and would pass over a word that is rare and likely here. The place's say counts 0.7 times
+(`HERE_WEIGHT`), and at a place a common typed word gives way to a reading worth 1.0 more (`HERE_COMMON`). Where no
+table has a row for the words before, where next-word prediction is off, and in every language but English, a word
+is weighed exactly as it was.
+
+| | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the run's 900 typings, before | 2.5% | 5.4% | 10.9% | 6.3% | | |
+| after | 1.9% | 4.6% | 9.6% | 5.3% | 60 | 12 |
+| the 900 unseen typings, before | 3.3% | 5.0% | 12.2% | 6.8% | | |
+| after | 2.6% | 4.2% | 10.9% | 5.9% | 80 | 20 |
+
+That is 326 words wrong of 5,205 to 278, and 437 of 6,408 to 377. Of the words Gboard got and this did not, 166
+are left where there were 201, and 87 go the other way where 74 did. By what stood in the decoder's way
+(`fixtures.py --still`), 158 of the list's 326 are still lost where 199 were: a letter left out, doubled or swapped
+46 to 32, more letters off their keys than the search will change 18 to 9, letters that spell a rare word 9 to 1,
+letters that spell a common word 23 to 18, no word typed and the word meant within reach 55 to 51, and the space's
+42 to 41. On 12,000 of the typing bench's own words, by its three thumbs (careful, normal, sloppy):
+
+| | Words right | Right words spoiled in 1000 | Slips that spell a word, mended | Joins fixed | Right words no list has, spoiled |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| before | 96.41 / 92.34 / 85.65% | 1.22 / 1.48 / 1.65 | 290 of 426 / 507 of 715 / 761 of 1,082 | 60.0 / 61.5 / 56.4% | 1.5 / 4.3 / 7.1% |
+| after | 96.87 / 93.19 / 87.24% | 1.93 / 1.75 / 2.07 | 333 / 560 / 825 | 62.2 / 64.1 / 59.4% | 2.3 / 3.0 / 6.0% |
+
+**What it costs.** A right word that is rare in its place, and a slip away from a word the place expects, is
+changed more often: 42 right words spoiled where there were 31, in the bench's 36,000 typed (nest to best, vase to
+base and gadded to added, each by all three thumbs; hunch to bunch; done to some). The bench's own measure, words
+right less four for every right word spoiled, goes from 93.76 to 94.60. With the place counted in full
+(`HERE_WEIGHT` 1) it spoils 3.04, 2.83 and 4.14 in a thousand and that measure is 94.30: the tables are surer of
+themselves than they have reason to be. The weight was set where the measure peaked, with the two sets of
+sentences beside it (94.53 at 0.8, 94.59 at 0.7, 94.50 at 0.6, before a join's second word was weighed as it now
+is; `Autocorrect.HERE_WEIGHT` has the table).
+
+**English's one-word rows now say how often their word was seen** (`=n`, as two-word rows did), because the shares
+cannot. Three sightings get a follower listed, so three over a row's least share should be the count; but the last
+followers of most rows are names the table's maker scaled down ("taught ... Tom:8 Layla:1"), and a row of one
+follower says nothing. That guess is within a quarter of the count for 72 in 100 of the 18,171 rows, more than
+twice it for 6 (7.8% of all places) and under half it for 9. With it "it" after "taught" was held to half of one in
+ten thousand. `tool/next_words.py` writes the counts for English alone (`SEEN_ONE`), the table is 78,969 bytes
+longer (30,507 compressed), and a keyboard from before skips the entry. Every other language's file is as it was,
+and its words are weighed as before until its table is made again: `Scorer.Here` goes by no row that does not say
+how often it was seen. Made again, English's file also took in ten two-word rows after a sentence's start that the
+tokenizer has counted otherwise since a picture character began a sentence (`next_words.py --check en` said
+DIFFERENT before this, and says same now). The row above the keys is as it was: `tool/next_word_eval.sh` gives the
+same 20.0% for its first word, 33.8% for its three and 50.2% of key presses saved.
+
+**The smoothing was set on held-out likelihood, not on these sentences** (`tool/versus/likelihood.sh`: Tatoeba's
+held-out lines 1 to 60,000, then lines 60,001 to 90,000 once, which chose nothing). What is measured is what a
+written word was worth among all the listed words at its place, their shares there made to sum to one, in the
+frequency's own units: 5.979 by frequency alone and 7.006 by `Scorer.Here` on the first lines, 5.921 and 6.735 on
+the later ones. `UNLISTED` 0.2 is where the 60 commonest words are expected about as often as they were written in
+places no row lists them (5,082 times against 5,391; 3,716 at 0.1, 7,734 at 0.5; on the later lines 3,978 against
+3,990). How many sightings a row's belief is weighed against (`PRIOR_HERE_ONE`, `PRIOR_HERE_TWO`, 15 each) hardly
+matters now that every row says how often it was seen: 4 and 60 give 7.006 and 7.005 for the first, 7.008 and
+6.998 for the second.
+
+**How much of this is Tatoeba's.** The tables were counted from Tatoeba and every sentence above is Tatoeba's, so
+the place looks better here than it will in a person's own writing. Two measures of that. 14 of the 60 words mended
+on the run's sentences are "Tom" (7 of the 80 on the unseen ones), which the tables expect at the start of a
+sentence and few people's messages do. And `tool/versus/elsewhere.py` cuts sentences from this repository's own
+documents, 287 that the thumb can type (2,639 words), plain prose about a keyboard with its own words in it:
+
+| 287 sentences that are not Tatoeba's | careful | leaning | sloppy | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| the place not read (`--set Autocorrect.HERE=false`) | 3.1% | 7.3% | 14.1% | | |
+| as the tree is | 2.8% | 6.3% | 13.6% | 83 | 38 |
+
+So away from home the place still mends about twice what it breaks, and is worth about three fifths of what it is
+on Tatoeba's unseen sentences: 0.57 of a point of words wrong there (645 of 7,917 to 600), 0.94 here. It spoils 17
+right words there where 9 were. These are documents in one voice, not messages: what they say is that the gain is
+not all Tatoeba's, not how large it is in a person's own writing.
+
+**Why a word was left or changed.** `tool/versus/why.py` types the run again and prints what `byTaps` weighed for
+every word left wrong (`--lost`: those Gboard got; `--typed`, `--meant`: a pattern; `--set unseen`): the typed word
+and what a reading needs, then each reading with its frequency, what it is worth at its place, what its slips cost
+and what that leaves, and the word meant whether or not it was among them. `Autocorrect.TRACE` is what tells it,
+and on a phone nobody listens.
+
+    sloppy/90152  meant me, typed mr, stands mr  WRONG   | May I ask you to do me a favour?
+          mr after "May I ask you to do": typed mr: listed at 5.69 (common), worth 5.2430506 as it stands here; a reading needs 6.2430506
+        meant me: frequency 6.48, worth 6.514906 (a row lists it), slips 0.27622107   (not among the readings)
+        chosen: none, it stands
+
+**What the words before cannot say.** 18 of the 23 slips that spell a common word still stand, and `why.py` shows
+that for most of them the words before do not decide: "is" and "us" are worth the same after "forgot about" (6.85
+and 6.82), "ate" is listed after "we" and its t was tapped on its key, "if" after "tell you" is worth 6.53 where
+"of" is worth 6.09. What tells them apart is the word after ("of I knew", "ate going to", "top expensive"), which
+the decoder never looks at; `DevKeyboardService` already keeps the last word with its taps until the next one ends,
+for `rejoin`, and that is where a second look would be taken. Also not done: a name the tables do not list is
+worth only its frequency beside a word the place expects; a slip in a British spelling is mended to the American
+one where only that follows in the table ("neighbiur" to neighbor); and a word mended wrongly at a space misleads
+what comes after it ("ea t" for "want": "ea" was read "was" at the bar's tap, and `rejoin` holds what stands at its
+full worth, with nothing off for what that reading's slips cost).
+
+**Tried and not kept**, each on the bench and both sets of sentences: a bound on how unlike its typed letters a
+word the rows list may be read, counted in letters (the bench's measure 94.27 for 94.53 at weight 0.8, seen 5.84%
+for 5.42%) and by what the slips cost (94.19, 5.73%), which spare a few right words no list has and lose the sloppy
+thumb's words; the place counted in full up to a lift of 1.5 or 1.0 and by half beyond (94.46 and 94.44 for
+94.59); a common typed word never read with a letter missed or added (`LISTED_EDITS` off: 94.34, seen 5.53%,
+unseen 6.09%); the bar for a common word at 1.3 (94.44, 5.51%, 5.99%, with 1.83 / 1.48 / 1.86 spoiled) and at 0.8
+(94.58, 5.34%, 5.88%, with 2.13 / 2.02 / 2.69).
+
 ### What the thumb had done
 
 The 326 again, by the slip (`score.py`'s `category`):

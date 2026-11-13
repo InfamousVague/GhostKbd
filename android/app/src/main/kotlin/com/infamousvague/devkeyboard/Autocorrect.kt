@@ -691,7 +691,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * Every reading is worth what its word is worth at this place in the sentence, less what its slips cost. Where
      * a starter table has a row for the words before, a word is worth how likely it is after them ([atPlace],
      * [Scorer.Here]): its frequency where no row bears on it, more where a row lists it ("you" after "thank"), and
-     * less where it is a common word the rows there do not list ("is" after "about"). Where no table has a row, or
+     * less where it is a common word the rows there do not list ("of" after "tell you"). Where no table has a row, or
      * prediction is off, it is worth its frequency plus what the words before lift it by (at most [CONTEXT_PICK]),
      * as it was before the place was read at all. The typed word is one of the readings, with no slips, and is
      * held the same way: a common word in a place it all but never stands is cheap to replace, and one the place
@@ -838,8 +838,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val joinBar = when { known == null -> minOf(bar, JOIN_BAR); here == null -> known + MARGIN_RARE; else -> stood + MARGIN_RARE }
             val sorted = lex.sorted
             val zipfs = lex.sortedZipf
-            // What a second word is worth after a first. Where there is a place to go by, how likely it is after
-            // that first word, there ([Scorer.after]: the one reckoning for a reading and for a join's second word).
+            // What a second word is worth after a first. Where there is a place to go by, what any reading is worth
+            // at its place ([atPlace]), the place being the one after that first word ([Scorer.after]); and
+            // [JOIN_UNSEEN] less than its frequency where no row there bears on it, as a pair the tables never saw.
             val afters = HashMap<Int, Scorer.Here>()
             val none = HashSet<Int>()
             fun after(a: Int): Scorer.Here? {
@@ -856,7 +857,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             fun second(a: Int, b: Int): Float {
                 val z = zipfs[b]
                 if (sorted[b].length < 2 && z < SwipeDecoder.ONE_LETTER) return Float.NEGATIVE_INFINITY
-                if (here != null) return after(a)?.let { z + HERE_WEIGHT * (it.worth(sorted[b], z) - z) } ?: (z - JOIN_UNSEEN)
+                if (here != null) return after(a)?.let { if (it.plain(sorted[b], z)) z - JOIN_UNSEEN else atPlace(it, sorted[b], z) } ?: (z - JOIN_UNSEEN)
                 val row = lex.follows(sorted[a])
                 val share = row?.get(sorted[b]) ?: 0f
                 if (share > 0f) return 9f + kotlin.math.log10(Math.pow(10.0, (z - 9f).toDouble()) + share).toFloat()
@@ -942,7 +943,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // a slip in it ("u" for "I" after "may") is still to be mended.
         val then = if (second.isEmpty()) 0f else alone(second).let { z ->
             val after = if (here != null) scorer!!.after(lex.contractions[stood] ?: stood) { words[it] } else null
-            if (after == null) z else second.lowercase(locale).let { l -> maxOf(z, z + HERE_WEIGHT * (after.worth(lex.contractions[l] ?: l, z) - z)) }
+            if (after == null) z else second.lowercase(locale).let { l -> maxOf(z, atPlace(after, lex.contractions[l] ?: l, z)) }
         }
         val asItStands = if (second.isEmpty()) one else one + then - 9f
         val decoder = tapDecoder(now, taps)
@@ -1328,6 +1329,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          *     0.7      94.59     5.40%        5.91%          1.93  1.61  2.07
          *     0.6      94.50     5.44%        5.95%          1.83  1.48  2.07
          *     off      93.76     6.26%        6.82%          1.22  1.48  1.65
+         *
+         * The rows are of the tree before a join's second word was weighed by [atPlace] as well; with that, 0.7
+         * gives 94.60, 5.34% and 5.88%, with 1.93, 1.75 and 2.07. Counting the place in full up to a lift of 1.5
+         * or of 1.0 and by half beyond was tried in its stead, and gives 94.46 and 94.44.
          */
         @JvmField var HERE_WEIGHT = 0.7f
         /**
@@ -1347,9 +1352,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var HERE_COMMON = 1.0f
         /**
          * A common typed word may be read as a word the rows list at its place with a letter missed or added too,
-         * where [TapDecoder.search] reads a common word by slips of the thumb alone: "he" for "the", "of" for
-         * "off", and also "too" for "to". Off, by [HERE_WEIGHT]'s measures: 94.34, 5.53% and 6.09% for 94.59,
-         * 5.40% and 5.91%, with 1.83 / 1.61 / 2.07 right words spoiled in a thousand for 1.93 / 1.61 / 2.07.
+         * where [TapDecoder.search] reads a common word by slips of the thumb alone: "he" typed where "the" stands
+         * is mended by it, and "too" is now and then made "to". Off, by [HERE_WEIGHT]'s measures: 94.34, 5.53% and
+         * 6.09% for 94.59, 5.40% and 5.91%, with 1.83 / 1.61 / 2.07 right words spoiled in a thousand for 1.93 /
+         * 1.61 / 2.07.
          */
         @JvmField var LISTED_EDITS = true
         /** The most the slips may cost that turn one listed word into another. */
@@ -1363,7 +1369,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var JOIN_UNSEEN = 0.5f
         /**
          * A first word whose row of followers is this long has had its likely followers listed: one it does not list
-         * follows it [JOIN_UNLISTED] as often as the least it does, at most.
+         * follows it [JOIN_UNLISTED] as often as the least it does, at most. This is the bound where there is no
+         * place to go by; at a place it is [Scorer.UNLISTED], for a join's second word as for any reading.
          */
         @JvmField var JOIN_UNLISTED = 0.5f
         private const val JOIN_FULL_ROW = 12
