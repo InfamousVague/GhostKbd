@@ -340,10 +340,13 @@ fun taps(root: File) {
         val context = typeAll(kb, sentences, noise, seed, oov) { t, before -> kb.ac.correct(t.text, kb.scorer(before)) }
         println(context.line("${noise.name}: with context"))
         val t0 = System.nanoTime()
+        // Processor time as well: the Mac is shared, and the clock's time counts what other work takes of it.
+        val cpu = java.lang.management.ManagementFactory.getThreadMXBean()
+        val c0 = cpu.currentThreadCpuTime
         var calls = 0
         val again: (Typed, String, String, String) -> String? = { t, stood, next, before -> kb.ac.again(t.text, stood, next, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
         val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
-        println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1)))
+        println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word, %.0f µs of processor time)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1), (cpu.currentThreadCpuTime - c0) / 1000.0 / calls.coerceAtLeast(1)))
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }
     }
