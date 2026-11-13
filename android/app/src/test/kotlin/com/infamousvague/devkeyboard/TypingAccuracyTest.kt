@@ -177,6 +177,24 @@ class TypingAccuracyTest {
         assertNull(ac.rejoin("", "Thr", "", null, cut("", "thr", 'b', 0.07f), stopped = true))
     }
 
+    @Test fun aSecondSpaceAfterASentenceLeavesTheNextWordAlone() {
+        // Two spaces after a full stop (or a newline and a space) arm DevKeyboardService's Cut with no first scrap,
+        // so the word typed next is offered to rejoin with the second space's tap as its first letter. A word that
+        // stands is not made a longer one: "ice" is not "nice", "all" not "ball". A second space is tapped where the
+        // first was, well inside the bar; from a third of the way down nothing changes. On the bar's very top edge,
+        // where a letter of the bottom row lands, a word far rarer than the longer one gives way to it ("ow" under
+        // the n is "now", "ore" under the m "more"), and no common one does.
+        for (word in listOf("ice", "ear", "ever", "one", "all", "an", "at", "and", "ow", "ore", "old", "it", "a", "us", "is")) {
+            for (under in "cvbnm") {
+                for (down in floatArrayOf(0.07f, 0.3f, 0.5f, 0.8f)) {
+                    val got = ac.rejoin("", word, "", null, cut("", word, under, down))
+                    val edge = down < 0.1f && (word == "ow" && under == 'n' || word == "ore" && under == 'm')
+                    if (edge) assertEquals("$word under $under at $down", "$under$word", got) else assertNull("$word under $under at $down", got)
+                }
+            }
+        }
+    }
+
     @Test fun twoTapsOnTheBarThatLandedApartAreNoDoubleTap() {
         // "i" and two spaces is "I." where the two were one double tap, as it always was.
         assertNull(ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f)))

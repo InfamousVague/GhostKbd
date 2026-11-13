@@ -285,6 +285,17 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     private fun together(a: Touch?, b: Touch?): Boolean =
         a == null || b == null || kotlin.math.hypot(a.x - b.x, a.y - b.y) < Autocorrect.REJOIN_APART * board.tapKeys.second
     private var cut: Cut? = null
+    /** DevKeyboardService.CUT_MARKS: the marks after a space that say the space may have been the word's last letter. */
+    private val cutMarks = ".,!?;:"
+
+    /**
+     * DevKeyboardService.rejoined's check on what stands before the scraps: the first scrap (or, with none, the word
+     * after [was]) must start a word of its own. [standing] is how many characters at the end of the text the fix replaces.
+     */
+    private fun headFree(standing: Int, was: String = ""): Boolean {
+        val head = text.substring(0, text.length - standing) + was
+        return head.isEmpty() || !(head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")
+    }
     private var spaceTouch: Touch? = null
     private val joiners = decoder.state.joiners
     private val locale = decoder.state.locale
@@ -380,7 +391,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             val c = cut
             cut = null
             val doubled = together(c?.tap, spaceTouch)
-            if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
+            if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ") && headFree(c.stood.length + 1)) {
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()), doubled = doubled)
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
@@ -430,7 +441,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             // The bar's tap straight after a space, or before anything: it ends no word, and may be the next one's first letter.
             if (separator == " " && (before.isEmpty() || before.last() == ' ' || before.last() == '\n')) spaceTouch?.let { cut = Cut("", "", emptyList(), it) }
             // A closing mark straight after the space that ended a word: the space may have been that word's last letter.
-            if (separator != " " && c != null && c.typed.isNotEmpty() && c.touches.size == c.typed.length && !offLetters && text.endsWith(c.stood + c.gap)) {
+            if (separator.length == 1 && separator[0] in cutMarks && c != null && c.typed.isNotEmpty() && c.touches.size == c.typed.length && !offLetters && text.endsWith(c.stood + c.gap) && headFree(c.stood.length + c.gap.length)) {
                 val standing = c.stood.length + c.gap.length
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(standing), tapsAcross(c.touches, c.tap, emptyList()), doubled = separator[0] !in ".,")
                 if (whole != null) {
@@ -448,7 +459,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             if (prev.isLetterOrDigit() || prev in "@#/._-\\:\$`") return false
         }
         // The word before this one ended at a tap on the bar that may have been a letter of one word, this its end.
-        if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + c.gap + word)) {
+        if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + c.gap + word) && headFree(c.stood.length + c.gap.length + word.length, c.was)) {
             val standing = c.stood.length + c.gap.length + word.length
             val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(standing, c.was), tapsAcross(c.touches, c.tap, wordTouches), c.was.isNotEmpty(), c.doubled, if (c.typed.isEmpty()) scorerAt(0) else null)
             if (whole != null) {
