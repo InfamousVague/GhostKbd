@@ -175,6 +175,69 @@ class ThumbLeanTest {
         assertEquals(2f, lean.taps, 0f)
     }
 
+    // --- how tightly it types ([ThumbLean.tight]) ---------------------------------------------------------------------
+
+    @Test fun aFieldBeginsWithSpatialAsItStands() {
+        val lean = ThumbLean()
+        assertEquals(1f, lean.tight, 0f)
+        assertEquals(1f, lean.read(tapped("hello", 0f, 0f)).tight, 0f)
+        teach(lean, WORDS, 0f, 0f, 0.36f, Random(5))
+        assertTrue(lean.tight < 1f)
+        lean.newField()
+        assertEquals(1f, lean.tight, 0f)
+    }
+
+    @Test fun aScatteredThumbIsReadLooselyAndACarefulOneTightly() {
+        // Twenty fields of a sentence each: a thumb that scatters 0.36 of a key is read below SPATIAL by the
+        // sentence's end, never below the floor; one that scatters 0.16 above it, never above the ceiling.
+        for (seed in 1L..20L) {
+            val sloppy = ThumbLean()
+            teach(sloppy, WORDS, 0f, 0f, 0.36f, Random(seed))
+            assertTrue("sloppy ${sloppy.tight}", sloppy.tight < 0.9f)
+            assertTrue(sloppy.tight * TapDecoder.SPATIAL >= ThumbLean.SPREAD_LOW - 1e-4f)
+            val careful = ThumbLean()
+            teach(careful, WORDS, 0.24f, 0.2f, 0.16f, Random(seed))
+            assertTrue("careful ${careful.tight}", careful.tight > 1f)
+            assertTrue(careful.tight * TapDecoder.SPATIAL <= ThumbLean.SPREAD_HIGH + 1e-4f)
+            // Read with it: the same taps, the lean and the spread on them.
+            val taps = tapped("hello", 0f, 0f)
+            assertEquals(sloppy.tight, sloppy.read(taps).tight, 0f)
+            assertSame(taps.xs, sloppy.read(taps).xs)
+        }
+    }
+
+    @Test fun oneWildTapDoesNotMakeACarefulThumbLoose() {
+        // A careful thumb's sentence, then a word with one tap 0.9 of a key off (still within REACH, so it counts).
+        val lean = ThumbLean()
+        teach(lean, WORDS, 0f, 0f, 0.16f, Random(6))
+        val before = lean.tight
+        val taps = tapped("jumps", 0f, 0f).also { it.xs[2] += 0.9f * W }
+        lean.learn("jumps".toCharArray(), taps)
+        assertTrue("$before then ${lean.tight}", lean.tight >= 1f)
+        // And a fix taken back takes its spread with it.
+        lean.unlearn()
+        assertEquals(before, lean.tight, 0f)
+    }
+
+    @Test fun withTheSpreadOffTapsAreReadWithSpatialAsItStands() {
+        val lean = ThumbLean()
+        teach(lean, WORDS, 0f, 0f, 0.36f, Random(7))
+        val was = ThumbLean.SPREAD_ON
+        try {
+            ThumbLean.SPREAD_ON = false
+            assertEquals(1f, lean.read(tapped("hello", 0f, 0f)).tight, 0f)
+        } finally { ThumbLean.SPREAD_ON = was }
+    }
+
+    @Test fun withNoNextWordModelTheSpreadIsNotRead() {
+        // Prediction off (no scorer): every word is read as it was before there was a spread, however loose.
+        for (word in listOf("thw", "teh", "wirk", "inthe", "yom", "ghostkbd", "definately", "mapbox")) {
+            val taps = tapped(word, 0.1f, 0.1f)
+            val loose = Taps(taps.xs, taps.ys, taps.keys, taps.keyW, taps.space, 0f, 0f, 0.4f)
+            assertEquals(word, ac.correct(word, null, taps), ac.correct(word, null, loose))
+        }
+    }
+
     // --- which words teach it -----------------------------------------------------------------------------------------
 
     @Test fun onlyAWordThatCanBeTrustedTeaches() {

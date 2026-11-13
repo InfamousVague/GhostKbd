@@ -50,7 +50,12 @@ object Geo {
 /** How a simulated thumb misses: Gaussian around the key's middle, a share of wilder taps, and slips of order. */
 class Noise(val name: String, val sx: Float, val sy: Float, val wild: Float = 0.06f, val omit: Float = 0.004f, val double: Float = 0.003f, val swap: Float = 0.004f, val noSpace: Float = 0.004f)
 
-val NOISES = listOf(
+/**
+ * -Dthumbs=0.15:0.11,0.42:0.31 puts thumbs of other scatters (across:down, in key widths and heights) in place of these
+ * three, named by their scatter across: what tool/versus's spread estimate (ThumbLean.tight) is held to beside the
+ * thumbs it was set on (docs/versus.md, "How tightly this thumb types").
+ */
+val NOISES = System.getProperty("thumbs")?.split(',')?.map { t -> t.split(':').let { Noise("sx" + it[0], it[0].toFloat(), it[1].toFloat()) } } ?: listOf(
     Noise("careful", 0.20f, 0.15f),
     Noise("normal", 0.27f, 0.20f),
     Noise("sloppy", 0.34f, 0.25f),
