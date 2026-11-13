@@ -37,8 +37,9 @@
 // sentences of a versus run (tool/versus/whatif.py, fixtures.py). Nothing in the app is changed by it.
 //
 // A line of taps is a text field, and where the thumb is landing (ThumbLean) is begun at nothing in each, as the
-// service begins it. JAVA_OPTS=-Dlean.log=1 says on stderr, for every word, the lean it was read by and the
-// estimate once it was settled; `--set ThumbLean.KEEP=true` carries one estimate through all of a thumb's lines.
+// service begins it. JAVA_OPTS=-Dlean.log=1 says on stderr each line's id and then, for every word of it, the lean
+// it was read by and the estimate once it was settled; `--set ThumbLean.KEEP=true` carries one estimate through all
+// of a thumb's lines.
 
 import com.infamousvague.devkeyboard.Autocorrect
 import com.infamousvague.devkeyboard.Key
@@ -447,7 +448,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val fixed = decoder.ac.correct(word, scorer, taps)
         // The word is settled: its taps say where the thumb is landing in this field.
         decoder.ac.settled(lean, word, fixed, taps)
-        if (LEAN_LOG) System.err.println("LEAN\t$word\t${fixed ?: "-"}\tread by\t%.3f\t%.3f\tthen\t%.3f\t%.3f\tof %.0f taps".format(taps?.leanX ?: 0f, taps?.leanY ?: 0f, lean.x, lean.y, lean.taps))
+        if (LEAN_LOG) System.err.println("LEAN\t$word\t${fixed ?: "-"}\tread by\t${taps?.leanX ?: 0f}\t${taps?.leanY ?: 0f}\tthen\t${lean.x}\t${lean.y}\tof ${lean.taps} taps")
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch
         if (separator == " " && bar != null) cut = Cut(word, fixed ?: word, wordTouches.toList(), bar)
@@ -459,7 +460,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     }
 }
 
-/** -Dlean.log: every settled word on stderr with the lean it was read by and the estimate once it was settled. */
+/** -Dlean.log: on stderr, each line's id as it begins, then every settled word with the lean it was read by and the estimate once it was settled. */
 val LEAN_LOG = System.getProperty("lean.log") != null
 
 fun json(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
@@ -549,6 +550,7 @@ fun replay(root: File, all: List<String>) {
             // ThumbLean.KEEP set (it is not, and is there to be measured) is one typist's lean carried from one
             // field to the next: an id is "<thumb>/<line>", and a thumb is a typist.
             val lean = if (ThumbLean.KEEP) leans.getOrPut(id.substringBefore('/')) { ThumbLean() } else ThumbLean()
+            if (LEAN_LOG) System.err.println("LEAN\t$id")
             val typist = Typist(b, decoder, marksWithoutTaps = without, lean = lean)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {

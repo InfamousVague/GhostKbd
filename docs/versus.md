@@ -331,6 +331,15 @@ for the next; an estimate that lives and dies with a field keeps to that, and ea
 field (so the replay and the bench begin it again at every one, as the phone does at every field entered). What a
 thumb is doing in this field is also the only thing it is an estimate of.
 
+**Where the estimate stands** (`tool/versus/leanlog.py`, from the replay's own log of every word). The first word
+of every sentence is read by no lean: 0 of 300 for each thumb on each set (and 299 of 300 with `KEEP`, so the
+count can fail). At a sentence's end the leaning thumb, whose lean is 0.24 of a key across and 0.229 down, is
+taken to lean 0.205 across and 0.199 down on the seen set (spread 0.066 and 0.062) and 0.222 and 0.207 on the
+unseen one (0.054 both ways): over a tenth of a key in 287 and 294 of its 300 sentences. The careful thumb is
+given over a tenth of a key in 1 sentence of 300 and 2 of 300 (0.15 and 0.25 at the most), the sloppy thumb in 9
+and 6 (0.27 and 0.38 at the most; in nine sentences of ten under 0.05 and 0.02). That is the estimate wandering,
+and what the sloppy thumb's broken words below come of.
+
 **The typing bench** (12,000 words; its three thumbs as they are, and all three given a lean with `-Dlean=`).
 Words right:
 
