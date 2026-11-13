@@ -98,6 +98,8 @@ JOINERS = {"uk": "'", "he": "'", "fa": "‌", "ur": "‌", "ca": "'·",
 ENDS = {"el": ";;"}
 
 START = "^"
+#: A sentence's end, as a row's context: its followers are the words a sentence ends in (END_ONE, below).
+END = "$"
 #: What starts a sentence everywhere (NextWordText.SENTENCE_ENDS): . ! ? … Urdu's full stop, Arabic's question mark.
 SENTENCE_ENDS = ".!?…۔؟\n"
 #: Looked through, as if it were a space (NextWordText.THROUGH): commas, semicolons, colons, quotes, brackets,
@@ -132,6 +134,16 @@ TRIPLE_FOLLOWERS = 24
 #: without the counts as it did before (NgramTable.counted). Put a language here only with a measure of what that
 #: does to its typing: English's was tool/typing_bench.sh and tool/versus.
 SEEN_ONE = {"en"}
+#: The languages whose table has a row for a sentence's end, "$" (2026-11-13: Autocorrect reads the last word of a
+#: sentence again as the mark that ends it is typed, weighed by how likely each reading is to end a sentence). Each
+#: word seen at least END_LEAST times in the counted sentences is listed with how often, in ten-thousandths of its
+#: uses, a sentence ended straight after it, drawn toward the rate for every word by END_PRIOR uses (a word seen 20
+#: times and never last is not certain never to end one); the row opens with "=n", how many words were counted, so
+#: with the "^" row's count (the sentences) the rate for every word is known. Only the counted sentences: the
+#: held-out ones are never in it. A keyboard from before it reads "$" as a row no word ever looks up.
+END_ONE = {"en"}
+END_LEAST = 20
+END_PRIOR = 20
 #: Where held-out sentences are written for tool/next_word_eval.sh (ignored by git; never in the app).
 EVAL = os.path.join(ROOT, "build", "ngram-eval")
 MAX_BYTES = 32_000_000
@@ -395,6 +407,7 @@ def count(lang):
     triples = collections.Counter()    # (two-word context, word): "how are" + "you"
     starts = collections.Counter()     # how many sentences started with a word, listed or not
     unigrams = collections.Counter()
+    ends = collections.Counter()       # how often a sentence ended straight after a word (END_ONE)
     casing = collections.defaultdict(collections.Counter)
     held = []                          # (two-word context or None, context, word, raw) events of the held-out sentences
     users = set()
@@ -419,11 +432,13 @@ def count(lang):
         n += 1
         read[iso] += 1
         out = n % HOLD_OUT == 0
-        words, _ = walk(normalise(text, lang), classes, lang)
+        norm = normalise(text, lang)
+        words, _ = walk(norm, classes, lang)
+        cls = norm.translate(classes) if lang in END_ONE and not out else ""
         before_listed = False   # the word before this one is in the list
         context = None          # the context of the word before this one, as worked out for it
         counted = False
-        for prev2, prev, raw, _, _, ok in words:
+        for prev2, prev, raw, _, end, ok in words:
             if prev == START and not out:
                 starts[START] += 1
             # walk()'s own context, except that a word the list lacks ends it as a symbol would.
@@ -440,6 +455,12 @@ def count(lang):
                     held.append((context2, context, word, raw))
                 continue
             unigrams[word] += 1
+            if cls:
+                # A sentence ends straight after it: nothing but spaces and what is looked through, then a mark that
+                # ends a sentence or the sentence's own end.
+                rest = cls[end:].lstrip(" ")
+                if not rest or rest[0] == "e":
+                    ends[word] += 1
             if context is None:
                 continue
             counted = True
@@ -453,7 +474,7 @@ def count(lang):
             users.add(user)
     if n == 0:
         return None
-    return {"lang": lang, "vocab": vocab, "pairs": pairs, "triples": triples, "starts": starts[START], "unigrams": unigrams, "casing": casing,
+    return {"lang": lang, "vocab": vocab, "pairs": pairs, "triples": triples, "starts": starts[START], "unigrams": unigrams, "ends": ends, "casing": casing,
             "held": held, "users": users, "read": dict(read), "sentences": n, "listed": {w: p for w, p in known.items() if p}}
 
 
@@ -515,6 +536,19 @@ def build(c):
     rows = []
     for context in sorted(by_context, key=lambda k: (k != START, k)):
         rows.append((context, seen(context) if lang in SEEN_ONE else None, [(display(w), max(1, min(9999, round(weight * 10_000 / seen(context))))) for w, weight in by_context[context]]))
+
+    # A sentence's end: each word's rate of ending one, drawn toward the rate for every word (END_ONE).
+    if lang in END_ONE:
+        words_counted = sum(unigrams.values())
+        rate = c["starts"] / words_counted
+        end_row = []
+        for word, n in sorted(unigrams.items(), key=lambda kv: (-kv[1], kv[0])):
+            if n < END_LEAST or word in bad:
+                continue
+            p = (c["ends"].get(word, 0) + END_PRIOR * rate) / (n + END_PRIOR)
+            end_row.append((display(word), max(1, min(9999, round(p * 10_000)))))
+        if end_row:
+            rows.insert(1 if rows and rows[0][0] == START else 0, (END, words_counted, end_row))
 
     # Two-word rows. Seen is how often the two words stood together in the counted sentences: the pair's own count.
     def seen2(context2):

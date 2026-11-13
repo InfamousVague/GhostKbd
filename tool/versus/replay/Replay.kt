@@ -528,8 +528,14 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
         val taps = tapsFor(word)
         // The field capitalises sentences and the keyboard's own capitals are on: a name has its capital (namesWanted).
-        val fixed = decoder.ac.correct(word, scorer, taps, names)
+        var fixed = decoder.ac.correct(word, scorer, taps, names)
         asked?.invoke(word, before.dropLast(word.length), fixed)
+        // A closing mark: the word it ends read again, by how likely each reading is to end a sentence (Autocorrect.AGAIN_END).
+        if (Autocorrect.AGAIN_END && separator.length == 1 && separator[0] in ".?!") {
+            val ended = decoder.ac.again(word, fixed ?: word, NextWordText.END, scorer, tapsFor(word, leaned = false))
+            looked?.invoke(word, fixed ?: word, before.dropLast(word.length).takeLast(96), NextWordText.END, ended)
+            if (ended != null) fixed = ended.takeIf { it != word }
+        }
         val stands = fixed ?: word
         // The word is settled: its taps say where the thumb is landing in this field.
         decoder.ac.settled(lean, word, fixed, taps)

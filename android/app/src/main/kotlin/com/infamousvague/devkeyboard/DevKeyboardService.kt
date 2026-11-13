@@ -1145,7 +1145,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // keyboards not to) only this keeps a capital from coming straight back at the space. (A fix that changed a
         // letter is caught above, by what stood here; a capital leaves the letters as they were typed.)
         val takenBack = prior != null && prior.undone && prior.typed == lower
-        val found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)
+        var found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)
+        // A closing mark ends the sentence: the word it ends is read again by how likely each reading is to end one
+        // ("forgot about is." is "forgot about us."; Autocorrect.AGAIN_END). It goes in with the mark, as any fix.
+        if (Autocorrect.AGAIN_END && scorer != null && !takenBack && separator.length == 1 && separator[0] in ".?!") {
+            tapsOf(word, wordTouches.toList())?.let { raw -> autocorrect.again(word, found ?: word, NextWordText.END, scorer, raw) }
+                ?.let { ended -> found = ended.takeIf { it != word } }
+        }
         // The word is settled as typed: where it can be trusted, its taps say where the thumb is landing in this
         // field. A fix teaches once it is in the field (below), and not where it could not be put there.
         if (found == null) autocorrect.settled(lean, word, null, taps)

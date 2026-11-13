@@ -1551,9 +1551,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val asTyped = lex.contractions[lower] ?: lower
         val stood = stands.lowercase(locale).let { if (it == lower) asTyped else it }
         if (stood != asTyped && (kept(stood) || !words.containsKey(stood))) return null
-        // The word after, as the tables know it. One no list has says nothing of what came before it.
-        val follower = next.lowercase(locale).let { lex.contractions[it] ?: it }
-        val followerZipf = words[follower] ?: return null
+        // The word after, as the tables know it. One no list has says nothing of what came before it. Or the
+        // sentence's end ([NextWordText.END], the mark that ends it just typed: [AGAIN_END]).
+        val ending = next == NextWordText.END
+        if (ending && !AGAIN_END) return null
+        val follower = if (ending) next else next.lowercase(locale).let { lex.contractions[it] ?: it }
+        val followerZipf = if (ending) 0f else words[follower] ?: return null
         val known = words[asTyped]
         val common = known != null && known >= COMMON
         val here = if (HERE) scorer.here { words[it] } else null
@@ -1562,7 +1565,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // A pair the tables list speaks for a reading; a pair they never saw speaks against it only so far
         // (AGAIN_LOW): the tables were counted from Tatoeba, and "says only", "keys a" or "fix is" are pairs
         // Tatoeba seldom has, not pairs nobody writes.
-        fun after(word: String, low: Float = AGAIN_LOW) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-minOf(low, AGAIN_MOST), AGAIN_MOST)
+        fun after(word: String, low: Float = AGAIN_LOW) = (if (ending) AGAIN_END_WEIGHT * scorer.ends(word) else AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-minOf(if (ending) AGAIN_END_LOW else low, AGAIN_MOST), if (ending) AGAIN_END_MOST else AGAIN_MOST)
         // Between words all as common as [AGAIN_LOW_ZIPF] (what stands, a reading, the word after), a pair the tables
         // never saw is one they would have seen ("be is"): weighing that reading against what stands, it may count
         // up to [AGAIN_LOW_BOTH] against either. A rarer reading is weighed as before.
@@ -2217,6 +2220,22 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * mended and 1 broken ("on is when" to "on us when"). 6.5: 1 and 0 there. 5.5 broke 2 words on seen. Counted
          * against what stands alone (not pairwise) it put back "I and" as "j and".
          */
+        /**
+         * The last word of a sentence, read again as the mark that ends it is typed (. ? !), with how likely each
+         * reading is to end a sentence in place of a word after ([Scorer.ends], the table's row of
+         * [NextWordText.END]): "forgot about is." is "forgot about us.". [again] with [NextWordText.END] for the
+         * word after; DevKeyboardService, the replay's Typist and the typing bench call it at the mark (the bench at
+         * a sentence's end). How much of what the end makes of a reading counts, and the most it counts against one.
+         * Off: as before, word for word. Measured 2026-11-13 and left off: seen 118 to 116 words wrong, unseen 190
+         * to 192, at every weight tried (1.5: seen 115, unseen 190, but 3 broken and none mended on the documents'
+         * sentences, "from run to fun.", "the asking" to skiing: Tatoeba's sentences end in nouns far more than prose
+         * does); with the most the end may count for a reading held to 0.25 ([AGAIN_END_MOST]) the documents are as
+         * before and the sets 116 and 192. The bench's words right +0.01 / 0 / +0.02 points, no spoil changed.
+         */
+        @JvmField var AGAIN_END = false
+        @JvmField var AGAIN_END_WEIGHT = 1f
+        @JvmField var AGAIN_END_LOW = 1f
+        @JvmField var AGAIN_END_MOST = 3f
         @JvmField var AGAIN_LOW_BOTH = 2f
         @JvmField var AGAIN_LOW_ZIPF = 6f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh; 3.1 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (3.2 before). */

@@ -25,6 +25,13 @@ object NextWordText {
     /** The context "a sentence starts here". */
     const val START = "^"
 
+    /**
+     * A sentence's end, as a table's row ("$"): its followers are the words a sentence ends in, each with how often,
+     * in ten-thousandths of its uses, a sentence ended straight after it, and the row's count how many words were
+     * counted (tool/next_words.py's END_ONE; English's table, 2026-11-13). No word is ever read as this context.
+     */
+    const val END = "$"
+
     /** What starts a new sentence on every layout. */
     private const val SENTENCE_ENDS = ".!?…۔؟\n"
 
@@ -434,6 +441,24 @@ class NgramTable private constructor(
      */
     val counted: Boolean,
 ) {
+    /**
+     * How likely a sentence is to end straight after each word, by the row of [NextWordText.END]: lower case to 0 to
+     * 1, and the rate for every word ([endRate]). Empty, and 0, for a table without that row (every language's but
+     * English's today).
+     */
+    private val endings: HashMap<String, Float> by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val out = HashMap<String, Float>()
+        for (i in range(NextWordText.END, whole = true)) out.putIfAbsent(lowerAt(i), shareAt(i))
+        out
+    }
+    val endRate: Float by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val words = seen(NextWordText.END, whole = true)
+        if (words <= 0 || range(NextWordText.END, whole = true).isEmpty()) 0f else seen(NextWordText.START, whole = true).toFloat() / words
+    }
+
+    /** How often a sentence ended straight after [lower] where the counts came from (0 to 1), or null where the row of [NextWordText.END] does not list it. */
+    fun ending(lower: String): Float? = endings[lower]
+
     /** How many word pairs it holds. */
     val pairs: Int get() = next.size
 
@@ -1329,6 +1354,24 @@ class Scorer(
      */
     fun follows(first: String, next: String, zipf: Float, own: (String) -> Float?): Float =
         after(first, own)?.let { it.worth(next, zipf) - zipf } ?: 0f
+
+    /**
+     * How much likelier a sentence is to end straight after [first] (lower case), were it the word typed at this
+     * place, than after any word, in Zipf units: over 0 for a word sentences often end in ("too", "us"), under 0 for
+     * one they seldom do ("is", "the"). By the table of the language being written ([weights]' largest), its row of
+     * [NextWordText.END]; 0 exactly where it has none or does not list [first]: nothing is then known.
+     */
+    fun ends(first: String): Float {
+        var t = -1
+        var most = 0f
+        for (i in tables.indices) if (weights[i] > most) { most = weights[i]; t = i }
+        if (t < 0) return 0f
+        val table = tables[t]
+        val rate = table.endRate
+        if (!(rate > 0f)) return 0f
+        val p = table.ending(first) ?: return 0f
+        return log10(p / rate)
+    }
 
     /** The person's own words that begin with [prefix]: lower case, as shown, and how common their use makes each. */
     fun personal(prefix: String): List<Next> = lookup.starting(prefix).mapNotNull { (w, n) ->

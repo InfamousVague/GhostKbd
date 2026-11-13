@@ -302,7 +302,9 @@ class SweepBench(root: File, words: Int, private val seed: Long, lastLine: Int =
             repeat(s.typed.size) {
                 val raw = p.tokens[k++]
                 val typed = Typed(raw.text, raw.xs, raw.ys, lean.read(Taps(raw.xs, raw.ys, Geo.centres, Geo.W, SPACE)))
-                val fixed = byTheTaps(kb, typed, before.toString() + typed.text)
+                var fixed = byTheTaps(kb, typed, before.toString() + typed.text)
+                // The sentence's last word, ended by its mark (typeAll's ending).
+                if (k == p.tokens.size && Autocorrect.AGAIN_END) kb.ac.again(typed.text, fixed ?: typed.text, NextWordText.END, kb.scorer(before.toString() + typed.text), Taps(typed.xs, typed.ys, Geo.centres, Geo.W, SPACE))?.let { fixed = it.takeIf { e -> e != typed.text } }
                 kb.ac.settled(lean, typed.text, fixed, typed.taps)
                 val out = fixed ?: typed.text
                 val pt = prevTyped; val po = prevOuts

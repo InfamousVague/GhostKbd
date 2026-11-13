@@ -295,6 +295,13 @@ fun typeAll(
      * word that has now followed, in hand; what it should be now, or null. Null here: every word settled at its space.
      */
     again: ((typed: Typed, stood: String, next: String, before: String) -> String?)? = null,
+    /**
+     * The end look (Autocorrect.AGAIN_END), as DevKeyboardService and the Typist have it at a closing mark: a
+     * sentence's last word ([typed], standing as [stood], [before] the text up to and with it as typed) read again
+     * by how likely each reading is to end a sentence; what it should be, or null. Every sentence here is taken to
+     * end in a mark (Tatoeba's do).
+     */
+    ending: ((typed: Typed, stood: String, before: String) -> String?)? = null,
     /** How each sentence writes each of its words ([Sentences.written]), where capitals are to be counted ([Tally.capital]). */
     written: List<List<String>>? = null,
     fix: (typed: Typed, before: String) -> String?,
@@ -341,11 +348,13 @@ fun typeAll(
             if (written != null) tally.capital(unit, written.getOrNull(at)?.getOrNull(pendingLast).orEmpty())
             after?.invoke(unit)
         }
-        fun endToken() {
+        fun endToken(last: Boolean = false) {
             if (text.isEmpty()) return
             val tapXs = xs.toFloatArray(); val tapYs = ys.toFloatArray()
             val typed = Typed(text.toString(), tapXs, tapYs, lean.read(Taps(tapXs, tapYs, Geo.centres, Geo.W, SPACE)))
-            val fixed = fix(typed, before.toString() + typed.text)
+            var fixed = fix(typed, before.toString() + typed.text)
+            // The sentence's last word, ended by its closing mark: read again by how likely each reading is to end one.
+            if (last && ending != null) ending(typed, fixed ?: typed.text, before.toString() + typed.text)?.let { fixed = it.takeIf { e -> e != typed.text } }
             kb.ac.settled(lean, typed.text, fixed, typed.taps)
             var out = fixed ?: typed.text
             val p = prev
@@ -411,7 +420,7 @@ fun typeAll(
             val k = Geo.hit(x, y)
             if (k == ' ') { endToken(); endUnit() } else { text.append(k); xs += x; ys += y }
         }
-        endToken(); endUnit(); flush()
+        endToken(last = true); endUnit(); flush()
     }
     return tally
 }
@@ -484,7 +493,8 @@ fun taps(root: File) {
         // As a message field has it: names are asked for their capitals (-Dnames=false: as before there were any).
         // Words are scored with capitals aside, so a capital shows in that line only by what it does to the words
         // after it; the line under it counts the capitals themselves.
-        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again, written = written) { t, before -> calls++; byTheTaps(kb, t, before) }
+        val ending: (Typed, String, String) -> String? = { t, stood, before -> kb.ac.again(t.text, stood, NextWordText.END, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again, ending = ending, written = written) { t, before -> calls++; byTheTaps(kb, t, before) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word, %.0f µs of processor time)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1), (cpu.currentThreadCpuTime - c0) / 1000.0 / calls.coerceAtLeast(1)))
         println(byTaps.capitalsLine("${noise.name}: by the taps"))
         // -Dcapitals=true: which words were given a capital amiss, and which names were left without, commonest first.
