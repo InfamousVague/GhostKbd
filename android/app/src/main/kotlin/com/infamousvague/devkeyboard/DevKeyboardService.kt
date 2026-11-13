@@ -231,6 +231,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private var spaceTouch: KeyboardView.Typed? = null
     private var takenTouch: Pair<KeyboardView.Typed, Long>? = null
 
+    /**
+     * Where this thumb is landing in the field being typed in ([ThumbLean]): begun at nothing as a field is entered,
+     * taught by each word autocorrect has settled ([correctLastWord]), and what a word's taps are read by
+     * ([tapsFor], [tapsAcross]). In memory only, and gone with the field: nothing of it is ever written down. A
+     * password field never teaches it, since no word is ever corrected there ([autocorrectAllowed]).
+     */
+    private val lean = ThumbLean()
+
     /** Ghostwriter typing an answer out: the text and how far it has got. */
     private class Typing(val text: String) { var at = 0 }
     private var typing: Typing? = null
@@ -527,6 +535,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         runCatching { AccuracyLog.flush(this); AccuracyLog.clearTaps() }
         fieldKey = null
         editor.detach()
+        lean.newField()
     }
 
     /** Whether the undo plugin writes this field's edits down: it is on, and the field is not a password or a field with no text type. */
@@ -581,6 +590,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!restarting) latinField = wantsLatin(info)
         // What was typed in the field before this one is counted now; this field starts with nothing held.
         if (!restarting) { learner.flush(); learner.newField() }
+        // Where the thumb lands is this field's to find out: nothing of it comes over from the field before.
+        if (!restarting) lean.newField()
         autoSpaced = false
         hangul = Hangul.State()
         applySettings()
@@ -952,7 +963,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private fun tapsAcross(before: List<KeyboardView.Typed?>, bar: KeyboardView.Typed, after: List<KeyboardView.Typed?>): Taps? {
         val (keys, keyW, space) = keyboard?.tapKeys() ?: return null
         val all = before + listOf<KeyboardView.Typed?>(bar) + after
-        return Taps(FloatArray(all.size) { all[it]?.x ?: Float.NaN }, FloatArray(all.size) { all[it]?.y ?: Float.NaN }, keys, keyW, space)
+        return lean.read(Taps(FloatArray(all.size) { all[it]?.x ?: Float.NaN }, FloatArray(all.size) { all[it]?.y ?: Float.NaN }, keys, keyW, space))
     }
 
     /**
@@ -1108,6 +1119,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         val taps = tapsFor(word)
         val found = autocorrect.correct(word, scorer, taps)
+        // The word is settled: where it can be trusted, its taps say where the thumb is landing in this field.
+        autocorrect.settled(lean, word, found, taps)
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
         // Ended by the bar's own tap: kept, in case that tap was this word's next letter.
@@ -1334,6 +1347,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Two scraps put back where a word had been put together ([rejoined]): they are no word to keep or to learn from.
         if (' ' in typed) { learner.unhold(fixed.trim().lowercase(locale)); scheduleRow(); return true }
         // The fix was never meant, so it is never counted; the word put back is the one that was typed.
+        lean.unlearn()
         learner.unhold(fixed.lowercase(locale))
         learner.word(typed.length)
         if (keepSeparator) learner.ended()
@@ -2982,7 +2996,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // A word of which few letters were tapped is read the old way.
         if (known * 2 < word.length) return null
         val (keys, keyW, space) = keyboard?.tapKeys() ?: return null
-        return Taps(xs, ys, keys, keyW, space)
+        // Read by where this thumb has been landing in the field ([lean]): as they landed, where nothing is known of that.
+        return lean.read(Taps(xs, ys, keys, keyW, space))
     }
 
     /** Autocorrect swapped [word] for [fixed]: where a letter became its neighbour, that touch was meant for it. */

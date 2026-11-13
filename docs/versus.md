@@ -906,6 +906,322 @@ base word for word) found what the track's own measures cannot see, and this is 
 - Comments and documents that no longer said what the code does are put right; `REST_LEAST` is a dial with its
   comment; a weight of 0 gives no place rather than every worth NaN.
 
+### Where this thumb lands (made 2026-11-12)
+
+The leaning thumb of the run is the careful one with a lean: every tap lands 0.24 of a key to the right and 0.18
+of a key's height below where it aims. Ghost Keyboard left 2.5% of the careful thumb's words wrong and 5.4% of the
+leaning one's, so half of what the leaning thumb loses is the lean and nothing else. A person's thumb leans too,
+by hand, grip and phone, and not the same way from one sitting to the next
+([versus-research.md](versus-research.md), section 4). The keyboard had two things for that: offsets measured from
+one person's taps (`KeyboardView.LETTER_OFFSETS_DP`) and the adaptive keys plugin, which moves single keys over
+weeks. Neither knows where the thumb is landing now, and neither is changed by this.
+
+**The estimate** (`ThumbLean.kt`, no Android in it). For the field being typed in: how far from the keys' middles
+this thumb's taps fall, across and down, in key widths. It begins at nothing as a field is entered. Every word
+autocorrect has settled teaches it, the letters that stand each against its own tap, where the word can be trusted
+(`Autocorrect.settled`: a word of the lists or one of the person's own, with a tap for every letter; a tap further
+than a key and a quarter from the key it is now read for says nothing). It holds forty taps, so that what is older
+fades. It is in memory only and gone when the field is left; nothing in it can write it down, and a password field
+never teaches it, since no word is corrected there. The estimate is not the taps' mean miss but the lean to expect
+given that mean: one field in five is taken to be typed by a thumb that leans (`ODDS` 4), by about 0.3 of a key
+each way, and the mean counts for as much of itself as the taps make that likely. Three taps say nothing; a dozen
+of a careful thumb say most of it; a sloppy thumb's mean seldom stands out of its own scatter.
+
+**The reading** (`TapDecoder.load`). Each tap of the word being settled is taken to have landed that much nearer
+where it was aimed. A key's cost for a tap is what it was and twice the lean along the line from the typed key to
+it; the cheapest key is the one the tap was aimed at, every cost counts from that key, and the typed letter pays
+what it is further off (`TapDecoder.own`). `Autocorrect.byTaps` and `rejoin` take that off what the typed word is
+worth: off its bar, off the frequency a rare word gives way at, off the bar two joined words must clear. So "yom"
+with its first tap just over the line from t, by a thumb known to land to the right, is "tom" typed, and gives way
+to it. The space bar's tap is read the same way, as a letter and as a space. With no lean estimated nothing is
+added and every number is as it was: with `ThumbLean.ON=false` the scoreboard is the tree's before this, word for
+word (0 mended, 0 broken on both sets).
+
+**The service** tells it of fields and settled words (`DevKeyboardService`: a new field and a field left begin it
+again, `tapsFor` and `tapsAcross` read by it, `correctLastWord` teaches it, a fix taken back with backspace is
+unlearned). `Replay.kt`'s Typist does the same for a line of taps, which is a field, and `Bench.kt` for a sentence.
+
+Words wrong, by `tool/versus/scoreboard.py` (the three thumbs, then all three):
+
+| | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the run's 900 typings, before | 2.48% | 5.42% | 10.89% | 6.26% (326 words) | | |
+| after | 2.48% | 4.38% | 11.01% | 5.96% (310) | 22 | 6 |
+| the 900 unseen typings, before | 3.28% | 5.01% | 12.17% | 6.82% (437) | | |
+| after | 3.32% | 4.03% | 12.13% | 6.49% (416) | 26 | 5 |
+
+By thumb (`tool/versus/saved.py base done`): the leaning thumb has 76 words wrong where it had 94 and 86 where it
+had 107 (19 mended and 1 broken, 22 and 1); the careful thumb 43 as before and 71 where 70; the sloppy thumb 191
+where 189 and 259 where 260 (3 mended and 5 broken, 4 and 3).
+
+**The first words of a field have no evidence.** The leaning thumb's words wrong by the word's place in its
+sentence (`saved.py --places`), beside what a lean known from the first tap would leave (`ThumbLean.FIXED_X=0.24`
+and `FIXED_Y=0.2286`: the run's keys are 1.27 times as tall as wide):
+
+| Word of its sentence | 1st | 2nd | 3rd | 4th | 5th, 6th | 7th to 9th | 10th on | all |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| seen: words there | 300 | 300 | 293 | 231 | 327 | 198 | 86 | 1,735 |
+| wrong before | 9 | 17 | 20 | 16 | 12 | 14 | 6 | 94 |
+| wrong after | 9 | 17 | 17 | 12 | 8 | 8 | 5 | 76 |
+| with the lean known | 3 | 11 | 12 | 11 | 7 | 8 | 5 | 57 |
+| unseen: words there | 300 | 299 | 296 | 280 | 443 | 364 | 154 | 2,136 |
+| wrong before | 12 | 12 | 14 | 16 | 26 | 20 | 7 | 107 |
+| wrong after | 12 | 10 | 12 | 16 | 19 | 13 | 4 | 86 |
+| with the lean known | 9 | 11 | 10 | 15 | 18 | 14 | 4 | 81 |
+
+From the fifth word on the estimate does what a known lean does. The first three words are where it falls short:
+17 of the 19 words between the two on the seen set. Those sentences are short (5.8 words; the unseen ones 7.1),
+and they begin with short words (Tom, I, the), so two words in there are often five taps to go by. Believing the
+taps sooner (`ODDS` 1) reads the leaning thumb's 69 and 86 words wrong and the sloppy thumb's 193 and 258.
+
+**Kept from one field to the next** (`ThumbLean.KEEP`, which is off and is there to be measured) the leaning
+thumb's words wrong are 58 and 80, and the other two thumbs' 43, 189 and 69, 259. So an estimate that begins again
+at every field gets 18 of the 36 words a kept one would mend on the seen set and 21 of the 27 on the unseen one.
+It is not kept. The field the run types in asks keyboards to learn nothing, so that one sentence teaches nothing
+for the next; an estimate that lives and dies with a field keeps to that, and each sentence of the run is a new
+field (so the replay and the bench begin it again at every one, as the phone does at every field entered). What a
+thumb is doing in this field is also the only thing it is an estimate of.
+
+**Where the estimate stands** (`tool/versus/leanlog.py`, from the replay's own log of every word). The first word
+of every sentence is read by no lean: 0 of 300 for each thumb on each set (and 299 of 300 with `KEEP`, so the
+count can fail). At a sentence's end the leaning thumb, whose lean is 0.24 of a key across and 0.229 down, is
+taken to lean 0.205 across and 0.199 down on the seen set (spread 0.066 and 0.062) and 0.222 and 0.207 on the
+unseen one (0.054 both ways): over a tenth of a key in 287 and 294 of its 300 sentences. The careful thumb is
+given over a tenth of a key in 1 sentence of 300 and 2 of 300 (0.15 and 0.25 at the most), the sloppy thumb in 9
+and 6 (0.27 and 0.38 at the most; in nine sentences of ten under 0.05 and 0.02). That is the estimate wandering,
+and what the sloppy thumb's broken words below come of.
+
+**The typing bench** (12,000 words; its three thumbs as they are, and all three given a lean with `-Dlean=`).
+Words right:
+
+| The bench's thumbs | | careful | normal | sloppy |
+| --- | --- | ---: | ---: | ---: |
+| with no lean | before | 96.41% | 92.34% | 85.65% |
+| | after | 96.41% | 92.35% | 85.58% |
+| leaning 0.24 right, 0.18 down (the run's thumb) | no estimate | 92.53% | 85.95% | 76.54% |
+| | after | 93.47% | 88.49% | 80.51% |
+| | kept, one long field | 93.88% | 89.49% | 83.55% |
+| leaning 0.2 left, 0.1 down | no estimate | 94.28% | 89.32% | 81.19% |
+| | after | 94.85% | 90.13% | 82.82% |
+| leaning 0.12 right, 0.09 down | no estimate | 95.56% | 90.97% | 83.55% |
+| | after | 95.74% | 91.23% | 83.97% |
+| leaning 0.2 up | no estimate | 94.78% | 88.59% | 79.10% |
+| | after | 95.10% | 89.37% | 80.27% |
+| | kept, one long field | 95.23% | 89.92% | 81.92% |
+
+- **A thumb with no lean pays next to nothing.** Right words spoiled (1.22, 1.48 and 1.65 in a thousand) and the
+  right words no list has that are spoiled (1.5%, 4.3%, 7.1%) do not move at all; the sloppy thumb loses 0.07 of a
+  point of words right. On the scoreboard the careful thumb is one word worse on one set and the sloppy thumb two
+  worse on one and one better on the other.
+- **A thumb that leans as the run's does gains a point to four points**, more the sloppier it is, and its right
+  words are spoiled less than before (1.78, 0.91 and 1.71 in a thousand where 2.07, 1.59 and 2.05). A lean of
+  half the size gains a fifth to two fifths of a point, one to the left or straight up between the two.
+- **Other leans on the run's own sentences** (`whatif.py --thumbs leaning --lean`, 1,735 words, the careful
+  thumb's scatter): 0.2 left and 0.1 down, 75 words wrong before and 60 after; 0.12 right and 0.09 down, 63 and
+  59; 0.15 left and 0.15 up, 68 and 65; 0.2 straight up, 72 and 72 (4 mended, 4 broken: on these 300 sentences
+  nothing, where the bench's 12,000 words say a third of a point).
+
+**What a wrong estimate costs.**
+
+- The run's lean read into thumbs that do not have it (`FIXED_X`, `FIXED_Y`): the careful thumb's words wrong go
+  from 43 to 46 and from 70 to 80, the sloppy thumb's from 189 to 261 and from 260 to 353. A careful thumb's taps
+  are mostly still nearest their own keys; a sloppy thumb's are not.
+- A lean that turns right round every five sentences, typed as one long field (`-Dlean.turn=5` with `KEEP`):
+  words right 92.81%, 86.24% and 76.58% with no estimate, and 93.03%, 86.47%, 77.73% with it. Holding 100 taps
+  it does no better than no estimate (92.73%, 85.90%, 76.75%), holding 25 it follows sooner (93.22%, 87.24%,
+  78.52%) and then costs a steady lean in a long field a third of a point for the sloppy thumb (83.24% where
+  83.55%). Forty is the least that costs a steady lean nothing. For a dozen words after such a turn the taps are
+  read by the old lean: only a new field ends that at once.
+- On the scoreboard an estimate begun too soon is the sloppy thumb's 5 and 3 broken words.
+
+**One lean for the whole board.** A field's taps are a few dozen: enough for one pair of numbers, not for a pair
+a row or a side (Gboard keeps 800 taps for seven groups of keys, and found that the number of groups made no
+difference a user could see; versus-research.md). What that leaves out shows on a thumb that aims at the keys as
+they are drawn (`whatif.py --aim drawn`): the keyboard's own correction lifts its taps more the higher the row, so
+its misses differ by row, and one lean fits the top rows and is wrong for the bottom one. Words wrong on the run's
+sentences with no estimate and with it: careful 47 and 51, leaning 136 and 94, sloppy 217 and 215. The leaning
+thumb gains what the run's does; the careful thumb loses four words, one of them a name typed right and split in
+two ("Amenas" read as "one as": its bottom row's taps were read as nearer the bar than they were).
+
+**Tried, and not kept.**
+
+- A key's cost as the lesser of with the lean and without it (the first cut): it mended the sloppy thumb's words
+  as well, and the bench showed why, right words spoiled 2.07 and 2.69 in a thousand for the sloppy thumb where
+  1.65: it loosens every tap and is not the lean.
+- The estimate as the mean with a threshold on how far it stands out of the scatter, in place of the odds:
+  leaning 82 and 93 words wrong at the threshold that left the sloppy thumb alone.
+- A lean under 0.03 or 0.06 of a key read as none: the sloppy thumb's unseen words wrong 261 where 259.
+- The word in hand counted toward the estimate before it is read (its taps against the keys nearest them): 74 and
+  85 for the leaning thumb at `ODDS` 16, where plain `ODDS` 4 gives 76 and 86; on the bench no better for leaning
+  thumbs (93.37%, 88.14%, 79.42%), and with `ODDS` 4 a sloppy thumb with no lean lost 0.26 of a point.
+- Letters autocorrect changed left out of the lesson: leaning 91 unseen where 88 (at `ODDS` 16). Words no list has
+  let in, taught as typed: leaning 76 and 85, sloppy 192 and 261.
+- A lean across and a lean down each believed on its own evidence: the leaning thumb's 76 and 86 again.
+- Two joined words held to their own bar whatever the typed letters cost: nothing on the scoreboard, and three
+  more words wrong (97 where 94) for the leaning thumb that aims at the keys as drawn.
+
+**Not measured.** People: these are simulated thumbs whose lean is the same on every key, and `ODDS` is a belief
+about how many people lean that only recorded typing can settle. A phone: the service's part is held to its
+source by `ThumbLeanTest` and modelled by the Typist, but no build of it has been typed on. Speed, properly: the
+bench's time a word was read on a Mac with a load average of 50 to 200, where it swings by half from one pass to
+the next. The fastest of five passes of the tree before this was 196, 303 and 495 µs a word for the bench's three
+thumbs, and the fastest of six of this tree 197, 299 and 412: no difference that could be measured there. The work
+added is one more pass over the keys for each tap of a word read by a lean, and a word's taps summed once.
+
+### How tightly this thumb types (made 2026-11-13)
+
+One dial says how tight a thumb is taken to be: `TapDecoder.SPATIAL` (1.5), what a key width squared of extra
+distance from a tap costs a reading. The measure's careful and leaning thumbs scatter 0.20 of a key across and 0.15
+down, the sloppy one 0.34 and 0.25, and they want different values of it. With `SPATIAL` fixed for every thumb
+(`ThumbLean.SPREAD_FIXED`, joins read as below), words wrong:
+
+| SPATIAL | seen careful | leaning | sloppy | unseen careful | leaning | sloppy |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.6 | 3.23% | 5.24% | 8.70% | 3.79% | 5.10% | 10.72% |
+| 0.9 | 2.59% | 4.38% | 9.22% | 3.46% | 4.17% | 10.30% |
+| 1.5 (base) | 2.48% | 4.38% | 11.01% | 3.32% | 4.03% | 12.13% |
+| 1.7 | 2.42% | 4.27% | 12.22% | 3.37% | 4.07% | 13.86% |
+| 2.0 | 2.36% | 4.27% | 13.66% | 3.46% | 4.49% | 15.73% |
+
+With `TapDecoder.SPATIAL` itself fixed (joins read as loosely as words; build/scatter/ceiling-V.txt), words wrong
+and the bench (words right, right words spoiled a thousand, unknown words spoiled of 263, 164 and 84):
+
+| SPATIAL | seen | unseen | bench careful | normal | sloppy |
+| ---: | ---: | ---: | --- | --- | --- |
+| 0.9 | 278 | 385 | 96.34%, 3.25, 8.7% | 93.09%, 3.50, 12.8% | 87.96%, 3.31, 13.1% |
+| 1.0 | 283 | 394 | 96.43%, 2.23, 5.3% | 93.13%, 2.56, 8.5% | 87.65%, 2.69, 10.7% |
+| 1.1 | 292 | 403 | 96.42%, 2.13, 4.9% | 93.02%, 2.15, 7.3% | 87.37%, 2.69, 10.7% |
+| 1.2 | 291 | 397 | 96.47%, 1.73, 3.4% | 92.88%, 2.02, 6.7% | 86.91%, 2.48, 9.5% |
+| 1.3 | 296 | 404 | 96.43%, 1.62, 3.0% | 92.70%, 1.61, 4.9% | 86.46%, 2.28, 9.5% |
+| 1.4 | 299 | 409 | 96.39%, 1.52, 2.7% | 92.55%, 1.61, 4.9% | 86.06%, 1.65, 7.1% |
+| 1.5 (base) | 310 | 416 | 96.41%, 1.22, 1.5% | 92.35%, 1.48, 4.3% | 85.58%, 1.65, 7.1% |
+
+**What the spread buys, said plainly** (the review of 2026-11-13). Moving that one dial to 1.2, with no new code,
+gives words wrong of 291 and 397, within noise of the spread's 288 and 393, and the normal and sloppy thumbs then
+spoil exactly what they spoil with the spread (2.02 and 2.48 a thousand). 1.0 gives 283 and 394. Over the best
+fixed `SPATIAL` at the same bench cost, then, the spread gains nothing measurable in words wrong; what it buys is
+the careful thumb's spoils, which a lower fixed `SPATIAL` raises and the spread lowers: 1.01 right words spoiled a
+thousand against 1.73 at 1.2 (1.22 in base), and 3 unknown words of 263 against 9 (4 in base). Its words right go
+the other way by a little: 96.33% against 96.47%, 92.75 against 92.88, 87.04 against 86.91. The two together, the
+spread with `SPATIAL` at 1.2: seen 270, unseen 386, but the careful thumb spoils 1.62 a thousand and 7 unknown
+words, the normal 2.69 and 14, the sloppy 3.10 and 10, which breaks the rule that the careful thumb's spoils must
+not rise.
+
+**The ceiling.** Each thumb at its own value with the spread known from the first tap (careful and leaning 1.7,
+sloppy 0.9, the floor below): seen 5.30% (276 of 5205), unseen 5.91% (379 of 6408), from 5.96% (310) and 6.49%
+(416). With nothing in the way (sloppy 0.6 and joins as loose as words, `TapDecoder.SPATIAL` fixed): seen 258,
+unseen 381.
+
+**The estimate** (`ThumbLean.tight`). The lean already sums each trusted tap's miss and its square for the field
+(`ThumbLean.learn`: the same taps, the same forty-tap memory, the same lesson taken back with a fix); their spread
+about their own mean is the scatter of this thumb about where it lands, each way. It begins at `SPREAD` (0.065 key
+widths squared), worth `SPREAD_TAPS` (4) of the field's own taps. Nothing new is kept and nothing is written down;
+a password field never teaches it, as it never teaches the lean.
+
+**The reading** (`TapDecoder.load`). The word being settled is read with `SPATIAL` times `Taps.tight`, which is
+`SPREAD` over the estimate (one over the spread squared) where the taps fall closer than `SPREAD`, and that ratio
+cubed (`SPREAD_POWER`) where they fall wider, between 0.6 and 2 times `SPATIAL` (`SPREAD_LOW`, `SPREAD_HIGH`;
+0.9 and 3 at 1.5). The bounds were values of `SPATIAL` itself until the review; with `SPATIAL` at 0.9 that floor
+left the spread nothing to do (seen 277 on, 278 off). As factors they move with it, but the dials do not carry
+over: at `SPATIAL` 0.9 the spread now gives seen 263, unseen 389 against 278 and 385 without it, and the bench's
+normal thumb spoils 5.79 right words a thousand and 31 unknown words of 164. A track that moves `SPATIAL` must
+re-set these (build/scatter/laws*.py forecast them from the sp-V grid). A field's first word has nothing estimated
+and reads exactly as before. Only with English's list alone and the next-word model on (`Autocorrect.spread`): with
+English and another language, with prediction off, in other languages, and with `ThumbLean.SPREAD_ON=false`, every
+word is read as before, and the scoreboard is then the base's word for word on both sets (0 mended, 0 broken) with
+the bench's lines identical.
+
+**Which dials saw the unseen set.** Not only the floor and the joins: the forecasts that chose the knee (`SPREAD`),
+its weight and the power printed unseen totals beside seen for each of some thirty variants, and one of them
+counted the careful thumb's words read below 1.45 on the unseen fields' own taps. The margins between those variants
+were within noise, but the unseen set is no clean check of this work.
+
+**What follows the spread.** A word's own reading and the suggestion strip's finish (`Autocorrect.suggest`) do;
+nothing measures the strip. The bar's tap read as a letter between two words (`Autocorrect.rejoin`) does not
+(`SPREAD_REJOIN` false): following the spread it gave 287 and 394, spared 288 and 393, the bench identical, so it
+is spared and reads as before. Two words run together are read as tightly as `SPATIAL` as it stands
+(`SPREAD_JOINS` 1): read loosely, letters no list has were split into two words ("mapbox" as "map of", "unalive"
+as "I alive"), 28 of the 83 words the bench's three thumbs spoiled. With and without:
+unseen 397 and 395 at a floor of 0.5, bench right words spoiled 3.09 and 5.11 a thousand for the normal thumb,
+4.96 and 7.03 for the sloppy one. `TapDecoder.WHOLE_CHANGE` times the spread was tried and left out: unseen 388
+where 395, but the careful thumb's right words spoiled rose to 1.22 and its unknown words spoiled to 1.9%. The
+floor was settled on unseen and the bench together: 0.5, 0.7, 0.9, 1.0, 1.1 gave unseen 397, 395, 394, 400, 407
+and the sloppy thumb's right words spoiled 4.96, 3.10, 2.48, 2.28, 2.28.
+
+| | seen careful | leaning | sloppy | all | unseen careful | leaning | sloppy | all |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| base | 2.48% | 4.38% | 11.01% | 5.96% (310) | 3.32% | 4.03% | 12.13% | 6.49% (416) |
+| the spread | 2.59% | 4.09% | 9.91% | 5.53% (288) | 3.32% | 4.12% | 10.96% | 6.13% (393) |
+
+On the bench (words right, right words spoiled a thousand, unknown words spoiled with their count):
+
+| | careful | normal | sloppy |
+| --- | --- | --- | --- |
+| base | 96.41%, 1.22, 1.5% (4 of 263) | 92.35%, 1.48, 4.3% (7 of 164) | 85.58%, 1.65, 7.1% (6 of 84) |
+| the spread | 96.33%, 1.01, 1.1% (3 of 263) | 92.75%, 2.02, 6.1% (10 of 164) | 87.04%, 2.48, 8.3% (7 of 84) |
+
+The unknown words spoiled are a handful each, and move by one or three: noise either way.
+
+The careful thumb's spoils fall (it is read tighter) and it loses 0.08 of a point of words right; the normal thumb
+spoils 0.54 more right words a thousand and 1.8 points more unknown words, the sloppy one 0.83 and 1.2 points
+more, for 0.40 and 1.46 points of words right.
+
+**The law on other thumbs** (`Bench.kt -Dthumbs=0.15:0.11,0.24:0.18,0.30:0.22,0.40:0.29,0.46:0.34`, none of them
+the measure's). Words right before and with the spread: 97.63% and 97.68%, 94.53 and 94.63, 89.89 and 90.76,
+76.95 and 80.68, 64.99 and 71.13; right words spoiled 1.20 and 0.83, 1.29 and 1.40, 1.28 and 1.91, 0.61 and 1.52,
+1.88 and 1.88. The best fixed `SPATIAL` for words right on those thumbs is 2.0 or more, 1.0, 0.8, 0.6 or less,
+0.6 or less: about 0.05 to 0.07 over the scatter across squared. That supports the theory, one over the spread
+squared, not the dials that ship: the shipped law follows it only on the tight side; on the loose side it is the
+ratio cubed and floored at 0.6 of `SPATIAL`, chosen for the bench's spoils, and so cannot reach the 0.8 and 0.6
+those wide thumbs want. Their spoils rise too (1.28 to 1.91 a thousand at 0.30 across, 0.61 to 1.52 at 0.40).
+
+**Why 0.08 over the spread squared and not 0.217.** The careful thumb's part is its wild taps: one in sixteen
+scatters 2.2 times as widely, and a tap half a key to a key from a key is a hundred times likelier to be one of
+those than a tail of the ordinary scatter, so the quadratic that fits the mixture there is 0.06 to 0.11 over the
+spread squared, not 0.2 (the fit, by the mixture's own density). That does not explain the sloppy thumb, whose
+mixture is close to 0.2 over a key's distance and which still wants 0.6. The search's budgets do not either:
+`BUDGET`, `JOIN_BUDGET`, `FINISH_BUDGET` doubled and `WHOLE_CHANGE` 4 at `SPATIAL` 1.5 left the sloppy thumb's
+words wrong at 186 and 255 where 191 and 259. What is left is the weighing: frequencies, the next-word lift and the
+bars, set with `SPATIAL` at 1.5, count for more against a tap's evidence than a probability would. Not proved.
+
+**A wrong estimate.** A careful thumb read as loose all the way (`SPREAD_FIXED` 0.9): words wrong 2.59% and 3.46%
+where 2.48% and 3.32%, bench right words spoiled 2.54 a thousand and unknown words 6.1% where 1.22 and 1.5%. A
+loose thumb read as tight (1.7): the sloppy thumb's 12.22% and 13.86% where 11.01% and 12.13%, bench 84.49% right
+where 85.58%. A thumb that changes in mid-field (the formula on the measure's own taps, three sentences of one
+thumb and three of the other as one field): careful to sloppy, `SPATIAL` is under 1.2 five words after the change
+(the median; ten at the ninetieth of 200); sloppy to careful it is slow, over 1.2 after a median of 14 words and
+not within three sentences in 68 of 200, since forty taps fade slowly and the loose side is read steeply. A new
+field ends it at once.
+
+**A wild tap early in a field.** The spread is a plain variance of the taps within `REACH`; one wild tap in a
+field's second word has only the first word's taps and the prior against it. ThumbLeanTest holds what follows: a
+careful thumb (0.16 of a key) with one tap 0.9 of a key off in its second word is read looser than `SPATIAL` in
+at least 15 of 20 fields, never below the floor, and tight again by the sentence's end. The review's simulation of the
+formula (build/review/sim.py; Gaussian thumbs with one tap in 16 wild) has the careful thumb at the floor for 3.0%
+and 3.1% of its second and third words, below 1.2 for 5.7%. Holding each tap's square (`SPREAD_CAP`) was measured
+and left off: at 0.5, 0.36, 0.25 words wrong 290, 291, 298 and 396, 395, 417; the careful thumb's spoils did not
+fall (1.01, 1.01, 0.91 a thousand), the sloppy thumb's words right did (86.93%, 86.75%, 86.26% against 87.04%),
+since a held square also holds a sloppy thumb's honest taps.
+
+**By place in the sentence** (`tool/versus/saved.py base done ceil --places`, ceil the ceiling above). The
+estimate begins at nothing, so the first words are read as before: the sloppy thumb's unseen words wrong at
+places 1 to 4 are 141 in base, 141 with the spread and 127 at the ceiling; from the fifth word on 118, 94 and 93.
+The estimate has nearly all of the ceiling from a field's fifth word and none of it before. Early on it can even
+work the wrong way: in the review's simulation a sloppy thumb is read tighter than base at 25% of its second words
+and 22% of its third (a few taps that happen to fall close).
+
+**Kept across fields** (`ThumbLean.KEEP`, off and to stay off: the field tool/versus types in asks keyboards to
+learn nothing). Kept, the spread gives seen 4.96% (258), unseen 5.85% (375), where the kept lean alone gives 290
+and 408; bench 96.34%, 93.03%, 87.71% right, spoiled 1.01, 2.15, 2.69.
+
+**Time.** The bench's time a word, two passes each on a Mac less loaded than before: off 114, 132, 144 and 106,
+103, 142 µs for the careful, normal and sloppy thumbs; on 81, 117, 178 and 96, 126, 185. The sloppy thumb's words
+cost about a quarter more, read loosely (a looser reading lets more of the search through); the estimate itself is
+a division and a power once a settled word.
+
+**Not measured.** People, whose scatter is not one Gaussian with one wild share; a phone. The spread is one number
+for the board; a thumb that is tight across and loose down is read by their mean.
+
 ### What the thumb had done
 
 The 326 again, by the slip (`score.py`'s `category`):

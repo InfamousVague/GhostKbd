@@ -148,14 +148,15 @@ def changes(now, then, show):
 def bench(overlay, java, dials):
     """The typing bench's tap test on its own sentences: the "by the taps" lines."""
     src = "android/app/src/main/kotlin/com/infamousvague/devkeyboard"
-    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
+    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "ThumbLean.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
     if overlay:
         files = [os.path.join(overlay, os.path.basename(f)) if os.path.exists(os.path.join(overlay, os.path.basename(f))) else f for f in files]
     jar = os.path.join("build", "versus", "bench-%s.jar" % (os.path.basename(overlay.rstrip("/")) if overlay else "tree"))
     stale = not os.path.exists(os.path.join(ROOT, jar)) or any(os.path.getmtime(os.path.join(ROOT, f)) > os.path.getmtime(os.path.join(ROOT, jar)) for f in files + ["tool/typing_bench/Bench.kt"])
     if stale:
         subprocess.run(["kotlinc"] + files + ["tool/lang_check/stubs/android/graphics/PointF.kt", "tool/typing_bench/Bench.kt", "-include-runtime", "-d", jar], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    sets = ",".join(("A." if d.startswith("Autocorrect.") else "S." if d.startswith("Scorer.") else "T.") + d.split(".", 1)[1] for d in dials)
+    # The bench's own short names for the two classes it has always set; any other class's dial by its full name.
+    sets = ",".join(("A." + d.split(".", 1)[1]) if d.startswith("Autocorrect.") else ("T." + d.split(".", 1)[1]) if d.startswith("TapDecoder.") else d for d in dials)
     cmd = ["java", "-Xmx2g", "-Dwords=12000"] + (["-Dset=" + sets] if sets else []) + (java.split() if java else []) + ["-jar", jar, ".", "taps"]
     out = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True).stdout
     return [ln.split("  [")[0] for ln in out.splitlines() if "by the taps" in ln]

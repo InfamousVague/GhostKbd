@@ -9,9 +9,21 @@ package com.infamousvague.devkeyboard
  *
  * Autocorrect reads a word with these as a thumb types it: a tap on the edge between two keys could be either letter,
  * a tap in the middle of a key was that key. Without them it goes by which keys are neighbours, as it always did.
+ *
+ * [leanX] and [leanY] are how far from where it aims this thumb is taken to be landing just now, in key widths across
+ * and down ([ThumbLean.read] sets them): the taps are read as having landed that much nearer where they were aimed
+ * ([TapDecoder.load]). Nothing where that is not known, and the word is then read exactly as before there was a lean.
+ *
+ * [tight] is how tightly this thumb's taps are taken to fall about where it lands, against the thumb
+ * [TapDecoder.SPATIAL] is set for ([ThumbLean.read] sets it): what a key width squared of distance costs is
+ * [TapDecoder.SPATIAL] times it, more for a thumb whose taps fall close, less for one that scatters. 1 where that is
+ * not known, and every cost is then as it was.
  */
-class Taps(val xs: FloatArray, val ys: FloatArray, val keys: Map<Char, Pair<Float, Float>>, val keyW: Float, val space: FloatArray? = null) {
+class Taps(val xs: FloatArray, val ys: FloatArray, val keys: Map<Char, Pair<Float, Float>>, val keyW: Float, val space: FloatArray? = null, val leanX: Float = 0f, val leanY: Float = 0f, val tight: Float = 1f) {
     fun has(i: Int) = i < xs.size && !xs[i].isNaN() && !ys[i].isNaN()
+
+    /** The same taps with nothing known of how tightly they fall ([tight] 1): itself where that is already so. */
+    fun loose(): Taps = if (tight == 1f) this else Taps(xs, ys, keys, keyW, space, leanX, leanY)
 }
 
 /**
@@ -158,14 +170,45 @@ class TapDecoder(
 
     private fun key(c: Char): Char = keyCache.getOrPut(c) { keyOf(c) }
 
-    /** Reads the evidence in: the word as typed (lower case) and where its taps landed. */
+    /**
+     * What the letters as typed cost as a reading of their own taps, once [load] has read them in. Nothing where no
+     * lean is taken off the taps: the typed letters are then the keys every cost is counted from. With a lean taken
+     * off, a tap may be nearer another key than the one it typed, and the typed letter then costs what any other
+     * reading of that tap would. [Autocorrect.byTaps] and [Autocorrect.rejoin] take it off what the typed word is
+     * worth.
+     */
+    var own = 0f
+        private set
+
+    /**
+     * Reads the evidence in: the word as typed (lower case) and where its taps landed.
+     *
+     * With a lean on the taps ([Taps.leanX], [Taps.leanY]: where this thumb is landing in the field, [ThumbLean])
+     * each tap is read as having landed that much nearer where it was aimed. A key's cost for a tap is then what it
+     * was (how much further from the tap than the typed key, never below nothing) and what the lean adds to it or
+     * takes off: twice the lean along the line from the typed key to it, which is what moving the tap back by the
+     * lean does to the two distances. Keys the thumb leans away from come cheaper, keys it leans toward dearer. The
+     * cheapest key is the one the tap is taken to have been aimed at, and every cost counts from it, the typed key's
+     * among them: the word is read as if the aimed keys had been typed ("ton" with its last tap leaning onto n from
+     * m's side is read as "tom" typed), and what the typed letters cost as a reading of that is [own]. The space
+     * bar's tap is read the same way, as a letter ([Autocorrect.rejoin]) and as a space run into a word
+     * ([spaceCost]). With no lean nothing is added, the typed key is the cheapest, and every number is as it was.
+     */
     fun load(lower: String, taps: Taps?) {
         typed = lower
         n = lower.length
         tk = CharArray(n) { i -> key(lower[i]).let { if (it == 0.toChar()) lower[i] else it } }
         far = if (n >= LONG) FAR else FAR_SHORT
         spaceCost = FloatArray(n) { Float.POSITIVE_INFINITY }
+        own = 0f
         val w2 = if (taps != null) taps.keyW * taps.keyW else 1f
+        // What a key width squared costs for this thumb: SPATIAL itself unless its spread is known ([Taps.tight]).
+        val sp = if (taps != null) SPATIAL * taps.tight else SPATIAL
+        // The lean in the taps' own units, and the word as the aimed keys spell it, where that is not as typed.
+        val lx = if (taps != null) taps.leanX * taps.keyW else 0f
+        val ly = if (taps != null) taps.leanY * taps.keyW else 0f
+        val leaning = lx != 0f || ly != 0f
+        var aimedKeys: CharArray? = null
         nearCh = Array(n) { EMPTY_CHARS }
         nearCost = Array(n) { EMPTY_COSTS }
         aimed = BooleanArray(n)
@@ -180,11 +223,22 @@ class TapDecoder(
                     val x = taps.xs[i]; val y = taps.ys[i]
                     val mid = (bar[1] + bar[3]) / 2
                     val d0 = (y - mid) * (y - mid) / w2
+                    // With the lean off it the tap is that much nearer a key and further from the bar's line (or the
+                    // other way): where a key is then nearer than the line, the costs count from the nearest, and
+                    // the space that was typed costs the difference.
+                    fun leant(cost: Float, c: Pair<Float, Float>) = cost.coerceAtLeast(0f) + sp * (lx * (lx - 2f * (x - c.first)) + 2f * ly * (c.second - mid)) / w2
+                    var least = 0f
+                    if (leaning) for (c in taps.keys.values) {
+                        val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
+                        least = minOf(least, leant(sp * (d - d0), c))
+                    }
+                    own -= least
                     val chars = ArrayList<Char>(6)
                     val costs = ArrayList<Float>(6)
                     for ((k, c) in taps.keys) {
                         val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
-                        val cost = SPATIAL * (d - d0)
+                        var cost = sp * (d - d0)
+                        if (leaning) cost = leant(cost, c) - least
                         if (cost < far) { chars += k; costs += cost.coerceAtLeast(0f) }
                     }
                     nearCh[i] = chars.toCharArray()
@@ -203,23 +257,47 @@ class TapDecoder(
             aimed[i] = true
             val x = taps.xs[i]; val y = taps.ys[i]
             val d0 = ((x - at.first) * (x - at.first) + (y - at.second) * (y - at.second)) / w2
+            // With the lean off it: the key the tap is then nearest ([aim]), and by how much nearer than the typed one.
+            fun leant(cost: Float, c: Pair<Float, Float>) = cost.coerceAtLeast(0f) + sp * 2f * (lx * (c.first - at.first) + ly * (c.second - at.second)) / w2
+            var least = 0f
+            var aim = t
+            if (leaning) for ((k, c) in taps.keys) {
+                if (k == t) continue
+                val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
+                val cost = leant(sp * (d - d0), c)
+                if (cost < least) { least = cost; aim = k }
+            }
             val chars = ArrayList<Char>(6)
             val costs = ArrayList<Float>(6)
             for ((k, c) in taps.keys) {
-                if (k == t) continue
+                if (k == t || k == aim) continue
                 val d = ((x - c.first) * (x - c.first) + (y - c.second) * (y - c.second)) / w2
-                val cost = SPATIAL * (d - d0)
+                var cost = sp * (d - d0)
+                if (leaning) cost = leant(cost, c) - least
                 if (cost < far) { chars += k; costs += cost.coerceAtLeast(0f) }
+            }
+            if (aim != t) {
+                // Aimed at another key than it typed: that key is read for nothing, the typed one for what it is further off.
+                if (-least < far) { chars += t; costs += -least }
+                (aimedKeys ?: lower.toCharArray().also { aimedKeys = it })[i] = aim
+                tk[i] = aim
             }
             nearCh[i] = chars.toCharArray()
             nearCost[i] = costs.toFloatArray()
             // The space bar, where this tap is over it or just above it: how much further its middle line is than the key's.
             val bar = taps.space
-            if (bar != null && x >= bar[0] - taps.keyW * 0.5f && x <= bar[2] + taps.keyW * 0.5f) {
+            if (bar != null && x - lx >= bar[0] - taps.keyW * 0.5f && x - lx <= bar[2] + taps.keyW * 0.5f) {
                 val mid = (bar[1] + bar[3]) / 2
                 val d = (y - mid) * (y - mid) / w2
-                spaceCost[i] = (SPATIAL * (d - d0)).coerceAtLeast(0f)
+                var cost = sp * (d - d0)
+                if (leaning) cost = cost.coerceAtLeast(0f) + sp * (2f * ly * (mid - at.second) + lx * (2f * (x - at.first) - lx)) / w2 - least
+                spaceCost[i] = cost.coerceAtLeast(0f)
             }
+        }
+        // The word as the aimed keys spell it is what the search starts from; the typed letters are one reading of it.
+        aimedKeys?.let { read ->
+            typed = String(read)
+            for (i in 0 until n) if (read[i] != lower[i]) own += sub(i, lower[i])
         }
         reachReady = false
     }

@@ -771,10 +771,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             top.sortByDescending { it.second }
             val least = (top.getOrNull(4)?.second ?: 0f).coerceAtLeast(FINISH_LEAST)
             val decoder = tapDecoder(now, taps!!)
-            decoder.load(lower, taps)
+            decoder.load(lower, spread(now, scorer, taps))
             for (h in decoder.finish(least - (if (scorer == null) 0f else CONTEXT_PICK))) {
                 val word = now.lexicon.sorted[h.index]
-                if (word == lower || h.cost <= 0f) continue
+                // Nothing amiss: a word the typed letters begin, found above (with a lean off the taps, the letters aimed at).
+                if (word == lower || (h.cost <= 0f && decoder.own <= 0f)) continue
                 val zipf = now.lexicon.sortedZipf[h.index]
                 val lift = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
                 top += word to zipf + lift - h.cost
@@ -1008,7 +1009,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val words = lex.words
         val script = now.board.script
         val decoder = tapDecoder(now, taps)
-        decoder.load(lower, taps)
+        decoder.load(lower, spread(now, scorer, taps))
+        // With this thumb's lean taken off the taps ([ThumbLean]) the typed letters are not always the keys nearest
+        // them: what the typed word then costs as a reading of its own taps comes off what it is worth. Nothing,
+        // where no lean is estimated.
+        val typedCost = decoder.own
         // The place the word stands in, where a table has a row for the words before it. Null where none has, or
         // prediction is off: every word is then worth how common it is, as before the place was read at all. Null
         // too for a listed word whose every tap is well inside its own key ([onTheirKeys]): the taps say it was
@@ -1033,9 +1038,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val letters = letterTable(now, scorer)
         val unknown = if (known != null) UNKNOWN else unlisted(now, lower, letters)
         // The least a reading must be worth to replace a word only the wider list has, whatever else holds it.
-        val heldBar = if (held) unlisted(now, lower, letters) else Float.NEGATIVE_INFINITY
-        // What it is worth as it stands: as any reading is, with no slips to pay for.
-        val stood = if (known != null) worth(stands, known) else unknown
+        val heldBar = if (held) unlisted(now, lower, letters) - typedCost else Float.NEGATIVE_INFINITY
+        // What it is worth as it stands: as any reading is, less what its own taps cost it where the thumb's lean
+        // is taken off them ([TapDecoder.own]; nothing where no lean is known), and with no other slips to pay for.
+        val stood = (if (known != null) worth(stands, known) else unknown) - typedCost
         // A word a dictionary vouches for is worth its own worth here, and gives way only to a reading worth
         // [SURE_MARGIN] more than that: "yurt" typed on its own keys stands whatever is a key away, and "vases"
         // typed with its v on the line to c is "cases".
@@ -1063,9 +1069,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // there, and a reading that is not so much likelier may still outdo it by [MARGIN_RARE].
         // A word no list has, with an ending of its own (chanced, dueled), is a word: only a far likelier reading takes it.
         fun needs(word: String, zipf: Float, worth: Float, cost: Float): Float = when {
-            known != null && doubtful && here == null -> if (zipf >= known + RARE_GAP) heldBar else Float.POSITIVE_INFINITY
+            known != null && doubtful && here == null -> if (zipf >= known + RARE_GAP - typedCost) heldBar else Float.POSITIVE_INFINITY
             doubtful -> if (worth >= stood + RARE_GAP && cost <= RARE_BUDGET) heldBar else bar
-            known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || letters == null) && inflected(words, lower, word) -> UNKNOWN
+            known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || letters == null) && inflected(words, lower, word) -> UNKNOWN - typedCost
             else -> bar
         }
         val trace = TRACE
@@ -1102,7 +1108,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // Every other word, found by how common it is: one no row lists is worth that here, or less.
         val reach = if (here != null || scorer == null) 0f else CONTEXT_PICK
         val floor = when {
-            known != null && doubtful && here == null -> known + RARE_GAP - budget
+            known != null && doubtful && here == null -> known + RARE_GAP - typedCost - budget
             doubtful -> maxOf(minOf(stood + RARE_GAP - RARE_BUDGET, bar), bestScore)
             here != null -> maxOf(bar, bestScore)
             else -> bar - reach
@@ -1124,7 +1130,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         for (l in learned + own) {
             if (lex.firstWords.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
             val w = worth(l, LEARNED_ZIPF)
-            if (known != null && !sure && (if (here == null) LEARNED_ZIPF < known + RARE_GAP else w < stood + RARE_GAP)) continue
+            if (known != null && !sure && (if (here == null) LEARNED_ZIPF < known + RARE_GAP - typedCost else w < stood + RARE_GAP)) continue
             val cost = decoder.align(l, 0, if (doubtful) RARE_BUDGET else budget)
             if (!cost.isInfinite()) {
                 trace?.invoke("  $l: one of the person's own words, worth $w, slips $cost, leaves ${w - cost}")
@@ -1144,7 +1150,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         // Two or three words run together, where what was typed is no common word.
         if (!common && lower.length >= 3 && JOINS) {
-            val joinBar = when { known == null -> minOf(bar, JOIN_BAR); here == null -> known + MARGIN_RARE; else -> stood + MARGIN_RARE }
+            val joinBar = when { known == null -> minOf(bar, JOIN_BAR); here == null -> known + MARGIN_RARE - typedCost; else -> stood + MARGIN_RARE }
             // Letters that look like no word are no word the longer they are: see [JOIN_FALL]. Where they look like
             // none is kept, since where two words meet they need not look like one. With English loaded only: it
             // was set on English typing, and a language that writes its compounds as one word (German) has long
@@ -1239,8 +1245,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             // The best of them says what the letters are, and it alone can be taken.
             var top: TapDecoder.Join? = null
             var topScore = Float.NEGATIVE_INFINITY
+            // A thumb read loosely ([Taps.tight] under 1) has its joins' slips counted more tightly than its words'
+            // ([ThumbLean.SPREAD_JOINS]): else letters no list has are split into two words ("mapbox", "map of").
+            val loose = if (ThumbLean.SPREAD_JOINS == 0f) 1f else Math.pow(minOf(1f, spread(now, scorer, taps).tight).toDouble(), ThumbLean.SPREAD_JOINS.toDouble()).toFloat()
             for (j in joins) {
-                var score = head(j.first) + second(j.first, j.second) - 9f - j.cost
+                var score = head(j.first) + second(j.first, j.second) - 9f - (if (loose == 1f) j.cost else j.cost / loose)
                 if (j.third >= 0) score += second(j.second, j.third) - 9f
                 trace?.invoke("  ${sorted[j.first]} ${sorted[j.second]}" + (if (j.third >= 0) " " + sorted[j.third] else "") + ": slips ${j.cost}, worth $score, needs $joinBar")
                 if (score > topScore) { top = j; topScore = score }
@@ -1398,7 +1407,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             bestScore = asItStands + (if (second.isEmpty() && (!isWord(stood) || !doubled)) 0f else REJOIN_MARGIN)
             trace?.invoke("cut in two, $first and ${second.ifEmpty { "nothing" }}: as it stands ($stands) worth $one" + (if (second.isEmpty()) "" else " and $then after it, $asItStands in all") + (if (mended > 0f) ", the mend costing $mended" else "") + "; one word needs $bestScore")
         }
-        decoder.load(typed.lowercase(locale), taps)
+        decoder.load(typed.lowercase(locale), if (ThumbLean.SPREAD_REJOIN) spread(now, scorer, taps) else taps.loose())
+        // What stands pays for its own taps as the lean has them ([TapDecoder.own]): the letters', and the bar's as a space.
+        bestScore -= decoder.own
         var best: String? = null
         var same = false
         // The words the rows list here, each held up against the taps, as [byTaps] holds them.
@@ -1541,6 +1552,38 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         trace?.invoke("  chosen: ${best.word}")
         return recase(locale, typed, capitalI(now, best.word)).takeIf { it != stands }
     }
+
+    /**
+     * A word has been settled: [typed] stands as [fixed], or as it was typed where that is null. Where that can be
+     * trusted its taps teach [lean] where this thumb is landing ([ThumbLean]), each tap against the key of the
+     * letter that now stands for it. Trusted is a word of the lists or one of the person's own, with a tap for
+     * every letter (an apostrophe that was put in aside): letters no list has may be anything, and a word with a
+     * letter missed or added, or two words run together, does not say which tap was which letter's. Nothing is
+     * learned where the taps are not read at all (a cautious list).
+     */
+    fun settled(lean: ThumbLean, typed: String, fixed: String?, taps: Taps?) {
+        val now = now
+        val lex = now.lexicon
+        lean.pass()
+        if (taps == null || !TAPS || lex.cautious || lex.words.isEmpty() || taps.xs.size != typed.length) return
+        val locale = now.board.locale
+        val lower = typed.lowercase(locale)
+        val stands = (fixed ?: typed).lowercase(locale)
+        if (lower.length != typed.length || !(lex.words.containsKey(stands) || kept(stands))) return
+        val letters = if (stands.length == lower.length) stands else stands.filter { it != '\'' && it != '’' }
+        if (letters.length != lower.length) return
+        val keys = taps.keys
+        val script = now.board.script
+        fun key(c: Char): Char = if (keys.containsKey(c)) c else script.plain(c.toString()).let { p -> if (p.length == 1 && keys.containsKey(p[0])) p[0] else 0.toChar() }
+        lean.learn(CharArray(letters.length) { key(letters[it]) }, taps)
+    }
+
+    /**
+     * [taps] as they are read: with how tightly this thumb types ([Taps.tight], [ThumbLean]) only with English alone
+     * and the next-word model on, where that was measured; elsewhere (English with another language too) every cost
+     * is as it was before there was an estimate.
+     */
+    private fun spread(now: Now, scorer: Scorer?, taps: Taps): Taps = if (scorer != null && now.lexicon.key == ENGLISH_ALONE) taps else taps.loose()
 
     /**
      * What [word], of frequency [zipf], is worth at a place the tables have a row for, against the other readings
@@ -2387,6 +2430,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
         /** The name of a set of word lists as one lexicon: the script and the lists' stems ("LATIN:en,pl"); empty with no list. */
         fun key(script: Script, dictionaries: List<String>): String = if (dictionaries.isEmpty()) "" else script.name + ":" + dictionaries.joinToString(",")
+
+        /** English's list alone, the one lexicon how tightly this thumb types ([ThumbLean.tight]) was measured on. */
+        private val ENGLISH_ALONE = key(Script.LATIN, listOf("en"))
 
         /** [word]'s letters for swipe typing: lower case, plain ([Script.plain]), apostrophes dropped ("What's" is "whats"). */
         fun swipeLetters(script: Script, word: String): String = script.plain(word.lowercase()).filter { it != '\'' && it != '’' }

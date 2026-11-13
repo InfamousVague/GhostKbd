@@ -107,7 +107,8 @@ class AgainSourceTest {
 
     @Test fun `the replay and the bench call the same function`() {
         val typist = File(root, "tool/versus/replay/Replay.kt").readText()
-        assertTrue(typist.contains("decoder.ac.again(b.typed, b.stood, stands, scorerAt(back), tapsFor(b.typed, b.touches))"))
+        // Raw taps, as the service's tapsOf gives them: no lean on them (ThumbLean), which only the word being typed is read with.
+        assertTrue(typist.contains("decoder.ac.again(b.typed, b.stood, stands, scorerAt(back), tapsFor(b.typed, b.touches, leaned = false))"))
         val bench = File(root, "tool/typing_bench/Bench.kt").readText()
         assertTrue(bench.contains("kb.ac.again(t.text, stood, next, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE))"))
     }

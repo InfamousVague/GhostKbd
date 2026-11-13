@@ -65,7 +65,7 @@ def line_of(rec):
 
 def jar():
     src = "android/app/src/main/kotlin/com/infamousvague/devkeyboard"
-    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
+    files = [src + "/" + n for n in ("Languages.kt", "Layouts.kt", "Hangul.kt", "Autocorrect.kt", "SwipeDecoder.kt", "TapDecoder.kt", "ThumbLean.kt", "MistakeMemory.kt", "SampleCleaner.kt", "NextWordModel.kt")]
     files += ["tool/lang_check/stubs/android/graphics/PointF.kt", "tool/versus/replay/Replay.kt", "tool/versus/probe/Probe.kt"]
     out = os.path.join("build", "versus", "probe.jar")
     full = os.path.join(ROOT, out)

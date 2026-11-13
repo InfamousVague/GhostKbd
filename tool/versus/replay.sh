@@ -9,7 +9,7 @@ set -e
 cd "$(dirname "$0")/../.."
 src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
 jar=build/versus/replay.jar
-sources="$src/Languages.kt $src/Layouts.kt $src/Hangul.kt $src/Autocorrect.kt $src/SwipeDecoder.kt $src/TapDecoder.kt $src/MistakeMemory.kt $src/SampleCleaner.kt $src/NextWordModel.kt tool/lang_check/stubs/android/graphics/PointF.kt tool/versus/replay/Replay.kt"
+sources="$src/Languages.kt $src/Layouts.kt $src/Hangul.kt $src/Autocorrect.kt $src/SwipeDecoder.kt $src/TapDecoder.kt $src/ThumbLean.kt $src/MistakeMemory.kt $src/SampleCleaner.kt $src/NextWordModel.kt tool/lang_check/stubs/android/graphics/PointF.kt tool/versus/replay/Replay.kt"
 # A change to try without making it in the tree: VERSUS_OVERLAY=<folder> compiles any file of that folder in place
 # of the tree's file of the same name, into a jar of its own (tool/versus/experiments/ has the ones tried so far).
 overlay="${VERSUS_OVERLAY:-}"
