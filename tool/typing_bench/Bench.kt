@@ -74,6 +74,8 @@ class Tally {
     var realWord = 0
     var realWordFixed = 0
     var commonSpoiled = 0
+    /** Words changed behind the cursor once the word after them had ended (Autocorrect.again): a wrong one put right, a right one spoiled, any other. */
+    var behindRight = 0; var behindSpoiled = 0; var behindOther = 0
     var isWord: (String) -> Boolean = { false }
     fun add(u: Unit, oovWords: Set<String>) {
         words += u.targets.size
@@ -105,7 +107,10 @@ class Tally {
         "%-22s words right %5.2f%% (as typed %5.2f%%)  slips fixed %5.1f%% of %d (wrong word %4.1f%%)  right words spoiled %5.2f per 1000  joins fixed %4.1f%% of %d  unknown words spoiled %4.1f%% of %d",
         name, 100.0 * right / words.coerceAtLeast(1), 100.0 * rawRight / words.coerceAtLeast(1), 100.0 * fixed / slips.coerceAtLeast(1), slips, 100.0 * misfixed / slips.coerceAtLeast(1),
         1000.0 * spoiled / plainTypedRight.coerceAtLeast(1), 100.0 * joinsFixed / joins.coerceAtLeast(1), joins, 100.0 * oovSpoiled / oovTypedRight.coerceAtLeast(1), oovTypedRight,
-    ) + String.format("  [real-word slips %d, fixed %d; common words spoiled %d; splits %d]", realWord, realWordFixed, commonSpoiled, splits)
+    ) + (if (behindRight + behindSpoiled + behindOther == 0) "" else String.format(
+        "  changed behind the cursor %.1f per 1000 (put right %d, spoiled %d, other %d)",
+        1000.0 * (behindRight + behindSpoiled + behindOther) / words.coerceAtLeast(1), behindRight, behindSpoiled, behindOther,
+    )) + String.format("  [real-word slips %d, fixed %d; common words spoiled %d; splits %d]", realWord, realWordFixed, commonSpoiled, splits)
 }
 
 /** Names, handles and terms no word list has: typed on purpose, and to be left alone. Filtered against the lists at run time. */
@@ -201,6 +206,12 @@ fun typeAll(
     habit: ((String) -> String?)? = null,
     /** Told what came of each stretch, once the keyboard has had it. */
     after: ((Unit) -> kotlin.Unit)? = null,
+    /**
+     * The second look (Autocorrect.again), as DevKeyboardService and the replay's Typist have it: once a word has
+     * ended, the word before it ([typed], standing as [stood], typed after [before]) is read again with [next], the
+     * word that has now followed, in hand; what it should be now, or null. Null here: every word settled at its space.
+     */
+    again: ((typed: Typed, stood: String, next: String, before: String) -> String?)? = null,
     fix: (typed: Typed, before: String) -> String?,
 ): Tally {
     val rnd = Random(seed)
@@ -211,21 +222,61 @@ fun typeAll(
         val before = StringBuilder()
         // The word being typed, the taps that made it, and the words it is meant to be (two, where a space was missed).
         val text = StringBuilder(); val xs = ArrayList<Float>(); val ys = ArrayList<Float>()
-        val meant = ArrayList<String>(); val tokens = ArrayList<String>(); val outs = ArrayList<String>()
+        val meant = ArrayList<String>(); val tokens = ArrayList<String>(); var outs = ArrayList<String>()
+        // With [again]: a stretch that has ended waits to be tallied until the next word has ended, since the second
+        // look may still change its last word; [prev] is the word that ended last, where its text stands, and where
+        // [before] stood when it was typed.
+        class Prev(val typed: Typed, val outs: ArrayList<String>, val at: Int, val from: Int)
+        var prev: Prev? = null
+        var pending: Triple<List<String>, List<String>, ArrayList<String>>? = null
+        val changedFrom = java.util.IdentityHashMap<ArrayList<String>, String>()
+        fun flush() {
+            val p = pending ?: return
+            pending = null
+            val unit = Unit(p.first, p.second, p.third.toList())
+            changedFrom.remove(p.third)?.let { was ->
+                if (unit.targets.size == 1 && unit.typed.size == 1) {
+                    val a = was.lowercase() == unit.targets[0]
+                    when { !a && unit.right -> tally.behindRight++; a && !unit.right -> tally.behindSpoiled++; else -> tally.behindOther++ }
+                } else tally.behindOther++
+            }
+            tally.add(unit, oov)
+            after?.invoke(unit)
+        }
         fun endToken() {
             if (text.isEmpty()) return
             val typed = Typed(text.toString(), xs.toFloatArray(), ys.toFloatArray())
-            val out = fix(typed, before.toString() + typed.text) ?: typed.text
+            var out = fix(typed, before.toString() + typed.text) ?: typed.text
+            val p = prev
+            if (again != null && p != null) {
+                val now = again(p.typed, p.outs[p.at], out, before.substring(0, p.from) + p.typed.text)
+                if (now != null && now != p.outs[p.at]) {
+                    changedFrom.putIfAbsent(p.outs, p.outs[p.at])
+                    p.outs[p.at] = now
+                    before.setLength(p.from)
+                    before.append(now).append(' ')
+                    if (Autocorrect.AGAIN_REREAD) out = fix(typed, before.toString() + typed.text) ?: typed.text
+                }
+            }
+            flush()
+            prev = if (again != null) Prev(typed, outs, outs.size, before.length) else null
             tokens += typed.text; outs += out
             before.append(out).append(' ')
             text.setLength(0); xs.clear(); ys.clear()
         }
         fun endUnit() {
             if (meant.isEmpty()) return
-            val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
-            tally.add(unit, oov)
-            after?.invoke(unit)
-            meant.clear(); tokens.clear(); outs.clear()
+            if (again != null) {
+                flush()
+                pending = Triple(meant.toList(), tokens.toList(), outs)
+                outs = ArrayList()
+            } else {
+                val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
+                tally.add(unit, oov)
+                after?.invoke(unit)
+                outs.clear()
+            }
+            meant.clear(); tokens.clear()
         }
         fun tap(c: Char) {
             if (c == '\'') { text.append(c); xs += Float.NaN; ys += Float.NaN; return }
@@ -255,7 +306,7 @@ fun typeAll(
             val k = Geo.hit(x, y)
             if (k == ' ') { endToken(); endUnit() } else { text.append(k); xs += x; ys += y }
         }
-        endToken(); endUnit()
+        endToken(); endUnit(); flush()
     }
     return tally
 }
@@ -291,7 +342,8 @@ fun taps(root: File) {
         println(context.line("${noise.name}: with context"))
         val t0 = System.nanoTime()
         var calls = 0
-        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        val again: (Typed, String, String, String) -> String? = { t, stood, next, before -> kb.ac.again(t.text, stood, next, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1)))
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }

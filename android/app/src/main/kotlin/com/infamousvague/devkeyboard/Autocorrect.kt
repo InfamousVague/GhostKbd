@@ -1048,6 +1048,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val nearest = readings.values.filter { it !== standing }.sortedByDescending { (if (it.word == asTyped) 99f else 0f) + it.worth - it.cost }.take(AGAIN_READINGS.toInt())
         var best = standing
         for (r in nearest) {
+            // A word no list has is never put back once the space has changed it: the word after cannot speak for it
+            // (no row has it, so it is held down by nothing), and the bench's unknown words were the first look's to judge.
+            if (known == null && r.word == asTyped) continue
             r.after = after(r.word)
             r.all = r.worth - r.cost + r.after + (if (r.word == asTyped) guard else 0f)
             if (r.all > best.all) best = r
