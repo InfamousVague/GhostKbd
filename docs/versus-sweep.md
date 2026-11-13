@@ -492,7 +492,7 @@ then bought 15 and 18 words of half the sentences for a penalty of 8 and of noth
 says the same of all the sentences: with `INSERT` at 3.6 and `INSERT_NEAR` at 2.8, `UNKNOWN_ODD` at 1.4 leaves 31
 fewer words wrong than at 1.8 for no more penalty, and at 1, 51 fewer for 12 more.
 
-**The five that every search took, alone.** A search over just the six dials both wary halves moved (`RARE_GAP`,
+**The five, alone.** Five dials moved the same way in the search fitted on everything and in the three searches fitted on a half (`RARE_GAP`, `UNKNOWN_ODD`, `INSERT`, `INSERT_NEAR`, `NO_SPACE`); half B with the bench counted for its share left `NO_SPACE` where it was, so "every search" would be one too many. A search over just the six dials both wary halves moved (`RARE_GAP`,
 `UNKNOWN_ODD`, `INSERT`, `INSERT_NEAR`, `INSERT_FIRST`, `NO_SPACE`), fitted on everything: 90 settings, two minutes
 (`build/versus/logs/search-core.out`). It moved five of them and left `INSERT_FIRST` where it was:
 
@@ -505,10 +505,24 @@ fewer words wrong than at 1.8 for no more penalty, and at 1, 51 fewer for 12 mor
 
 88 fewer words wrong on the two sets (92 mended, 4 broken), objective 763 to 679, for a penalty of 4: the careful
 thumb spoils one right word fewer, the normal thumb one more word no list has (8 of 164 where the tree spoils 7),
-and nothing else on the bench is worse. `scoreboard.py --bench` gives the same lines for it, word for word
+and nothing else on the bench is worse. Said plainly: on the bench it costs one more unknown word spoiled for the normal thumb and saves one right word for the careful thumb. The four words it breaks: on seen, duty typed "duity" and ceiling typed "ceilinbg" are no longer mended; on unseen, don't typed "dotj" becomes the archaic "doth", and "tp" is left where to was meant. `scoreboard.py --bench` gives the same lines for it, word for word
 (`check3.out`, and `check4.out` with the worker as it now is). It is about seven tenths of what the fourteen dials
 fitted on everything gain (126 words), with none of the sloppy thumb's extra spoiling; it is the setting this
 report would hand the lead as found rather than fitted.
+
+Those values were fitted on everything, so the 387 on unseen above is in-sample, not an unseen result. To give the
+setting held-out numbers of its own, the same six-dial search was run on each half alone (`search-core-h1a.out`,
+`search-core-h1b.out`; the bench counted for the half's share):
+
+| Fitted on | Settings tried | Found | The half it was fitted on | The half held out | over 2,000 resamplings |
+| --- | ---: | --- | --- | --- | --- |
+| half A | 89 | the five, but `INSERT_NEAR` 2.8 | 382 wrong to 334, 48 fewer | 381 to 339 (6.70% to 5.96%), 42 fewer | 56 to 29 fewer |
+| half B | 77 | the five, exactly | 381 wrong to 339, 42 fewer | 382 to 336 (6.45% to 5.67%), 46 fewer | 63 to 31 fewer |
+
+Fitted on half B alone, the search lands on the very setting above, and on half A, which it never saw, that
+setting leaves 46 fewer words wrong of 382 (a held-out gain as large as the one on its own half). Fitted on half A
+it differs only in `INSERT_NEAR` (2.8 for 3.2: seen 287, unseen 386, one more right word spoiled for the normal
+thumb, 1.61 in 1,000) and gains 42 on half B. These, not 6.04% on unseen, are the numbers to quote for it.
 
 **What it costs a word.** Clocked against the tree, turn about, the least of three typings each (four threads,
 load average 130 to 240): the setting fitted on everything takes 639 and 684 microseconds a word on the seen and
