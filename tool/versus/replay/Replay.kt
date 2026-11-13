@@ -287,7 +287,10 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     var unhandled = 0
     /** What autocorrect did, a word at a time: "typed>stood" where it changed one. */
     val fixes = ArrayList<String>()
-    /** Told each word autocorrect was asked about, the text before it and what it made of it (null: left): for `why`. */
+    /**
+     * Told each word autocorrect was asked about, the text before it and what it made of it (null: left): for `why`.
+     * Two scraps it was asked to put together again are told as one, with the space between them.
+     */
     var asked: ((word: String, before: String, fixed: String?) -> Unit)? = null
 
     private fun isWordChar(c: Char) = Words.isWordChar(c, joiners)
@@ -379,6 +382,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             cut = null
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))
+                asked?.invoke(c.typed + " ", text.dropLast(c.stood.length + 1).takeLast(96).toString(), whole)
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - c.stood.length - 1)
@@ -430,6 +434,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         // The word before this one ended at a tap on the bar that may have been a letter of one word, this its end.
         if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + " " + word)) {
             val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(c.stood.length + 1 + word.length), tapsAcross(c.touches, c.tap, wordTouches))
+            asked?.invoke(c.typed + " " + word, text.dropLast(c.stood.length + 1 + word.length).takeLast(96).toString(), whole)
             if (whole != null) {
                 fixes += "${c.stood}_$word>$whole"
                 text.setLength(text.length - c.stood.length - 1 - word.length)

@@ -1040,8 +1040,194 @@ class Scorer(
         return out
     }
 
-    /** Every word that may come next here, in lower case, with how likely (above 0, to 1): for a reader of taps to hold each up against them. */
-    fun likely(visit: (lower: String, share: Float) -> Unit) { for (c in cands.values) if (c.share > 0f) visit(c.lower, c.share) }
+    /**
+     * One row of a starter table as it bears on every word, listed in it or not: each follower it lists with its
+     * share of what followed ([shares]), the share it leaves over ([left]), the least share it lists ([least]) and
+     * how far it is believed ([trust], under 1). [rest] is the words it does not list as a share of all words: one,
+     * less the listed words' own shares (for a two-word row, less what the one-word row makes of them).
+     */
+    internal class Row(val shares: HashMap<String, Float>, val left: Float, val least: Float, val trust: Float) {
+        var rest = 1f
+
+        /**
+         * How likely [lower] is by this row, where [back] is how likely it is without it (its own frequency, or what
+         * the one-word row made of it). A listed word has its share. An unlisted one has its part of what the row
+         * leaves over, shared out among the unlisted by [back], and never more than [UNLISTED] of the least share
+         * listed: had it followed more often than that, the row would list it. Then the row is believed as far as
+         * its [trust] goes, and [back] for the rest.
+         */
+        fun of(lower: String, back: Float): Float {
+            val said = shares[lower] ?: minOf(left * back / rest, UNLISTED * least)
+            return trust * said + (1f - trust) * back
+        }
+
+        /** What the row makes of a word it does not list and does not hold down, as a multiple of [of]'s back. */
+        val plainly: Float get() = trust * left / rest + (1f - trust)
+
+        /** Whether [lower] is such a word: not listed, and under the least share's bound. */
+        fun plain(lower: String, back: Float): Boolean = !shares.containsKey(lower) && left * back / rest <= UNLISTED * least
+    }
+
+    /** One table's rows for a place: the row of the word before ([one]) and of the two words before ([two]), where it has them. */
+    internal class Rows(val weight: Float, val one: Row?, val two: Row?) {
+        fun of(lower: String, own: Float): Float {
+            val first = one?.of(lower, own) ?: own
+            return two?.of(lower, first) ?: first
+        }
+
+        /** What these rows make of a word neither lists nor holds down, as a multiple of its own frequency. */
+        val plainly: Float = (one?.plainly ?: 1f) * (two?.plainly ?: 1f)
+
+        fun plain(lower: String, own: Float): Boolean =
+            (one == null || one.plain(lower, own)) && (two == null || two.plain(lower, if (one == null) own else own * one.plainly))
+    }
+
+    /** [key]'s row in [table], or null; [seen] is how often a two-word [key] was seen (0 for one word). */
+    private fun row(table: NgramTable, key: String, seen: Int): Row? {
+        val range = table.range(key)
+        if (range.isEmpty()) return null
+        val shares = HashMap<String, Float>((range.last - range.first + 1) * 2)
+        var sum = 0f
+        var least = 1f
+        for (i in range) {
+            val s = table.shareAt(i)
+            shares[table.lowerAt(i)] = s
+            sum += s
+            if (s < least) least = s
+        }
+        // A two-word row says how often its words were seen. A one-word row does not: the least share it lists is
+        // of a follower seen [SEEN_LEAST] times, or a few more, which says about how often the word itself was.
+        val n = if (seen > 0) seen.toFloat() else SEEN_LEAST / least
+        return Row(shares, (1f - sum).coerceAtLeast(0f), least, n / (n + if (seen > 0) PRIOR_TABLE_TWO else PRIOR_TABLE_ONE))
+    }
+
+    /** Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one. */
+    private fun rows(prev2: String?, prev: String, own: (String) -> Float?): List<Rows> {
+        val key2 = prev2?.takeIf { prev != NextWordText.START }?.let { "$it $prev" }
+        val out = ArrayList<Rows>(tables.size)
+        for (t in tables.indices) {
+            val table = tables[t]
+            val one = row(table, prev, 0)
+            val n2 = if (key2 == null) 0 else table.seen(key2)
+            val two = if (n2 > 0) row(table, key2!!, n2) else null
+            if (one == null && two == null) continue
+            one?.let { r ->
+                var listed = 0f
+                for (w in r.shares.keys) own(w)?.let { listed += 10f.pow(it - 9f) }
+                r.rest = (1f - listed).coerceAtLeast(REST_LEAST)
+            }
+            two?.let { r ->
+                var listed = 0f
+                for (w in r.shares.keys) own(w)?.let { z -> val p = 10f.pow(z - 9f); listed += one?.of(w, p) ?: p }
+                r.rest = (1f - listed).coerceAtLeast(REST_LEAST)
+            }
+            out += Rows(weights[t], one, two)
+        }
+        return out
+    }
+
+    /**
+     * What the words before make of every word at one place: how likely each is there. Where a word's frequency
+     * says how common it is anywhere, this says how likely it is here, and that can be far less ("is" after "the")
+     * as well as far more ("you" after "thank"). Autocorrect weighs every reading of a word's taps by it, and the
+     * typed word itself ([Autocorrect.byTaps]).
+     *
+     * How likely, by one table ([Rows.of]): the share the two-word row gives the word, else the share the one-word
+     * row gives it, each row believed as far as it was seen ([Row.trust]) and the word's own frequency for the rest.
+     * A word a row does not list has its part of the share the row leaves over, by its own frequency among the
+     * unlisted, and at most [UNLISTED] of the least share listed. Several languages' tables are weighed as [weights]
+     * has them, a table with no row here having no say.
+     *
+     * The person's own counts lift a word they have typed here, by the blend the row above the keys shows
+     * ([Scorer]'s own comment). They never lower one: the counts kept for a place are its 32 most typed followers,
+     * faded, which says what the person does type there and little of what they never would.
+     */
+    class Here internal constructor(
+        private val rows: List<Rows>,
+        private val u1: Map<String, Float>, private val total1: Float,
+        private val u2: Map<String, Float>, private val total2: Float,
+    ) {
+        /**
+         * What the place makes of a word that no row lists or holds down and the person has not typed here, over
+         * the word's own frequency, in Zipf units: the same for every such word. Under 0 where the rows leave
+         * little over (after "I've", where what follows is nearly always one of the listed words).
+         */
+        val room: Float = run {
+            var sum = 0f
+            var weight = 0f
+            for (r in rows) { sum += r.weight * r.plainly; weight += r.weight }
+            log10((sum / weight).coerceAtLeast(1e-12f))
+        }
+
+        /** How likely [lower], a word of frequency [zipf], is here: 0 to 1. */
+        fun share(lower: String, zipf: Float): Float {
+            val own = 10f.pow(zipf - 9f)
+            var sum = 0f
+            var weight = 0f
+            for (r in rows) { sum += r.weight * r.of(lower, own); weight += r.weight }
+            val tables = sum / weight
+            if (total1 <= 0f && total2 <= 0f) return tables
+            val after1 = ((u1[lower] ?: 0f) + PRIOR_ONE * tables) / (total1 + PRIOR_ONE)
+            val mine = if (total2 > 0f) ((u2[lower] ?: 0f) + PRIOR_TWO * after1) / (total2 + PRIOR_TWO) else after1
+            return maxOf(tables, mine)
+        }
+
+        /** Whether the place makes of [lower] what it makes of any word nobody lists: [room] over its frequency, exactly. */
+        fun plain(lower: String, zipf: Float): Boolean {
+            if ((u1[lower] ?: 0f) > 0f || (u2[lower] ?: 0f) > 0f) return false
+            val own = 10f.pow(zipf - 9f)
+            for (r in rows) if (!r.plain(lower, own)) return false
+            return true
+        }
+
+        /** What [lower], a word of frequency [zipf], is worth here in Zipf units: 9 + log10 of how likely it is. */
+        fun worth(lower: String, zipf: Float): Float = if (plain(lower, zipf)) zipf + room else 9f + log10(share(lower, zipf).coerceAtLeast(1e-12f))
+
+        /** Whether a row lists [lower] as a follower here, or the person has typed it here often enough to go by. */
+        fun lists(lower: String): Boolean {
+            for (r in rows) if (r.one?.shares?.containsKey(lower) == true || r.two?.shares?.containsKey(lower) == true) return true
+            return (u1[lower] ?: 0f) > 0f || (u2[lower] ?: 0f) > 0f
+        }
+
+        /** Every word [lists] is true of, in lower case; a word two tables list may be told twice. */
+        fun listed(visit: (String) -> Unit) {
+            fun inRows(w: String) = rows.any { it.one?.shares?.containsKey(w) == true || it.two?.shares?.containsKey(w) == true }
+            for (r in rows) {
+                r.two?.shares?.keys?.forEach(visit)
+                r.one?.shares?.keys?.forEach { if (r.two?.shares?.containsKey(it) != true) visit(it) }
+            }
+            for ((w, u) in u1) if (u > 0f && !inRows(w)) visit(w)
+            for ((w, u) in u2) if (u > 0f && (u1[w] ?: 0f) <= 0f && !inRows(w)) visit(w)
+        }
+    }
+
+    /**
+     * What the words before make of every word at this place ([Here]), or null where no table has a row for them:
+     * there is then nothing to go by but how common each word is, as with prediction off. [own] is a word's own
+     * Zipf frequency in the word lists, or null for a word they do not have.
+     */
+    fun here(own: (String) -> Float?): Here? {
+        val rows = rows(place.prev2, place.prev, own)
+        if (rows.isEmpty()) return null
+        if (one.isEmpty() && two.isEmpty()) return Here(rows, emptyMap(), 0f, emptyMap(), 0f)
+        var total1 = 0f
+        var total2 = 0f
+        val u1 = HashMap<String, Float>(one.size * 2)
+        val u2 = HashMap<String, Float>(two.size * 2)
+        for (e in one) { total1 += e.count; u1[e.word] = counted(e.count, e.word) }
+        for (e in two) { total2 += e.count; u2[e.word] = counted(e.count, e.word) }
+        return Here(rows, u1, total1, u2, total2)
+    }
+
+    /**
+     * [Here] for the place straight after [first] (lower case), were [first] the word typed at this place: for the
+     * second of two words run together. By the tables alone: the row of [first], and of the word before this place
+     * then [first]. Null where no table has either.
+     */
+    fun after(first: String, own: (String) -> Float?): Here? {
+        val rows = rows(place.prev, first, own)
+        return if (rows.isEmpty()) null else Here(rows, emptyMap(), 0f, emptyMap(), 0f)
+    }
 
     /** The person's own words that begin with [prefix]: lower case, as shown, and how common their use makes each. */
     fun personal(prefix: String): List<Next> = lookup.starting(prefix).mapNotNull { (w, n) ->
@@ -1074,6 +1260,14 @@ class Scorer(
         const val NAME_WEIGHT = 0.5f
         @JvmField var LIFT_WEIGHT = 40f
         @JvmField var LIFT_CAP = 6f
+        /**
+         * [Here]'s numbers, PLACEHOLDER.
+         */
+        @JvmField var UNLISTED = 0.5f
+        @JvmField var PRIOR_TABLE_ONE = 15f
+        @JvmField var SEEN_LEAST = 3f
+        /** The least [Row.rest] is taken to be: a row whose listed words are nearly all the words there are shares its left-over out no more than twenty times over. */
+        const val REST_LEAST = 0.05f
 
         /** See [Scorer.personalZipf]. */
         fun personalZipf(n: Float, isWord: Boolean): Float =

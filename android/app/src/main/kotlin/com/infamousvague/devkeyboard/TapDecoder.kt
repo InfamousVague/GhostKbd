@@ -244,7 +244,7 @@ class TapDecoder(
      * The words the taps of [from] onward could be, each with its cost: those scoring (frequency less cost) at least
      * [least], and within [KEEP] of the best found. [budget] is the most the slips may cost.
      */
-    fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false, few: Boolean = slipsOnly): List<Hit> {
+    fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false): List<Hit> {
         hits.clear()
         floor = least
         top = Float.NEGATIVE_INFINITY
@@ -254,7 +254,7 @@ class TapDecoder(
         // A short word changed in most of its letters is another word, not a slip of this one. In hundredths of a
         // change: a letter read as the key its tap all but landed on counts for less than one ([counts]).
         val len = n - from
-        changes = 100 * (if (few) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
+        changes = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
         for ((index, cost) in hits) if (zipfs[index] - cost >= floor) out += Hit(index, cost)
