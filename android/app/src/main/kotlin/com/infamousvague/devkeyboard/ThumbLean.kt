@@ -22,9 +22,10 @@ package com.infamousvague.devkeyboard
  * the taps make it likely that this thumb leans at all: next to nothing while scatter alone ([NOISE], and then the
  * field's own taps) would as soon have given that mean, nearly all of it once it stands well clear of the scatter.
  * Three taps of the leaning thumb say nothing; a dozen say most of it. A sloppy thumb that does not lean scatters
- * too widely for its mean to stand out, and is left alone. One lean serves the whole board: a field's taps are a
- * few dozen, which is enough for one pair of numbers and not for one a row or a side (Gboard's own model keeps 800
- * taps for seven groups of keys, docs/versus-research.md).
+ * too widely for its mean to stand out often: it is given a tenth of a key's lean or more in two or three
+ * sentences of a hundred (tool/versus/leanlog.py). One lean serves the whole board: a field's taps are a few
+ * dozen, which is enough for one pair of numbers and not for one a row or a side (Gboard's own model keeps 800 taps
+ * for seven groups of keys: docs/versus-research.md).
  *
  * Plain Kotlin with no Android in it: tool/typing_bench.sh, tool/versus/replay.sh and the unit tests run the very
  * code the phone does.
