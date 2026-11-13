@@ -206,7 +206,7 @@ class TapDecoder(
         slipCh = Array(n) { EMPTY_CHARS }
         slipCost = Array(n) { EMPTY_COSTS }
         val slip = SWAP_SLIP
-        for (i in 0 until n) {
+        if (slip > 0f) for (i in 0 until n) {
             if (!aimed[i]) continue
             val costs = nearCost[i]
             var some = 0
@@ -307,12 +307,11 @@ class TapDecoder(
         edits = !slipsOnly
         dear = 0f
         lone = false
-        slipped = false
+        reaching = reach
         if (reach) {
             if (len <= SHORT.toInt()) { changes = bound + (SHORT_MORE * 100f).toInt(); past = SHORT_PAST }
             if (slipsOnly && LISTED_EDIT < NEVER) { edits = true; dear = LISTED_EDIT }
             lone = len == 1
-            slipped = SWAP_SLIP > 0f
         }
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
@@ -338,7 +337,7 @@ class TapDecoder(
         edits = true
         dear = 0f
         lone = false
-        slipped = false
+        reaching = false
         walk(0, 0, 0f, 0, 0, 0.toChar(), budget, 0)
         finishing = false
         val out = ArrayList<Hit>(hits.size)
@@ -350,8 +349,8 @@ class TapDecoder(
      * [search]'s bounds. [only]: the letters spell a common word, and no misspelling is read into them. [bound]: how
      * many changes at most, in hundredths of a change, and [changes] the same with what a short word is let past it,
      * each reading that goes past it costing [past] more. [edits]: whether a letter may have been left out, added or
-     * swapped, each for at least [dear]. [lone]: the word was typed as one letter. [slipped]: one of two swapped
-     * taps may have landed on a neighbour's key.
+     * swapped, each for at least [dear]. [lone]: the word was typed as one letter. [reaching]: the search was asked
+     * to reach, which [swap] goes by too.
      */
     private var only = false
     private var bound = 400
@@ -360,7 +359,7 @@ class TapDecoder(
     private var edits = true
     private var dear = 0f
     private var lone = false
-    private var slipped = false
+    private var reaching = false
 
     /**
      * What a letter read as another key for [s] counts against [changes], in hundredths: a whole change from
@@ -430,16 +429,16 @@ class TapDecoder(
 
     /**
      * Taps [i] and [i] + 1 in the wrong order: the later one read as the word's next letter and the earlier as the
-     * letter after that. [cost] has what the swap costs in it already. Where [slipped], one of the two (never both)
-     * may have landed on a neighbour's key as well, for what any tap read as that key costs: "iculs" is "could"
-     * with its c and o in the wrong order and the o tapped on i.
+     * letter after that. [cost] has what the swap costs in it already. Where the search was asked to reach, one of
+     * the two (never both) may have landed on a neighbour's key as well, for what any tap read as that key costs:
+     * "iculs" is "could" with its c and o in the wrong order and the o tapped on i.
      */
     private fun swap(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
         val first = typed[i + 1]
         val second = typed[i]
         pair(node, i, first, second, cost, 0f, omits, inserts, budget, changed)
         // Two taps on one key are not read as swapped, whichever of them was nearer another key.
-        if (!slipped || tk[i] == tk[i + 1]) return
+        if (!reaching || tk[i] == tk[i + 1]) return
         val a = slipCh[i + 1]
         for (j in a.indices) pair(node, i, a[j], second, cost, slipCost[i + 1][j], omits, inserts, budget, changed)
         val b = slipCh[i]
@@ -456,6 +455,15 @@ class TapDecoder(
         if (p < 0) return
         val q = trie.child(p, b)
         if (q >= 0) walk(q, i + 2, cost + s + beyond(changed, w), omits, inserts, b, budget, changed + w)
+        if (!reaching) return
+        // An apostrophe between the two is stepped over, as [walk] steps over any: "dotn" is "don't", and without
+        // this the swap reached only "dont", which the lists hold too.
+        for (mark in APOSTROPHES) {
+            val h = trie.child(p, mark)
+            if (h < 0) continue
+            val r = trie.child(h, b)
+            if (r >= 0) walk(r, i + 2, cost + s + APOSTROPHE + beyond(changed, w), omits, inserts, b, budget, changed + w)
+        }
     }
 
     /**
@@ -574,6 +582,7 @@ class TapDecoder(
         /** One vowel typed for another, wherever the tap landed: a misspelling. */
         @JvmField var VOWEL = 2.2f
         const val VOWELS = "aeiou"
+        private const val APOSTROPHES = "'’"
         const val LONG = 5
         /** A neighbouring key in place of a character that had no tap of its own. */
         @JvmField var NEIGHBOUR = 1.6f

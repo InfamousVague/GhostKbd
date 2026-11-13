@@ -50,6 +50,47 @@ class TypingAccuracyTest {
             }
             return Taps(xs, ys, centres, W, space)
         }
+
+        private val table: NgramTable by lazy { File(assets, "ngram/en.tsv").useLines { NgramTable.parse(it) }!! }
+
+        /**
+         * What is likely next where [before] ends (it ends with the word being typed), by the starter table alone:
+         * next-word prediction on and nothing learned.
+         */
+        fun after(before: String): Scorer {
+            val place = NextWordText.place(before, { c -> Words.isWordChar(c, "'") }, false)!!
+            val nothing = object : Scorer.Lookup {
+                override fun isWord(lower: String) = ac.isWord(lower)
+                override fun form(lower: String) = lower
+                override fun count(lower: String) = 0f
+                override fun starting(prefix: String) = emptyList<Pair<String, Float>>()
+                override fun fills() = emptyList<String>()
+            }
+            return Scorer(place, listOf(table), Scorer.weights(listOf(table), place.recent), emptyList(), emptyList(), nothing)
+        }
+
+        /**
+         * [TapDecoder] over a few words of its own, each as common as the next: what [TapDecoder.search] reaches and
+         * what each reading costs, whatever the lists hold and however a reading is weighed afterwards.
+         */
+        class Few(vararg words: String) {
+            private val names = words.sorted().toTypedArray()
+            private val zipf = FloatArray(names.size) { 5f }
+            /** Each key's neighbours on the drawn board: the keys beside it, and those above and below it. */
+            private val neighbours: Map<Char, Set<Char>> = centres.mapValues { (k, at) ->
+                centres.filter { (o, c) -> o != k && kotlin.math.hypot(c.first - at.first, c.second - at.second) <= 1.7f * W }.keys
+            }
+            private val decoder = TapDecoder(names, zipf, WordTrie(names, zipf), { c -> if (c in 'a'..'z') c else 0.toChar() }, neighbours)
+
+            /**
+             * The words [typed]'s [taps] could be, each with what its slips cost. [listed]: the typed letters spell a
+             * common word. [reach]: asked as [Autocorrect.byTaps] asks.
+             */
+            fun read(typed: String, taps: Taps, listed: Boolean = false, reach: Boolean = true): Map<String, Float> {
+                decoder.load(typed, taps)
+                return decoder.search(-100f, TapDecoder.BUDGET, 0, slipsOnly = listed, reach = reach).associate { names[it.index] to it.cost }
+            }
+        }
     }
 
     // --- by the taps ------------------------------------------------------------------------------------------------
@@ -108,6 +149,95 @@ class TypingAccuracyTest {
         assertNull(ac.correct("jr", null, taps("jr")))
         // One tap in the middle of the wrong key is one change, as it always was.
         assertEquals("the", ac.correct("thr", null, taps("thr")))
+    }
+
+    // What TapDecoder.search reaches where Autocorrect.byTaps asks (its reach), held to the costs themselves on a
+    // few words of the test's own, and then to the real lists.
+
+    @Test fun aShortWordIsReadALittlePastItsOneChange() {
+        val the = Few("the")
+        // The h a third of a key under its line (on b) and the e a quarter of a key over its line (on r): one change
+        // and a twentieth between them. Read, for SHORT_PAST more than the two slips cost; not read without the reach.
+        val near = taps("tbr", 1 to (0f to -0.3f), 2 to (-0.25f to 0f))
+        assertEquals(1.35f + 0.75f + TapDecoder.SHORT_PAST, the.read("tbr", near).getValue("the"), 0.01f)
+        assertNull(the.read("tbr", near, reach = false)["the"])
+        // Both taps in the middles of the wrong keys are a change and three quarters: more than SHORT_MORE allows.
+        assertNull(the.read("tbr", taps("tbr"))["the"])
+        // A letter left out and another just over its line: "eit" is "with", not "wit" (which one change reaches).
+        assertEquals("with", ac.correct("eit", null, taps("eit", 0 to (-0.4f to 0f))))
+        assertEquals("the", ac.correct("tbr", null, near))
+        // Four letters are not short: two changes and no more, and four taps a tenth of a key off their middles toward
+        // the keys of "that" are two and two fifths.
+        val that = Few("that")
+        assertNull(that.read("ygsr", taps("ygsr", 0 to (-0.1f to 0f), 1 to (0.1f to 0f), 2 to (-0.1f to 0f), 3 to (0.1f to 0f)))["that"])
+        assertEquals(4 * 0.9f, that.read("ygsr", taps("ygsr", 0 to (-0.2f to 0f), 1 to (0.2f to 0f), 2 to (-0.2f to 0f), 3 to (0.2f to 0f))).getValue("that"), 0.01f)
+    }
+
+    @Test fun lettersThatSpellACommonWordMayHaveLostALetterOrHadTwoSwapped() {
+        val few = Few("th", "the", "to", "ot", "in", "inn", "ink", "so", "soo")
+        // Without the reach a common word is read by slips of the thumb alone, as it was: nothing but itself here.
+        assertEquals(setOf("th"), few.read("th", taps("th"), listed = true, reach = false).keys)
+        assertEquals(setOf("ot"), few.read("ot", taps("ot"), listed = true, reach = false).keys)
+        // With it: a letter left out, two swapped, a letter tapped twice, each for LISTED_EDIT at the least.
+        assertEquals(maxOf(TapDecoder.OMIT, TapDecoder.LISTED_EDIT), few.read("th", taps("th"), listed = true).getValue("the"), 0.01f)
+        assertEquals(maxOf(TapDecoder.SWAP, TapDecoder.LISTED_EDIT), few.read("ot", taps("ot"), listed = true).getValue("to"), 0.01f)
+        assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("soo", taps("soo"), listed = true).getValue("so"), 0.01f)
+        assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("inn", taps("inn"), listed = true).getValue("in"), 0.01f)
+        // Letters no list has are read as they always were: the swap for SWAP, the doubled letter for INSERT_DOUBLED.
+        assertEquals(TapDecoder.SWAP, few.read("ot", taps("ot")).getValue("to"), 0.01f)
+        assertEquals(TapDecoder.INSERT_DOUBLED, few.read("soo", taps("soo")).getValue("so"), 0.01f)
+        // A tap that doubles nothing is never taken out of a common word: "ink" is not "in" with a k too many.
+        assertNull(few.read("ink", taps("ink"), listed = true)["in"])
+        assertEquals(TapDecoder.INSERT, few.read("ink", taps("ink")).getValue("in"), 0.01f)
+        // Against the real lists, where the words before make the other word likely: and not without them.
+        assertEquals("the", ac.correct("th", after("it was th"), taps("th")))
+        assertEquals("to", ac.correct("ot", after("we are going ot"), taps("ot")))
+        assertNull(ac.correct("ink", after("i live ink"), taps("ink")))
+        for (word in listOf("on", "in", "of", "if", "is", "it", "to", "so", "no", "do", "me", "my", "we", "he", "be", "at", "as", "an", "or", "up", "us", "go", "ink", "inn", "off", "too", "see", "been", "here", "there", "form", "from")) {
+            assertNull("$word, every tap in the middle of its key", ac.correct(word, null, taps(word)))
+        }
+    }
+
+    @Test fun aWordTypedAsOneLetterMayHaveLostItsOther() {
+        val few = Few("t", "to", "it")
+        assertEquals(TapDecoder.LONE_OMIT, few.read("t", taps("t"), listed = true).getValue("to"), 0.01f)
+        assertEquals(TapDecoder.LONE_OMIT, few.read("t", taps("t"), listed = true).getValue("it"), 0.01f)
+        assertEquals(setOf("t"), few.read("t", taps("t"), listed = true, reach = false).keys)
+        // "t" where "to" is likely is "to"; by itself a letter stands, whichever it is.
+        assertEquals("to", ac.correct("t", after("i want t"), taps("t")))
+        for (letter in "bcdefghjklmnopqrstuvwxyz") assertNull("$letter by itself", ac.correct(letter.toString(), null, taps(letter.toString())))
+    }
+
+    @Test fun aTapTooManyCostsByWhereItLanded() {
+        val the = Few("the")
+        // "thre" for "the": the r is one tap too many. On the line beside e it is all but e tapped twice; in the
+        // middle of its own key it is a tap of its own, and costs what any stray tap costs.
+        assertEquals(TapDecoder.INSERT_DOUBLED + 0.15f, the.read("thre", taps("thre", 2 to (-0.45f to 0f))).getValue("the"), 0.01f)
+        assertEquals(TapDecoder.INSERT, the.read("thre", taps("thre")).getValue("the"), 0.01f)
+        // The same key twice is a doubled letter, as it always was.
+        assertEquals(TapDecoder.INSERT_DOUBLED, the.read("thee", taps("thee")).getValue("the"), 0.01f)
+        // A character with no tap of its own (NaN) still goes by which keys are neighbours: r is e's.
+        val blind = Taps(FloatArray(4) { Float.NaN }, FloatArray(4) { Float.NaN }, centres, W, space)
+        assertEquals(TapDecoder.INSERT_NEAR, the.read("thre", blind).getValue("the"), 0.01f)
+    }
+
+    @Test fun oneOfTwoSwappedTapsMayHaveLandedOnANeighbour() {
+        val few = Few("could", "work")
+        // "wrik" for "work": the o and the r in the wrong order, and the o tapped on i, two fifths of a key from its
+        // own middle toward o. SWAP and what the i costs to read as o.
+        val wrik = taps("wrik", 2 to (0.4f to 0f))
+        assertEquals(TapDecoder.SWAP + 0.3f, few.read("wrik", wrik).getValue("work"), 0.01f)
+        // Without the reach, and with the tap in the middle of the i key (an i: more than SWAP_SLIP), "work" is
+        // reached only as an o left out and an i too many.
+        assertEquals(TapDecoder.OMIT + TapDecoder.INSERT, few.read("wrik", wrik, reach = false).getValue("work"), 0.01f)
+        assertEquals(TapDecoder.OMIT + TapDecoder.INSERT, few.read("wrik", taps("wrik")).getValue("work"), 0.01f)
+        // Both of the two on a neighbour's key ("weik": the r on e and the o on i) is not read: one slip to a swap.
+        assertNull(few.read("weik", taps("weik", 1 to (0.4f to 0f), 2 to (0.4f to 0f)))["work"])
+        // "iculs" for "could": c and o swapped, the o on i, and the d on s besides.
+        val iculs = taps("iculs", 0 to (0.4f to 0f), 4 to (0.4f to 0f))
+        assertEquals(TapDecoder.SWAP + 0.3f + 0.3f, few.read("iculs", iculs).getValue("could"), 0.01f)
+        assertEquals("could", ac.correct("iculs", null, iculs))
+        assertEquals("work", ac.correct("wrik", null, wrik))
     }
 
     /** [first], a tap on the space bar under the key [under], [down] of the bar's height below its top edge, then [second]. */
