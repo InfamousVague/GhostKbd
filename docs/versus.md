@@ -450,6 +450,10 @@ added is one more pass over the keys for each tap of a word read by a lean, and 
   4 to 7: fastest of six rounds 122.5 µs a word with the lean and 124.8 without, for a normal thumb leaning 0.24
   and 0.18 (10,566 of 12,187 words read by a lean); 104.8 and 105.6 for one that does not lean (10,248 of 11,864
   read by some lean, mostly a few hundredths). No cost that can be seen.
+- *The service never compiled.* Still no Gradle, but kotlinc has now compiled every source of the app's main set
+  but the few that import Flutter, against Android 36's android.jar with androidx's annotation and autofill
+  classes from the Gradle cache and stand-ins for BuildConfig and MainActivity.EXTRA_OPEN: no errors, and
+  DevKeyboardService with its new lines among them. It has still not been built by Gradle or typed on.
 - *Unseen as the check only.* The dials' comments give unseen figures from when they were set; nothing chosen
   since has been chosen on them (the experiments above were judged on seen, the drawn aim and the bench).
 
