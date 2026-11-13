@@ -302,7 +302,8 @@ def main(argv):
             for made, tried in halves:
                 words = kept(made, vocab, lo, SHARE) - (kept(made, vocab, hi, SHARE) if hi else set())
                 n += len(words)
-                for w in words:
+                # In the list's own order, so that words wrong equally often are named the same way every run.
+                for w in sorted(words):
                     c = tried.get(w)
                     if c:
                         capital += c[1]; lower += c[0]
