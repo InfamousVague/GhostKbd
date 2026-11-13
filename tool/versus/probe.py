@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Why two words run together were, or were not, parted: tool/versus/probe.py [seen|unseen] [--thumb NAME] [--line N] [--show N]
+"""Why two words run together were, or were not, parted: tool/versus/probe.py [seen|unseen|words|spoils] [--cuts] [--time] [--thumb NAME] [--line N] [--show N] [--set NAME=VALUE]
 
 For every stretch of a typing in which the space landed on a letter or was never typed (so that the keyboard was
 handed "hasvtwnspnitid" for "has tendonitis"), prints what the decoder in this tree weighed (tool/versus/probe/Probe.kt):
@@ -11,6 +11,17 @@ parted right.
   unseen    tool/versus/scoreboard.py's 900 other typings: for counting, not for designing from
   words     words on the input, one a line, each typed with every tap in the middle of its key: what a name or a
             term no list has could be parted into, and how near the bar that comes
+  spoils    right words spoiled, on far more text than the typing bench's 12,000 words: held-out lines that nothing
+            else here types (--lines, 30001-60000 unless said; never past 90,000, where the seen, unseen and final
+            sets are) typed by the three thumbs, and every word whose taps all landed on its own keys given to
+            Autocorrect.correct. Says how many were changed, how many of those were parted in two, and the same
+            for the words no list has
+  --cuts    seen or unseen: the words cut in two in place of the joins. For every tap meant as a letter that landed
+            on the space bar: the scraps either side, what stood in the field after each step, and what the scraps
+            and the bar's tap read as one word
+  --time    seen or unseen: microseconds of Autocorrect.correct for every typed word, by the thread's own clock (the
+            mean, the middle, the slowest in a hundred and in a thousand, the slowest few by name), and the join
+            search's own count of its work (TapDecoder.JOIN_WORK_LAST), which no other process's load changes
   --thumb   careful, leaning or sloppy alone
   --line N  one sentence (the fixtures' "line")
   --show N  how many of the decoder's own readings to print (5)

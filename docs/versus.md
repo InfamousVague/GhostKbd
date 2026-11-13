@@ -239,10 +239,84 @@ scraps back and learns nothing from them.
 | after | 3.3% | 5.0% | 12.2% | 6.8% | 41 | 1 |
 
 The typing bench cannot see this (it types a word at a time), so the two sets of sentences are its only measure,
-through `Replay.kt`'s model of the service. Not yet typed on a device. Still cut in two: a word whose first letter
-landed on the bar (" egim" for "begin": the tap comes after the last word's own space, and makes a full stop of
-it), and scraps that were mended at the bar's tap into a word too good to give up ("eome" made "some", for
-"women").
+through `Replay.kt`'s model of the service. Not yet typed on a device. Still cut in two after this step, and
+mended by the next (below): a word whose first letter landed on the bar (" egim" for "begin": the tap comes after
+the last word's own space, and makes a full stop of it), and scraps that were mended at the bar's tap into a word
+too good to give up ("eome" made "some", for "women").
+
+### Words run together, and a word's first or last letter on the bar (made 2026-11-12)
+
+**Run together.** `TapDecoder.joins` found most of the pairs a missed space leaves, and `Autocorrect.byTaps` left
+them: two words that are not common together are worth less than `JOIN_BAR`, the bar of a six-letter name, however
+plainly the dozen letters they made are no word ("frimsteangerz", "gadvzritchds"). Four things changed.
+
+- **The bar falls with the length of letters that look like no word**: by `JOIN_FALL` (1) for every letter over
+  `JOIN_LONG` (6). Not for two words set side by side, which is how a name or a compound no list has is made
+  ("worktree", "infamousvague", "windowpane"): where every run of three letters that no common word has lies where
+  the join's words meet, and one of the pieces either side of that place is a word as typed, the bar stays where it
+  was at any length. The best join speaks for the letters; no other is taken.
+- **The search is best-first and stops itself** (`MAX_JOIN_WORK`, 16,000): the likeliest first words first, each
+  find raising what the rest must be worth. A first or middle word may have one letter missed, doubled or swapped
+  as well as letters on the keys beside their own (`starts`, `JOIN_SLIP`), and three words are looked for
+  (`JOIN_THREE`).
+- **A first word is read by slips of the thumb only** (`TapDecoder.slip`), and a last word the tables list after
+  the first is held to the same bound on changes as any word (`TapDecoder.fits`). Without the first, the name
+  "baya" was "buy a" wherever "buy" was likely; without the second, "anneke" was "a week".
+- **The words before lift a join's first word by half** of what they lift a single word (`JOIN_LIFT`): the whole
+  of it parted names into words that suited their place.
+
+**The first letter on the bar.** The tap comes straight after the space before it and ends no word; the two made a
+full stop, and the rest of the word began a sentence ("It did. It rain" for "It did not rain"). The service now
+keeps that tap as it keeps the one that ended a word, and when the next word ends `Autocorrect.rejoin` reads the tap
+and the word's letters as one word, against the letters as they stand and the best word they make by themselves at
+the start of a sentence. The full stop goes, and its capital with it.
+
+**The last letter on the bar.** What stands for the scrap is worth less by what mending it cost ("eome" made
+"some", and "women" reads the same taps for less); where the mend supplied the very letter the tap can be ("wome"
+made "women") the word comes back as it stands and the second space is its space; and a full stop or a comma
+straight after the space is read as a second space is ("tragi ." for "tragic.").
+
+**A double tap lands on one spot.** A full stop by two spaces is two taps in one place; a letter that fell on the
+bar and the space beside it land where each was aimed. Where the two landed more than `REJOIN_APART` (half a key)
+apart, the one that may be a letter is held as no likelier a space than its place says: `REJOIN_MARGIN` is not
+asked. Of the 37 such pairs in the two sets, 3 are less than half a key apart and the middle one is 1.4 keys. No
+set here has a double tap that was meant, so the half key is reasoned, not measured.
+
+| | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the run's 900 typings, before | 2.5% | 5.4% | 10.9% | 6.3% | | |
+| after | 2.5% | 5.0% | 9.3% | 5.6% | 35 | 0 |
+| the 900 unseen typings, before | 3.3% | 5.0% | 12.2% | 6.8% | | |
+| after | 3.0% | 4.8% | 11.2% | 6.3% | 31 | 0 |
+
+326 words wrong to 291 of 5,205, and 437 to 406 of 6,408. Of the words one of whose letters fell on the bar, 47 of
+56 come out right in the run's typings where 39 did, and 57 of 76 in the unseen where 45 did; full stops that nobody
+typed, 2 in the run's text where there were 9, and 8 in the unseen where there were 21.
+
+What the two sets cannot show, the bench and two probes do (`scoreboard.py --bench`, `probe.py words`,
+`probe.py spoils`):
+
+| | versus before | after |
+| --- | ---: | ---: |
+| bench, joins fixed (careful, normal, sloppy) | 60.0%, 61.5%, 56.4% | 72.2%, 75.4%, 71.6% |
+| bench, words right | 96.41%, 92.34%, 85.65% | 96.59%, 92.81%, 86.73% |
+| bench, right words spoiled in a thousand | 1.22, 1.48, 1.65 | 1.22, 1.48, 1.45 |
+| bench, unknown words spoiled | 1.5%, 4.3%, 7.1% | 1.5%, 4.3%, 7.1% |
+| 166 names and compounds no list has, typed cleanly: changed | 4 | the same 4 |
+| 393,000 right words of 30,000 other held-out lines: spoiled (careful, leaning, sloppy) | 430, 247, 179 | 432, 248, 180 |
+| microseconds for `Autocorrect.correct`, a typed word of the run: mean | 184 | 111 |
+| the slowest in a hundred, in a thousand | 1,764, 3,373 | 1,205, 1,995 |
+| the slowest single word, at its quickest of nine | 2,562 | 2,388 |
+
+The times are the thread's own clock on this Mac's JVM under a load average of 30 to 40, one run straight after the
+other (`probe.py --time`); a phone is slower, and by how much was not measured.
+
+Not typed on a device. `Replay.kt`'s `Typist` mirrors what `DevKeyboardService` does with the bar's taps (`Cut`,
+`rejoined`, `together`, the mark after the space), and that mirror is all that runs: nothing on the JVM runs the
+service itself, backspace after a rejoin among it. Still lost: joins of two exact words one of which is rare ("tom
+hushed", which reads as "tomb" and "hushed" set side by side), a second word no list has ("has tendonitis"), a
+first word too far off its keys for a join's budget ("kerd" for "need"), a word cut in two and run into the next
+("a otherbdrpartmeny"), and a letter that fell in the bar's middle, which is a space as far as a tap can say.
 
 ### What the thumb had done
 
