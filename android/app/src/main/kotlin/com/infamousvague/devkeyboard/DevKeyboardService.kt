@@ -206,6 +206,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     private class Cut(
         val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val tap: KeyboardView.Typed, val field: EditorInfo?,
         val gap: String = " ", val was: String = "", val doubled: Boolean = true,
+        /** The word before [typed], as the second look left it unchanged when [typed] ended: read again once the scraps are one word (Autocorrect.AGAIN_REJOIN). */
+        val behind: Behind? = null,
     )
     private var cut: Cut? = null
     /**
@@ -1024,6 +1026,19 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = sentence, mark = mark)
             // The one word is a name as often as any other ("lo doj" is London): its capital, where the field wants them.
             ?.let { if (namesWanted()) autocorrect.named(it) else it } ?: return false
+        // The word before the first scrap, read again now that the word after it is whole ("top rxpe sicr" is "too
+        // expensive"; Autocorrect.AGAIN_REJOIN): the change goes in with the rejoin, as one edit.
+        val pb = c.behind?.takeIf { Autocorrect.AGAIN_REJOIN && c.typed.isNotEmpty() && c.was.isEmpty() && word.isNotEmpty() }
+        val newer = pb?.let { lookAgain(ic, it, before, standing, whole) }
+        if (pb != null && newer != null) {
+            val was = pb.stood + pb.gap + standing
+            if (!editor.replaceBefore(was, newer + pb.gap + whole + separator, Kind.CORRECTION, typedFirst = separator)) return false
+            lean.unlearn()
+            stats { TypingStats.correction(this) }
+            if (reporting()) Reports.count(this, "fix.behind")
+            lastCorrection = Triple(was, newer + pb.gap + whole, separator)
+            return true
+        }
         // A second space is the word's own and stays; anything else that ended it was typed, and the fix takes it in.
         if (!editor.replaceBefore(standing, c.was + whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty() && separator == " ") "" else separator)) return false
         // The scrap before the bar was the last word settled, and it taught the lean letters that are not the word's.
@@ -1181,6 +1196,11 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // Kept to be read again when the next word ends: a word whose letters were tapped, ended by a space or a comma.
         if (Autocorrect.AGAIN && taps != null && !swiped && (separator == " " || separator == ",") && lower != wasPutBack) {
             behind = Behind(word, stands, wordTouches.toList(), separator, head, currentInputEditorInfo)
+        }
+        // Ended by the bar's tap and kept as [cut]: the word before it, left as it stood, goes with it, to be read
+        // again should this word and the next prove one (Autocorrect.AGAIN_REJOIN).
+        if (Autocorrect.AGAIN_REJOIN && again == null && ahead != null) cut?.takeIf { it.typed == word && it.behind == null }?.let { k ->
+            cut = Cut(k.typed, k.stood, k.touches, k.tap, k.field, k.gap, k.was, k.doubled, ahead)
         }
         if (again != null) {
             val (b, newer) = again

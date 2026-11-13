@@ -303,7 +303,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     private val wordTouches = ArrayList<Touch?>()
     private var lastSpaceAt = 0L
     /** DevKeyboardService.Cut: the word a tap on the bar ended, for putting together again if that tap was a letter. */
-    private class Cut(val typed: String, val stood: String, val touches: List<Touch?>, val tap: Touch, val gap: String = " ", val was: String = "", val doubled: Boolean = true)
+    private class Cut(val typed: String, val stood: String, val touches: List<Touch?>, val tap: Touch, val gap: String = " ", val was: String = "", val doubled: Boolean = true, val behind: Behind? = null)
 
     /** DevKeyboardService.together: two taps on the bar within Autocorrect.REJOIN_APART of a key's width were one double tap. */
     private fun together(a: Touch?, b: Touch?): Boolean =
@@ -522,6 +522,24 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
                 fixes += "${c.stood}_$word>$whole"
                 text.setLength(text.length - standing)
                 text.append(c.was).append(whole).append(separator)
+                // The word before the first scrap, read again now that the word after it is whole (Autocorrect.AGAIN_REJOIN).
+                val pb = c.behind
+                if (Autocorrect.AGAIN_REJOIN && pb != null && c.typed.isNotEmpty() && c.was.isEmpty() && pb.touches.size == pb.typed.length) {
+                    val tail = (if (pb.separator == " ") " " else pb.separator + " ") + whole + separator
+                    if (text.endsWith(pb.stood + tail)) {
+                        val back = pb.stood.length + tail.length
+                        val head = text.dropLast(back)
+                        if (head.isEmpty() || !(head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) {
+                            val now = decoder.ac.again(pb.typed, pb.stood, whole, scorerAt(back), tapsFor(pb.typed, pb.touches, leaned = false))
+                            looked?.invoke(pb.typed, pb.stood, head.takeLast(96).toString(), whole, now)
+                            if (now != null) {
+                                behinds += "${head.split(Regex("\\s+")).count { t -> t.any { it.isLetterOrDigit() } }}:${pb.stood}:$now:${pb.typed}"
+                                text.setLength(text.length - back)
+                                text.append(now).append(tail)
+                            }
+                        }
+                    }
+                }
                 return true
             }
         }
@@ -559,7 +577,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         }
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch
-        if (separator == " " && bar != null) cut = Cut(word, stands, wordTouches.toList(), bar)
+        if (separator == " " && bar != null) cut = Cut(word, stands, wordTouches.toList(), bar, behind = if (changed || !Autocorrect.AGAIN_REJOIN) null else b)
         // Kept to be read again when the next word ends, where what ended it is looked through as a space is.
         if (Autocorrect.AGAIN && taps != null && (separator == " " || separator == ",")) behind = Behind(word, stands, wordTouches.toList(), separator)
         if (stands == word && !changed) return false

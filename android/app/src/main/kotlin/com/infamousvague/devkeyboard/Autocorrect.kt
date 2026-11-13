@@ -2236,6 +2236,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var AGAIN_END_WEIGHT = 1f
         @JvmField var AGAIN_END_LOW = 1f
         @JvmField var AGAIN_END_MOST = 3f
+        /**
+         * The word before a word typed in two scraps that [rejoin] puts together ("top rxpe sicr" for "too
+         * expensive"): the second look gave up on the first scrap (letters no list has say nothing of the word
+         * before), so it is read again once the scraps are one word, with that word in hand. DevKeyboardService and
+         * the replay's Typist; the bench types no such scraps. Off: as before, word for word.
+         */
+        @JvmField var AGAIN_REJOIN = true
         @JvmField var AGAIN_LOW_BOTH = 2f
         @JvmField var AGAIN_LOW_ZIPF = 6f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh; 3.1 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (3.2 before). */
