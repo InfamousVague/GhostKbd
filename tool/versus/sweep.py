@@ -121,6 +121,12 @@ def fmt(v):
     return "0" if text in ("-0", "") else text
 
 
+def num(v):
+    """An objective or a penalty as it is printed: a whole number, or to a tenth where a share of the bench makes it a fraction."""
+    text = ("%.1f" % v).rstrip("0").rstrip(".")
+    return "0" if text in ("-0", "") else text
+
+
 def bounded_heldout():
     """The held-out sentences up to line LAST_LINE and not one further, as a file of their own: whatever reads
     sentences for this tool reads them from this."""
@@ -554,7 +560,7 @@ def cmd_line(sw, args):
             print(ln)
         mended, broken = churn(answer, base)
         print("  objective %s (seen %d + unseen %d + bench %s); against the tree, over both sets: %d mended, %d broken; %.1f s" % (
-            fmt(obj.of(answer)), obj.wrong(answer, "seen"), obj.wrong(answer, "unseen"), fmt(obj.penalty(answer)), mended, broken, answer["seconds"]))
+            num(obj.of(answer)), obj.wrong(answer, "seen"), obj.wrong(answer, "unseen"), num(obj.penalty(answer)), mended, broken, answer["seconds"]))
         if fit is not None:
             for ln in halves_lines(sw, obj, base, answer):
                 print("  " + ln)
@@ -578,7 +584,7 @@ def table_head(first, width, obj):
 def table_row(label, width, a, base, obj):
     mended, broken = churn(a, base)
     held = "   %6d  %8d" % (sum(obj.wrong(a, n) for n in SETS), sum(obj.wrong(a, n, False) for n in SETS)) if obj.fit else ""
-    return "%-*s  %s  %s  %6d %6d  %9s%s" % (width, label, sets_text(a), bench_text(a), mended, broken, fmt(obj.of(a)), held)
+    return "%-*s  %s  %s  %6d %6d  %9s%s" % (width, label, sets_text(a), bench_text(a), mended, broken, num(obj.of(a)), held)
 
 
 def table_foot(sw):
@@ -616,7 +622,7 @@ def cmd_grid(sw, args):
             setting[b_name] = bv
             cells[(av, bv)] = sw.ask(setting)
     tables = [("words wrong, seen and unseen%s" % (" (the fitted half)" if fit else ""), lambda a: "%d" % sum(obj.wrong(a, n) for n in SETS)),
-              ("the bench's penalty", lambda a: fmt(obj.penalty(a))), ("objective", lambda a: fmt(obj.of(a)))]
+              ("the bench's penalty", lambda a: num(obj.penalty(a))), ("objective", lambda a: num(obj.of(a)))]
     if fit:
         tables.insert(1, ("words wrong, seen and unseen (the half held out)", lambda a: "%d" % sum(obj.wrong(a, n, False) for n in SETS)))
     for title, cell in tables:
@@ -662,7 +668,7 @@ def cmd_scan(sw, args):
     print(table_foot(sw))
     if still:
         print("a step either way changes no word and no figure: " + " ".join(still))
-    print("the lowest objectives a step away: " + ", ".join("%s %s" % (label, fmt(j)) for j, label in sorted(rows)[:8]))
+    print("the lowest objectives a step away: " + ", ".join("%s %s" % (label, num(j)) for j, label in sorted(rows)[:8]))
 
 
 def search_dials(sw, args):
@@ -771,7 +777,7 @@ def cmd_search(sw, args):
     least = args.least * obj.share
     print("search over %d dials: %s" % (len(dials), " ".join(d[0] for d in dials)))
     print("objective: " + obj.said())
-    print("the tree: %s (seen %d + unseen %d)%s" % (fmt(obj.of(base)), obj.wrong(base, "seen"), obj.wrong(base, "unseen"), "; starts from %s at %s" % (sw.canon(x), fmt(best)) if x else ""))
+    print("the tree: %s (seen %d + unseen %d)%s" % (num(obj.of(base)), obj.wrong(base, "seen"), obj.wrong(base, "unseen"), "; starts from %s at %s" % (sw.canon(x), num(best)) if x else ""))
     sys.stdout.flush()
     tried = [1]
     began = time.time()
@@ -842,10 +848,10 @@ def cmd_search(sw, args):
                         break
                     x[name], here, best = further[0], a2, j2
                 print("  %-26s %5s to %-5s  objective %s to %s  (seen %d, unseen %d, bench %s)" % (
-                    name, fmt(was_v), fmt(x[name]), fmt(was_j), fmt(best), obj.wrong(here, "seen"), obj.wrong(here, "unseen"), fmt(obj.penalty(here))))
+                    name, fmt(was_v), fmt(x[name]), num(was_j), num(best), obj.wrong(here, "seen"), obj.wrong(here, "unseen"), num(obj.penalty(here))))
                 sys.stdout.flush()
             print("    round %d: %d dials moved, %d passed over as changing nothing; objective %s; %d settings tried so far, %.0f minutes" % (
-                rnd + 1, moved, len(inert), fmt(best), tried[0], (time.time() - began) / 60.0))
+                rnd + 1, moved, len(inert), num(best), tried[0], (time.time() - began) / 60.0))
             sys.stdout.flush()
             if not moved:
                 break
@@ -868,7 +874,7 @@ def cmd_search(sw, args):
         print("microseconds a word, the least of %d typings each: the tree %s" % (args.times, micros_text(was)))
         print("%s found    %s" % (" " * len("microseconds a word, the least of %d typings each:" % args.times), micros_text(now)))
     mended, broken = churn(here, base)
-    print("objective %s to %s; against the tree, over both sets: %d mended, %d broken" % (fmt(obj.of(base)), fmt(best), mended, broken))
+    print("objective %s to %s; against the tree, over both sets: %d mended, %d broken" % (num(obj.of(base)), num(best), mended, broken))
     if fit is not None:
         for ln in halves_lines(sw, obj, base, here):
             print(ln)
