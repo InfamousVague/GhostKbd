@@ -18,7 +18,8 @@ each key the finger came down (`TapDecoder.kt`, `Autocorrect.byTaps`):
   was to the key it gave than to the other. "br" with its r tapped on the line beside e is "be"; with the r tapped
   in the middle of its key it stays "br".
 - **A word no list has is left alone when it was typed cleanly**, and mended when its taps lean toward a word. A
-  common word gives way only to one about forty times as common, and only by slips of the thumb.
+  common word gives way only to one about forty times as common, and only by slips of the thumb (in English, a
+  letter left out, tapped twice or two swapped count as slips of a common word too).
 - **Two words run together are parted**: "inthe" is "in the", and "thisbis" (the space bar missed for the b above
   it) is "this is". Never a common word, and never where the first word is rare.
 - **Misspellings** (definately, tommorow, recieve) are mended as before, and more of them: a long word that is in

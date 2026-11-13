@@ -244,6 +244,44 @@ landed on the bar (" egim" for "begin": the tap comes after the last word's own 
 it), and scraps that were mended at the bar's tap into a word too good to give up ("eome" made "some", for
 "women").
 
+### Slips the search did not reach (made 2026-11-12)
+
+`TapDecoder.search` gave up a reading of a short word past one change, read letters that spell a common word by
+slips of the thumb alone (no letter left out, added or swapped), and cost a letter left out, a tap too many and two
+taps swapped the same wherever they were. Where `Autocorrect.byTaps` asks for the word as typed and English is
+among the lists, the search now reaches further (`search`'s `reach`; every other search, and the other languages
+that read by taps, are as they were):
+
+- a word of up to three letters may be changed by half a change more than its one (`SHORT_MORE`), for half a point
+  more (`SHORT_PAST`): "tbr" with its two slips near their lines is "the", typed squarely it stays;
+- letters that spell a common word may have lost a letter, had one tapped twice or two swapped, each for at least
+  `LISTED_EDIT` (2): th, ot, su, tae, ff and soo were kept as the common words the lists make them. A tap that
+  doubles nothing is never taken out of one ("ink" is not "in");
+- a word typed as one letter may have lost its other for `LONE_OMIT` (1.4): "t" where "to" is likely is "to";
+- one of two swapped taps may have landed on a neighbour's key as well (`SWAP_SLIP`): "iculs" is "could", and the
+  swap steps over an apostrophe ("dotn" is "don't", not "dont");
+- a tap too many costs by where it landed, from `INSERT_DOUBLED` on the key beside it up to `REACH_INSERT` (3.4) in
+  the middle of a key of its own, and a letter left out costs `REACH_OMIT` (1.8; 2 elsewhere).
+
+| | careful | leaning | sloppy | all | Mended | Broken |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| the run's 900 typings, before | 2.48% | 5.42% | 10.89% | 6.26% | | |
+| after | 1.96% | 4.84% | 9.97% | 5.59% | 39 | 4 |
+| the 900 unseen typings, before | 3.28% | 5.01% | 12.17% | 6.82% | | |
+| after | 2.67% | 4.45% | 11.42% | 6.18% | 44 | 3 |
+
+On the bench's 12,000 words, words right go from 96.41%, 92.34% and 85.65% to 96.76%, 92.93% and 86.65% for the
+careful, normal and sloppy thumb; right words spoiled from 1.22, 1.48 and 1.65 in a thousand to 1.42, 1.61 and
+1.65; the right words no list has that are spoiled from 1.5%, 4.3% and 7.1% to 1.9%, 4.3% and 6.0%. What it spoils
+that was not spoiled: "kbd" made "kind", "nd" made "and" (the bench's "2nd" with its digit trimmed), "civilize"
+made "civilized" and "if" made "of"; no longer spoiled: "confidences" and "ratioed". Each dial's comment in `TapDecoder` has its neighbours on both sets and on the
+bench tuner's measure. Broken on the run: "o" for "on" twice, now "of" and "to" before the next space's
+`rejoin` sees it, which then holds the scrap at that word's whole frequency (rejoin's to mend); "im" read "on"
+for "in" because the word before it was mended; "colf" now "could" for "cold". The search's own visits in
+`byTaps` grow by about a fifth (1,124,411 to 1,360,472 on the run, the most in one search 2,966 to 3,810; on
+the bench 8,079,522 to 9,749,164); none of 5,016 such searches on the run, 6,177 on the unseen set or 35,148 on
+the bench reaches `MAX_VISITS` (40,000), before or after. Not yet typed on a device.
+
 ### What the thumb had done
 
 The 326 again, by the slip (`score.py`'s `category`):
