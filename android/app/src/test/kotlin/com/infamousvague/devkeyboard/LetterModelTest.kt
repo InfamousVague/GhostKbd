@@ -38,6 +38,16 @@ class LetterModelTest {
             try { return block() } finally { Autocorrect.LETTERS = was }
         }
 
+        /**
+         * What [block] gives with the table having its say where no Scorer is passed (as with prediction off): these
+         * tests type with none, and by default ([Autocorrect.LETTERS_UNSCORED] 0) that path has the fixed bars alone.
+         */
+        private fun <T> unscored(block: () -> T): T {
+            val was = Autocorrect.LETTERS_UNSCORED
+            Autocorrect.LETTERS_UNSCORED = 1f
+            try { return block() } finally { Autocorrect.LETTERS_UNSCORED = was }
+        }
+
         /** A drawn QWERTY, as TypingAccuracyTest draws it: keys 100 wide and 150 tall, the middle row half a key in. */
         private const val W = 100f
         private const val H = 150f
@@ -130,7 +140,7 @@ class LetterModelTest {
     @Test fun lettersNoWordPutsTogetherGoToTheWordTheirTapsReach() {
         // Every tap in the middle of the key it typed: three keys off "presentable", and no word.
         val typed = "prrsrnyable"
-        assertEquals("presentable", english.correct(typed, null, taps(typed)))
+        assertEquals("presentable", unscored { english.correct(typed, null, taps(typed)) })
         // The fixed bars hold it as dear as they hold a name, and it stood.
         assertNull(withoutTheTable { english.correct(typed, null, taps(typed)) })
     }
@@ -138,7 +148,7 @@ class LetterModelTest {
     @Test fun aNameTypedCleanlyStandsAsItDid() {
         for (word in listOf("ghostkbd", "zustand", "kekw", "supabase", "okafor", "thandiwe", "caoimhe", "xiomara", "piotr", "kwame", "nvim", "tmux", "zsh", "kbd", "mattv", "vercel")) {
             if (english.isWord(word)) continue
-            assertNull("$word, every tap in the middle of its key", english.correct(word, null, taps(word)))
+            assertNull("$word, every tap in the middle of its key", unscored { english.correct(word, null, taps(word)) })
         }
     }
 
@@ -146,10 +156,26 @@ class LetterModelTest {
         // German's list alone, and English's with German's beside it: the same letters stand, as under the fixed bars.
         val typed = "prrsrnyable"
         for (ac in listOf(keyboard("de"), keyboard("en", "de"))) {
-            val with = ac.correct(typed, null, taps(typed))
+            val with = unscored { ac.correct(typed, null, taps(typed)) }
             assertEquals(withoutTheTable { ac.correct(typed, null, taps(typed)) }, with)
             assertNull(with)
         }
-        assertNotNull(english.correct(typed, null, taps(typed)))
+        assertNotNull(unscored { english.correct(typed, null, taps(typed)) })
+    }
+
+    @Test fun withPredictionOffTheFixedBarsAloneSay() {
+        // No Scorer (prediction off): what letters no list has are worth is as it was before there was a table.
+        val typed = listOf("prrsrnyable", "sgsrtet", "hkpelwss", "exteaotdinarily", "whiby", "dlam", "berber", "piotr")
+        for (word in typed) {
+            assertEquals(word, withoutTheTable { english.correct(word, null, taps(word)) }, english.correct(word, null, taps(word)))
+            val (was, now) = withoutTheTable { english.suggest(word, null, taps(word)) } to english.suggest(word, null, taps(word))
+            assertEquals(word, Triple(was.words, was.fix, was.typedIsWord), Triple(now.words, now.fix, now.typedIsWord))
+        }
+        assertNull(english.correct("prrsrnyable", null, taps("prrsrnyable")))
+        // Two scraps put together, the bar's tap between them: as before the table too.
+        for ((a, b) in listOf("prrsrn" to "yable", "sgsr" to "tet")) {
+            val t = taps("$a $b".replace(' ', 'b'))
+            assertEquals("$a $b", withoutTheTable { english.rejoin(a, b, a, null, t) }, english.rejoin(a, b, a, null, t))
+        }
     }
 }

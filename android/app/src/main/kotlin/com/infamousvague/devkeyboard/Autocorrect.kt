@@ -726,7 +726,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name),
         // and next to nothing where its letters are ones no word puts together ([unlisted]).
-        val unknown = if (known != null) UNKNOWN else unlisted(now, lower)
+        val letters = letterTable(now, scorer)
+        val unknown = if (known != null) UNKNOWN else unlisted(now, lower, letters)
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
         val bar = when {
@@ -751,7 +752,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             if (plain != word && words.containsKey(plain)) continue
             val zipf = lex.sortedZipf[h.index]
             // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
-            val least = if (known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || lex.letters == null || LETTERS <= 0f) && inflected(words, lower, word)) UNKNOWN else bar
+            val least = if (known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || letters == null) && inflected(words, lower, word)) UNKNOWN else bar
             offer(word, zipf + lift(word, zipf) - h.cost, least)
         }
         // The person's own words: never in the trie, so each is held up against the taps.
@@ -841,9 +842,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val locale = now.board.locale
         val words = lex.words
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
+        val letters = if (LETTERS_JOINS > 0f) letterTable(now, scorer) else null
         fun alone(word: String): Float {
             val l = word.lowercase(locale)
-            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(now, l)
+            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(now, l, letters)
         }
         val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
         val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
@@ -880,8 +882,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * over every string that could be a word, and the words people do type are few of those, so a real name is
      * worth far more than its letters say. docs/versus.md has the curve ("What letters no list has are worth").
      */
-    private fun unlisted(now: Now, lower: String): Float {
-        val model = now.lexicon.letters?.takeIf { LETTERS > 0f }
+    private fun unlisted(now: Now, lower: String, model: LetterModel?): Float {
         val fixed = when {
             lower.length >= 4 && (model == null || LETTERS_ODD > 0f) && odd(lower) -> UNKNOWN_ODD
             lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
@@ -893,6 +894,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         if (cost.isNaN()) return fixed
         return minOf(fixed, maxOf(LETTERS_FLOOR, model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost))
     }
+
+    /**
+     * The letter table [unlisted] answers from, or null for the fixed bars alone: English's, where it is on
+     * ([LETTERS]) and the words before are read ([scorer] not null, which it is wherever prediction is off), unless
+     * [LETTERS_UNSCORED] lets the table have its say there too.
+     */
+    private fun letterTable(now: Now, scorer: Scorer?): LetterModel? =
+        now.lexicon.letters?.takeIf { LETTERS > 0f && (scorer != null || LETTERS_UNSCORED > 0f) }
 
     /**
      * The likeliest word a slip or two from a typed one ([from] the candidate spelling it came by): its [score], what
@@ -1244,6 +1253,20 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * what the rule is there to prevent.
          */
         @JvmField var LETTERS_INFLECTED = 1f
+        /**
+         * 1 and the table has its say where no [Scorer] is passed (prediction off, a terminal, or no place to read
+         * the words before from); 0 and those paths hold letters no list has to the fixed bars, as before the table.
+         * 0, by the rule that the path with prediction off behaves as it did (review of 2026-11-13). Measured
+         * 2026-11-13 with the typing bench's sentences typed with no Scorer at all (tool/typing_bench -Dscorer=none):
+         * docs/versus.md ("With prediction off") has both settings against the fixed bars.
+         */
+        @JvmField var LETTERS_UNSCORED = 0f
+        /**
+         * 1 and the scraps [rejoin] holds against two words put together are worth what the table says, as in
+         * [byTaps]; 0 and they are held to the fixed bars, as before the table. The joins are not this table's to
+         * change, so this keeps the two apart for whoever merges: docs/versus.md ("Joins") has both.
+         */
+        @JvmField var LETTERS_JOINS = 1f
         /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
         @JvmField var RARE_GAP = 2f
         @JvmField var RARE_BUDGET = 2.2f
