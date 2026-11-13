@@ -639,6 +639,73 @@ class TapDecoder(
         return found.map { (key, cost) -> Start((key shr 16).toInt(), (key and 0xffff).toInt(), cost) }
     }
 
+    /**
+     * Two words run together: every way the taps split into a first word and a second, with a tap between them that
+     * may have been the space bar, or no tap at all (the space missed). [second] scores a second word after a first
+     * (the place in the list of each): how common it is there, as a Zipf frequency. A join's worth is the first
+     * word's frequency and the second's there, less 9 (two words are one in a billion times less likely than one,
+     * so each must be common to be worth it), less the cost; only those worth at least [least] come back.
+     *
+     * The join search as it was before [joins], kept word for word for every language but English (Autocorrect's
+     * run-together block takes this where English is not loaded): [joins] was set on English typing alone, and
+     * nothing measures it in another language.
+     */
+    fun pairs(least: Float, firsts: (Int) -> Boolean, second: (first: Int, second: Int) -> Float, followers: (first: Int) -> IntArray): List<Join> {
+        val out = ArrayList<Join>()
+        if (n < 3) return out
+        // The first word: one that the first taps spell with little amiss.
+        for (cut in 1 until n) {
+            // The taps before the cut are the first word; the tap at the cut is the space, or the cut falls between taps.
+            for (spaced in 0..1) {
+                val gap = if (spaced == 1) spaceCost[cut] else NO_SPACE
+                if (gap > JOIN_BUDGET) continue
+                val restFrom = if (spaced == 1) cut + 1 else cut
+                if (restFrom >= n) continue
+                for (first in prefixWords(cut)) {
+                    if (!firsts(first.index)) continue
+                    val z1 = zipfs[first.index]
+                    val spent = first.cost + gap
+                    // The second word must be worth: least + 9 - z1 + spent, less whatever its cost adds.
+                    val need = least + 9f - z1 + spent
+                    if (need > MAX_ZIPF + PAIR_LIFT) continue
+                    val seen = HashSet<Int>()
+                    for (f in followers(first.index)) {
+                        val c = align(words[f], restFrom, JOIN_BUDGET)
+                        if (c.isInfinite()) continue
+                        seen += f
+                        if (second(first.index, f) - c >= need) out += Join(first.index, f, -1, spent + c, spaced, restFrom, spaced == 1)
+                    }
+                    if (need <= MAX_ZIPF) {
+                        for (h in search(need, JOIN_BUDGET, restFrom)) {
+                            if (h.index in seen) continue
+                            if (second(first.index, h.index) - h.cost >= need) out += Join(first.index, h.index, -1, spent + h.cost, spaced, restFrom, spaced == 1)
+                        }
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    /** The words the first [cut] taps spell, with at most a slip of the thumb or two among them. */
+    private fun prefixWords(cut: Int): List<Hit> {
+        val out = ArrayList<Hit>(4)
+        fun go(node: Int, i: Int, cost: Float) {
+            if (cost > JOIN_BUDGET) return
+            if (i == cut) { val w = trie.word[node]; if (w >= 0) out += Hit(w, cost); return }
+            var q = trie.down[node]
+            while (q >= 0) {
+                val c = trie.ch[q]
+                val s = sub(i, c)
+                if (s < far && cost + s <= JOIN_BUDGET) go(q, i + 1, cost + s)
+                if (c == '\'' || c == '’') go(q, i, cost + APOSTROPHE)
+                q = trie.next[q]
+            }
+        }
+        go(0, 0, 0f)
+        return out
+    }
+
     companion object {
         private val EMPTY_CHARS = CharArray(0)
         private val EMPTY_COSTS = FloatArray(0)

@@ -195,6 +195,28 @@ class TypingAccuracyTest {
         }
     }
 
+    @Test fun withoutEnglishTheJoinsAndTheRejoinReadAsBefore() {
+        // The join search with its fallen bar, slips in a first word and three words, and rejoin's reading of no
+        // first scrap and of a closing mark, were set on English typing alone. With German alone loaded the joins
+        // go by TapDecoder.pairs, as before them: the new search never runs (its work is never counted).
+        val de = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val state = LanguageState.of(listOf("de"), emptyMap(), "")
+        de.loadNow(state.dictionaries, state.board)
+        TapDecoder.JOIN_WORK_LAST = -1
+        assertEquals("ich bin", de.correct("ichbin", null, taps("ichbin")))
+        de.correct("rinfachzuviel", null, taps("rinfachzuviel"))
+        assertEquals(-1, TapDecoder.JOIN_WORK_LAST)
+        assertEquals("in the", ac.correct("inthe", null, taps("inthe")))
+        assertTrue(TapDecoder.JOIN_WORK_LAST >= 0)
+        // No first scrap ("ery" after a second space, "very" in English) and a closing mark after the space are English's alone.
+        assertEquals("very", ac.rejoin("", "ery", "", null, cut("", "ery", 'v', 0.07f)))
+        assertNull(de.rejoin("", "ie", "", null, cut("", "ie", 'n', 0.07f)))
+        assertEquals("tragic", ac.rejoin("tragi", "", "tragi", null, cut("tragi", "", 'c', 0.07f), doubled = false, mark = true))
+        assertNull(de.rejoin("ihne", "", "ihne", null, cut("ihne", "", 'n', 0.07f), doubled = false, mark = true))
+        // A word cut in two with both scraps reads in German as it did ("ih en" for "ihnen", under the n).
+        assertEquals("ihnen", de.rejoin("ih", "en", "ih", null, cut("ih", "en", 'n', 0.07f)))
+    }
+
     @Test fun twoTapsOnTheBarThatLandedApartAreNoDoubleTap() {
         // "i" and two spaces is "I." where the two were one double tap, as it always was.
         assertNull(ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f)))

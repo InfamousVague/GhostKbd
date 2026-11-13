@@ -929,7 +929,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * (Autocorrect.rejoin): [word] is what has been typed since the bar's tap (nothing, where a second space has
      * just come), and [separator] what ends it. True when the field now has the one word and its separator.
      */
-    private fun rejoined(ic: InputConnection, word: String, separator: String, doubled: Boolean = true): Boolean {
+    private fun rejoined(ic: InputConnection, word: String, separator: String, doubled: Boolean = true, mark: Boolean = false): Boolean {
         val c = cut ?: return false
         cut = null
         if (c.field !== currentInputEditorInfo || c.touches.size != c.typed.length || wordTouches.size != word.length) return false
@@ -951,7 +951,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val sentence = if (c.typed.isNotEmpty() || !prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(before, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
-        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = sentence) ?: return false
+        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = sentence, mark = mark) ?: return false
         // A second space is the word's own and stays; anything else that ended it was typed, and the fix takes it in.
         if (!editor.replaceBefore(standing, c.was + whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty() && separator == " ") "" else separator)) return false
         stats { TypingStats.correction(this) }
@@ -977,7 +977,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             // A closing mark straight after the space that ended a word: that space may have been the word's own
             // last letter, landed on the bar ("tragi ." for "tragic."), as a second space after it may ([space]).
             // No double tap is in it, and before a full stop or a comma nobody means a space.
-            if (separator.length == 1 && separator[0] in CUT_MARKS && pending != null && pending.typed.isNotEmpty()) { cut = pending; if (rejoined(ic, "", separator, doubled = separator[0] !in ".,")) return true }
+            if (separator.length == 1 && separator[0] in CUT_MARKS && pending != null && pending.typed.isNotEmpty()) { cut = pending; if (rejoined(ic, "", separator, doubled = separator[0] !in ".,", mark = true)) return true }
             return false
         }
         val start = Words.runStart(before, joiners, from)

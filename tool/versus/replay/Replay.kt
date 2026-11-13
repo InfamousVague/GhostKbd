@@ -443,7 +443,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             // A closing mark straight after the space that ended a word: the space may have been that word's last letter.
             if (separator.length == 1 && separator[0] in cutMarks && c != null && c.typed.isNotEmpty() && c.touches.size == c.typed.length && !offLetters && text.endsWith(c.stood + c.gap) && headFree(c.stood.length + c.gap.length)) {
                 val standing = c.stood.length + c.gap.length
-                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(standing), tapsAcross(c.touches, c.tap, emptyList()), doubled = separator[0] !in ".,")
+                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(standing), tapsAcross(c.touches, c.tap, emptyList()), doubled = separator[0] !in ".,", mark = true)
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - standing)

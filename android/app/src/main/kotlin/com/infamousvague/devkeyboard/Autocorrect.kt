@@ -797,6 +797,25 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 val floor = least.getOrPut(a) { 9f + kotlin.math.log10(row.values.min() * JOIN_UNLISTED) }
                 return minOf(unseen, floor)
             }
+            // Without English loaded, two words run together are read as they were before the search below was
+            // made (TapDecoder.pairs): it was set on English typing alone, and nothing measures it in another language.
+            if (!now.board.english) {
+                val pairs = decoder.pairs(
+                    joinBar,
+                    firsts = { i -> zipfs[i] >= JOIN_FIRST && (sorted[i].length >= 2 || zipfs[i] >= SwipeDecoder.ONE_LETTER) },
+                    second = ::worth,
+                    followers = { a ->
+                        val row = lex.follows(sorted[a])
+                        if (row == null) IntArray(0) else row.keys.mapNotNull { w -> java.util.Arrays.binarySearch(sorted, w).takeIf { it >= 0 } }.toIntArray()
+                    },
+                )
+                for (j in pairs) {
+                    val a = sorted[j.first]; val b = sorted[j.second]
+                    val first = zipfs[j.first] + lift(a, zipfs[j.first])
+                    offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - j.cost, joinBar)
+                }
+                return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
+            }
             // What a word is worth as the first of them: its frequency, and [JOIN_LIFT] of what the words before lift it by.
             fun head(i: Int) = zipfs[i] + JOIN_LIFT * lift(sorted[i], zipfs[i])
             // A join has the best single word to beat as well as its bar: the search is told, and looks no lower.
@@ -857,7 +876,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * before it that it made a full stop of) were one double tap, or that it is not known. A full stop is made by
      * tapping twice on one spot; a letter that fell on the bar and the space beside it land where each was aimed,
      * most of a key apart ([REJOIN_APART]). It is false too where a full stop or a comma follows the space: before
-     * those nobody means a space, and there is no double tap in it.
+     * those nobody means a space, and there is no double tap in it; [mark] says one was typed, and the word is
+     * then put together only with English loaded, as the reading of no first scrap is, what a mend cost and
+     * [doubled] itself.
      *
      * The letters and the bar's tap are read as one word, as [byTaps] reads any ([TapDecoder] takes the bar's tap as
      * a letter for how much nearer the bar's middle line it was than that letter's key: next to nothing just under
@@ -883,10 +904,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      *   one is not "never". After a full stop that two taps apart made, they are held in the place the one word
      *   would stand in, on even terms with it.
      */
-    fun rejoin(first: String, second: String, stands: String, scorer: Scorer? = null, taps: Taps, stopped: Boolean = false, doubled: Boolean = true, after: Scorer? = null): String? {
+    fun rejoin(first: String, second: String, stands: String, scorer: Scorer? = null, taps: Taps, stopped: Boolean = false, doubled: Boolean = true, after: Scorer? = null, mark: Boolean = false): String? {
         val now = now
         val lex = now.lexicon
         if (!TAPS || !REJOIN || lex.cautious || lex.words.isEmpty() || (first.isEmpty() && second.isEmpty())) return null
+        // What was added to this on 2026-11-12 (no first scrap, a closing [mark] after the space, what a mend cost,
+        // and [doubled]) was set on English typing alone: without English loaded it reads as it did before.
+        val english = now.board.english
+        if (!english && (first.isEmpty() || mark)) return null
+        val doubled = doubled || !english
         val typed = "$first $second"
         if (typed.length > 24 || taps.xs.size != typed.length || !taps.has(first.length) || taps.space == null) return null
         // Letters only, and no capital after a scrap's first letter: an acronym or a camelCase name is left alone.
@@ -930,7 +956,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val stood = stands.lowercase(locale)
             // What it cost to read the first scrap as what stands for it, where the space mended it (into one word:
             // a scrap parted in two there is held as letters no list has, as it was before this was counted).
-            if (stood != first.lowercase(locale) && ' ' !in stood) {
+            if (english && stood != first.lowercase(locale) && ' ' !in stood) {
                 decoder.load(first.lowercase(locale), part(0, first.length))
                 mended = decoder.align(stood, 0, TapDecoder.BUDGET).let { if (it.isInfinite()) 0f else it }
                 if (second.isEmpty() && mended > 0f) { mendedTo = stood; floor = alone(stands) - mended }
