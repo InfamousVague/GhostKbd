@@ -304,12 +304,20 @@ What the two sets cannot show, the bench and two probes do (`scoreboard.py --ben
 | bench, unknown words spoiled | 1.5%, 4.3%, 7.1% | 1.5%, 4.3%, 7.1% |
 | 166 names and compounds no list has, typed cleanly: changed | 4 | the same 4 |
 | 393,000 right words of 30,000 other held-out lines: spoiled (careful, leaning, sloppy) | 430, 247, 179 | 432, 248, 180 |
-| microseconds for `Autocorrect.correct`, a typed word of the run: mean | 184 | 111 |
-| the slowest in a hundred, in a thousand | 1,764, 3,373 | 1,205, 1,995 |
-| the slowest single word, at its quickest of nine | 2,562 | 2,388 |
+| bench, slips mended to a wrong word | 3.4%, 4.0%, 5.1% | 3.6%, 4.1%, 5.2% |
+| microseconds for `Autocorrect.correct`, a typed word of the run: mean | 194 | 114 |
+| the slowest in a hundred, in a thousand | 1,926, 3,039 | 1,226, 2,635 |
+| the slowest single word, at its quickest of nine | 2,999 | 3,122 |
 
-The times are the thread's own clock on this Mac's JVM under a load average of 30 to 40, one run straight after the
-other (`probe.py --time`); a phone is slower, and by how much was not measured.
+The times are the thread's own clock on this Mac's JVM under a load average of 26 to 41, one run straight after the
+other (`probe.py --time`); from run to run the slowest word moved between 2.4 and 3.1 thousandths of a second for
+either tree. A phone is slower, and by how much was not measured.
+
+A word with slips in it that nothing reads is now sometimes parted where it was left ("in editor" for "invedyor",
+which was "investor"): wrong either way, and the wrong word is the harder to see. The bench's share of slips mended
+to a wrong word says how often. A join under the bar as it was is therefore taken only where no single word reads
+the letters for as much as that bar, which brought that share most of the way back (it was 3.7%, 4.3% and 5.3%
+without).
 
 Not typed on a device. `Replay.kt`'s `Typist` mirrors what `DevKeyboardService` does with the bar's taps (`Cut`,
 `rejoined`, `together`, the mark after the space), and that mirror is all that runs: nothing on the JVM runs the

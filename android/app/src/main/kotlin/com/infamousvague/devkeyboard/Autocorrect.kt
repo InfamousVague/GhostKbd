@@ -822,7 +822,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 // ("worktree", "windowpane"): they are held to the bar as it was.
                 val away = oddAt != null && oddAt.indices.any { i -> oddAt[i] && !meets(i, j.from2, j.barred2) && (j.third < 0 || !meets(i, j.from3, j.barred3)) }
                 val odd = oddAt != null && (away || !beside(lower, j, words))
-                offer(text, topScore, if (odd) fallen else joinBar)
+                // Under the bar as it was, a join is taken only where no single word reads the letters for as much
+                // as that bar, whether or not the word cleared its own, which is higher: where one does, the
+                // letters are that word with slips in it, or nothing that can be read, and not two words
+                // ("invedyor" is nearer "investor" than "in editor", and is left).
+                val single = odd && topScore < joinBar && decoder.search(joinBar - (if (scorer == null) 0f else CONTEXT_PICK), budget).any { h ->
+                    val zipf = zipfs[h.index]
+                    zipf + lift(sorted[h.index], zipf) - h.cost >= joinBar
+                }
+                if (!single) offer(text, topScore, if (odd) fallen else joinBar)
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }
