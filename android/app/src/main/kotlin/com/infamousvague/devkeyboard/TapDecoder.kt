@@ -421,8 +421,9 @@ class TapDecoder(
      * worth it), less what the slips cost. Those worth at least [least] come back.
      *
      * A first or a middle word is at least [common], and is read with the slips a thumb makes inside one word:
-     * letters read as other keys, and one letter missed, added or swapped ([starts]). The last is read as any word
-     * is ([search]; [fits] for a word the tables list after the one before), held to [JOIN_BUDGET].
+     * letters read as keys their taps were near, and one letter missed, added or swapped ([starts]). The last is
+     * read as any word is ([search]; [fits] for a word the tables list after the one before), held to
+     * [JOIN_BUDGET].
      *
      * What comes back is the best join there is and whichever others were found on the way to it, not every join:
      * the likeliest first words are tried first, each find raises what the rest must be worth, and a first word
@@ -606,9 +607,10 @@ class TapDecoder(
 
     /**
      * The words the taps from [from] on begin with, each with where it ends and what its slips cost: any number of
-     * letters read as other keys, and at most one letter missed, added or swapped ("mnoey" is "money", "gve" is
-     * "gave"), within [JOIN_BUDGET] in all. Only words at least [common], and never one that takes every tap that
-     * is left: another word is to follow. One walk finds them for every place such a word could end.
+     * letters read as keys their taps were near ([slip]: a thumb's slips, and no misspelling), and at most one
+     * letter missed, added or swapped ("mnoey" is "money", "gve" is "gave"), within [JOIN_BUDGET] in all. Only
+     * words at least [common], and never one that takes every tap that is left: another word is to follow. One
+     * walk finds them for every place such a word could end.
      */
     private fun starts(from: Int, common: Float): List<Start> {
         val found = HashMap<Long, Float>()
@@ -667,7 +669,14 @@ class TapDecoder(
         @JvmField var NO_SPACE = 3.2f
         /** The most the slips of any one of two or three joined words may cost. */
         @JvmField var JOIN_BUDGET = 3.4f
-        /** A first or middle word of a join may have one letter missed, added or swapped that costs no more than this; and three words run together are looked for. */
+        /**
+         * A first or middle word of a join may have one letter missed, added or swapped that costs no more than
+         * this (at 1.5: a doubled letter missed or added, or two letters swapped); and three words run together
+         * are looked for. Tried either side on tool/versus/scoreboard.py --bench, 2026-11-12, the rest as it then
+         * stood (294 words of 5,205 seen left wrong, 408 of 6,408 unseen): with no such slip 296 and 411; at 2.1
+         * or 2.9, which let any letter be missed or added, 295 and 409, and the bench's unknown words spoiled go
+         * from 1.5%, 4.3% and 7.1% to 1.9%, 5.5% and 8.3%; without three words 300 and 412.
+         */
         @JvmField var JOIN_SLIP = 1.5f
         @JvmField var JOIN_THREE = true
         /** The most all of a word's slips may cost. */

@@ -299,7 +299,7 @@ What the two sets cannot show, the bench and two probes do (`scoreboard.py --ben
 | | versus before | after |
 | --- | ---: | ---: |
 | bench, joins fixed (careful, normal, sloppy) | 60.0%, 61.5%, 56.4% | 72.2%, 75.4%, 71.6% |
-| bench, words right | 96.41%, 92.34%, 85.65% | 96.59%, 92.81%, 86.73% |
+| bench, words right | 96.41%, 92.34%, 85.65% | 96.59%, 92.81%, 86.74% |
 | bench, right words spoiled in a thousand | 1.22, 1.48, 1.65 | 1.22, 1.48, 1.45 |
 | bench, unknown words spoiled | 1.5%, 4.3%, 7.1% | 1.5%, 4.3%, 7.1% |
 | 166 names and compounds no list has, typed cleanly: changed | 4 | the same 4 |
