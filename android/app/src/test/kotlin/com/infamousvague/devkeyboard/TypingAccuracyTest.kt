@@ -269,6 +269,28 @@ class TypingAccuracyTest {
         assertEquals("Monday", both.correct("monday", names = true))
     }
 
+    @Test fun everyNameOfTheListIsAWordAndAskingForNamesChangesNoLetter() {
+        val names = File(assets, "dict/en_capitals.txt").readLines().map { it.trim() }.filter { it.isNotEmpty() && it[0] != '#' }
+        assertTrue("${names.size} names", names.size > 1000)
+        assertEquals("a name is listed once", names.size, names.map { it.lowercase() }.toSet().size)
+        var given = 0
+        for (name in names) {
+            val lower = name.lowercase()
+            // Three letters or more, written with one capital, and a word the keyboard knows: autocorrect mends toward
+            // nothing else, so a name outside the lists could only ever be given to a word typed without a slip.
+            assertTrue(name, name.length >= 3 && name[0].isUpperCase() && name.drop(1) == lower.drop(1) && name.all { it.isLetter() })
+            assertTrue(name, ac.isWord(lower))
+            // Typed cleanly in lower case: whatever the decoder makes of its letters without names (a rare name may
+            // be read as a commoner word, as any rare word may), it makes with them. Only the capital is new.
+            val plain = ac.correct(lower, null, taps(lower)) ?: lower
+            val asked = ac.correct(lower, null, taps(lower), names = true) ?: lower
+            assertEquals(name, plain.lowercase(), asked.lowercase())
+            if (asked == name) given++ else assertTrue("$name: $asked", asked.lowercase() != lower)
+        }
+        // All but the few rare names the decoder reads as another word (monet as money, bern as been) get their capital.
+        assertTrue("$given of ${names.size}", given >= names.size * 9 / 10)
+    }
+
     @Test fun aNameInsideTwoWordsRunTogetherGetsItsCapital() {
         // The fix is two words, and each is looked at: the name among them has its capital, the other is as it was.
         assertEquals("with Mary", ac.correct("withmary", null, taps("withmary"), names = true))
