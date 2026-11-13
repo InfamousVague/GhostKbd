@@ -96,9 +96,10 @@ class WordTrie(words: Array<String>, zipf: FloatArray) {
  *   the typed key's ([SPATIAL] a key width squared: a tap on the line between two keys costs nothing either way, one
  *   in the middle of a key costs about [SPATIAL] to read as its neighbour). A letter far from the tap can still be
  *   meant, as a misspelling rather than a slip of the thumb: any letter costs at most [far];
- * - the tap as one too many ([INSERT]; less where it doubles the letter beside it or is that letter's neighbour);
+ * - the tap as one too many ([INSERT]; less the nearer it landed to the key typed beside it, down to
+ *   [INSERT_DOUBLED] on that key itself: a letter tapped twice);
  * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less);
- * - two taps in the wrong order ([SWAP]).
+ * - two taps in the wrong order ([SWAP]), one of which may have landed on a neighbour's key besides ([SWAP_SLIP]).
  * A branch is given up as soon as its cost is more than the commonest word under it could repay ([WordTrie.best]),
  * so the search stays a few thousand nodes however many words the lists have.
  *
@@ -127,6 +128,12 @@ class TapDecoder(
     private var nearCost = emptyArray<FloatArray>()
     private var far = FAR
     private var spaceCost = FloatArray(0)
+    /** Whether each character had a tap of its own, and what that tap costs to read as the key typed before or after it. */
+    private var aimed = BooleanArray(0)
+    private var again = FloatArray(0)
+    /** For each tap, the other keys it landed within [SWAP_SLIP] of, and what each costs: see [swap]. */
+    private var slipCh = emptyArray<CharArray>()
+    private var slipCost = emptyArray<FloatArray>()
     private val keyCache = HashMap<Char, Char>()
     private var visits = 0
 
@@ -142,6 +149,7 @@ class TapDecoder(
         val w2 = if (taps != null) taps.keyW * taps.keyW else 1f
         nearCh = Array(n) { EMPTY_CHARS }
         nearCost = Array(n) { EMPTY_COSTS }
+        aimed = BooleanArray(n)
         for (i in 0 until n) {
             val t = tk[i]
             // A tap that typed a space, in letters a stray one may have cut in two ([Autocorrect.rejoin]): read as a
@@ -173,6 +181,7 @@ class TapDecoder(
                 nearCost[i] = FloatArray(near.size) { NEIGHBOUR }
                 continue
             }
+            aimed[i] = true
             val x = taps.xs[i]; val y = taps.ys[i]
             val d0 = ((x - at.first) * (x - at.first) + (y - at.second) * (y - at.second)) / w2
             val chars = ArrayList<Char>(6)
@@ -193,6 +202,31 @@ class TapDecoder(
                 spaceCost[i] = (SPATIAL * (d - d0)).coerceAtLeast(0f)
             }
         }
+        again = FloatArray(n) { i -> minOf(if (i > 0) lands(i, tk[i - 1]) else Float.POSITIVE_INFINITY, if (i + 1 < n) lands(i, tk[i + 1]) else Float.POSITIVE_INFINITY) }
+        slipCh = Array(n) { EMPTY_CHARS }
+        slipCost = Array(n) { EMPTY_COSTS }
+        val slip = SWAP_SLIP
+        for (i in 0 until n) {
+            if (!aimed[i]) continue
+            val costs = nearCost[i]
+            var some = 0
+            for (c in costs) if (c <= slip) some++
+            if (some == 0) continue
+            val chars = CharArray(some)
+            val theirs = FloatArray(some)
+            var at = 0
+            for (j in costs.indices) if (costs[j] <= slip) { chars[at] = nearCh[i][j]; theirs[at++] = costs[j] }
+            slipCh[i] = chars
+            slipCost[i] = theirs
+        }
+    }
+
+    /** What it costs to read tap [i] as the key [k], by where it landed: nothing where that is the key it typed. */
+    private fun lands(i: Int, k: Char): Float {
+        if (k == tk[i]) return 0f
+        val chars = nearCh[i]
+        for (j in chars.indices) if (chars[j] == k) return nearCost[i][j]
+        return Float.POSITIVE_INFINITY
     }
 
     /** What it costs to read tap [i] as the letter [c] of a word. */
@@ -213,6 +247,10 @@ class TapDecoder(
         // The space bar's own tap is a space or a letter that missed its key, never nothing at all.
         if (tk[i] == ' ') return Float.POSITIVE_INFINITY
         if (i == 0) return INSERT_FIRST
+        // A second tap of the key typed before it or after it, by where it landed: on that key again it is a letter
+        // tapped twice, just over the line from that key it is nearly one, and in the middle of another key it is a
+        // tap of its own. A character with no tap goes by which keys are neighbours, as every one did.
+        if (aimed[i]) return minOf(INSERT, INSERT_DOUBLED + again[i])
         val c = tk[i]
         val before = tk[i - 1]
         val after = if (i + 1 < n) tk[i + 1] else 0.toChar()
@@ -243,6 +281,15 @@ class TapDecoder(
     /**
      * The words the taps of [from] onward could be, each with its cost: those scoring (frequency less cost) at least
      * [least], and within [KEEP] of the best found. [budget] is the most the slips may cost.
+     *
+     * [slipsOnly] is for letters that spell a common word: no misspelling is read into one, and no letter left out,
+     * added or swapped, unless [reach] is asked too. [reach] is [Autocorrect.byTaps] asking for the word as it was
+     * typed, and reads further than the rest do (two words run together, a word cut in two, a word half typed):
+     * - a word of up to [SHORT] letters may be changed by [SHORT_MORE] more than its one change, for [SHORT_PAST];
+     * - letters that spell a common word may have had a letter left out, a letter tapped twice or two swapped,
+     *   each for at least [LISTED_EDIT];
+     * - a letter left out of a word typed as one letter costs [LONE_OMIT];
+     * - one of two taps in the wrong order may have landed on a neighbour's key ([SWAP_SLIP]).
      */
     fun search(least: Float, budget: Float = BUDGET, from: Int = 0, slipsOnly: Boolean = false, reach: Boolean = false): List<Hit> {
         hits.clear()
@@ -254,12 +301,19 @@ class TapDecoder(
         // A short word changed in most of its letters is another word, not a slip of this one. In hundredths of a
         // change: a letter read as the key its tap all but landed on counts for less than one ([counts]).
         val len = n - from
-        changes = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
-        plain = changes
-        if (reach && len <= SHORT.toInt()) changes += (SHORT_MORE * 100f).toInt()
-        edit = if (!slipsOnly) 0f else if (reach) LISTED_EDIT else Float.POSITIVE_INFINITY
-        editLeast = if (slipsOnly && reach) LISTED_LEAST else 0f
-        swapSlip = if (reach) SWAP_SLIP else 0f
+        bound = 100 * (if (slipsOnly) (if (len <= 4) 1 else 2) else when { len <= 3 -> 1; len <= 5 -> 2; len <= 8 -> 3; else -> 4 })
+        changes = bound
+        past = 0f
+        edits = !slipsOnly
+        dear = 0f
+        lone = false
+        slipped = false
+        if (reach) {
+            if (len <= SHORT.toInt()) { changes = bound + (SHORT_MORE * 100f).toInt(); past = SHORT_PAST }
+            if (slipsOnly && LISTED_EDIT < NEVER) { edits = true; dear = LISTED_EDIT }
+            lone = len == 1
+            slipped = SWAP_SLIP > 0f
+        }
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
         for ((index, cost) in hits) if (zipfs[index] - cost >= floor) out += Hit(index, cost)
@@ -278,11 +332,13 @@ class TapDecoder(
         visits = 0
         only = false
         finishing = true
-        changes = 100 * when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
-        plain = changes
-        edit = 0f
-        editLeast = 0f
-        swapSlip = 0f
+        bound = 100 * when { n <= 3 -> 1; n <= 6 -> 2; else -> 3 }
+        changes = bound
+        past = 0f
+        edits = true
+        dear = 0f
+        lone = false
+        slipped = false
         walk(0, 0, 0f, 0, 0, 0.toChar(), budget, 0)
         finishing = false
         val out = ArrayList<Hit>(hits.size)
@@ -291,45 +347,51 @@ class TapDecoder(
     }
 
     /**
-     * [search]'s bounds: only slips of the thumb (no letter missed, added or swapped, no misspelling), and how many
-     * changes at most, in hundredths of a change.
+     * [search]'s bounds. [only]: the letters spell a common word, and no misspelling is read into them. [bound]: how
+     * many changes at most, in hundredths of a change, and [changes] the same with what a short word is let past it,
+     * each reading that goes past it costing [past] more. [edits]: whether a letter may have been left out, added or
+     * swapped, each for at least [dear]. [lone]: the word was typed as one letter. [slipped]: one of two swapped
+     * taps may have landed on a neighbour's key.
      */
     private var only = false
+    private var bound = 400
     private var changes = 400
-    private var plain = 400
-    private var edit = 0f
-    private var swapSlip = 0f
-    private var editLeast = 0f
-
-    private fun fits(changed: Int, node: Int) = changed <= plain || (changed <= changes && trie.best[node] >= SHORT_ZIPF)
-    /** What an edit that costs [e] costs here. */
-    private fun ed(e: Float) = maxOf(e, editLeast) + edit
-    /** What passing the plain bound costs more. */
-    private fun past(changed: Int, next: Int) = if (next > plain && changed <= plain) SHORT_EXTRA else 0f
+    private var past = 0f
+    private var edits = true
+    private var dear = 0f
+    private var lone = false
+    private var slipped = false
 
     /**
      * What a letter read as another key for [s] counts against [changes], in hundredths: a whole change from
      * [WHOLE_CHANGE] up, and its share of one below that. A letter missed, added or swapped is always a whole one.
      */
     private fun counts(s: Float): Int = if (s >= WHOLE_CHANGE) 100 else (s / WHOLE_CHANGE * 100f).toInt()
+    /** What it costs more to count [w] on top of [changed]: [past], the once that takes a reading over the [bound]. */
+    private fun beyond(changed: Int, w: Int): Float = if (changed <= bound && changed + w > bound) past else 0f
+    /** A letter left out, added or swapped where the letters spell a common word: never less than [dear]. */
+    private fun edit(e: Float): Float = if (e < dear) dear else e
+    /** Whether tap [i] typed the key of the tap before it or after it over again: a letter tapped twice. */
+    private fun twice(i: Int): Boolean = (i > 0 && tk[i] == tk[i - 1]) || (i + 1 < n && tk[i] == tk[i + 1])
     /** [finish] is asking: where the taps run out, the commonest word under the node is taken, whether or not a word ends there. */
     private var finishing = false
 
     private fun walk(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, last: Char, budget: Float, changed: Int) {
         if (trie.best[node] - cost < floor || cost > budget || ++visits > MAX_VISITS) return
-        val more = edit < 90f && fits(changed + 100, node)
-        val over = past(changed, changed + 100)
+        // A letter left out, added or swapped is a whole change: whether one more is allowed, and what it costs past the bound.
+        val more = edits && changed + 100 <= changes
+        val over = beyond(changed, 100)
         if (i == n) {
             if (finishing) { val w = trie.bestWord[node]; if (w >= 0) offer(w, cost); return }
             val w = trie.word[node]
-            if (w >= 0 && (changed <= plain || zipfs[w] >= SHORT_ZIPF)) offer(w, cost)
+            if (w >= 0) offer(w, cost)
             // The word goes on for a letter or two the thumb never typed (an apostrophe and its letter count as one).
             var q = trie.down[node]
             while (q >= 0) {
                 val c = trie.ch[q]
                 val free = c == '\'' || c == '’'
                 if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-                else if (more && omits < MAX_OMITS) walk(q, i, cost + ed(omit(c, last)) + over, omits + 1, inserts, c, budget, changed + 100)
+                else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omit(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
                 q = trie.next[q]
             }
             return
@@ -350,58 +412,50 @@ class TapDecoder(
                 // The same key under another letter (é for e) is no change; a misspelling is not a slip of the thumb.
                 val same = s == 0f && key(c) == tk[i]
                 val w = if (same) 0 else counts(s)
-                val t = if (same) 0f else s + past(changed, changed + w)
-                if (cost + t <= budget && (same || (fits(changed + w, q) && !(only && s >= far)))) walk(q, i + 1, cost + t, omits, inserts, c, budget, changed + w)
+                val t = if (same) 0f else s + beyond(changed, w)
+                if (cost + t <= budget && (same || (changed + w <= changes && !(only && s >= far)))) walk(q, i + 1, cost + t, omits, inserts, c, budget, changed + w)
             }
             // An apostrophe is nearly free and is not counted as a letter missed.
             val free = c == '\'' || c == '’'
             if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-            else if (more && omits < MAX_OMITS) walk(q, i, cost + ed(omit(c, last)) + over, omits + 1, inserts, c, budget, changed + 100)
+            else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omit(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
             q = trie.next[q]
         }
         if (!more) return
-        if (inserts < MAX_INSERTS) { val ins = insert(i); val e = if (only && ins != INSERT_DOUBLED) maxOf(ins, LISTED_INSERT) else ins; if (e < 90f) walk(node, i + 1, cost + ed(e) + over, omits, inserts + 1, last, budget, changed + 100) }
-        if (i + 1 < n && tk[i] != tk[i + 1]) {
-            if (swapSlip <= 0f) {
-                if (typed[i] != typed[i + 1]) {
-                    val a = trie.child(node, typed[i + 1])
-                    if (a >= 0) { val b = trie.child(a, typed[i]); if (b >= 0) walk(b, i + 2, cost + ed(SWAP) + over, omits, inserts, typed[i], budget, changed + 100) }
-                }
-            } else {
-                // Two taps in the wrong order, each read by where it landed: the later tap as the word's next letter,
-                // the earlier one as the letter after it.
-                var a = trie.down[node]
-                while (a >= 0) {
-                    val c1 = trie.ch[a]
-                    val s1 = if (c1 == typed[i + 1]) 0f else sub(i + 1, c1)
-                    if (s1 <= swapSlip) {
-                        var hop = 0f
-                        var from = a
-                        // An apostrophe between the two (dotn for don't) is stepped over.
-                        while (true) {
-                            var b = trie.down[from]
-                            var apostrophe = -1
-                            while (b >= 0) {
-                                val c2 = trie.ch[b]
-                                if (c2 == '\'' || c2 == '’') { if (apostrophe < 0) apostrophe = b }
-                                else {
-                                    val s2 = if (c2 == typed[i]) 0f else sub(i, c2)
-                                    if (s2 <= swapSlip && (SWAP_BOTH || s1 == 0f || s2 == 0f) && key(c1) != key(c2)) {
-                                        val w = 100 + counts(s1) + counts(s2)
-                                        if (fits(changed + w, b)) walk(b, i + 2, cost + ed(SWAP) + s1 + s2 + hop + past(changed, changed + w), omits, inserts, c2, budget, changed + w)
-                                    }
-                                }
-                                b = trie.next[b]
-                            }
-                            if (apostrophe < 0 || hop > 0f || !SWAP_HOP) break
-                            from = apostrophe
-                            hop = APOSTROPHE
-                        }
-                    }
-                    a = trie.next[a]
-                }
-            }
-        }
+        // One tap too many. From letters that spell a common word only a letter tapped twice is ever taken away:
+        // "inn" may be "in", and "ink" is never "in" with a k too many.
+        if (inserts < MAX_INSERTS && (!only || twice(i))) walk(node, i + 1, cost + edit(insert(i)) + over, omits, inserts + 1, last, budget, changed + 100)
+        if (i + 1 < n) swap(node, i, cost + edit(SWAP), omits, inserts, budget, changed)
+    }
+
+    /**
+     * Taps [i] and [i] + 1 in the wrong order: the later one read as the word's next letter and the earlier as the
+     * letter after that. [cost] has what the swap costs in it already. Where [slipped], one of the two (never both)
+     * may have landed on a neighbour's key as well, for what any tap read as that key costs: "iculs" is "could"
+     * with its c and o in the wrong order and the o tapped on i.
+     */
+    private fun swap(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
+        val first = typed[i + 1]
+        val second = typed[i]
+        pair(node, i, first, second, cost, 0f, omits, inserts, budget, changed)
+        // Two taps on one key are not read as swapped, whichever of them was nearer another key.
+        if (!slipped || tk[i] == tk[i + 1]) return
+        val a = slipCh[i + 1]
+        for (j in a.indices) pair(node, i, a[j], second, cost, slipCost[i + 1][j], omits, inserts, budget, changed)
+        val b = slipCh[i]
+        for (j in b.indices) pair(node, i, first, b[j], cost, slipCost[i][j], omits, inserts, budget, changed)
+    }
+
+    /** [swap]'s two letters, [a] then [b], with what the one that slipped cost ([s], nothing where neither did). */
+    private fun pair(node: Int, i: Int, a: Char, b: Char, cost: Float, s: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
+        // The same letter twice is no swap: read in order, the taps say as much for less.
+        if (a == b) return
+        val w = 100 + counts(s)
+        if (changed + w > changes) return
+        val p = trie.child(node, a)
+        if (p < 0) return
+        val q = trie.child(p, b)
+        if (q >= 0) walk(q, i + 2, cost + s + beyond(changed, w), omits, inserts, b, budget, changed + w)
     }
 
     /**
@@ -556,15 +610,13 @@ class TapDecoder(
          */
         @JvmField var WHOLE_CHANGE = 2.0f
         @JvmField var SHORT = 3f
-        @JvmField var SHORT_MORE = 0f
-        @JvmField var SHORT_ZIPF = 0f
-        @JvmField var SHORT_EXTRA = 0f
-        @JvmField var LISTED_EDIT = 99f
-        @JvmField var LISTED_LEAST = 0f
-        @JvmField var LISTED_INSERT = 0f
-        @JvmField var SWAP_SLIP = 0f
-        @JvmField var SWAP_BOTH = false
-        @JvmField var SWAP_HOP = false
+        @JvmField var SHORT_MORE = 0.5f
+        @JvmField var SHORT_PAST = 0.5f
+        @JvmField var LISTED_EDIT = 2.0f
+        @JvmField var LONE_OMIT = 1.4f
+        @JvmField var SWAP_SLIP = 1.0f
+        /** From this up, [LISTED_EDIT] and [LONE_OMIT] mean never. */
+        const val NEVER = 90f
         /** Readings this far under the best one found are let go. */
         @JvmField var KEEP = 3f
         const val MAX_OMITS = 2
