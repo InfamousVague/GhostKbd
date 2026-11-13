@@ -107,6 +107,37 @@ object Layouts {
         return rows.dropLast(1) + KeyRow(last.keys.toMutableList().also { it[at] = mic }, last.inset)
     }
 
+    /**
+     * A touch on the mic key's edge beside the space bar, made in the middle of fast typing, is a space (Matt,
+     * 2026-11-13: "when rapidly typing make the edge of the dictation button act as a spacebar in case a user mis
+     * hits it"). The mic stands where the full stop was, hard by the bar, and a thumb going for the bar between
+     * words lands on it now and then; a dictation started by that is never what was meant. True where the touch at
+     * [x] is within [MIC_EDGE] of the mic's width (from [micLeft] to [micRight]) of the side that meets the bar
+     * (from [barLeft] to [barRight]), the touch before it was a letter's, and it came [sinceLast] ms after that one,
+     * under [MIC_RAPID_MS]. A slow, deliberate tap anywhere on the mic is the mic, as is any tap on its far side.
+     */
+    fun micEdgeIsSpace(micLeft: Float, micRight: Float, barLeft: Float, barRight: Float, x: Float, sinceLast: Long, afterLetter: Boolean): Boolean {
+        if (!afterLetter || sinceLast < 0 || sinceLast >= MIC_RAPID_MS) return false
+        val w = micRight - micLeft
+        if (w <= 0f) return false
+        val touching = w * 0.25f
+        return when {
+            kotlin.math.abs(micLeft - barRight) <= touching -> x <= micLeft + w * MIC_EDGE
+            kotlin.math.abs(barLeft - micRight) <= touching -> x >= micRight - w * MIC_EDGE
+            else -> false
+        }
+    }
+
+    /** How much of the mic key, from the side that meets the space bar, is the bar's in fast typing ([micEdgeIsSpace]). */
+    const val MIC_EDGE = 0.4f
+
+    /**
+     * What counts as fast typing for [micEdgeIsSpace]: a touch this soon after a letter's. People typing at speed put
+     * 150 to 350 ms between key presses (the typing bench's thumb is 197 ms at the middle, docs/versus.md); a pause at
+     * a word's end is longer, and a deliberate reach for the mic longer still.
+     */
+    const val MIC_RAPID_MS = 450L
+
     /** The least the space bar is left with, in key widths, whatever stands beside it. */
     const val LEAST_BAR = 3f
 

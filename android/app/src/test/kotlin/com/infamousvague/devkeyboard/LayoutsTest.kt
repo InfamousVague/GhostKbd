@@ -263,3 +263,34 @@ class LayoutsTest {
         }
     }
 }
+
+/** The mic key's edge by the space bar, in fast typing (Layouts.micEdgeIsSpace). */
+class MicEdgeTest {
+    // A bottom row: the bar from 300 to 900, the mic from 900 to 1000 beside it.
+    private fun space(x: Float, since: Long, afterLetter: Boolean = true) = Layouts.micEdgeIsSpace(900f, 1000f, 300f, 900f, x, since, afterLetter)
+
+    @org.junit.Test fun theEdgeByTheBarIsTheBarInFastTyping() {
+        org.junit.Assert.assertTrue(space(905f, 200))
+        org.junit.Assert.assertTrue(space(939f, 300))
+    }
+
+    @org.junit.Test fun theFarSideIsAlwaysTheMic() {
+        org.junit.Assert.assertFalse(space(960f, 200))
+        org.junit.Assert.assertFalse(space(995f, 100))
+    }
+
+    @org.junit.Test fun aSlowTapOrOneNotAfterALetterIsTheMic() {
+        org.junit.Assert.assertFalse(space(905f, Layouts.MIC_RAPID_MS))
+        org.junit.Assert.assertFalse(space(905f, 1500))
+        org.junit.Assert.assertFalse(space(905f, 200, afterLetter = false))
+    }
+
+    @org.junit.Test fun aMicNotBesideTheBarIsTheMic() {
+        org.junit.Assert.assertFalse(Layouts.micEdgeIsSpace(900f, 1000f, 100f, 500f, 905f, 200, true))
+    }
+
+    @org.junit.Test fun aMicLeftOfTheBarGivesItsRightEdge() {
+        org.junit.Assert.assertTrue(Layouts.micEdgeIsSpace(100f, 200f, 200f, 800f, 190f, 200, true))
+        org.junit.Assert.assertFalse(Layouts.micEdgeIsSpace(100f, 200f, 200f, 800f, 110f, 200, true))
+    }
+}
