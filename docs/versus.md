@@ -408,6 +408,66 @@ thumb's words; the place counted in full up to a lift of 1.5 or 1.0 and by half 
 unseen 6.09%); the bar for a common word at 1.3 (94.44, 5.51%, 5.99%, with 1.83 / 1.48 / 1.86 spoiled) and at 0.8
 (94.58, 5.34%, 5.88%, with 2.13 / 2.02 / 2.69).
 
+### The word before, read again (made 2026-11-13)
+
+Gboard does not settle a word once and for all at the space. From its records (`tool/versus/behind.py gboard`,
+which takes the field's text after every key press): on the seen set 289 of 5,205 words were wrong when each first
+had a space after it (5.55%) and 199 at the end (3.82%), 90 put right behind the cursor as the next word ended and no
+right word spoiled that way; on the unseen set 304 (4.74%) and 221 (3.45%), 88 put right, 5 spoiled. "Ut never"
+stood until the space after never and became "It never"; "Sre you" became "Are you". Ghost Keyboard settled each
+word at its space and never looked at it again.
+
+`Autocorrect.again` reads the word before again once the next word has ended: every reading of its taps (what
+stands, what was typed, the decoder's readings), each weighed by what its slips cost, by its place after the words
+before it (`atPlace`) and by how likely the word that has now followed is after it (`Scorer.follows`, from the
+starter tables' one-word and two-word rows; capped at 3 either way). Where another reading comes ahead of what
+stands by 0.5, and the word after itself gives it 0.5 of that, it replaces what stands, behind the cursor: a slip
+left standing is mended ("we ate going" to "we are going", "I'd tell you of I knew" to "if I knew"), and a word the
+space changed is put back to what was typed, or to a third reading, where the word after says so. A typed word no
+list has is never put back (the first try put back "Ery" for Very and "ftlmt" for front). `DevKeyboardService`
+keeps the word that ended last (`Behind`, beside the bar's `Cut`) and calls it as the next word ends; the replay's
+`Typist` and the bench's `typeAll` do the same. Where there is no place (prediction off), where a table does not
+count its words (every language's but English's today, and English loaded with another: `Scorer.counted` asks it
+of every table) or with `Autocorrect.AGAIN` off, there is no second look, and the scoreboard is then the starting
+tree's word for word on both sets with the bench's lines identical.
+
+What there was to win, measured first (`tool/versus/behind.py probe`, the second look made to change nothing): of
+the 267 words the starting tree left wrong on the seen set that were typed with a slip, 99 were never read again
+(70 a sentence's last word, which has no word after it; 31 in joins), for 74 the word meant was not among the
+readings held up to the word after, for 53 it was among them and not first, and for 41 it came first with the word
+after weighed in; of its 11 right words spoiled, 5 would come first again, 4 were among the readings, 2 never read
+again. On the unseen set: 364 slips left wrong (102 never read again, 105 not among, 80 among, 77 first) and 13
+spoiled (6 first, 5 among, 2 never read again).
+
+| | seen | unseen | bench careful | normal | sloppy |
+|---|---|---|---|---|---|
+| starting tree (9d36d4c) | 5.34% (278) | 5.88% (377) | 96.87%, 1.93 | 93.19%, 1.75 | 87.24%, 2.07 |
+| the second look | 4.90% (255) | 5.07% (325) | 97.16%, 1.62 | 93.85%, 1.61 | 88.24%, 1.86 |
+
+(The bench's words right and right words spoiled per 1,000; unknown words spoiled 2.3%, 3.0% and 6.0% both ways.)
+Away from Tatoeba (`tool/versus/elsewhere.py`, 288 sentences of this repository's documents, `whatif.py --file`):
+careful 3.55% to 3.44%, leaning 5.89% to 5.70%, sloppy 13.15% to 12.81%, 17 words of 7,941 against 23 of 5,205 seen
+and 52 of 6,408 unseen: about half the gain is Tatoeba's own, since the tables it reads were counted from Tatoeba.
+
+What a person sees (`tool/versus/behind.py seen`, and the bench's "changed behind the cursor"): on the seen set 33
+words change behind the cursor (6.3 per 1,000 typed): 25 put a wrong word right, 2 spoil a right one ("Take" to
+"Game" before "of", "us" to "is" before "a"), 6 swap one wrong word for another; 3 of the 33 put back what was typed
+after the space had changed it. Gboard on the same taps: 82 changes, 58 put right, 1 spoiled. On the unseen set 65
+(10.1 per 1,000): 55, 3, 7. On the bench 3.7, 9.1 and 14.6 per 1,000 (careful 38 right, 3 spoiled, 4 other; normal
+88, 9, 12; sloppy 134, 15, 26). It is right as often as Gboard's (76% of changes on the seen set, Gboard's 71%) and
+spoils more (6% against 1%). It costs processor time: on the bench 303 to 328 µs a word careful against 190 off,
+387 to 413 normal against 264 to 268, 453 to 544 sloppy against 332 to 362 (the search is run once more for the
+word before).
+
+**Tried and not kept**: the first look made more cautious where a second look follows (a bar 0.25, 0.5 or 1.0 higher
+at the space for a listed word: seen 257, 264, 278; unseen 327, 327, 338; with the second look's own margins at 0,
+258 and 319 against 258 and 316 without it); the word just ended read once more after the word before it changed
+(seen 255, unseen 324 against 325); the word after weighed 1.3 (seen 255, unseen 321, but the bench spoiled 1.83 and
+2.07 per 1,000 careful and sloppy) or 0.7 (262, 342); no margins (258, 316, careful spoiled 2.03). The sentence's
+last word has no word after it, and the tables have no rows that say how likely a word is to end a sentence (the
+rows after "^" are starts): 70 of the seen set's wrong words are last words, and reading them by the mark that ends
+them would need such rows counted into the tables first.
+
 ### What the thumb had done
 
 The 326 again, by the slip (`score.py`'s `category`):
