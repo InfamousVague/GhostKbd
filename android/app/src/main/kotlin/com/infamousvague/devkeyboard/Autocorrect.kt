@@ -1012,7 +1012,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val here = if (HERE) scorer.here { words[it] } else null
         fun lift(word: String, zipf: Float) = minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         fun worth(word: String, zipf: Float) = if (here != null) atPlace(here, word, zipf) else zipf + lift(word, zipf)
-        fun after(word: String) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-AGAIN_MOST, AGAIN_MOST)
+        // A pair the tables list speaks for a reading; a pair they never saw speaks against it only so far
+        // (AGAIN_LOW): the tables were counted from Tatoeba, and "says only", "keys a" or "fix is" are pairs
+        // Tatoeba seldom has, not pairs nobody writes.
+        fun after(word: String) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-minOf(AGAIN_LOW, AGAIN_MOST), AGAIN_MOST)
         // What the typed letters are worth as they stand, and how much more than that a reading must be worth to
         // take their place, as the first look had it.
         val typedWorth = if (known != null) worth(asTyped, known) else unlisted(lower)
@@ -1072,6 +1075,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         }
         if (best === standing || best.all < standing.all + AGAIN_MARGIN || best.after - standing.after < AGAIN_LEAST) return null
         if (known == null && stood == asTyped && best.all < standing.all + AGAIN_UNKNOWN) return null
+        // Putting back what was typed, once the space has changed it, is a word seen changing twice: it must be further ahead.
+        if (best.word == asTyped && stood != asTyped && best.all < standing.all + AGAIN_MARGIN + AGAIN_BACK) return null
         trace?.invoke("  chosen: ${best.word}")
         return recase(locale, typed, capitalI(now, best.word)).takeIf { it != stands }
     }
@@ -1408,6 +1413,21 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var AGAIN_READINGS = 6f
         /** Whether the readings of a common word take letters left out and added as well as slips: off lost a word on unseen. */
         @JvmField var AGAIN_EDITS = true
+        /**
+         * The most a pair the tables never saw (or seldom did) counts against a reading, in Zipf units, where [AGAIN_MOST]
+         * is the most a pair they list counts for one. Set on 2026-11-13 against the documents' own sentences
+         * (tool/versus/elsewhere.py --at 9d36d4c), the one measure not made of Tatoeba's sentences: at 3 (as
+         * AGAIN_MOST) the second look mended 36 words there and broke 19; at 1, 27 and 10, with seen 255 to 254 and
+         * unseen 325 to 326 words wrong. 0.5 broke 6 but lost 8 words on unseen; 1.5 was as 3.
+         */
+        @JvmField var AGAIN_LOW = 1.0f
+        /**
+         * How much further ahead (on top of [AGAIN_MARGIN]) the letters as typed must come to be put back once the space
+         * has changed them: a word a person sees change twice. Set on 2026-11-13 with [AGAIN_LOW] at 1: at 0.5 the
+         * documents' sentences broke 8 where 0 broke 10 (os, hoe, ein put back), seen 254 to 253, unseen 326 the same;
+         * the bench's careful thumb spoiled 1.83 right words per 1000 where 0 spoiled 1.62. 1 and more lost words on unseen.
+         */
+        @JvmField var AGAIN_BACK = 0.5f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
         @JvmField var UNKNOWN = 3.2f
         @JvmField var UNKNOWN_ODD = 1.8f

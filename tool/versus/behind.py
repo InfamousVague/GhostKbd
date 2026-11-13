@@ -8,11 +8,15 @@
         (spoiled). Beside them, what the decoder made of the same words, from a scoreboard saved as SAVED (default
         "base"). Written by the lead on 2026-11-12 as build/after/behind.py; Gboard typed the seen and unseen sets.
 
-  seen [--set NAME=VALUE ...] [--show N]
+  seen [--set NAME=VALUE ...] [--show N] [--elsewhere FILE]
         Ghost Keyboard's: the seen and the unseen set typed through the decoder on the JVM (replay.sh), and every
         word the second look (Autocorrect.again) changed behind the cursor, counted per 1,000 words typed: a wrong
         word put right, a right word spoiled, one wrong word for another; and how many of the changes put back
-        what was typed after the space had changed it (a word a person watched change twice).
+        what was typed after the space had changed it (a word a person watched change twice). The same counts by
+        what was changed: a word left as typed at the space (typed), a word the space had changed (changed), and of
+        those the ones put back as typed (put back). --show lists the changes one by one for the seen set (and the
+        elsewhere set), never the unseen set's: that set is checked by its totals. --elsewhere FILE adds sentences
+        from a file (tool/versus/elsewhere.py --at REV), typed as whatif.py types them.
 
   probe [--show N]
         What the word after could win, measured before trusting the mechanism: the decoder typed with the second
@@ -72,9 +76,23 @@ def sets():
     return (("seen", sb.kept("ghost.jsonl.gz")), ("unseen", sb.unseen(sb.UNSEEN_FIRST, 300)))
 
 
-def run(command, records, dials=()):
+def elsewhere(path):
+    """The sentences of [path] typed by the three thumbs as whatif.py types them (its geometry, aim and seed)."""
+    import thumb as th
+    geometry = os.path.join(HERE, "geometry", "ghost-1248x1972-420dpi.json")
+    board = th.Board(json.load(open(geometry)))
+    sents, _ = th.sentences(1000, path=path, first=0)
+    records = []
+    for name in ("careful", "leaning", "sloppy"):
+        for s in sents:
+            taps, slips = th.plan(s, th.THUMBS[name], "7")
+            records.append({"thumb": name, "line": s.line_no, "target": s.text, "words": s.words, "touches": board.place(taps, "answers"), "slips": slips})
+    return records, geometry
+
+
+def run(command, records, dials=(), geometry=None):
     lines = ["%s/%d\t%s" % (r["thumb"], r["line"], score.events_line(r)) for r in records]
-    extra = ["--board", score.board_file(sb.GEOMETRY)] + [x for d in dials for x in ("--set", d)]
+    extra = ["--board", score.board_file(geometry or sb.GEOMETRY)] + [x for d in dials for x in ("--set", d)]
     env = dict(os.environ)
     env.pop("VERSUS_OVERLAY", None)
     p = subprocess.run(["sh", os.path.join(HERE, "replay.sh"), command] + list(SIZE if command == "replay" else ()) + extra,
@@ -93,11 +111,16 @@ def target_of(r, text, k):
     return None, None
 
 
-def seen(dials, show):
-    for name, records in sets():
+def seen(dials, show, other=None):
+    every = [(name, records, None) for name, records in sets()]
+    if other:
+        records, geometry = elsewhere(other)
+        every.append(("elsewhere", records, geometry))
+    for name, records, geometry in every:
         by = {"%s/%d" % (r["thumb"], r["line"]): r for r in records}
-        out = run("replay", records, dials)
+        out = run("replay", records, dials, geometry)
         words = right = spoiled = swapped = back = 0
+        kinds = {}
         ex = []
         for line in out.splitlines():
             f = line.split("\t")
@@ -120,10 +143,14 @@ def seen(dials, show):
                     kind = "wrong for wrong" if not a else "right for right"
                 if now == typed and stood != typed:
                     back += 1
-                ex.append("%-8s %-15s meant %-10s typed %-10s stood %-10s now %s" % (name, kind, meant, typed, stood, now))
+                what = "typed" if stood == typed else "put back" if now == typed else "changed"
+                kinds.setdefault(what, [0, 0, 0])[0 if kind == "put right" else 1 if kind == "SPOILED" else 2] += 1
+                if name != "unseen":
+                    ex.append("%-8s %-15s meant %-10s typed %-10s stood %-10s now %s" % (name, kind, meant, typed, stood, now))
         n = right + spoiled + swapped
         print("%-7s %d changes behind the cursor in %d words (%.1f per 1,000): %d put a wrong word right, %d spoiled a right one, %d one word for another; %d put back what was typed" % (
             name, n, words, 1000.0 * n / max(1, words), right, spoiled, swapped, back))
+        print("        by what was changed: " + "; ".join("%s %d (%d right, %d spoiled, %d other)" % (k, sum(v), v[0], v[1], v[2]) for k, v in sorted(kinds.items())))
         for e in sorted(ex, key=lambda s: ("put right" in s, s))[:show]:
             print("    " + e)
 
@@ -259,7 +286,11 @@ def main():
     if argv[0] == "gboard":
         gboard(argv[1] if len(argv) > 1 else "base", show)
     elif argv[0] == "seen":
-        seen(dials, show)
+        other = None
+        if "--elsewhere" in argv:
+            i = argv.index("--elsewhere")
+            other = argv[i + 1]
+        seen(dials, show, other)
     else:
         probe(show)
 

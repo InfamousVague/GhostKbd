@@ -11,6 +11,12 @@ headings, anything in backticks, links). tool/versus/whatif.py types them:
     tool/versus/whatif.py --file build/versus/elsewhere.txt --first 0 --sentences 1000
     tool/versus/whatif.py --file build/versus/elsewhere.txt --first 0 --sentences 1000 --set Autocorrect.HERE=false
 
+Numbers taken from files made at different times are not comparable: the documents change, and a section added
+to docs/ adds its sentences (docs/versus.md's 2026-11-13 section added two, and changed what careful scored by half a
+point). --at REV reads the documents as they were at that commit, so a measure can name the file it was made on:
+
+    tool/versus/elsewhere.py --at 9d36d4c --out build/versus/elsewhere-9d36d4c.txt
+
 They are no person's messages either: plain sentences about a keyboard, in one voice, with its own words in them
 (Gboard, autocorrect), which no list has. What they are is not Tatoeba's, and that is all they are used for.
 """
@@ -18,6 +24,7 @@ import argparse
 import glob
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -69,16 +76,26 @@ def sentences(paragraph):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "versus", "elsewhere.txt"))
+    ap.add_argument("--at", metavar="REV", help="the documents as they were at this commit (git show), not as they are")
     args = ap.parse_args()
-    files = sorted(glob.glob(os.path.join(ROOT, "docs", "*.md"))) + [os.path.join(ROOT, "README.md")]
+    if args.at:
+        listed = subprocess.run(["git", "-C", ROOT, "ls-tree", "--name-only", args.at, "docs/"], capture_output=True, text=True, check=True).stdout.split()
+        files = sorted(f for f in listed if f.endswith(".md")) + ["README.md"]
+    else:
+        files = sorted(glob.glob(os.path.join(ROOT, "docs", "*.md"))) + [os.path.join(ROOT, "README.md")]
+
+    def read(path):
+        if args.at:
+            return subprocess.run(["git", "-C", ROOT, "show", "%s:%s" % (args.at, path)], capture_output=True, text=True, check=True).stdout
+        with open(path, encoding="utf-8") as f:
+            return f.read()
     seen, lines = set(), []
     for path in files:
-        with open(path, encoding="utf-8") as f:
-            for p in paragraphs(f.read()):
-                for s in sentences(p):
-                    if s not in seen:
-                        seen.add(s)
-                        lines.append(s)
+        for p in paragraphs(read(path)):
+            for s in sentences(p):
+                if s not in seen:
+                    seen.add(s)
+                    lines.append(s)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write("".join(s + "\n" for s in lines))
