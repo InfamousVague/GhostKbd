@@ -3,6 +3,7 @@
 # A line: a run of letters (^ a word's start, $ its end); what its last letter costs after the ones before it, as minus
 # 100 times the log to base ten of its chance; and what is added before going by one letter less where a run is not here.
 # Derived from Tatoeba's sentences (CC BY 2.0 FR) and the wordfreq lists (CC BY-SA 4.0): see NOTICE.txt.
+# check: berber 597, kira 571, yurt 601, nguyen 1107, don't 618, whiby 715, dlam 868, hkpelwss 1829, prrsrnyable 1886, zxqj 1709, a 430
 =	order	3	share	0.01770
 $	96	
 '	205	227

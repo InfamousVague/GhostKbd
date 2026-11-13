@@ -8,12 +8,18 @@ against a reading of their taps (Autocorrect.unlisted): "prrsrnyable" next to no
     python3 tool/letters.py --export FILE    # the Tatoeba export, where it is not in build/ngram-src/
     python3 tool/letters.py --list FILE      # one more word list to take as listed (a word a line, or a word, a tab
                                              # and anything); any number of times
-    python3 tool/letters.py --order 4 --out build/letters/en_letters-4.tsv     # another table, for measuring
     python3 tool/letters.py --say berber prrsrnyable                           # what the table makes of these
+
+    For measuring another table against the bundled one (see "How it was set"):
+    python3 tool/letters.py --compare                  # what each way of counting costs on held-out words; writes nothing
+    python3 tool/letters.py --order 4 --out build/letters/en_letters-4.tsv     # longer or shorter runs, for the keyboard to try
+    python3 tool/letters.py --running --out ...        # each word counted as often as it stood, not once
+    python3 tool/letters.py --with-listed 1 --out ...  # the listed words' own spelling counted in, each this many times
 
 Standard library only, and it fetches nothing. Run it again whenever English's word lists change: a word that
 joins a list is no longer one of the words no list has, so both the share of such words and what they are spelled
-like move with the lists.
+like move with the lists. A list put beside en.tsv as assets/dict/en_<name>.tsv (a word, a tab, its frequency) is
+read as listed without being named.
 
 What is counted
 ---------------
@@ -45,7 +51,25 @@ longer run is not in the file. That is the interpolated model exactly, to the hu
 The first line that is no comment holds the facts the keyboard reads: the order, and the share of running words
 that no list has (unlisted words over all words, in the counted sentences). What a string is worth is then
 9 + log10(share) + log10(its chance by the table), in the Zipf units every listed word's frequency is in:
-the chance that the next word typed is in no list, and is spelled so.
+the chance that the next word typed is in no list, and is spelled so. Autocorrect.unlisted has two dials on that
+(LETTERS_SHIFT, LETTERS_WEIGHT) and never lets it raise a bar; docs/versus.md says how they were set.
+
+A comment line beginning "# check:" holds a few strings with what each costs by the file, in hundredths:
+LetterModelTest reads the file as the keyboard does and must find the same, so the two readers cannot part.
+
+How it was set
+--------------
+By how well a table foretells the words no list has in the held-out lines below 90,000 that the counted sentences
+never had (871 kinds on 2026-11-12), as what a letter of them costs (minus log10 of its chance, the end mark counted
+as a letter: `--compare` prints these), and by what the keyboard then does with it (docs/versus.md):
+- runs of 2, 3, 4 and 5 marks cost 1.137, 1.051, 0.997 and 0.974 a letter, in files of 755, 9,666, 57,777 and
+  167,805 rows. Runs of 3 it is: docs/versus.md has what the keyboard does with 2 and with 4;
+- each kind of word once costs 1.051 a letter, each as often as it stood 1.147 (--running): Tatoeba's sentences
+  are full of Ziri, Yanni and Skura, and a table counted by how often they stood is a table of those names;
+- the listed words' own spelling costs 1.092 alone and 1.056 counted in beside the unlisted words (--with-listed 1):
+  the words no list has are spelled a little otherwise than the ones the lists have, and say so best themselves;
+- Kneser-Ney's counts in place of Witten-Bell's weights cost the same to the third decimal at 2 and 3 marks (tried
+  in a scratch script, not kept: there are 28 marks, and nearly every run of two has been seen).
 """
 import bz2
 import collections
@@ -273,6 +297,10 @@ def export_facts(export):
     return None, digest.hexdigest()
 
 
+#: Strings whose cost by the file is written into it ("# check:"), for LetterModelTest to hold the keyboard's reader to.
+PROBES = ("berber", "kira", "yurt", "nguyen", "don't", "whiby", "dlam", "hkpelwss", "prrsrnyable", "zxqj", "a")
+
+
 def encode(order, share, rows, said):
     lines = [
         "# Ghost Keyboard: what letters no English word list has are worth (Autocorrect.unlisted). Made by tool/letters.py: do not edit.",
@@ -285,13 +313,18 @@ def encode(order, share, rows, said):
     for run in sorted(rows):
         cost, back = rows[run]
         lines.append("%s\t%s\t%s" % (run, "" if cost is None else cost, "" if back is None else back))
+    # What the file itself makes of a few strings, read back as the keyboard reads it.
+    reader = Reader("\n".join(lines))
+    lines.insert(5, "# check: " + ", ".join("%s %d" % (w, reader.cost(w)) for w in PROBES))
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
-def measure(table, counted, listed):
-    """How well the table foretells the held-out lines the bench types (never those tool/versus types): a line of text."""
+def held_out(counted, listed):
+    """The words no list has in the held-out lines the bench types (never those tool/versus types), none of which
+    is ever counted: (how often each kind stood, the kinds the counted sentences never had, all the words read).
+    None where the bench's file is not there."""
     if not os.path.exists(HELD_OUT):
-        return "no %s to measure on (tool/typing_bench.sh cuts it)" % os.path.relpath(HELD_OUT, ROOT)
+        return None
     classes = nw.Classes(nw.joiners_of("en"), nw.ENDS.get("en", ""))
     held = collections.Counter()
     words = 0
@@ -305,21 +338,55 @@ def measure(table, counted, listed):
                     continue
                 if WORD.match(plain(word)):
                     held[plain(word)] += 1
-    new = [w for w in held if w not in counted]
-    per_letter = sum(table.log10(w) for w in new) / max(1, sum(len(w) + 1 for w in new))
+    return held, sorted(w for w in held if w not in counted), words
+
+
+def a_letter(table, words):
+    """What a letter of [words] costs by [table] (minus log10 of its chance), a word's end counted as a letter."""
+    return -sum(table.log10(w) for w in words) / max(1, sum(len(w) + 1 for w in words))
+
+
+def measure(table, held):
+    """How well the table foretells the held-out lines' words that no list has: a line of text."""
+    if held is None:
+        return "no %s to measure on (tool/typing_bench.sh cuts it)" % os.path.relpath(HELD_OUT, ROOT)
+    stood, new, words = held
     return "held-out lines below %s (never counted): %.2f%% of %s words are in no list; the %s of their %s kinds that the counted sentences never had cost %.3f a letter (log10)" % (
-        format(MEASURE_LINES, ","), 100.0 * sum(held.values()) / max(1, words), format(words, ","), format(len(new), ","), format(len(held), ","), -per_letter)
+        format(MEASURE_LINES, ","), 100.0 * sum(stood.values()) / max(1, words), format(words, ","), format(len(new), ","), format(len(stood), ","), a_letter(table, new))
+
+
+def compare(unlisted, listed, held):
+    """What other ways of counting would cost on the held-out words: the lines "How it was set" quotes."""
+    if held is None:
+        sys.exit("letters: no %s to compare on (tool/typing_bench.sh cuts it)" % os.path.relpath(HELD_OUT, ROOT))
+    new = held[1]
+    once = {w: 1.0 for w in unlisted}
+    spelled = {w: 1.0 for w in listed if WORD.match(w)}
+    both = dict(once)
+    for w in spelled:
+        both[w] = both.get(w, 0.0) + 1.0
+    print("what a letter costs (minus log10 of its chance, the end mark counted) over the %s kinds of unlisted word in the held-out lines below %s that the counted sentences never had:" % (format(len(new), ","), format(MEASURE_LINES, ",")))
+    for order in (2, 3, 4, 5):
+        table = Table(order, once)
+        print("  runs of %d, each kind once                              %.3f   (%s rows)" % (order, a_letter(table, new), format(len(table.rows()), ",")))
+    print("  runs of %d, each word as often as it stood (--running)  %.3f" % (ORDER, a_letter(Table(ORDER, {w: float(c) for w, c in unlisted.items()}), new)))
+    print("  runs of %d, the listed words alone                      %.3f" % (ORDER, a_letter(Table(ORDER, spelled), new)))
+    print("  runs of %d, the listed words counted in (--with-listed 1) %.3f" % (ORDER, a_letter(Table(ORDER, both), new)))
 
 
 def main(argv):
-    args = {"--export": EXPORT, "--out": OUT, "--order": str(ORDER)}
+    args = {"--export": EXPORT, "--out": OUT, "--order": str(ORDER), "--with-listed": "0"}
     extra, say = [], []
-    check = False
+    check = running = comparing = False
     i = 0
     while i < len(argv):
         a = argv[i]
         if a == "--check":
             check = True
+        elif a == "--running":
+            running = True
+        elif a == "--compare":
+            comparing = True
         elif a == "--list":
             extra.append(argv[i + 1])
             i += 1
@@ -353,10 +420,22 @@ def main(argv):
     print("%s words, %s of them in no list (%.2f%%; %s more in other letters, left out): %s kinds" % (
         format(facts["words"], ","), format(tokens, ","), 100.0 * share, format(facts["other letters"], ","), format(len(unlisted), ",")))
     print("stood most often: " + " ".join("%s %s" % (w, format(c, ",")) for w, c in unlisted.most_common(12)))
-    table = Table(order, {w: 1.0 for w in unlisted})
+    held = held_out(unlisted, listed)
+    if comparing:
+        compare(unlisted, listed, held)
+        return
+    weights = {w: (float(c) if running else 1.0) for w, c in unlisted.items()}
+    with_listed = float(args["--with-listed"])
+    if with_listed > 0:
+        for w in listed:
+            if WORD.match(w):
+                weights[w] = weights.get(w, 0.0) + with_listed
+    table = Table(order, weights)
     rows = table.rows()
     described = "Runs of up to %d letters over the %s kinds of word in no list (%s of %s running words, %.2f%%) in the counted sentences of Tatoeba's English export of %s, every %dth held out." % (
         order, format(len(unlisted), ","), format(tokens, ","), format(facts["words"], ","), 100.0 * share, date or "an unrecorded date (sha256 %s)" % digest[:16], nw.HOLD_OUT)
+    if running or with_listed > 0:
+        described += " NOT the bundled table's counting:%s%s." % (" each word as often as it stood" if running else "", " the listed words counted in, %g times each" % with_listed if with_listed > 0 else "")
     data = encode(order, share, rows, described)
     # The file must say what the table says, read back as the keyboard reads it.
     reader = Reader(data.decode("utf-8"))
@@ -364,7 +443,7 @@ def main(argv):
     if worst > 0.006:
         sys.exit("letters: the file read back differs from the table by %.4f a letter" % worst)
     print("%s rows, %s bytes; read back, it is the table to %.4f a letter" % (format(len(rows), ","), format(len(data), ","), worst))
-    print(measure(table, unlisted, listed))
+    print(measure(table, held))
     print("worth (9 + log10 of the share + log10 of the chance): " + "  ".join("%s %.1f" % (w, reader.worth(w)) for w in ("berber", "yurt", "kira", "nguyen", "whiby", "dlam", "prrsrnyable", "hkpelwss")))
     out = args["--out"]
     if check:
@@ -372,8 +451,9 @@ def main(argv):
         print("%s: %s" % (os.path.relpath(out, ROOT), "same" if same else "DIFFERENT"))
         sys.exit(0 if same else 1)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-    with open(out, "wb") as f:
+    with open(out + ".part", "wb") as f:
         f.write(data)
+    os.replace(out + ".part", out)
     print("wrote " + os.path.relpath(out, ROOT))
 
 

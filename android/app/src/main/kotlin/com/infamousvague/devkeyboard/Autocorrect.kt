@@ -749,7 +749,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             if (plain != word && words.containsKey(plain)) continue
             val zipf = lex.sortedZipf[h.index]
             // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
-            val least = if (known == null && unknown < UNKNOWN && (lex.letters == null || LETTERS <= 0f || LETTERS_INFLECTED > 0f) && inflected(words, lower, word)) UNKNOWN else bar
+            val least = if (known == null && unknown < UNKNOWN && (LETTERS_INFLECTED > 0f || lex.letters == null || LETTERS <= 0f) && inflected(words, lower, word)) UNKNOWN else bar
             offer(word, zipf + lift(word, zipf) - h.cost, least)
         }
         // The person's own words: never in the trie, so each is held up against the taps.
@@ -858,98 +858,36 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         return best?.let { recase(locale, first, capitalI(now, it)) }
     }
 
-    /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
+    /**
+     * What letters no list has are worth against a reading of their taps ([byTaps], [rejoin]), in the Zipf units a
+     * listed word's frequency is in.
+     *
+     * The fixed bars: [UNKNOWN], or [UNKNOWN_ODD] where the letters do not look like a word ([odd]), or
+     * [UNKNOWN_LONG] from [LONG_WORD] letters. A fixed bar cannot tell "prrsrnyable" from a name. Where the one list
+     * loaded has a letter table (English: [LetterModel]) the letters are also worth what the table makes of them,
+     * and the lesser of the two is the answer: the chance that a word no list has was meant here and is spelled so,
+     * which is the share of running words no list has times the letters' chance as such a word. In Zipf units that
+     * is 9 + log10(share), plus [LETTERS_SHIFT], less [LETTERS_WEIGHT] for each unit the letters cost
+     * ([LetterModel.cost]). It falls with every letter, and faster where the letters are ones no word puts
+     * together: "berber" and "kira" are worth what the fixed bars say, "prrsrnyable" next to nothing.
+     *
+     * The table only ever lowers a bar. Counted for all it says ([LETTERS_WEIGHT] 1, [LETTERS_SHIFT] 0, no fixed
+     * bar above it) it mends more of the slips and changes two in three of the names and terms the typing bench
+     * types on purpose: its chance is spread over every string that could be a word, and the words people do type
+     * are few of those, so a real name is worth far more than its letters say. docs/versus.md has the curve.
+     */
     private fun unlisted(now: Now, lower: String): Float {
-        val model = now.lexicon.letters
-        if (model != null && LETTERS > 0f && LETTERS_MODE == 0f) {
-            val cost = model.cost(now.board.script.plain(lower))
-            if (!cost.isNaN()) return (model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost).coerceIn(LETTERS_FLOOR, LETTERS_CEILING)
-        }
+        val model = now.lexicon.letters?.takeIf { LETTERS > 0f }
         val fixed = when {
-            lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
+            lower.length >= 4 && (model == null || LETTERS_ODD > 0f) && odd(lower) -> UNKNOWN_ODD
             lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
             else -> UNKNOWN
         }
-        if (model != null && LETTERS > 0f) {
-            val cost = model.cost(now.board.script.plain(lower))
-            if (!cost.isNaN()) return minOf(fixed, model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost)
-        }
-        return fixed
-    }
-
-    /**
-     * A letter model: how likely a string of letters is as a word no list has. Letter n-grams with a start and an
-     * end mark, read from assets/dict/<language>_letters.tsv (tool/letters.py makes it).
-     */
-    private class LetterModel(val order: Int, val base: Float, private val keys: IntArray, private val costs: ShortArray, private val backs: ShortArray) {
-        /**
-         * What [word] costs: minus the log to base ten of its chance as a word no list has, in Zipf units. NaN where
-         * it holds a character the model has no letter for.
-         */
-        fun cost(word: String): Float {
-            val span = 5 * (order - 1)
-            var ctx = 0
-            repeat(order - 1) { ctx = (ctx shl 5) or START }
-            var total = 0
-            for (i in 0..word.length) {
-                val c = if (i == word.length) END else code(word[i])
-                if (c == 0) return Float.NaN
-                var k = order - 1
-                while (true) {
-                    val h = if (k == 0) 0 else ctx and ((1 shl (5 * k)) - 1)
-                    val at = java.util.Arrays.binarySearch(keys, (h shl 5) or c)
-                    if (at >= 0 && costs[at] >= 0) { total += costs[at]; break }
-                    if (k == 0) { total += UNSEEN; break }
-                    val b = java.util.Arrays.binarySearch(keys, h)
-                    if (b >= 0) total += backs[b]
-                    k--
-                }
-                if (span > 0) ctx = ((ctx shl 5) or c) and ((1 shl span) - 1)
-            }
-            return total / 100f
-        }
-
-        companion object {
-            private const val START = 28
-            private const val END = 29
-            private const val UNSEEN = 900
-
-            private fun code(c: Char): Int = when (c) {
-                in 'a'..'z' -> c - 'a' + 1
-                '\'', '’' -> 27
-                '^' -> START
-                '$' -> END
-                else -> 0
-            }
-
-            fun read(stream: InputStream?): LetterModel? {
-                stream ?: return null
-                var order = 0
-                var share = 0f
-                val rows = ArrayList<Triple<Int, Int, Int>>()
-                stream.bufferedReader().useLines { lines ->
-                    for (line in lines) {
-                        if (line.isEmpty() || line[0] == '#') continue
-                        val f = line.split('\t')
-                        if (f[0] == "=") {
-                            var i = 1
-                            while (i + 1 < f.size) {
-                                when (f[i]) { "order" -> order = f[i + 1].toInt(); "share" -> share = f[i + 1].toFloat() }
-                                i += 2
-                            }
-                            continue
-                        }
-                        var key = 0
-                        for (ch in f[0]) { val c = code(ch); if (c == 0) { key = -1; break }; key = (key shl 5) or c }
-                        if (key <= 0 || f[0].length > 6) continue
-                        rows += Triple(key, f.getOrNull(1)?.toIntOrNull() ?: -1, f.getOrNull(2)?.toIntOrNull() ?: 0)
-                    }
-                }
-                if (order !in 1..6 || share <= 0f || rows.isEmpty()) return null
-                rows.sortBy { it.first }
-                return LetterModel(order, 9f + kotlin.math.log10(share), IntArray(rows.size) { rows[it].first }, ShortArray(rows.size) { rows[it].second.toShort() }, ShortArray(rows.size) { rows[it].third.toShort() })
-            }
-        }
+        if (model == null || lower.length < LETTERS_FROM.toInt()) return fixed
+        val cost = model.cost(now.board.script.plain(lower))
+        // A character the table has no letter for (another script's, a digit): the fixed bar alone.
+        if (cost.isNaN()) return fixed
+        return minOf(fixed, maxOf(LETTERS_FLOOR, model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost))
     }
 
     /**
@@ -1245,14 +1183,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
         @JvmField var UNKNOWN_LONG = 1.6f
         @JvmField var LONG_WORD = 6f
-        /** EXPERIMENT: the letter model's dials. */
+        /** TO BE SET: the letter table's dials ([unlisted]); see docs/versus.md. */
         @JvmField var LETTERS = 1f
-        @JvmField var LETTERS_SHIFT = 0f
-        @JvmField var LETTERS_WEIGHT = 1f
+        @JvmField var LETTERS_SHIFT = 1.75f
+        @JvmField var LETTERS_WEIGHT = 0.6f
         @JvmField var LETTERS_FLOOR = -99f
-        @JvmField var LETTERS_CEILING = 99f
+        @JvmField var LETTERS_ODD = 1f
+        @JvmField var LETTERS_FROM = 1f
         @JvmField var LETTERS_INFLECTED = 1f
-        @JvmField var LETTERS_MODE = 1f
         /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
         @JvmField var RARE_GAP = 2f
         @JvmField var RARE_BUDGET = 2.2f
@@ -1334,5 +1272,118 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             println printf stringify endpoint endpoints webhook webhooks dotfiles gradle flutter widget widgets
             refactor refactored refactoring deploy deployed deploys repo's monorepo submodule codebase
         """.trim().split(Regex("\\s+")).toSet()
+    }
+}
+
+/**
+ * How likely a string of letters is as a word no list has ([Autocorrect.unlisted]): runs of up to [order] letters
+ * with a start and an end mark, counted over the words of real sentences that are in no list, each kind of word
+ * once. Read from assets/dict/<language>_letters.tsv, which tool/letters.py makes (English's alone so far): its
+ * first line that is no comment holds the order and the [share] of running words that no list had, and every other
+ * line a run of letters ("^" a word's start, "$" its end, the apostrophe a letter), what its last letter costs after
+ * the ones before it, and what is added before going by one letter less where a longer run is not in the file. Costs
+ * are minus the log to base ten of a chance, in hundredths: the units of a Zipf frequency.
+ *
+ * A run is kept as a number, five bits a mark, so a look-up is a binary search of [keys] and nothing is made for it.
+ */
+internal class LetterModel private constructor(val order: Int, val share: Float, private val keys: IntArray, private val costs: ShortArray, private val backs: ShortArray) {
+    /** What a word no list has would be worth were every such word the same one: 9 + log10 of their [share] of running words. */
+    val base: Float = 9f + kotlin.math.log10(share)
+
+    /** How many runs the table holds. */
+    val size: Int get() = keys.size
+
+    /**
+     * What [word]'s letters cost: minus the log to base ten of its chance as a word no list has, so that
+     * [base] less this is what it is worth in Zipf units. NaN where it holds a character the table has no letter
+     * for (anything but a to z and the apostrophe: spell it plainly first, [Script.plain]).
+     */
+    fun cost(word: String): Float {
+        val mask = (1 shl (BITS * (order - 1))) - 1
+        var before = 0
+        repeat(order - 1) { before = (before shl BITS) or START }
+        var total = 0
+        for (i in 0..word.length) {
+            val c = if (i == word.length) END else letter(word[i])
+            if (c == 0) return Float.NaN
+            // The longest run the table has that ends in this letter: each shorter one tried costs what its longer
+            // one says is added for going without it.
+            var k = order - 1
+            while (true) {
+                val run = if (k == 0) 0 else before and ((1 shl (BITS * k)) - 1)
+                val at = java.util.Arrays.binarySearch(keys, (run shl BITS) or c)
+                if (at >= 0 && costs[at] >= 0) { total += costs[at]; break }
+                if (k == 0) { total += UNSEEN; break }
+                val b = java.util.Arrays.binarySearch(keys, run)
+                if (b >= 0) total += backs[b]
+                k--
+            }
+            before = ((before shl BITS) or c) and mask
+        }
+        return total / 100f
+    }
+
+    companion object {
+        private const val BITS = 5
+        private const val START = 28
+        private const val END = 29
+        /** A letter the file gives no cost at all, which no file tool/letters.py writes does: as dear as nine units. */
+        private const val UNSEEN = 900
+        /** The longest run a number holds: six marks of five bits. */
+        private const val MOST = 6
+
+        /** A letter of a word as the table counts it: 1 to 26 for a to z, 27 for an apostrophe, 0 for anything else. */
+        private fun letter(c: Char): Int = when (c) {
+            in 'a'..'z' -> c - 'a' + 1
+            '\'', '’' -> 27
+            else -> 0
+        }
+
+        /** A mark of a run in the file: a letter, or the start or the end of a word. */
+        private fun mark(c: Char): Int = when (c) {
+            '^' -> START
+            '$' -> END
+            else -> letter(c)
+        }
+
+        /** The table in [stream], or null where there is none or it is not one (the fixed bars then stand). */
+        fun read(stream: InputStream?): LetterModel? {
+            stream ?: return null
+            var order = 0
+            var share = 0f
+            // A row as one number, to sort by run without making an object a row: the run, then the cost and one
+            // (nothing where the file gives none), then what going one letter shorter adds.
+            var rows = LongArray(16_384)
+            var n = 0
+            stream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    if (line.isEmpty() || line[0] == '#') continue
+                    val f = line.split('\t')
+                    if (f[0] == "=") {
+                        var i = 1
+                        while (i + 1 < f.size) {
+                            when (f[i]) { "order" -> order = f[i + 1].toIntOrNull() ?: 0; "share" -> share = f[i + 1].toFloatOrNull() ?: 0f }
+                            i += 2
+                        }
+                        continue
+                    }
+                    if (f[0].length > MOST) continue
+                    var key = 0
+                    for (ch in f[0]) { val m = mark(ch); if (m == 0) { key = -1; break }; key = (key shl BITS) or m }
+                    if (key <= 0) continue
+                    val cost = f.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 32_000) ?: -1
+                    val back = f.getOrNull(2)?.toIntOrNull()?.coerceIn(0, 32_000) ?: 0
+                    if (n == rows.size) rows = rows.copyOf(n * 2)
+                    rows[n++] = (key.toLong() shl 32) or ((cost + 1).toLong() shl 16) or back.toLong()
+                }
+            }
+            if (order !in 1..MOST || share <= 0f || share > 1f || n == 0) return null
+            rows = rows.copyOf(n)
+            rows.sort()
+            return LetterModel(
+                order, share, IntArray(n) { (rows[it] ushr 32).toInt() },
+                ShortArray(n) { (((rows[it] ushr 16) and 0xFFFF).toInt() - 1).toShort() }, ShortArray(n) { (rows[it] and 0xFFFF).toInt().toShort() },
+            )
+        }
     }
 }
