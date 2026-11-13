@@ -15,7 +15,8 @@ import org.junit.Test
  */
 class AgainSourceTest {
     private val main = listOf("android/app/src/main", "src/main", "../app/src/main").map(::File).first { it.exists() }
-    private val root = main.parentFile.parentFile.parentFile.parentFile
+    /** The repository: the first folder up from the sources with tool/ in it (Gradle runs tests from android/app, unit.sh from the root). */
+    private val root = generateSequence(main.absoluteFile) { it.parentFile }.first { File(it, "tool/versus").isDirectory }
 
     private fun code(file: File) = file.readText()
         .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "").lines().joinToString("\n") { it.substringBefore("//") }

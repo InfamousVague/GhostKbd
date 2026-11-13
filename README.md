@@ -159,6 +159,26 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
 
+## 0.17.0
+
+- **Tap autocorrect leaves about a third as many words wrong** ([docs/versus.md](docs/versus.md)). Measured by
+  typing the same taps into Ghost Keyboard and Gboard on the emulator with three simulated thumbs and replaying them
+  through the decoder: words left wrong on 300 held-out sentences go from 6.3% to 2.3% (Gboard on the same taps:
+  3.8%), and on 300 others that no change was made from, from 6.8% to 3.2% (Gboard: 3.5%). What changed:
+  - **The word before is read again when the next one ends**, and changed where the word after shows clearly that
+    another was meant; backspace straight after puts it back.
+  - **A word is weighed by the words before it**, so a common word in a place it all but never stands gives way.
+  - **Where this thumb lands, and how tightly**: within the field being typed in, the keyboard notices if taps
+    land to one side of the keys, and how widely they scatter, and reads the next words by that. Kept in memory for
+    that field only; nothing is stored.
+  - **English knows about 87,000 more words in use today**, and letters no list has are judged by how English
+    words are spelled, so a name is left alone and a slip is mended.
+  - **Short words with a letter missed, doubled or swapped, and words run together**, are read where they were not.
+  - **Names get their capital** (Tom, Mary, Algeria) where the list says they are names.
+  The cost, on the typing bench's 12,000 words: for a careful thumb right words spoiled stay about the same (1.3 in
+  a thousand); for an average and a sloppy thumb they rise from 1.5 and 1.7 to 2.0 and 2.4 in a thousand, while
+  words right rise from 92.3% and 85.7% to 95.1% and 90.8%. Not yet typed on a phone or the emulator as a whole.
+
 ## 0.16.5
 
 - **Tap autocorrect mends more slips** ([docs/versus.md](docs/versus.md)). Three changes, each measured by typing the
