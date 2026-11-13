@@ -10,7 +10,9 @@ import kotlin.concurrent.thread
  *
  * The dictionaries are assets/dict/<language>.tsv: each language's commonest words with their Zipf frequency (made
  * from the `wordfreq` project's lists by tool/dictionaries.py, CC BY-SA 4.0; 40,000 for English, up to 30,000 for the
- * others), plus English's apostrophe-less contractions (dict/en_contractions.tsv: dont → don't). They are inside the
+ * others), plus English's apostrophe-less contractions (dict/en_contractions.tsv: dont → don't) and its wider list
+ * (dict/en_wide.tsv, [widen]: the rest of English as it is written now, 87,000 words more, each with what vouches for
+ * it; docs/wide-words.md). They are inside the
  * app: [open] reads an asset, and nothing here ever opens a connection. Several languages of one script load
  * together, so mixing them in one message works. A word typed in its plainest spelling (cafe, senor, καλημερα) finds
  * the proper one cheaply ([Script.plain]).
@@ -172,10 +174,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         override fun ends(first: Char, last: Char): List<String> {
             val lex = now.lexicon
             val listed = lex.byEnds["$first$last"].orEmpty()
-            val mine = (learned + own).filter { it.isNotEmpty() && !lex.words.containsKey(it) && letters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
+            // The person's own words, the first lists' apart; one that English's wider list has is theirs too, unless it is among the listed already.
+            val mine = (learned + own).filter { it.isNotEmpty() && !lex.firstWords.containsKey(it) && (lex.marks == null || it !in listed) && letters(it).let { l -> l.isNotEmpty() && l.first() == first && l.last() == last } }
             return if (mine.isEmpty()) listed else listed + mine
         }
-        override fun zipf(word: String): Float? = now.lexicon.words[word] ?: if (word in learned || word in own) LEARNED_ZIPF else null
+        override fun zipf(word: String): Float? {
+            val lex = now.lexicon
+            return lex.firstWords[word] ?: if (word in learned || word in own) LEARNED_ZIPF else lex.words[word]
+        }
         override fun letters(word: String) = swipeLetters(now.board.script, word)
         override fun follows(prev: String): Map<String, Float>? = now.lexicon.follows(prev)
     })
@@ -589,10 +595,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      */
     fun isCommonWord(lower: String): Boolean = (now.lexicon.words[lower] ?: 0f) >= REPORTABLE
 
-    /** [isWord] without the person's own words: what "in no word list" means when those are worked out. */
+    /**
+     * [isWord] without the person's own words: what "in no word list" means when those are worked out. English's
+     * wider list is not counted either: a word of it that the person types three times is theirs as it would have
+     * been before there was such a list (their name, their town, the terms of their work), so it is never changed,
+     * it is what a slip of it is mended to, and it is swiped, however rare the list says it is.
+     */
     fun isListed(lower: String): Boolean {
         val lexicon = now.lexicon
-        return lexicon.words.containsKey(lower) || lexicon.contractions.containsKey(lower) || lower in learned || lower in slang || isPossessive(lexicon, lower)
+        return lexicon.firstWords.containsKey(lower) || lexicon.contractions.containsKey(lower) || lower in learned || lower in slang
     }
 
     /**
@@ -966,9 +977,10 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val least = if (known == null && unknown < UNKNOWN && inflected(words, lower, word)) UNKNOWN else bar
             offer(word, zipf + lift(word, zipf) - h.cost, least)
         }
-        // The person's own words: never in the trie, so each is held up against the taps.
+        // The person's own words: never in the trie, so each is held up against the taps. (One that English's
+        // wider list has may be in the trie as the rare word that list says it is: here it is the person's.)
         for (l in learned + own) {
-            if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
+            if (lex.firstWords.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
             if (known != null && !sure && LEARNED_ZIPF < known + RARE_GAP) continue
             val cost = decoder.align(l, 0, budget)
             if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
@@ -1386,19 +1398,29 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var MARGIN_RARE = 0.6f
         @JvmField var MARGIN_COMMON = 1.6f
         /**
-         * English's wider list (assets/dict/en_wide.tsv, [widen]; docs/wide-words.md has every number here): read
-         * where English is loaded (0: never, and everything is as it was with en.tsv alone). The others say what a
-         * word of it is for, by its Zipf frequency. They are read as the list is, so the bench and the scoreboard
-         * set them before the keyboard is made.
+         * English's wider list (assets/dict/en_wide.tsv, [widen]; docs/wide-words.md has these numbers and the rest):
+         * read where English is loaded (0: never, and everything is as it was with en.tsv alone). The others say what
+         * a word of it is for, by its Zipf frequency. They are read as the list is, so the bench and the scoreboard
+         * set them before the keyboard is made. "Seen" and "unseen" below are tool/versus/scoreboard.py's two sets,
+         * 5,205 and 6,408 words, of which 305 and 413 are left wrong as these stand (326 and 437 with en.tsv alone).
          * - [WIDE_LEAST]: the least a word must have to be taken at all. 0, every word of the file: the file is the
          *   cut (tool/wide_words.py), and this is for trying a shorter one without making it.
          * - [WIDE_READ]: the least for a word a dictionary vouches for to be a reading of a slip (to be in the
-         *   trie). 0, all of them. __READ__
+         *   trie). 0, all 79,246. At 1.5 one more of the unseen set's words is wrong (414); at 2.0, two more of the
+         *   seen set's too (307, 414); with none read, 315 and 430.
          * - [WIDE_READ_WRITTEN]: the same for a word only writing vouches for. 9, none: wordfreq lists names beside
-         *   misspellings, and a slip is never mended into what may be one. __WRITTEN__
-         * - [WIDE_SWIPE]: the least for a word to be one a stroke may be. __SWIPE__
-         * - [WIDE_UNTAPPED]: whether its words are readings where the taps are not known ([pick]). 0, they are not.
-         *   __UNTAPPED__
+         *   misspellings, and a slip is not mended into what may be one. At 0 one more word of the seen set is right
+         *   (304), none of the unseen set's and none of the bench's.
+         * - [WIDE_SWIPE]: the least for a word to be one a stroke may be. 2: the 29,621 commonest that a dictionary
+         *   vouches for. The bench's strokes (tool/typing_bench.sh swipe, 6,005 words) are read right at first
+         *   94.58%, 93.45% and 86.68% of the time for its three hands with none of the list's words, 96.13%, 94.88%
+         *   and 87.75% with these, and 96.52%, 95.25% and 87.91% with all of them; but a word's shape is 144 bytes of
+         *   heap, 4 MB for these and 11 MB for all, which is more than the list was allowed (the budget is in
+         *   docs/wide-words.md).
+         * - [WIDE_UNTAPPED]: whether its words are readings where the taps are not known ([pick]). 0, they are not:
+         *   on the bench's lines typed without taps (24,000 words, its normal thumb) they mend 66.8% of slips for
+         *   66.6%, change 20.8% of the right words no list has for 18.7%, and spoil 5.05 right words in a thousand
+         *   for 4.58.
          */
         @JvmField var WIDE = 1f
         @JvmField var WIDE_LEAST = 0f
@@ -1409,22 +1431,35 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /**
          * A rare word that a dictionary vouches for ([SURE]) stands as typed unless a reading of its taps is worth
          * [SURE_MARGIN] more than the word itself ([SURE_STANDS] 0: such a word is as doubtful as any rare word, which
-         * is how every rare word was held before the wider list said which are words).
-         * __MARGIN__
+         * is how every rare word was held before the wider list said which are words; the seen and unseen sets then
+         * have 307 and 416 words wrong for 305 and 413).
+         *
+         * The margin was set on 60,000 of the typing bench's words, typed on the same sentences each time
+         * (-Dunknown), by the bench's own measure (words right, less four for every right word spoiled, a thumb's
+         * mean, and three points for every misspelling mended): en.tsv alone 93.537; the list with a margin of 0.6
+         * 93.652, 1.0 93.673, 1.15 93.681, 1.3 93.703, 1.45 93.693, 1.6 93.689, 2.0 93.663. At 1.3 the three thumbs
+         * spoil 72, 73 and 53 right words of those 60,000 where en.tsv alone spoils 90, 87 and 58. (Read only as
+         * slips of the thumb, as a common word is, such a word did no better: 93.679 at best. And the most its
+         * slips may cost changes nothing between 2.2 and 4.4: it is [LISTED_BUDGET].)
          *
          * [SURE_UNTAPPED] is the same where the taps are not known ([best] without [byTaps]: the cursor was moved into
-         * the word, part of it was pasted or swiped, or a list beyond the first six is loaded): on, such a word is
+         * the word, it came from a hardware keyboard, or a list beyond the first six is loaded): on, such a word is
          * never changed there. It is off, and the word is held there as every rare word always was (it gives way to a
-         * far commoner word one cheap slip away). __SURE_UNTAPPED__
+         * far commoner word one cheap slip away). With no taps, letters that spell a rare word are a slip of the
+         * commoner word a key away far more often than they are the rare word: on the bench's lines typed without
+         * taps (24,000 words, its normal thumb) on leaves 84.70% of words right and spoils 4.58 right words in a
+         * thousand, off 85.18% and 4.78, and en.tsv alone 85.21% and 5.39.
          */
         @JvmField var SURE_STANDS = 1f
         @JvmField var SURE_MARGIN = 1.3f
         @JvmField var SURE_UNTAPPED = 0f
         /**
          * A possessive no list has (plan's, yurt's, Okafor's), where English's wider list is read in: on, it is its
-         * word with 's after it. The word is judged as it would be alone, by its own taps, and what it is left as or
-         * mended to keeps the 's; where the word is a word, the possessive is one ([isWord]). Off, it is letters no
-         * list has, as it was, and "plan's" typed apostrophe and all could come out "plans". __POSSESSIVE__
+         * word with 's after it ([possessive]), and a word wherever the lists are asked ([isWord]). Off, it is
+         * letters no list has, as it was, and "plan's" typed apostrophe and all could come out "plans". 0.20% of
+         * running words are such possessives, and the lists have the word of two in three. On the same 60,000
+         * words: off, the three thumbs leave 96.47%, 92.44% and 85.61% of words right and spoil 72, 73 and 53
+         * right words; on, 96.47%, 92.46% and 85.64%, and 70, 72 and 53.
          */
         @JvmField var POSSESSIVE = 1f
         /** The most the slips may cost that turn one listed word into another. */

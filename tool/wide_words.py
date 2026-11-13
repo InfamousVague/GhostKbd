@@ -12,12 +12,14 @@ used words if the extra words will not help our accuracy we can leave them out")
     python3 tool/wide_words.py --size 70 --written 2.4 --out build/wide/try.tsv     # another cut, written elsewhere
 
 Standard library only; downloads nothing and runs nothing it reads. Autocorrect.widen reads the list wherever English
-is loaded; en.tsv is never rewritten, and its frequencies win.
+is loaded; en.tsv is never rewritten, and its frequencies win. docs/wide-words.md says what the list does for the
+keyboard, what each kind of word was measured to be worth, and what it costs.
 
 The sources
 -----------
 Each is found by its path (a default under build/word-src, and an option to say where) and each is optional: one that
-is not there is said so and left out, and the list is what the others give.
+is not there is said so and left out, and the list is what the others give. The bundled list is made from all of
+them, so the tool will not write that one with a source missing unless --without names it.
 
 - en.tsv, the first list: wordfreq's commonest 40,000. Its words are not repeated here; the list only says which of
   its rarer words a dictionary vouches for.
@@ -29,8 +31,10 @@ is not there is said so and left out, and the list is what the others give.
   a string is a word. Read as text by this tool (data/scowl-pre.txt and the files its own build merges into it or
   adjusts it by); nothing in that folder is run. What this reader does and does not do of its build is under
   "Reading the database" below.
-- en_more.tsv, the words Tatoeba's sentences use (--more, assets/dict/en_more.tsv where tool/more_words.py has made
-  it): names and newer words, counted from sentences, held-out ones never among them.
+- en_more.tsv, the words Tatoeba's sentences use (--more PATH: the list the closed versus-words track made with its
+  tool/more_words.py, counted from sentences, held-out ones never among them). Not among the defaults: it adds 422
+  words, nearly all the names Tatoeba's own stories are told about, and by measurement nothing on the sets the
+  keyboard is scored on.
 - The LDNOOBW list (--bad, build/ngram-src/ldnoobw/en): words on it are left out, as tool/next_words.py and
   tool/more_words.py leave them out.
 
@@ -38,6 +42,8 @@ Which words
 -----------
 A word belongs where it is in use now and is a word. So the list starts where the two kinds of evidence meet, and
 each edge was settled by measurement (docs/wide-words.md has the numbers; the defaults below are what they chose).
+The keyboard goes by the marks: a `d` word typed as meant stands, an `l` or a `w` word is as doubtful as any rare
+word was, and a `w` word is known and never offered as what a slip was meant to be.
 
 1. A word the database vouches for and wordfreq shows written (any frequency it lists, from Zipf 1.01 up):
    - `d` where the database has it at its default spelling-dictionary size or under (--sure, 60), in a standard
@@ -49,7 +55,7 @@ each edge was settled by measurement (docs/wide-words.md has the numbers; the de
    Left out: abbreviations, prefixes and suffixes, Roman numerals, words written all in capitals (acronyms), forms
    it marks archaic, words it marks offensive or as the coarsest vulgarities, and anything that is not 3 to 24 plain
    letters with at most one apostrophe inside. A possessive (yurt's) is not listed either: the keyboard knows one by
-   its word.
+   its word (Autocorrect.POSSESSIVE).
 2. `w`: a word only writing vouches for (wordfreq from --written up, or en_more.tsv): names, places and newer words
    (ludovic, fenway, chromecast), which come mixed with misspellings and scraps. Kept where it is four letters or
    more with a vowel among them, and no commoner word of the lists is one slip away from it (a letter changed, left
@@ -104,7 +110,6 @@ DICTIONARIES = os.path.join(HERE, "dictionaries.py")
 SRC = os.path.join(ROOT, "build", "word-src")
 WORDFREQ = os.path.join(SRC, "wordfreq-en-large.tsv")
 DATABASE = os.path.join(SRC, "esdb-src", "wordlist-rel-2026.02.25")
-MORE = os.path.join(DICT, "en_more.tsv")
 BAD = os.path.join(ROOT, "build", "ngram-src", "ldnoobw", "en")
 PAIRS = os.path.join(ROOT, "android", "app", "src", "main", "assets", "ngram", "en.tsv")
 HELDOUT = os.path.join(ROOT, "build", "typing-bench", "en-heldout.txt")
@@ -1053,7 +1058,7 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--wordfreq", default=WORDFREQ, help="wordfreq's whole English list as word<TAB>zipf")
     ap.add_argument("--database", default=DATABASE, help="the English Speller Database's source folder")
-    ap.add_argument("--more", default=MORE, help="en_more.tsv, the words Tatoeba's sentences use")
+    ap.add_argument("--more", default="", help="en_more.tsv, the words Tatoeba's sentences use (not among the defaults)")
     ap.add_argument("--bad", default=BAD, help="the LDNOOBW list")
     ap.add_argument("--heldout", default=HELDOUT, help="held-out sentences, for the share of running words covered")
     ap.add_argument("--without", action="append", default=[], choices=["wordfreq", "database", "more", "bad"], help="leave a source out though it is there")
@@ -1105,12 +1110,19 @@ def main(argv):
     sources = []
     for name, got, path in (("wordfreq", written, args.wordfreq), ("database", db, args.database), ("more", more, args.more), ("bad", bad, args.bad)):
         if got is None:
-            print("%s: %s, so the list is made without it" % (name, "left out" if name in args.without else "no " + path))
+            if name != "more" or path:
+                print("%s: %s, so the list is made without it" % (name, "left out" if name in args.without else "no " + path))
         else:
             sources.append(name)
             print("%s: %s (%d %s)" % (name, path, len(got.places) if name == "database" else len(got), "spellings" if name == "database" else "words"))
     if held is None:
         print("no %s: the share of running words covered is not counted" % args.heldout)
+    # The bundled list is made from all three: one that is not there is left out only where --without says so,
+    # so that a source gone missing never quietly leaves a shorter list in the app.
+    missing = [name for name, got in (("wordfreq", written), ("database", db), ("bad", bad)) if got is None and name not in args.without]
+    if missing and os.path.abspath(args.out) == os.path.abspath(OUT) and not args.dry and not args.word:
+        sys.exit("wide_words: %s not found, and the bundled list is made with %s: give its path, or --without %s to make the list without" % (
+            " and ".join(missing), "it" if len(missing) == 1 else "them", " --without ".join(missing)))
 
     out, said, notes = choose(args, first, written, db, more, bad, never, pairs)
     if args.word:

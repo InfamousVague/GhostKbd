@@ -4,7 +4,7 @@ Ghost Keyboard's word lists
 The .tsv files in this folder are derived from wordfreq 3.1.1 by Robyn Speer
 (https://github.com/rspeer/wordfreq), whose data is distributed under the Creative Commons
 Attribution-ShareAlike 4.0 licence (https://creativecommons.org/licenses/by-sa/4.0/). These files are distributed
-under the same licence.
+under the same licence. en_wide.tsv is made from a second source as well, and has a section of its own below.
 
 Citation: Robyn Speer. (2022). rspeer/wordfreq: v3.0 (v3.0.2). Zenodo. https://doi.org/10.5281/zenodo.7199437
 

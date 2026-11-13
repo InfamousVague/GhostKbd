@@ -98,7 +98,6 @@ class WideWordsTest {
         for (word in listOf("yurt", "stammer", "berber", "knifed", "dialled", "cupola", "tendonitis", "crawlspace", "envies", "okafor", "ludovic")) {
             assertTrue("$word is in the list, and not in en.tsv", word in marks && word !in first)
             assertTrue("$word is a word in English", english.isWord(word))
-            assertTrue("$word is listed", english.isListed(word))
             assertTrue("$word typed is offered as itself", english.suggest(word).typedIsWord)
         }
         assertTrue("beside another language too", loaded("en", "es").isWord("yurt"))
@@ -166,6 +165,21 @@ class WideWordsTest {
         assertNotEquals("ludovic", english.correct("lydovic", null, taps("lydovic", 1 to (0.5f to 0f))))
         // Nor is one offered where the taps are not known: "okafir" is not "okafor".
         assertNotEquals("okafor", english.correct("okafir"))
+    }
+
+    @Test fun aWordOfItThatThePersonTypesOftenIsTheirs() {
+        // "In no word list", for working out the person's own words, is as it was: the first lists, not the wider one.
+        for (word in listOf("okafor", "yurt", "coffered")) assertTrue("$word is a word, and may still become the person's own", english.isWord(word) && !english.isListed(word))
+        assertTrue(english.isListed("the") && english.isListed("definately"))
+        // Typed three times it is theirs (NextWords.vocabulary, DevKeyboardService): never changed, mended toward, swiped.
+        val ac = loaded("en")
+        assertNotEquals("okafor", ac.correct("okafir", null, taps("okafir", 4 to (0.5f to 0f))))
+        assertFalse("coffered" in ac.swipePlain(stroke("coffered"), centres, W))
+        ac.setOwn(setOf("okafor", "coffered", "koko's"))
+        assertEquals("a slip of their word is mended to it, its i for the o one key along", "okafor", ac.correct("okafir", null, taps("okafir", 4 to (0.5f to 0f))))
+        assertNull(ac.correct("okafor", null, taps("okafor")))
+        assertNull("and with no taps", ac.correct("okafor"))
+        assertEquals("and it is read from a stroke", "coffered", ac.swipePlain(stroke("coffered"), centres, W).firstOrNull())
     }
 
     @Test fun aMisspellingIsNotMadeRight() {
