@@ -540,6 +540,11 @@ The estimate has nearly all of the ceiling from a field's fifth word and none of
 learn nothing). Kept, the spread gives seen 4.96% (258), unseen 5.85% (375), where the kept lean alone gives 290
 and 408; bench 96.34%, 93.03%, 87.71% right, spoiled 1.01, 2.15, 2.69.
 
+**Time.** The bench's time a word, two passes each on a Mac less loaded than before: off 114, 132, 144 and 106,
+103, 142 µs for the careful, normal and sloppy thumbs; on 81, 117, 178 and 96, 126, 185. The sloppy thumb's words
+cost about a quarter more, read loosely (a looser reading lets more of the search through); the estimate itself is
+a division and a power once a settled word.
+
 **Not measured.** People, whose scatter is not one Gaussian with one wild share; a phone. The spread is one number
 for the board; a thumb that is tight across and loose down is read by their mean.
 
