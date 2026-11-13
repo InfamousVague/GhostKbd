@@ -227,9 +227,12 @@ class ThumbLean {
         // what a key width squared of distance from a tap costs; a thumb whose taps scatter widely wants it lower, one
         // whose taps fall close higher. The spread is the scatter the lean above already measures (its squares about
         // its own mean), and the next word is read with SPATIAL times SPREAD over it: one over the spread squared, as
-        // a Gaussian thumb would have it. Shaped off the JVM on the seen set (build/scatter/laws*.py, which forecast
-        // the scoreboard within three words), the bounds and the joins settled on the unseen set's total and the
-        // bench together. Words wrong below are seen and unseen, with everything else as it stands: 287 and 394.
+        // a Gaussian thumb would have it. Shaped off the JVM (build/scatter/laws*.py, which forecast the scoreboard
+        // within three words); those forecasts printed unseen totals beside seen for every knee, prior and power
+        // tried, and the bounds and the joins were settled on the unseen set's total and the bench together, so the
+        // unseen set is no clean check of these dials. Words wrong below are seen and unseen, with everything else as
+        // it stood then: 287 and 394 (288 and 393 with the rejoin spared). What this buys over SPATIAL moved alone
+        // (1.2: 291 and 397, the same normal and sloppy spoils on the bench) is the careful thumb's spoils.
 
         /** Off, every word is read with SPATIAL as it stands, whatever its taps have shown: the scoreboard is then the base's. */
         @JvmField var SPREAD_ON = true

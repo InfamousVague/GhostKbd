@@ -464,6 +464,30 @@ down, the sloppy one 0.34 and 0.25, and they want different values of it. With `
 | 1.7 | 2.42% | 4.27% | 12.22% | 3.37% | 4.07% | 13.86% |
 | 2.0 | 2.36% | 4.27% | 13.66% | 3.46% | 4.49% | 15.73% |
 
+With `TapDecoder.SPATIAL` itself fixed (joins read as loosely as words; build/scatter/ceiling-V.txt), words wrong
+and the bench (words right, right words spoiled a thousand, unknown words spoiled of 263, 164 and 84):
+
+| SPATIAL | seen | unseen | bench careful | normal | sloppy |
+| ---: | ---: | ---: | --- | --- | --- |
+| 0.9 | 278 | 385 | 96.34%, 3.25, 8.7% | 93.09%, 3.50, 12.8% | 87.96%, 3.31, 13.1% |
+| 1.0 | 283 | 394 | 96.43%, 2.23, 5.3% | 93.13%, 2.56, 8.5% | 87.65%, 2.69, 10.7% |
+| 1.1 | 292 | 403 | 96.42%, 2.13, 4.9% | 93.02%, 2.15, 7.3% | 87.37%, 2.69, 10.7% |
+| 1.2 | 291 | 397 | 96.47%, 1.73, 3.4% | 92.88%, 2.02, 6.7% | 86.91%, 2.48, 9.5% |
+| 1.3 | 296 | 404 | 96.43%, 1.62, 3.0% | 92.70%, 1.61, 4.9% | 86.46%, 2.28, 9.5% |
+| 1.4 | 299 | 409 | 96.39%, 1.52, 2.7% | 92.55%, 1.61, 4.9% | 86.06%, 1.65, 7.1% |
+| 1.5 (base) | 310 | 416 | 96.41%, 1.22, 1.5% | 92.35%, 1.48, 4.3% | 85.58%, 1.65, 7.1% |
+
+**What the spread buys, said plainly** (the review of 2026-11-13). Moving that one dial to 1.2, with no new code,
+gives words wrong of 291 and 397, within noise of the spread's 288 and 393, and the normal and sloppy thumbs then
+spoil exactly what they spoil with the spread (2.02 and 2.48 a thousand). 1.0 gives 283 and 394. Over the best
+fixed `SPATIAL` at the same bench cost, then, the spread gains nothing measurable in words wrong; what it buys is
+the careful thumb's spoils, which a lower fixed `SPATIAL` raises and the spread lowers: 1.01 right words spoiled a
+thousand against 1.73 at 1.2 (1.22 in base), and 3 unknown words of 263 against 9 (4 in base). Its words right go
+the other way by a little: 96.33% against 96.47%, 92.75 against 92.88, 87.04 against 86.91. The two together, the
+spread with `SPATIAL` at 1.2: seen 270, unseen 386, but the careful thumb spoils 1.62 a thousand and 7 unknown
+words, the normal 2.69 and 14, the sloppy 3.10 and 10, which breaks the rule that the careful thumb's spoils must
+not rise.
+
 **The ceiling.** Each thumb at its own value with the spread known from the first tap (careful and leaning 1.7,
 sloppy 0.9, the floor below): seen 5.30% (276 of 5205), unseen 5.91% (379 of 6408), from 5.96% (310) and 6.49%
 (416). With nothing in the way (sloppy 0.6 and joins as loose as words, `TapDecoder.SPATIAL` fixed): seen 258,
@@ -477,12 +501,26 @@ a password field never teaches it, as it never teaches the lean.
 
 **The reading** (`TapDecoder.load`). The word being settled is read with `SPATIAL` times `Taps.tight`, which is
 `SPREAD` over the estimate (one over the spread squared) where the taps fall closer than `SPREAD`, and that ratio
-cubed (`SPREAD_POWER`) where they fall wider, between 0.9 and 3 (`SPREAD_LOW`, `SPREAD_HIGH`). A field's first
-word has nothing estimated and reads exactly as before. Only in English with the next-word model on
-(`Autocorrect.spread`): elsewhere, and with `ThumbLean.SPREAD_ON=false`, every word is read as before, and the
-scoreboard is then the base's word for word on both sets (0 mended, 0 broken) with the bench's lines identical.
+cubed (`SPREAD_POWER`) where they fall wider, between 0.6 and 2 times `SPATIAL` (`SPREAD_LOW`, `SPREAD_HIGH`;
+0.9 and 3 at 1.5). The bounds were values of `SPATIAL` itself until the review; with `SPATIAL` at 0.9 that floor
+left the spread nothing to do (seen 277 on, 278 off). As factors they move with it, but the dials do not carry
+over: at `SPATIAL` 0.9 the spread now gives seen 263, unseen 389 against 278 and 385 without it, and the bench's
+normal thumb spoils 5.79 right words a thousand and 31 unknown words of 164. A track that moves `SPATIAL` must
+re-set these (build/scatter/laws*.py forecast them from the sp-V grid). A field's first word has nothing estimated
+and reads exactly as before. Only with English's list alone and the next-word model on (`Autocorrect.spread`): with
+English and another language, with prediction off, in other languages, and with `ThumbLean.SPREAD_ON=false`, every
+word is read as before, and the scoreboard is then the base's word for word on both sets (0 mended, 0 broken) with
+the bench's lines identical.
 
-**What follows the spread.** Two words run together are read as tightly as `SPATIAL` as it stands
+**Which dials saw the unseen set.** Not only the floor and the joins: the forecasts that chose the knee (`SPREAD`),
+its weight and the power printed unseen totals beside seen for each of some thirty variants, and one of them
+counted the careful thumb's words read below 1.45 on the unseen fields' own taps. The margins between those variants
+were within noise, but the unseen set is no clean check of this work.
+
+**What follows the spread.** A word's own reading and the suggestion strip's finish (`Autocorrect.suggest`) do;
+nothing measures the strip. The bar's tap read as a letter between two words (`Autocorrect.rejoin`) does not
+(`SPREAD_REJOIN` false): following the spread it gave 287 and 394, spared 288 and 393, the bench identical, so it
+is spared and reads as before. Two words run together are read as tightly as `SPATIAL` as it stands
 (`SPREAD_JOINS` 1): read loosely, letters no list has were split into two words ("mapbox" as "map of", "unalive"
 as "I alive"), 28 of the 83 words the bench's three thumbs spoiled. With and without:
 unseen 397 and 395 at a floor of 0.5, bench right words spoiled 3.09 and 5.11 a thousand for the normal thumb,
@@ -494,14 +532,16 @@ and the sloppy thumb's right words spoiled 4.96, 3.10, 2.48, 2.28, 2.28.
 | | seen careful | leaning | sloppy | all | unseen careful | leaning | sloppy | all |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | base | 2.48% | 4.38% | 11.01% | 5.96% (310) | 3.32% | 4.03% | 12.13% | 6.49% (416) |
-| the spread | 2.59% | 4.09% | 9.86% | 5.51% (287) | 3.32% | 4.12% | 11.00% | 6.15% (394) |
+| the spread | 2.59% | 4.09% | 9.91% | 5.53% (288) | 3.32% | 4.12% | 10.96% | 6.13% (393) |
 
-On the bench (words right, right words spoiled a thousand, unknown words spoiled):
+On the bench (words right, right words spoiled a thousand, unknown words spoiled with their count):
 
 | | careful | normal | sloppy |
 | --- | --- | --- | --- |
-| base | 96.41%, 1.22, 1.5% | 92.35%, 1.48, 4.3% | 85.58%, 1.65, 7.1% |
-| the spread | 96.33%, 1.01, 1.1% | 92.75%, 2.02, 6.1% | 87.04%, 2.48, 8.3% |
+| base | 96.41%, 1.22, 1.5% (4 of 263) | 92.35%, 1.48, 4.3% (7 of 164) | 85.58%, 1.65, 7.1% (6 of 84) |
+| the spread | 96.33%, 1.01, 1.1% (3 of 263) | 92.75%, 2.02, 6.1% (10 of 164) | 87.04%, 2.48, 8.3% (7 of 84) |
+
+The unknown words spoiled are a handful each, and move by one or three: noise either way.
 
 The careful thumb's spoils fall (it is read tighter) and it loses 0.08 of a point of words right; the normal thumb
 spoils 0.54 more right words a thousand and 1.8 points more unknown words, the sloppy one 0.83 and 1.2 points
@@ -511,7 +551,10 @@ more, for 0.40 and 1.46 points of words right.
 the measure's). Words right before and with the spread: 97.63% and 97.68%, 94.53 and 94.63, 89.89 and 90.76,
 76.95 and 80.68, 64.99 and 71.13; right words spoiled 1.20 and 0.83, 1.29 and 1.40, 1.28 and 1.91, 0.61 and 1.52,
 1.88 and 1.88. The best fixed `SPATIAL` for words right on those thumbs is 2.0 or more, 1.0, 0.8, 0.6 or less,
-0.6 or less: about 0.05 to 0.07 over the scatter across squared, one over the spread squared as the law has it.
+0.6 or less: about 0.05 to 0.07 over the scatter across squared. That supports the theory, one over the spread
+squared, not the dials that ship: the shipped law follows it only on the tight side; on the loose side it is the
+ratio cubed and floored at 0.6 of `SPATIAL`, chosen for the bench's spoils, and so cannot reach the 0.8 and 0.6
+those wide thumbs want. Their spoils rise too (1.28 to 1.91 a thousand at 0.30 across, 0.61 to 1.52 at 0.40).
 
 **Why 0.08 over the spread squared and not 0.217.** The careful thumb's part is its wild taps: one in sixteen
 scatters 2.2 times as widely, and a tap half a key to a key from a key is a hundred times likelier to be one of
@@ -531,10 +574,22 @@ thumb and three of the other as one field): careful to sloppy, `SPATIAL` is unde
 not within three sentences in 68 of 200, since forty taps fade slowly and the loose side is read steeply. A new
 field ends it at once.
 
+**A wild tap early in a field.** The spread is a plain variance of the taps within `REACH`; one wild tap in a
+field's second word has only the first word's taps and the prior against it. ThumbLeanTest holds what follows: a
+careful thumb (0.16 of a key) with one tap 0.9 of a key off in its second word is read looser than `SPATIAL` in
+at least 15 of 20 fields, never below the floor, and tight again by the sentence's end. The review's simulation of the
+formula (build/review/sim.py; Gaussian thumbs with one tap in 16 wild) has the careful thumb at the floor for 3.0%
+and 3.1% of its second and third words, below 1.2 for 5.7%. Holding each tap's square (`SPREAD_CAP`) was measured
+and left off: at 0.5, 0.36, 0.25 words wrong 290, 291, 298 and 396, 395, 417; the careful thumb's spoils did not
+fall (1.01, 1.01, 0.91 a thousand), the sloppy thumb's words right did (86.93%, 86.75%, 86.26% against 87.04%),
+since a held square also holds a sloppy thumb's honest taps.
+
 **By place in the sentence** (`tool/versus/saved.py base done ceil --places`, ceil the ceiling above). The
 estimate begins at nothing, so the first words are read as before: the sloppy thumb's unseen words wrong at
 places 1 to 4 are 141 in base, 141 with the spread and 127 at the ceiling; from the fifth word on 118, 94 and 93.
-The estimate has nearly all of the ceiling from a field's fifth word and none of it before.
+The estimate has nearly all of the ceiling from a field's fifth word and none of it before. Early on it can even
+work the wrong way: in the review's simulation a sloppy thumb is read tighter than base at 25% of its second words
+and 22% of its third (a few taps that happen to fall close).
 
 **Kept across fields** (`ThumbLean.KEEP`, off and to stay off: the field tool/versus types in asks keyboards to
 learn nothing). Kept, the spread gives seen 4.96% (258), unseen 5.85% (375), where the kept lean alone gives 290
