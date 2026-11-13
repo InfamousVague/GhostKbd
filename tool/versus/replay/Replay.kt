@@ -551,7 +551,7 @@ fun replay(root: File, all: List<String>) {
                 }
             }
             println(id + "\t" + typist.text + "\t" + plain.text + "\t" + typist.fixes.joinToString(" ") + "\t" + typist.unhandled)
-            if (System.getProperty("lean.log") != null) System.err.println("LEAN\t" + id + "\t" + lean.x + "\t" + lean.y + "\t" + lean.debug())
+            if (System.getProperty("lean.log") != null) System.err.println("LEAN\t" + id + "\t" + lean.x + "\t" + lean.y + "\t" + lean.taps)
             n++
         }
         line = readLine()

@@ -741,8 +741,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
         val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
         // The least frequency a rare typed word gives way to: RARE_GAP over its own, less what its own taps cost it.
-        val off = if (ThumbLean.RARE) typedCost else 0f
-        val gap = if (known != null && !common) known + RARE_GAP - off else Float.NEGATIVE_INFINITY
+        val gap = if (known != null && !common) known + RARE_GAP - typedCost else Float.NEGATIVE_INFINITY
         val floor = if (known != null && !common) gap - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
         for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
             val word = lex.sorted[h.index]
@@ -758,7 +757,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // The person's own words: never in the trie, so each is held up against the taps.
         for (l in learned + own) {
             if (words.containsKey(l) || kotlin.math.abs(l.length - lower.length) > 2) continue
-            if (known != null && LEARNED_ZIPF < known + RARE_GAP - off) continue
+            if (known != null && LEARNED_ZIPF < known + RARE_GAP - typedCost) continue
             val cost = decoder.align(l, 0, budget)
             if (!cost.isInfinite()) offer(l, LEARNED_ZIPF + lift(l, LEARNED_ZIPF) - cost)
         }
@@ -884,7 +883,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val keys = taps.keys
         val script = now.board.script
         fun key(c: Char): Char = if (keys.containsKey(c)) c else script.plain(c.toString()).let { p -> if (p.length == 1 && keys.containsKey(p[0])) p[0] else 0.toChar() }
-        lean.learn(CharArray(lower.length) { key(lower[it]) }, CharArray(letters.length) { key(letters[it]) }, taps)
+        lean.learn(CharArray(letters.length) { key(letters[it]) }, taps)
     }
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */

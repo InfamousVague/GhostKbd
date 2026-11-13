@@ -212,11 +212,14 @@ fun typeAll(
     tally.isWord = { kb.ac.beyondFixing(it) }
     fun gauss(s: Float) = (rnd.nextGaussian() * s * (if (rnd.nextFloat() < noise.wild) 2.2 else 1.0)).toFloat()
     val lean = ThumbLean()
-    for (sentence in sentences) {
+    // The thumb's own lean (-Dlean), and the side it is on: it changes sides every LEAN_TURN sentences.
+    var side = 1f
+    for ((at, sentence) in sentences.withIndex()) {
         // A sentence is a text field: the keyboard's idea of where this thumb lands begins at nothing in each
         // (ThumbLean.newField; only ThumbLean.KEEP, which is there to be measured, carries it on), as it does on
         // the phone, and is taught by every word autocorrect has settled.
         lean.newField()
+        if (LEAN_TURN > 0 && at > 0 && at % LEAN_TURN == 0) side = -side
         val before = StringBuilder()
         // The word being typed, the taps that made it, and the words it is meant to be (two, where a space was missed).
         val text = StringBuilder(); val xs = ArrayList<Float>(); val ys = ArrayList<Float>()
@@ -242,7 +245,7 @@ fun typeAll(
         fun tap(c: Char) {
             if (c == '\'') { text.append(c); xs += Float.NaN; ys += Float.NaN; return }
             val (cx, cy) = Geo.centres.getValue(c)
-            val x = cx + (LEAN_X + gauss(noise.sx)) * Geo.W; val y = cy + (LEAN_Y + gauss(noise.sy)) * Geo.H
+            val x = cx + (side * LEAN_X + gauss(noise.sx)) * Geo.W; val y = cy + (side * LEAN_Y + gauss(noise.sy)) * Geo.H
             val k = Geo.hit(x, y)
             if (k == ' ') endToken() else { text.append(k); xs += x; ys += y }
         }
@@ -262,8 +265,8 @@ fun typeAll(
             }
             // The space: missed altogether, or a tap that may land on the letters above the bar.
             if (rnd.nextFloat() < noise.noSpace) continue
-            val x = (3.5f + rnd.nextFloat() * 3f) * Geo.W + (LEAN_X + gauss(noise.sx)) * Geo.W
-            val y = 3.5f * Geo.H + (LEAN_Y + gauss(noise.sy)) * Geo.H
+            val x = (3.5f + rnd.nextFloat() * 3f) * Geo.W + (side * LEAN_X + gauss(noise.sx)) * Geo.W
+            val y = 3.5f * Geo.H + (side * LEAN_Y + gauss(noise.sy)) * Geo.H
             val k = Geo.hit(x, y)
             if (k == ' ') { endToken(); endUnit() } else { text.append(k); xs += x; ys += y }
         }
@@ -281,6 +284,13 @@ val SPACE = floatArrayOf(Geo.SPACE_LEFT, Geo.SPACE_TOP, Geo.SPACE_RIGHT, Geo.SPA
  */
 val LEAN_X = System.getProperty("lean")?.split(',')?.getOrNull(0)?.toFloat() ?: 0f
 val LEAN_Y = System.getProperty("lean")?.split(',')?.getOrNull(1)?.toFloat() ?: 0f
+
+/**
+ * -Dlean.turn=5: the thumb's lean changes sides every five sentences (the other hand, another grip). With
+ * ThumbLean.KEEP set, so that the sentences are one long field, it says what an estimate that has gone stale costs
+ * before it is put right, and what ThumbLean.MEMORY does for that.
+ */
+val LEAN_TURN = System.getProperty("lean.turn")?.toInt() ?: 0
 
 fun taps(root: File) {
     val kb = Keyboard(root)
@@ -327,7 +337,7 @@ fun getCost(name: String): Float = (if (name.startsWith("A.")) Autocorrect::clas
 
 /**
  * -Dset's dials: a cost as [setCost] names it, or any other class's dial by its own name, a number or a switch
- * ("ThumbLean.ON=false", "ThumbLean.PRIOR=0.2"), as tool/versus/replay.sh's --set takes them.
+ * ("ThumbLean.ON=false", "ThumbLean.ODDS=16"), as tool/versus/replay.sh's --set takes them.
  */
 fun setDial(name: String, value: String) {
     val cls = when {
