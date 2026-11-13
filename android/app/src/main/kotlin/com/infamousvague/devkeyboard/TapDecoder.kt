@@ -529,12 +529,21 @@ class TapDecoder(
      * What the slips cost to read the taps of [from] onward as [word] exactly (a learned word, one the person types,
      * one that is likely next): the same costs as [search], worked out for the one word. Infinite past [budget].
      */
-    fun align(word: String, from: Int = 0, budget: Float = BUDGET): Float {
+    fun align(word: String, from: Int = 0, budget: Float = BUDGET, listed: Boolean = false): Float {
         val m = word.length
         val len = n - from
         if (m == 0 || kotlin.math.abs(m - len) > MAX_OMITS + MAX_INSERTS + 2) return Float.POSITIVE_INFINITY
         // The plain costs, whatever the last search reached for: [insert] and [omit] go by [reaching].
         reaching = false
+        // [listed]: the taps spell a common word, and are read as [search] reads them with slipsOnly where it may
+        // take edits ([LISTED_EDIT]): a letter left out, added or swapped costs at least that, and only a letter
+        // tapped twice is ever taken away ("inn" may be "in", "ink" never is). With LISTED_EDIT at [NEVER] or more,
+        // by slips of the thumb alone.
+        val byEdits = listed && LISTED_EDIT < NEVER
+        fun dear(e: Float) = if (!listed) e else if (!byEdits) Float.POSITIVE_INFINITY else maxOf(e, LISTED_EDIT)
+        fun omit(c: Char, last: Char) = dear(this.omit(c, last))
+        fun insert(i: Int) = if (listed && !twice(i)) Float.POSITIVE_INFINITY else dear(this.insert(i))
+        val swapCost = dear(SWAP)
         // cost[j][i]: the first j letters of the word against the first i taps.
         var before2 = FloatArray(len + 1)
         var before = FloatArray(len + 1)
@@ -553,7 +562,7 @@ class TapDecoder(
                 val extra = row[i - 1] + insert(from + i - 1)
                 if (extra < v) v = extra
                 if (j >= 2 && i >= 2 && c == typed[from + i - 2] && last == typed[from + i - 1] && c != last) {
-                    val swap = before2[i - 2] + SWAP
+                    val swap = before2[i - 2] + swapCost
                     if (swap < v) v = swap
                 }
                 row[i] = v

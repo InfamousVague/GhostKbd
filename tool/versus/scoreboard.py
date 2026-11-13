@@ -155,7 +155,7 @@ def bench(overlay, java, dials):
     stale = not os.path.exists(os.path.join(ROOT, jar)) or any(os.path.getmtime(os.path.join(ROOT, f)) > os.path.getmtime(os.path.join(ROOT, jar)) for f in files + ["tool/typing_bench/Bench.kt"])
     if stale:
         subprocess.run(["kotlinc"] + files + ["tool/lang_check/stubs/android/graphics/PointF.kt", "tool/typing_bench/Bench.kt", "-include-runtime", "-d", jar], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    sets = ",".join(("A." if d.startswith("Autocorrect.") else "T.") + d.split(".", 1)[1] for d in dials)
+    sets = ",".join(("A." if d.startswith("Autocorrect.") else "S." if d.startswith("Scorer.") else "T.") + d.split(".", 1)[1] for d in dials)
     cmd = ["java", "-Xmx2g", "-Dwords=12000"] + (["-Dset=" + sets] if sets else []) + (java.split() if java else []) + ["-jar", jar, ".", "taps"]
     out = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True).stdout
     return [ln.split("  [")[0] for ln in out.splitlines() if "by the taps" in ln]

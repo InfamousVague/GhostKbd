@@ -20,6 +20,12 @@ each key the finger came down (`TapDecoder.kt`, `Autocorrect.byTaps`):
 - **A word no list has is left alone when it was typed cleanly**, and mended when its taps lean toward a word. A
   common word gives way only to one about forty times as common, and only by slips of the thumb (in English, a
   letter left out, tapped twice or two swapped count as slips of a common word too).
+- **In English a word is weighed by its place in the sentence** (since 2026-11-12). Where the starter table has a
+  row for the one or two words before, a reading is worth how likely its word is after them, and so is the typed
+  word: a common word where it all but never stands gives way to a reading ten times as likely there, and a word
+  the place expects is dearer to change. Where no row says, and in every other language, it is as above.
+  [versus.md](versus.md#a-word-weighed-by-its-place-in-the-sentence-made-2026-11-12) has what that mended, what it
+  costs and how it was measured.
 - **Two words run together are parted**: "inthe" is "in the", and "thisbis" (the space bar missed for the b above
   it) is "this is". Never a common word, and never where the first word is rare.
 - **Misspellings** (definately, tommorow, recieve) are mended as before, and more of them: a long word that is in

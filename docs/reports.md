@@ -35,6 +35,7 @@ the whole of it. `Reports.kt` builds it; `ReportTally` is what it holds between 
   | `fix.made`, `fix.joined` | autocorrect changed a word; into two words |
   | `fix.undone`, `fix.undoneOwn` | a fix was undone; and the word it had changed was one no list has |
   | `fix.retyped` | a fix was typed over with another word |
+  | `fix.behind`, `fix.behindUndone` | the word before was changed once the word after it had ended (the second look); and backspace took that back |
   | `words.keptAfterFix` | a word typed again as it was where a fix had been taken out |
   | `mistakes.retyped`, `mistakes.picked` | a word put right by typing over it; by taking another from the row |
   | `mistakes.unlisted`, `mistakes.more` | such a mistake that is not reported as text (see below); one past the sixty a report holds |

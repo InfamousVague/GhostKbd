@@ -131,13 +131,17 @@ Fading and pruning run when the keyboard hides.
 **Starter tables**: `android/app/src/main/assets/ngram/<language>.tsv`, with the same codes as `assets/dict`.
 
     #ghost-ngram	1	en	Tatoeba export 2026-11-07, CC BY 2.0 FR
-    ^	I:1429 the:486 he:416
-    thank	you:7779 God:397 me:274
+    ^	=2010482 I:1429 the:486 he:416
+    thank	=2368 you:7779 God:397 me:274
     ^ thank	=1352 you:9194 God:459 goodness:141
 
 A line is a context in lower case (`^` is a sentence's start), a tab, then `word:share` entries, likeliest first. The
 share is in ten-thousandths of everything that followed the context. A context of two words opens with `=n`, how
 often they were seen together; a keyboard from before two-word rows skips that entry and never looks the row up.
+English's one-word rows open with `=n` too (since 2026-11-12): how often the word was seen, a sentence's start for
+`^`. Autocorrect weighs the readings of a word's taps by how likely each is after the words before, and believes a
+row as far as it was seen (`Scorer.Here`; [versus.md](versus.md)). A keyboard from before that skips the entry; a
+table without it (every other language's, until it is made again) is read by its shares, as far as they say.
 In memory a context is its words' numbers, so the two-word rows cost no strings (English: about 10 MB). A word is written as it is usually cased in the
 middle of a sentence. `NOTICE.txt` and `CREDITS.txt` beside them carry the attribution.
 

@@ -145,7 +145,8 @@ def board_file(geometry):
 
 
 def replay(records, size, board=None, flags=(), dials=(), overlay=None, java=None):
-    """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes)}.
+    """Ghost Keyboard's decoder on the JVM over [records]' touches: {(thumb, line): (text, keys' own text, fixes,
+    touches no key took, the words changed behind the cursor)}.
     [board]: the keys as they were when the touches were made ([board_file]); without it, as this tree lays them out.
     [flags]: Replay.kt's own, "--marks-without-taps" for a run typed on a build from before 2026-11-12 (a word
     ended from the ?123 page was read without its taps then). [dials]: the decoder's own numbers for this run, as
@@ -168,7 +169,7 @@ def replay(records, size, board=None, flags=(), dials=(), overlay=None, java=Non
         f = line.split("\t")
         if len(f) >= 3 and "/" in f[0]:
             thumb, n = f[0].split("/")
-            out[(thumb, int(n))] = (f[1], f[2], f[3] if len(f) > 3 else "", int(f[4]) if len(f) > 4 and f[4].isdigit() else 0)
+            out[(thumb, int(n))] = (f[1], f[2], f[3] if len(f) > 3 else "", int(f[4]) if len(f) > 4 and f[4].isdigit() else 0, f[5] if len(f) > 5 else "")
     return out
 
 
