@@ -179,7 +179,7 @@ class TypingAccuracyTest {
         assertEquals(setOf("th"), few.read("th", taps("th"), listed = true, reach = false).keys)
         assertEquals(setOf("ot"), few.read("ot", taps("ot"), listed = true, reach = false).keys)
         // With it: a letter left out, two swapped, a letter tapped twice, each for LISTED_EDIT at the least.
-        assertEquals(maxOf(TapDecoder.REACH_OMIT, TapDecoder.LISTED_EDIT), few.read("th", taps("th"), listed = true).getValue("the"), 0.01f)
+        assertEquals(maxOf(TapDecoder.REACH_OMIT_END, TapDecoder.LISTED_EDIT), few.read("th", taps("th"), listed = true).getValue("the"), 0.01f)
         assertEquals(maxOf(TapDecoder.SWAP, TapDecoder.LISTED_EDIT), few.read("ot", taps("ot"), listed = true).getValue("to"), 0.01f)
         assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("soo", taps("soo"), listed = true).getValue("so"), 0.01f)
         assertEquals(maxOf(TapDecoder.INSERT_DOUBLED, TapDecoder.LISTED_EDIT), few.read("inn", taps("inn"), listed = true).getValue("in"), 0.01f)
@@ -207,6 +207,30 @@ class TypingAccuracyTest {
         // "t" where "to" is likely is "to"; by itself a letter stands, whichever it is.
         assertEquals("to", ac.correct("t", after("i want t"), taps("t")))
         for (letter in "bcdefghjklmnopqrstuvwxyz") assertNull("$letter by itself", ac.correct(letter.toString(), null, taps(letter.toString())))
+    }
+
+    @Test fun aAndIStandWhereAWordOfTwoLettersWouldFit() {
+        // LONE_OMIT reads every one-letter word, a and i too: they stand on their own frequency, even where the words
+        // before make at, an, as, in, it, is or if likely. i stands as itself or as its capital.
+        for (before in listOf("look a", "we are a", "it is a", "i want a", "she lives a", "they sat a", "a")) {
+            assertNull(before, ac.correct("a", after(before), taps("a")))
+        }
+        for (before in listOf("i live i", "i think i", "is i", "what i", "i went i", "i")) {
+            val out = ac.correct("i", after(before), taps("i"))
+            assertTrue("$before: $out", out == null || out == "I")
+        }
+        assertNull(ac.correct("a", null, taps("a")))
+        assertTrue(ac.correct("i", null, taps("i")).let { it == null || it == "I" })
+    }
+
+    @Test fun aLetterLeftOutAfterTheLastTapCostsAsItAlwaysDid() {
+        val few = Few("civilize", "civilized", "wark", "work")
+        // A word typed whole that a listed word goes on from: the letter after the last tap costs REACH_OMIT_END
+        // (as OMIT), a letter left out within the word REACH_OMIT.
+        assertEquals(TapDecoder.REACH_OMIT_END, few.read("civilize", taps("civilize")).getValue("civilized"), 0.01f)
+        assertEquals(TapDecoder.OMIT, few.read("civilize", taps("civilize"), reach = false).getValue("civilized"), 0.01f)
+        assertEquals(TapDecoder.REACH_OMIT, few.read("wrk", taps("wrk")).getValue("work"), 0.01f)
+        assertNull(ac.correct("civilize", null, taps("civilize")))
     }
 
     @Test fun aTapTooManyCostsByWhereItLanded() {

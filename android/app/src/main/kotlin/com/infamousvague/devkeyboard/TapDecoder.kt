@@ -98,7 +98,8 @@ class WordTrie(words: Array<String>, zipf: FloatArray) {
  *   meant, as a misspelling rather than a slip of the thumb: any letter costs at most [far];
  * - the tap as one too many ([INSERT]; less where it doubles the letter beside it or is that letter's neighbour,
  *   and where the search reaches, by how near it landed to the key typed beside it, [REACH_INSERT] at the most);
- * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less);
+ * - a letter of the word with no tap at all ([OMIT]; an apostrophe for nearly nothing, a doubled letter for less,
+ *   and where the search reaches [REACH_OMIT], [REACH_OMIT_END] after the last tap, [LONE_OMIT] where one letter was typed);
  * - two taps in the wrong order ([SWAP]), one of which may have landed on a neighbour's key besides ([SWAP_SLIP]).
  * A branch is given up as soon as its cost is more than the commonest word under it could repay ([WordTrie.best]),
  * so the search stays a few thousand nodes however many words the lists have.
@@ -202,6 +203,16 @@ class TapDecoder(
                 spaceCost[i] = (SPATIAL * (d - d0)).coerceAtLeast(0f)
             }
         }
+        reachReady = false
+    }
+
+    /** Whether [again], [slipCh] and [slipCost] are this word's: only a search asked to reach reads them, and builds them. */
+    private var reachReady = false
+
+    /** [search]'s reach reads, of each tap, what it costs as the key beside it ([again]) and the keys it slipped onto ([slipCh]). */
+    private fun readyReach() {
+        if (reachReady) return
+        reachReady = true
         again = FloatArray(n) { i -> minOf(if (i > 0) lands(i, tk[i - 1]) else Float.POSITIVE_INFINITY, if (i + 1 < n) lands(i, tk[i + 1]) else Float.POSITIVE_INFINITY) }
         slipCh = Array(n) { EMPTY_CHARS }
         slipCost = Array(n) { EMPTY_COSTS }
@@ -268,6 +279,14 @@ class TapDecoder(
         else -> OMIT
     }
 
+    /** A letter with no tap after the last tap: as [omit], but [REACH_OMIT_END] where the search reaches. */
+    private fun omitAfter(c: Char, last: Char): Float = when {
+        c == '\'' || c == '’' -> APOSTROPHE
+        c == last -> OMIT_DOUBLED
+        reaching -> REACH_OMIT_END
+        else -> OMIT
+    }
+
     private val hits = HashMap<Int, Float>()
     private var floor = 0f
     private var top = Float.NEGATIVE_INFINITY
@@ -315,6 +334,7 @@ class TapDecoder(
             if (len <= SHORT.toInt()) { changes = bound + (SHORT_MORE * 100f).toInt(); past = SHORT_PAST }
             if (slipsOnly && LISTED_EDIT < NEVER) { edits = true; dear = LISTED_EDIT }
             lone = len == 1
+            readyReach()
         }
         walk(0, from, 0f, 0, 0, 0.toChar(), budget, 0)
         val out = ArrayList<Hit>(hits.size)
@@ -393,7 +413,7 @@ class TapDecoder(
                 val c = trie.ch[q]
                 val free = c == '\'' || c == '’'
                 if (free) walk(q, i, cost + APOSTROPHE, omits, inserts, c, budget, changed)
-                else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omit(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
+                else if (more && omits < MAX_OMITS) walk(q, i, cost + (if (lone) LONE_OMIT else edit(omitAfter(c, last))) + over, omits + 1, inserts, c, budget, changed + 100)
                 q = trie.next[q]
             }
             return
@@ -597,7 +617,10 @@ class TapDecoder(
          * A tap too many ([insert]): [INSERT] a tap of its own, [INSERT_NEAR] one on a key next to the key typed
          * beside it, [INSERT_DOUBLED] a second tap on that key itself, [INSERT_FIRST] the word's first tap. A letter
          * with no tap ([omit]): [OMIT], [OMIT_DOUBLED] where it doubles the letter before it. Set as they were
-         * before 2026-11-12, and every search but [Autocorrect.byTaps]' own still goes by them.
+         * before 2026-11-12. Where [search] is asked to reach ([Autocorrect.byTaps] on a board with English among its
+         * lists), [REACH_INSERT] and [REACH_OMIT] stand in for [INSERT], [INSERT_NEAR] and [OMIT] on taps that landed
+         * somewhere; [INSERT_DOUBLED], [INSERT_FIRST] and [OMIT_DOUBLED] still count there. Every other search, and
+         * byTaps on any other board, goes by these alone.
          */
         @JvmField var INSERT = 2.8f
         @JvmField var INSERT_NEAR = 2.0f
@@ -633,6 +656,16 @@ class TapDecoder(
          * still lost to Gboard (docs/versus.md).
          */
         @JvmField var REACH_OMIT = 1.8f
+        /**
+         * [REACH_OMIT] for a letter left out after the last tap, where the search reaches: a word typed whole that
+         * a listed word goes on from by a letter ("civilize", and any word with a -d or -s of its own to come). At
+         * [REACH_OMIT] the bench's careful thumb had "civilize" made "civilized" three times in 12,000 words. Set
+         * on the tree with the rest of the reach (LONE_OMIT 1.8): 2.0, as [OMIT], against 1.8 leaves 291 words
+         * wrong on the seen set for 290 and 398 for 397 on the unseen, and on the bench's 12,000 words right words
+         * spoiled 1.42, 1.61 and 1.65 in a thousand for the three thumbs to 1.32, 1.48 and 1.45 (1.22, 1.48 and
+         * 1.65 before the reach), words right 96.75, 92.91 and 86.61% to 96.75, 92.91 and 86.62%.
+         */
+        @JvmField var REACH_OMIT_END = 2.0f
         @JvmField var OMIT_DOUBLED = 1.2f
         @JvmField var APOSTROPHE = 0.2f
         @JvmField var SWAP = 1.1f
@@ -708,23 +741,27 @@ class TapDecoder(
         @JvmField var LISTED_EDIT = 2.0f
         /**
          * What a letter left out costs where the word was typed as one letter ("t" for "to", "n" for "in") and
-         * [Autocorrect.byTaps] asks; from [NEVER] up, never. The lists hold every letter as a word about as common
-         * as "ask" (5.34: t is 5.43, s 5.86, o 5.12), which a letter typed by itself is not: of the letters other
-         * than a and i that the scoreboard's two sets typed alone and that were no slip of a or i, 18 were a word
-         * of two letters with one of them gone and 5 were meant. A reading has still to beat the letter as the
-         * common word the lists make it, which at [OMIT] (2) leaves nearly every one standing. 1.4 is an estimate:
-         * what a letter left out costs a thumb (0.4% of letters, 2.4) less about a point, which is how far those
-         * counts put a lone letter under its listed frequency (5 meant in 11,613 words, among some ten letters, is
-         * about 4.6 each).
+         * [Autocorrect.byTaps] asks; from [NEVER] up, never. It stands in for [REACH_OMIT] and is held to no
+         * [LISTED_EDIT], though every letter is a listed word. The lists hold each letter about as common as "ask"
+         * (s 5.86, d 5.46, t 5.43, n 5.15, o 5.12), which a letter typed by itself is not: of the letters other than
+         * a and i that the seen set typed alone and that were no slip of a or i, 10 were a word of two letters with
+         * one of them gone (o for no, on and of, s for is, t, n and d for to, in and do) and 3 were meant (the "d"
+         * of one sentence, by its three thumbs). A reading has still to beat the letter as the common word the lists
+         * make it. 1.8 is an estimate: what a letter left out costs a thumb (0.4% of letters, 2.4) less how far
+         * that count puts a lone letter under its listed frequency (3 meant in 5,205 words, among some ten letters,
+         * is about 4.8 each, against 5.4: 0.6). One sentence is a thin count, and the estimate no finer than that.
          *
-         * In the tree with the rest of the reach (298 and 405 words wrong on the seen and the unseen set, the
-         * bench's measures 94.30 and 94.55): 1.0 leaves 296 and 405, 94.32 and 94.56; 2.0 leaves 298 and 409, 94.26
-         * and 94.51; never leaves 299 and 408, 94.20 and 94.50. The sets hold few letters typed on purpose and the
-         * bench fewer, so the cheaper end is not taken on their word. Two of the words it breaks on the seen set
-         * are [Autocorrect.rejoin]'s to mend: "o" and a tap on the bar's edge was "on", and is "of" now by the
-         * time the next space asks (see docs/versus.md).
+         * Until 2026-11-13 this was 1.4, from the same count made over the seen and the unseen set together, which
+         * the unseen set is not to be used for; recounted on the seen set alone it is 1.8. In the tree with the rest
+         * of the reach ([REACH_OMIT_END] 2.0), as words wrong on the seen set, the unseen set's total, and the
+         * bench tuner's measure on its 12,000 words and its other 20,000: 1.8, 291, 398, 94.39 and 94.55; 1.4, 292,
+         * 397, 94.41 and 94.59. With [REACH_OMIT_END] at 1.8: 1.0, 289, 395, 94.39 and 94.61; 1.4, 291, 396, 94.37
+         * and 94.59; 1.8, 290, 397, 94.35 and 94.56; never, 292, 399, 94.27 and 94.54. The bench would take it a
+         * little cheaper (no right word more spoiled either way); the seen set's count and its total say 1.8. Two
+         * of the words it breaks on the seen set are [Autocorrect.rejoin]'s to mend: "o" and a tap on the bar's
+         * edge was "on", and is "of" or "to" now by the time the next space asks (see docs/versus.md).
          */
-        @JvmField var LONE_OMIT = 1.4f
+        @JvmField var LONE_OMIT = 1.8f
         /**
          * The most that one of two taps in the wrong order may cost to read as a neighbour's key, where
          * [Autocorrect.byTaps] asks ([swap]); at 0 two letters are swapped letter for letter or not at all, as
