@@ -32,8 +32,8 @@ the whole of it. `Reports.kt` builds it; `ReportTally` is what it holds between 
   | `words.completed`, `words.predicted` | a word taken from the row while typing it; a next word tapped |
   | `words.noTaps` | a typed word whose taps were not known (a hardware keyboard, the cursor moved into it) |
   | `keys`, `backspaces` | keys pressed, and backspaces among them |
-  | `fix.made`, `fix.joined` | autocorrect changed a word; into two words |
-  | `fix.undone`, `fix.undoneOwn` | a fix was undone; and the word it had changed was one no list has |
+  | `fix.made`, `fix.joined` | autocorrect changed a word's letters (a capital alone, a name's or I, is not counted); into two words |
+  | `fix.undone`, `fix.undoneOwn` | such a fix was undone; and the word it had changed was one no list has |
   | `fix.retyped` | a fix was typed over with another word |
   | `words.keptAfterFix` | a word typed again as it was where a fix had been taken out |
   | `mistakes.retyped`, `mistakes.picked` | a word put right by typing over it; by taking another from the row |
