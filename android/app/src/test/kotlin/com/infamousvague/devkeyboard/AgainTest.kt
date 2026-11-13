@@ -23,6 +23,19 @@ class AgainTest {
         assertEquals("are", ac.again("ate", "ate", "going", scorer("we"), t))
     }
 
+    @Test fun aPairOfCommonWordsTheTablesNeverSawCountsMore() {
+        // "be is" opening a sentence: the b tapped a fifth of a key high, toward h. Between words this common the tables would have
+        // seen the pair, and it counts up to AGAIN_LOW_BOTH against "be" (Autocorrect.AGAIN_LOW_BOTH).
+        val t = taps("be", 0 to (0f to -0.2f))
+        assertEquals("he", ac.again("be", "be", "is", scorer("^"), t))
+        val was = Autocorrect.AGAIN_LOW_BOTH
+        try {
+            Autocorrect.AGAIN_LOW_BOTH = 0f
+            assertNull(ac.again("be", "be", "is", scorer("^"), t))
+        } finally { Autocorrect.AGAIN_LOW_BOTH = was }
+        assertNull(ac.again("be", "be", "here", scorer("will"), taps("be")))
+    }
+
     @Test fun aRightWordTheWordAfterBearsOutStands() {
         assertNull(ac.again("are", "are", "going", scorer("we"), taps("are")))
         assertNull(ac.again("walrus", "walrus", "is", scorer("the"), taps("walrus")))

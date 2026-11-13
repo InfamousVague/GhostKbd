@@ -1562,7 +1562,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // A pair the tables list speaks for a reading; a pair they never saw speaks against it only so far
         // (AGAIN_LOW): the tables were counted from Tatoeba, and "says only", "keys a" or "fix is" are pairs
         // Tatoeba seldom has, not pairs nobody writes.
-        fun after(word: String) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-minOf(AGAIN_LOW, AGAIN_MOST), AGAIN_MOST)
+        fun after(word: String, low: Float = AGAIN_LOW) = (AGAIN_WEIGHT * scorer.follows(word, follower, followerZipf) { words[it] }).coerceIn(-minOf(low, AGAIN_MOST), AGAIN_MOST)
+        // Between words all as common as [AGAIN_LOW_ZIPF] (what stands, a reading, the word after), a pair the tables
+        // never saw is one they would have seen ("be is"): weighing that reading against what stands, it may count
+        // up to [AGAIN_LOW_BOTH] against either. A rarer reading is weighed as before.
+        fun common6(word: String) = (words[word] ?: 0f) >= AGAIN_LOW_ZIPF
+        val both = AGAIN_LOW_BOTH > AGAIN_LOW && followerZipf >= AGAIN_LOW_ZIPF
         // What the typed letters are worth as they stand, and how much more than that a reading must be worth to
         // take their place, as the first look had it.
         // A rare word a dictionary vouches for is held by [SURE_MARGIN], as at its space; one only the wider list has
@@ -1616,7 +1621,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             // A word no list has is never put back once the space has changed it: the word after cannot speak for it
             // (no row has it, so it is held down by nothing), and the bench's unknown words were the first look's to judge.
             if ((known == null || held) && r.word == asTyped && !AGAIN_UNLISTED) continue
-            r.after = after(r.word)
+            r.after = if (both && common6(stood) && common6(r.word)) after(r.word, AGAIN_LOW_BOTH) + standing.after - after(stood, AGAIN_LOW_BOTH) else after(r.word)
             r.all = r.worth - r.cost + r.after + (if (r.word == asTyped) guard else 0f)
             if (r.all > best.all) best = r
         }
@@ -2202,6 +2207,18 @@ class Autocorrect(private val open: (String) -> InputStream?) {
          * slang typed cleanly as its swap ("ts" as st), which no bench types, and was left out.
          */
         @JvmField var SLANG_SLIP = 0.5f
+        /**
+         * The most a pair the tables never saw counts against a word at the second look where what stands, the
+         * reading weighed against it and the word after are all of Zipf [AGAIN_LOW_ZIPF] or more ([AGAIN_LOW]
+         * elsewhere): the tables would have seen such a pair ("be is" opening a sentence is "he is"). At [AGAIN_LOW]
+         * or less, off. Set on 2026-11-13 by tool/versus/scoreboard.py --bench, a fresh draw of the bench and the
+         * documents' sentences (docs/versus.md, "Squeezing 0.17.0"): 2 and 6 mend a word on seen and none on unseen,
+         * break none, the bench's spoils the same on both draws; on the documents (elsewhere.py --at 9d36d4c) 5
+         * mended and 1 broken ("on is when" to "on us when"). 6.5: 1 and 0 there. 5.5 broke 2 words on seen. Counted
+         * against what stands alone (not pairwise) it put back "I and" as "j and".
+         */
+        @JvmField var AGAIN_LOW_BOTH = 2f
+        @JvmField var AGAIN_LOW_ZIPF = 6f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh; 3.1 since the Joint tuning of 2026-11-13 (docs/versus.md, "Squeezing 0.17.0"): tool/versus/sweep.py search on each held-out half (--holdout 1 and --other-half), the bench's penalty counted against SPREAD_LOW 0.85's bench (--guard), and only the moves both halves made were kept (3.2 before). */
         @JvmField var UNKNOWN = 3.1f
         @JvmField var UNKNOWN_ODD = 1.8f
