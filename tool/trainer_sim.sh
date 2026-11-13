@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
 out="${TMPDIR:-/tmp}/ghost-kbd-trainer-sim-$$.jar"
 trap 'rm -f "$out"' EXIT
-kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/SwipeDecoder.kt" "$src/TapDecoder.kt" "$src/MistakeMemory.kt" "$src/SampleCleaner.kt" "$src/NextWordModel.kt" \
+kotlinc "$src/Languages.kt" "$src/Layouts.kt" "$src/Hangul.kt" "$src/Autocorrect.kt" "$src/SwipeDecoder.kt" "$src/TapDecoder.kt" "$src/ThumbLean.kt" "$src/MistakeMemory.kt" "$src/SampleCleaner.kt" "$src/NextWordModel.kt" \
   "$src/TrainerText.kt" "$src/TrainerRun.kt" "$src/TrainerAims.kt" "$src/TrainerFix.kt" "$src/TrainerBook.kt" "$src/TrainerStories.kt" "$src/LayoutTrials.kt" \
   tool/lang_check/stubs/android/graphics/PointF.kt android/app/src/test/kotlin/com/infamousvague/devkeyboard/TrainerSim.kt tool/trainer_sim/Main.kt \
   -include-runtime -d "$out" 2>&1 | grep -v "^warning:" || true

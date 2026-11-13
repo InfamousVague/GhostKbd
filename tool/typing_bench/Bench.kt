@@ -19,6 +19,7 @@ import com.infamousvague.devkeyboard.PersonalPairs
 import com.infamousvague.devkeyboard.Scorer
 import com.infamousvague.devkeyboard.TapDecoder
 import com.infamousvague.devkeyboard.Taps
+import com.infamousvague.devkeyboard.ThumbLean
 import com.infamousvague.devkeyboard.Words
 import java.io.File
 import java.util.Random
@@ -55,8 +56,11 @@ val NOISES = listOf(
     Noise("sloppy", 0.34f, 0.25f),
 )
 
-/** One word as the thumb typed it: the letters the keys gave, and where each tap landed (NaN for an apostrophe). */
-class Typed(val text: String, val xs: FloatArray, val ys: FloatArray)
+/**
+ * One word as the thumb typed it: the letters the keys gave, and where each tap landed (NaN for an apostrophe).
+ * [taps] are those as the keyboard reads them, with what it takes this thumb's lean to be in the sentence so far.
+ */
+class Typed(val text: String, val xs: FloatArray, val ys: FloatArray, val taps: Taps)
 
 /** What came of a stretch of the sentence: the words meant, the tokens typed, and what the keyboard left there. */
 class Unit(val targets: List<String>, val typed: List<String>, val out: List<String>) {
@@ -207,15 +211,26 @@ fun typeAll(
     val tally = Tally()
     tally.isWord = { kb.ac.beyondFixing(it) }
     fun gauss(s: Float) = (rnd.nextGaussian() * s * (if (rnd.nextFloat() < noise.wild) 2.2 else 1.0)).toFloat()
-    for (sentence in sentences) {
+    val lean = ThumbLean()
+    // The thumb's own lean (-Dlean), and the side it is on: it changes sides every LEAN_TURN sentences.
+    var side = 1f
+    for ((at, sentence) in sentences.withIndex()) {
+        // A sentence is a text field: the keyboard's idea of where this thumb lands begins at nothing in each
+        // (ThumbLean.newField; only ThumbLean.KEEP, which is there to be measured, carries it on), as it does on
+        // the phone, and is taught by every word autocorrect has settled.
+        lean.newField()
+        if (LEAN_TURN > 0 && at > 0 && at % LEAN_TURN == 0) side = -side
         val before = StringBuilder()
         // The word being typed, the taps that made it, and the words it is meant to be (two, where a space was missed).
         val text = StringBuilder(); val xs = ArrayList<Float>(); val ys = ArrayList<Float>()
         val meant = ArrayList<String>(); val tokens = ArrayList<String>(); val outs = ArrayList<String>()
         fun endToken() {
             if (text.isEmpty()) return
-            val typed = Typed(text.toString(), xs.toFloatArray(), ys.toFloatArray())
-            val out = fix(typed, before.toString() + typed.text) ?: typed.text
+            val tapXs = xs.toFloatArray(); val tapYs = ys.toFloatArray()
+            val typed = Typed(text.toString(), tapXs, tapYs, lean.read(Taps(tapXs, tapYs, Geo.centres, Geo.W, SPACE)))
+            val fixed = fix(typed, before.toString() + typed.text)
+            kb.ac.settled(lean, typed.text, fixed, typed.taps)
+            val out = fixed ?: typed.text
             tokens += typed.text; outs += out
             before.append(out).append(' ')
             text.setLength(0); xs.clear(); ys.clear()
@@ -230,7 +245,7 @@ fun typeAll(
         fun tap(c: Char) {
             if (c == '\'') { text.append(c); xs += Float.NaN; ys += Float.NaN; return }
             val (cx, cy) = Geo.centres.getValue(c)
-            val x = cx + gauss(noise.sx) * Geo.W; val y = cy + gauss(noise.sy) * Geo.H
+            val x = cx + (side * LEAN_X + gauss(noise.sx)) * Geo.W; val y = cy + (side * LEAN_Y + gauss(noise.sy)) * Geo.H
             val k = Geo.hit(x, y)
             if (k == ' ') endToken() else { text.append(k); xs += x; ys += y }
         }
@@ -250,8 +265,8 @@ fun typeAll(
             }
             // The space: missed altogether, or a tap that may land on the letters above the bar.
             if (rnd.nextFloat() < noise.noSpace) continue
-            val x = (3.5f + rnd.nextFloat() * 3f) * Geo.W + gauss(noise.sx) * Geo.W
-            val y = 3.5f * Geo.H + gauss(noise.sy) * Geo.H
+            val x = (3.5f + rnd.nextFloat() * 3f) * Geo.W + (side * LEAN_X + gauss(noise.sx)) * Geo.W
+            val y = 3.5f * Geo.H + (side * LEAN_Y + gauss(noise.sy)) * Geo.H
             val k = Geo.hit(x, y)
             if (k == ' ') { endToken(); endUnit() } else { text.append(k); xs += x; ys += y }
         }
@@ -261,6 +276,21 @@ fun typeAll(
 }
 
 val SPACE = floatArrayOf(Geo.SPACE_LEFT, Geo.SPACE_TOP, Geo.SPACE_RIGHT, Geo.SPACE_TOP + Geo.H)
+
+/**
+ * A lean for every thumb of [typeAll] (-Dlean=0.24,0.18: key widths to the right, key heights down, on every tap,
+ * the space bar's among them), as tool/versus's leaning thumb has. None unless asked for: the bench's own numbers
+ * are of thumbs that land where they aim.
+ */
+val LEAN_X = System.getProperty("lean")?.split(',')?.getOrNull(0)?.toFloat() ?: 0f
+val LEAN_Y = System.getProperty("lean")?.split(',')?.getOrNull(1)?.toFloat() ?: 0f
+
+/**
+ * -Dlean.turn=5: the thumb's lean changes sides every five sentences (the other hand, another grip). With
+ * ThumbLean.KEEP set, so that the sentences are one long field, it says what an estimate that has gone stale costs
+ * before it is put right, and what ThumbLean.MEMORY does for that.
+ */
+val LEAN_TURN = System.getProperty("lean.turn")?.toInt() ?: 0
 
 fun taps(root: File) {
     val kb = Keyboard(root)
@@ -291,7 +321,7 @@ fun taps(root: File) {
         println(context.line("${noise.name}: with context"))
         val t0 = System.nanoTime()
         var calls = 0
-        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+        val byTaps = typeAll(kb, sentences, noise, seed, oov) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), t.taps) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1)))
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }
@@ -304,6 +334,24 @@ fun setCost(name: String, value: Float) {
     cls.getField(name.substring(2)).setFloat(null, value)
 }
 fun getCost(name: String): Float = (if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java).getField(name.substring(2)).getFloat(null)
+
+/**
+ * -Dset's dials: a cost as [setCost] names it, or any other class's dial by its own name, a number or a switch
+ * ("ThumbLean.ON=false", "ThumbLean.ODDS=16"), as tool/versus/replay.sh's --set takes them.
+ */
+fun setDial(name: String, value: String) {
+    val cls = when {
+        name.startsWith("A.") -> Autocorrect::class.java
+        name.startsWith("T.") -> TapDecoder::class.java
+        else -> Class.forName("com.infamousvague.devkeyboard." + name.substringBefore('.'))
+    }
+    val field = cls.getField(name.substringAfter('.'))
+    when (field.type) {
+        java.lang.Boolean.TYPE -> field.setBoolean(null, value.toBoolean())
+        java.lang.Integer.TYPE -> field.setInt(null, value.toInt())
+        else -> field.setFloat(null, value.toFloat())
+    }
+}
 
 fun sample(kb: Keyboard, all: Sentences, from: Int, limit: Int, seed: Long): Pair<List<List<String>>, Set<String>> {
     val oovList = UNKNOWN_WORDS.filter { !kb.ac.isWord(it) }.distinct()
@@ -334,7 +382,7 @@ fun tune(root: File) {
     fun worth(sentences: List<List<String>>, o: Set<String>, seed: Long, show: Boolean = false): Double {
         var total = 0.0
         for (noise in NOISES) {
-            val t = typeAll(kb, sentences, noise, seed, o) { t, before -> kb.ac.correct(t.text, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
+            val t = typeAll(kb, sentences, noise, seed, o) { t, before -> kb.ac.correct(t.text, kb.scorer(before), t.taps) }
             total += 100.0 * (t.right - WEIGHT * t.spoiled) / t.words
             if (show) println(t.line(noise.name))
         }
@@ -774,7 +822,7 @@ fun mistakes(root: File) {
     val who = Random(seed + 5)
     var last: String? = null
     val habit: (String) -> String? = { w -> habits[w]?.takeIf { who.nextFloat() < shows }.also { last = it } }
-    fun taps(t: Typed) = Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)
+    fun taps(t: Typed) = t.taps
     // The first stretch: typed, and what is wrong put right most of the time, as a person does.
     val person = Random(seed + 9)
     typeAll(kb, first, noise, seed, oov, habit, after = { u ->
@@ -911,7 +959,7 @@ fun turns(root: File) {
 
 fun main(args: Array<String>) {
     val root = File(args.getOrNull(0) ?: ".")
-    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setCost(k, v.toFloat()) }
+    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setDial(k, v) }
     when (args.getOrNull(1) ?: "all") {
         "taps" -> taps(root)
         "tune" -> tune(root)

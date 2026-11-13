@@ -35,6 +35,9 @@ src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
 for f in $src/Languages.kt $src/Layouts.kt $src/Hangul.kt $src/Autocorrect.kt $src/SwipeDecoder.kt $src/TapDecoder.kt $src/MistakeMemory.kt $src/SampleCleaner.kt $src/NextWordModel.kt tool/versus/replay/Replay.kt; do
   git show "$base:$f" > "$old/$(basename "$f")"
 done
+# A base from before there was a ThumbLean.kt gets an empty one: the overlay must not take this tree's, which is
+# written for this tree's Taps.
+git show "$base:$src/ThumbLean.kt" > "$old/ThumbLean.kt" 2>/dev/null || : > "$old/ThumbLean.kt"
 
 # Nothing is touched until the emulator keeps time and its launcher is in front.
 n=0
