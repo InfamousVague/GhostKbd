@@ -50,7 +50,10 @@ each spoiled one four times over, to the objective whether or not they are worse
   --holdout [SEED]   fit on a random half of each set's sentences (a sentence goes whole, all three thumbs) and
                      report the other half beside it: a setting that was found gains on both, one that was fitted
                      gains on the half it saw. --other-half fits on the half this leaves out. (Give the seed, or
-                     put the option last: a dial's name straight after it would be taken for one)
+                     put the option last: a dial's name straight after it would be taken for one.) The bench's
+                     penalty and --least then count for the share of the words fitted on, about a half, so that
+                     the half is fitted by the same search as the whole, as wary of the bench and no warier;
+                     --whole-bench counts them whole
   --threads N        how many threads type a setting (4). Settings are tried one at a time: the dials are static,
                      and a setting's typings are independent of each other, so the threads share one setting
   --bench-words N    the bench's words (12000, as scoreboard.py --bench has it); 0 leaves the bench out
@@ -385,10 +388,16 @@ class Sweep:
 
 class Objective:
     """What a search makes small: see this file's opening. [base] is the tree's own answer; [fit], where a half is
-    held out, says for each set which words are fitted on."""
+    held out, says for each set which words are fitted on.
 
-    def __init__(self, weights, base, fit=None):
+    Fitted on a share of the sentences, the bench's penalty counts for that share ([share], about a half): the
+    words a move can gain are that much fewer, and what a search will give up on the bench for a word has to stay
+    what it is when everything is fitted on, or the half would be fitted by a warier search than the one it is
+    there to judge. [whole_bench] counts the penalty whole all the same."""
+
+    def __init__(self, weights, base, fit=None, whole_bench=False):
         self.w, self.base, self.fit = weights, base, fit
+        self.share = 1.0 if fit is None or whole_bench else sum(sum(m) for m in fit.values()) / float(max(1, sum(len(m) for m in fit.values())))
 
     def wrong(self, answer, name, keep=True):
         bits = answer["sets"][name]["wrong"]
@@ -404,7 +413,7 @@ class Objective:
             was = self.base["bench"][thumb]
             total += w["spoiled"] * max(0, t["spoiled"] - was["spoiled"]) + w["unknown"] * max(0, t["oovSpoiled"] - was["oovSpoiled"]) + w["right"] * max(0, was["right"] - t["right"])
             total += w["bench"] * (t["words"] - t["right"] + 4 * t["spoiled"])
-        return total + w["misspellings"] * max(0, self.base["misspellings"][0] - answer["misspellings"][0])
+        return self.share * (total + w["misspellings"] * max(0, self.base["misspellings"][0] - answer["misspellings"][0]))
 
     def of(self, answer):
         return sum(self.w[name] * self.wrong(answer, name) for name in SETS) + self.penalty(answer)
@@ -418,6 +427,8 @@ class Objective:
             fmt(w["spoiled"]), fmt(w["unknown"]), fmt(w["right"]), fmt(w["misspellings"]))
         if w["bench"]:
             text += "; and %s times the bench's words wrong, a spoiled one four times over" % fmt(w["bench"])
+        if self.fit is not None:
+            text += "; the bench counted whole" if self.share == 1.0 else "; the bench's part counted for the share of the words fitted on, %s" % fmt(self.share)
         return text
 
 
@@ -534,7 +545,7 @@ def cmd_sets(sw, args):
 def cmd_line(sw, args):
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit)
+    obj = Objective(args.weights, base, fit, args.whole_bench)
     for text in args.settings or ["-"]:
         setting = sw.parse(text)
         answer = sw.ask(setting)
@@ -581,7 +592,7 @@ def cmd_grid(sw, args):
     fixed = sw.parse(args.with_setting or "-")
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit)
+    obj = Objective(args.weights, base, fit, args.whole_bench)
     axes = [values_of(sw, spec) for spec in args.dials]
     print("objective: " + obj.said())
     if fixed:
@@ -622,7 +633,7 @@ def cmd_scan(sw, args):
     fixed = sw.parse(args.with_setting or "-")
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit)
+    obj = Objective(args.weights, base, fit, args.whole_bench)
     start = sw.ask(fixed)
     print("objective: " + obj.said())
     print(table_head("a step of %s either way" % fmt(args.step), 34, obj))
@@ -752,10 +763,12 @@ def cmd_search(sw, args):
     dials = search_dials(sw, args)
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit)
+    obj = Objective(args.weights, base, fit, args.whole_bench)
     x = sw.parse(args.from_setting or "-")
     here = sw.ask(x)
     best = obj.of(here)
+    # The least a move must gain, counted as the bench is: for the share of the words that is fitted on.
+    least = args.least * obj.share
     print("search over %d dials: %s" % (len(dials), " ".join(d[0] for d in dials)))
     print("objective: " + obj.said())
     print("the tree: %s (seen %d + unseen %d)%s" % (fmt(obj.of(base)), obj.wrong(base, "seen"), obj.wrong(base, "unseen"), "; starts from %s at %s" % (sw.canon(x), fmt(best)) if x else ""))
@@ -773,7 +786,7 @@ def cmd_search(sw, args):
         tried[0] += 1
         try:
             a = sw.ask(setting, ("sets",))
-            if "bench" not in a and args.bench_words > 0 and obj.of(a) <= best - args.least:
+            if "bench" not in a and args.bench_words > 0 and obj.of(a) <= best - least:
                 a = sw.ask(setting)
         except Refused as e:
             print("  %s" % e)
@@ -814,7 +827,7 @@ def cmd_search(sw, args):
                     continue
                 # Of two as good, the one nearer the tree's own value.
                 j, a, whole_objective, way, v = min(tries, key=lambda t: (t[0], abs(t[4] - sw.defaults[name])))
-                if j > best - args.least or not whole_objective:
+                if j > best - least or not whole_objective:
                     continue
                 was_j, was_v = best, now
                 x[name], here, best = v, a, j
@@ -825,7 +838,7 @@ def cmd_search(sw, args):
                     if not further or tried[0] >= args.budget:
                         break
                     j2, a2, whole_objective = judge(name, further[0])
-                    if j2 > best - args.least or not whole_objective:
+                    if j2 > best - least or not whole_objective:
                         break
                     x[name], here, best = further[0], a2, j2
                 print("  %-26s %5s to %-5s  objective %s to %s  (seen %d, unseen %d, bench %s)" % (
@@ -992,6 +1005,7 @@ def main():
     ap.add_argument("--budget", type=int, default=100000, help="search: the most settings to try")
     ap.add_argument("--holdout", nargs="?", const="1", default=None, metavar="SEED")
     ap.add_argument("--other-half", action="store_true")
+    ap.add_argument("--whole-bench", action="store_true", help="with --holdout: count the bench's penalty whole, not for the share of the words fitted on")
     ap.add_argument("--weights", type=weights, default=dict(WEIGHTS))
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--bench-words", type=int, default=12000)

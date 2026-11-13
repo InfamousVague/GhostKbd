@@ -188,7 +188,11 @@ With `--holdout SEED` the first part is counted on a random half of each set's s
 with all three of its typings), the search fits on that, and the other half is reported beside it, with the
 middle 95% of the difference over 2,000 resamplings of its sentences. A setting that was found gains on both
 halves; one that was fitted gains on the half it saw. The bench is not halved: every search sees all of it, as a
-guard.
+guard. But its penalty, and the least a move must gain, then count for the share of the words that is fitted on
+(0.51 or 0.49): half the sentences can gain a move half the words, and a search that still charged the bench
+whole would give up half as much there for a word as the search fitted on everything does. It would be a warier
+search than the one it is there to judge, and would say nothing of the moves the other makes that cost the bench
+a little. `--whole-bench` is that warier search: the same as doubling every weight of the bench.
 
 `sweep.py front` sets the weighing aside: of every setting answered so far it lists those that no other beats on
 all three of words wrong on the two sets, listed words spoiled on the bench and unknown words spoiled there. That
