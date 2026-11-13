@@ -15,12 +15,12 @@ Standard library only; downloads nothing. The export is the one tool/next_words.
 (eng_sentences_detailed.tsv.bz2: Tatoeba's English sentences, CC BY 2.0 FR), and the vocabulary is English's word
 lists, so run it after those.
 
-The vocabulary is every list autocorrect reads as English: assets/dict/en.tsv, and assets/dict/en_more.tsv where the
-tree has one (words added to English's list beside wordfreq's, many of them names). `--vocab` names the lists
-instead, one a time it is given: `--vocab android/app/src/main/assets/dict/en.tsv --vocab build/more.tsv`. A list
-is a word a line, with whatever follows a tab (its frequency) left aside and lines that start with # passed over;
-its words are read in lower case. The file's own first lines say which lists it was made over, so `--check` fails
-on a tree whose lists have changed since: make it again.
+The vocabulary is every list autocorrect reads as English: assets/dict/en.tsv, and assets/dict/en_wide.tsv or
+en_more.tsv where the tree has one (words added to English's list beside wordfreq's, many of them names). `--vocab`
+names the lists instead, one a time it is given: `--vocab android/app/src/main/assets/dict/en.tsv --vocab
+build/more.tsv`. A list is a word a line, with whatever follows a tab (its frequency, its marks) left aside and
+lines that start with # passed over; its words are read in lower case. The file's own first lines say which lists
+it was made over, so `--check` fails on a tree whose lists have changed since: make it again.
 
 The rule
 --------
@@ -76,8 +76,9 @@ DICT = os.path.join(ROOT, "android", "app", "src", "main", "assets", "dict")
 OUT = os.path.join(DICT, "en_capitals.txt")
 EXPORT = os.path.join(ROOT, "build", "ngram-src", "eng_sentences_detailed.tsv.bz2")
 CREDITS = os.path.join(ROOT, "android", "app", "src", "main", "assets", "ngram", "CREDITS.txt")
-#: English's word lists, where the tree has them: wordfreq's, and the words added beside it. `--vocab` names others.
-LISTS = [os.path.join(DICT, "en.tsv"), os.path.join(DICT, "en_more.tsv")]
+#: English's word lists, where the tree has them: wordfreq's, and the words added beside it (the wider list, or
+#: the one counted from Tatoeba before it). `--vocab` names others.
+LISTS = [os.path.join(DICT, "en.tsv"), os.path.join(DICT, "en_wide.tsv"), os.path.join(DICT, "en_more.tsv")]
 
 #: As tool/next_words.py: every 20th sentence is held out and never counted.
 HOLD_OUT = 20

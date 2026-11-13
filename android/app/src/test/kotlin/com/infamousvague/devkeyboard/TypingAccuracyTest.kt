@@ -411,10 +411,14 @@ class TypingAccuracyTest {
 
     @Test fun inEveryLanguageButEnglishAskingForNamesChangesNothing() {
         // Every other language the keyboard has a list for, loaded alone on its own board: its commonest words, in
-        // lower case and with a capital, some of English's names and some odd capitals. Asked for names or not, the
-        // answer and the row are the same, because there is no list of names to go by ([Autocorrect.load]).
+        // lower case and with a capital, some of English's names and some odd capitals; and for the five that
+        // tool/lang_check keeps a record of (German, Spanish, French, Italian, Portuguese), every word and slip of that
+        // record. Asked for names or not, the answer and the row are the same, because there is no list of names to
+        // go by ([Autocorrect.load]).
         val odd = listOf("tom", "Tom", "TOM", "monday", "london", "tom's", "i", "i'm", "i'ma", "İrem", "ǅemal", "mondya", "tmo")
+        val golden = listOf("tool/lang_check/golden", "../../tool/lang_check/golden", "../tool/lang_check/golden").map(::File).firstOrNull { it.isDirectory }
         var tried = 0
+        var recorded = 0
         for (language in Languages.ALL) {
             val dict = language.dict ?: continue
             if (language.code == "en") continue
@@ -423,7 +427,11 @@ class TypingAccuracyTest {
             assertTrue(language.code, "en" !in state.dictionaries)
             other.loadNow(state.dictionaries, state.board)
             val common = File(assets, "dict/$dict.tsv").useLines { lines -> lines.take(150).map { it.substringBefore('\t') }.filter { it.isNotEmpty() }.toList() }
-            for (word in common + common.map { w -> w.replaceFirstChar { it.titlecase(state.board.locale) } } + odd) {
+            // What lang_check asks this language alone (its rows of kind c: a word, a slip of one, the start of one).
+            val record = golden?.let { File(it, "${language.code}.tsv") }?.takeIf { it.exists() }?.readLines().orEmpty()
+                .map { it.split('\t') }.filter { it.size >= 2 && it[0] == "c" && it[1].isNotEmpty() }.map { it[1] }
+            recorded += record.size
+            for (word in common + common.map { w -> w.replaceFirstChar { it.titlecase(state.board.locale) } } + odd + record) {
                 assertEquals("${language.code}: $word", other.correct(word), other.correct(word, names = true))
                 val plain = other.suggest(word)
                 val asked = other.suggest(word, names = true)
@@ -434,6 +442,8 @@ class TypingAccuracyTest {
             }
         }
         assertTrue("$tried", tried > 30 * 300)
+        // Where the tools are there to read (a copy of the app's sources alone has no record): all five records were.
+        if (golden != null) assertTrue("$recorded", recorded > 5 * 1500)
     }
 
     // --- the person's own mistakes ----------------------------------------------------------------------------------
