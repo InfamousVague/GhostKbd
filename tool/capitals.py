@@ -6,13 +6,21 @@ in the middle of a sentence (Autocorrect.proper reads the file).
     python3 tool/capitals.py                 # counts, and writes the list
     python3 tool/capitals.py --check         # counts again and fails if the bundled file would change
     python3 tool/capitals.py --bars          # what other bars would keep and cost, on sentences they were not set from
-    python3 tool/capitals.py --held          # the list as bundled, on the held-out sentences
+    python3 tool/capitals.py --held          # the list as bundled, on the held-out sentences the typing bench reads
     python3 tool/capitals.py --word may      # how a word was counted
     python3 tool/capitals.py --export PATH   # the export, where it is not in build/ngram-src/
+    python3 tool/capitals.py --vocab PATH    # a word list to take the vocabulary from; say it again for each list
 
 Standard library only; downloads nothing. The export is the one tool/next_words.py fetches into build/ngram-src/
-(eng_sentences_detailed.tsv.bz2: Tatoeba's English sentences, CC BY 2.0 FR), and the vocabulary is
-assets/dict/en.tsv, so run it after those two.
+(eng_sentences_detailed.tsv.bz2: Tatoeba's English sentences, CC BY 2.0 FR), and the vocabulary is English's word
+lists, so run it after those.
+
+The vocabulary is every list autocorrect reads as English: assets/dict/en.tsv, and assets/dict/en_more.tsv where the
+tree has one (words added to English's list beside wordfreq's, many of them names). `--vocab` names the lists
+instead, one a time it is given: `--vocab android/app/src/main/assets/dict/en.tsv --vocab build/more.tsv`. A list
+is a word a line, with whatever follows a tab (its frequency) left aside and lines that start with # passed over;
+its words are read in lower case. The file's own first lines say which lists it was made over, so `--check` fails
+on a tree whose lists have changed since: make it again.
 
 The rule
 --------
@@ -68,9 +76,15 @@ DICT = os.path.join(ROOT, "android", "app", "src", "main", "assets", "dict")
 OUT = os.path.join(DICT, "en_capitals.txt")
 EXPORT = os.path.join(ROOT, "build", "ngram-src", "eng_sentences_detailed.tsv.bz2")
 CREDITS = os.path.join(ROOT, "android", "app", "src", "main", "assets", "ngram", "CREDITS.txt")
+#: English's word lists, where the tree has them: wordfreq's, and the words added beside it. `--vocab` names others.
+LISTS = [os.path.join(DICT, "en.tsv"), os.path.join(DICT, "en_more.tsv")]
 
 #: As tool/next_words.py: every 20th sentence is held out and never counted.
 HOLD_OUT = 20
+#: `--held` reads the held-out sentences up to this one (a line of build/typing-bench/en-heldout.txt each) and no
+#: further: from the next on they are tool/versus's unseen sets (scoreboard.py's UNSEEN_FIRST), which nothing reads
+#: but the scoreboard's own totals.
+HELD_READ = 100000
 #: A word is kept where it was counted this often in the middle of a sentence, and had its capital this share of
 #: those times: 19 times in 20. See the docstring for why these two.
 MIN_COUNT = 5
@@ -117,23 +131,45 @@ def sentences(path):
                 yield n, cols[2], cols[3]
 
 
-def vocabulary():
+def vocabulary(paths):
+    """The words of the lists at [paths], in lower case: a line a word, what follows a tab left aside, a line that
+    starts with # passed over."""
     words = set()
-    with open(os.path.join(DICT, "en.tsv"), encoding="utf-8") as f:
-        for line in f:
-            words.add(line.split("\t", 1)[0])
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                word = line.split("\t", 1)[0].strip()
+                if word and not word.startswith("#"):
+                    words.add(word.lower())
     return words
+
+
+def listed(paths):
+    """How the file's first lines name the lists at [paths]: assets/dict/en.tsv is wordfreq's, and any other is
+    named beside it, one of the app's by its place among the assets and one from elsewhere by its file's name."""
+    def name(path):
+        full = os.path.abspath(path)
+        return "assets/dict/" + os.path.basename(full) if os.path.dirname(full) == os.path.abspath(DICT) else os.path.basename(full)
+    names = [name(p) for p in paths]
+    first = "assets/dict/en.tsv"
+    if first not in names:
+        return "Vocabulary limited to %s." % " and ".join(names)
+    rest = [n for n in names if n != first]
+    return "Vocabulary limited to the wordfreq list (%s, CC BY-SA 4.0)%s." % (first, " and " + " and ".join(rest) if rest else "")
 
 
 def count(path, part=lambda n: 0):
     """Counts the export: for each part [part] puts a counted sentence in, {word: [lower, capital, other]}; the same
-    for the held-out sentences; who wrote the counted ones; and how many sentences there were."""
+    for the held-out sentences up to the [HELD_READ]th (the rest are passed over unread); who wrote the counted
+    ones; and how many sentences there were."""
     parts = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0]))
     held = collections.defaultdict(lambda: [0, 0, 0])
     users = set()
     total = 0
     for n, text, user in sentences(path):
         total = n
+        if n % HOLD_OUT == 0 and n // HOLD_OUT > HELD_READ:
+            continue
         into = held if n % HOLD_OUT == 0 else parts[part(n)]
         found = middles(text)
         for word, how in found:
@@ -188,8 +224,9 @@ def export_date(path):
         return "unknown"
 
 
-def encode(words, counts, date, digest, total):
-    """The file: what it is and where it is from, then each word as it is written, in the word list's order of letters."""
+def encode(words, counts, date, digest, total, lists):
+    """The file: what it is and where it is from ([lists] are the word lists its vocabulary is), then each word as
+    it is written, in the word list's order of letters."""
     head = [
         "# Words English all but always writes with a capital, each as it is written. Autocorrect gives a name typed",
         "# in lower case its capital from this (Autocorrect.proper). Made by tool/capitals.py in Ghost Keyboard's",
@@ -197,7 +234,7 @@ def encode(words, counts, date, digest, total):
         "#",
         "# Counts derived from Tatoeba (https://tatoeba.org, CC BY 2.0 FR): its English export of %s, %s sentences," % (date, format(total, ",")),
         "# every %dth held out and not counted (sha256 %s)." % (HOLD_OUT, digest),
-        "# Vocabulary limited to the wordfreq list (assets/dict/en.tsv, CC BY-SA 4.0). None of Tatoeba's sentences is here.",
+        "# %s None of Tatoeba's sentences is here." % listed(lists),
         "#",
         "# Kept: a word of the list, of %d letters or more, counted %d times or more straight after another word of its" % (LETTERS, MIN_COUNT),
         "# sentence, and written with a capital %d times in 100 or more. %s words." % (round(SHARE * 100), format(len(words), ",")),
@@ -225,9 +262,19 @@ def main(argv):
         i = args.index("--word")
         word = args[i + 1].lower()
         del args[i:i + 2]
+    lists = []
+    while "--vocab" in args:
+        i = args.index("--vocab")
+        lists.append(args[i + 1])
+        del args[i:i + 2]
+    # Not told which: English's lists as the tree has them.
+    lists = lists or [p for p in LISTS if os.path.exists(p)]
     if not os.path.exists(path):
         sys.exit("capitals: no %s (run: python3 tool/next_words.py en, or give --export PATH)" % path)
-    vocab = vocabulary()
+    missing = [p for p in lists if not os.path.exists(p)]
+    if missing or not lists:
+        sys.exit("capitals: no word list %s" % (" ".join(missing) or LISTS[0]))
+    vocab = vocabulary(lists)
 
     if "--bars" in args:
         # Half the counted sentences against the other half: neither is the held-out twentieth, so a bar is never
@@ -272,15 +319,15 @@ def main(argv):
             n = lower + capital + other
             print("%-9s %s: %d times in the middle of a sentence; lower case %d, with a capital %d (%.1f%%), another way %d" % (
                 name, word, n, lower, capital, 100.0 * capital / max(1, n), other))
-        print("in the word list: %s; kept: %s" % ("yes" if word in vocab else "no", "yes" if word in kept(counts, vocab) else "no"))
+        print("in the word lists (%s): %s; kept: %s" % (" ".join(os.path.basename(p) for p in lists), "yes" if word in vocab else "no", "yes" if word in kept(counts, vocab) else "no"))
         return
     words = kept(counts, vocab)
-    data = encode(words, counts, export_date(path), sha256(path), total)
+    data = encode(words, counts, export_date(path), sha256(path), total, lists)
 
     if "--held" in args:
         bundled = {line.strip().lower() for line in open(OUT, encoding="utf-8") if line.strip() and not line.startswith("#")}
         given, missed, wrong, left, worst = judge(bundled, held)
-        print("the bundled list (%d words) on the held-out sentences, words in the middle of a sentence:" % len(bundled))
+        print("the bundled list (%d words) on the first %s held-out sentences, words in the middle of a sentence:" % (len(bundled), format(HELD_READ, ",")))
         print("  written with a capital: %d; given it: %d (%.1f%%); left without: %d" % (given + missed, given, 100.0 * given / max(1, given + missed), missed))
         print("  written in lower case: %d; given a capital: %d (%.2f in 1000)" % (wrong + left, wrong, 1000.0 * wrong / max(1, wrong + left)))
         print("  most often wrong: %s" % " ".join("%s:%d" % kv for kv in worst.most_common(20)))
@@ -301,7 +348,8 @@ def main(argv):
     if os.path.exists(CREDITS):
         credited = set(open(CREDITS, encoding="utf-8").read().split("\n\n", 1)[-1].strip().split(", "))
     lacking = sorted(users - credited)
-    print("en_capitals.txt: %d words, %d bytes, from %d sentences (%d counted)" % (len(words), len(data), total, total - total // HOLD_OUT))
+    print("en_capitals.txt: %d words, %d bytes, from %d sentences (%d counted); vocabulary: %s (%d words)" % (
+        len(words), len(data), total, total - total // HOLD_OUT, " ".join(os.path.basename(p) for p in lists), len(vocab)))
     print("contributors counted: %d; not named in assets/ngram/CREDITS.txt: %d %s" % (len(users), len(lacking), " ".join(lacking[:20])))
 
 
