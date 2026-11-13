@@ -434,6 +434,8 @@ class TapDecoder(
      * "iculs" is "could" with its c and o in the wrong order and the o tapped on i.
      */
     private fun swap(node: Int, i: Int, cost: Float, omits: Int, inserts: Int, budget: Float, changed: Int) {
+        // Nothing under this node can repay the swap: [walk] would say so of each pair, one look at a time.
+        if (trie.best[node] - cost < floor || cost > budget) return
         val first = typed[i + 1]
         val second = typed[i]
         pair(node, i, first, second, cost, 0f, omits, inserts, budget, changed)
@@ -586,6 +588,27 @@ class TapDecoder(
         const val LONG = 5
         /** A neighbouring key in place of a character that had no tap of its own. */
         @JvmField var NEIGHBOUR = 1.6f
+        /**
+         * A tap too many ([insert]). [INSERT] is a tap of its own, [INSERT_DOUBLED] a second tap on the key typed
+         * before it or after it, and between the two it goes by where the tap landed: [INSERT_DOUBLED] and what
+         * the tap would cost to read as that key, [INSERT] at the most. [INSERT_FIRST] is the word's first tap.
+         * [INSERT_NEAR] was any tap on a key next to its neighbour's, wherever on that key it landed, and is that
+         * still for a character with no tap of its own.
+         *
+         * By where it landed since 2026-11-12. A thumb that taps a letter twice scatters the second tap as it does
+         * any, so "thre" with its r just over the line from e is "the" for little more than "thee" is; and a tap in
+         * the middle of a key next door was being read out of words for 2: "fole" for "file" came out "for", and
+         * "wer" for "wear" came out "we". On the decoder with the short word's reach, the common word's edits and
+         * the lone letter's, before the swap's (the scoreboard's seen and unseen sets, then tool/typing_bench.sh
+         * tune's measure, words right less four for every right word spoiled, on its 12,000 words and on its other
+         * 20,000): 5 words mended and none broken, 9 and 1, 94.13 to 94.22 and 94.36 to 94.47; and fewer right
+         * words spoiled on the 20,000, 1.30 and 1.46
+         * in a thousand to 1.18 and 1.38 for the careful and the normal thumb, the right words no list has 3.1%
+         * and 4.7% to 2.7% and 4.4%. The costs themselves are as they were set. [INSERT] at 3.4 reads better still
+         * (298 words wrong to 295 on the seen set, 405 to 402 on the unseen, 94.30 to 94.36), but the bench's thumb
+         * never adds a tap that is not a letter twice, so neither it nor the sets can say what a stray tap is
+         * worth: not changed here.
+         */
         @JvmField var INSERT = 2.8f
         @JvmField var INSERT_NEAR = 2.0f
         @JvmField var INSERT_DOUBLED = 1.4f
@@ -618,11 +641,83 @@ class TapDecoder(
          * (6.0% to 7.1% for the sloppy one, 1.5% either way for the careful one).
          */
         @JvmField var WHOLE_CHANGE = 2.0f
+        /**
+         * A word of up to [SHORT] letters may be changed by [SHORT_MORE] more than its one change where
+         * [Autocorrect.byTaps] asks ([search]'s reach), and a reading that goes past the one change costs
+         * [SHORT_PAST] more than its slips. One change does not cover a thumb that scatters over a word this
+         * short: "the" comes out "yhw" and "rhd", "you" comes out "yih", "with" comes out "eit" (the h left out
+         * and the w tapped on e), and none of those was read at all: 18 of the 199 words still lost to Gboard on
+         * 2026-11-12 (docs/versus.md). Half a change more reads taps that were, between them, up to a change and
+         * a half from the keys meant; two in the middles of the wrong keys ("tbr" typed squarely) are a change and
+         * three quarters and are still another word.
+         *
+         * Set on the scoreboard's two sets and the bench's tuner together (tool/versus/scoreboard.py; tool/
+         * typing_bench.sh tune, whose measure is words right less four for every right word spoiled, on its 12,000
+         * words and on its other 20,000). On the decoder of 9468bfd with nothing else changed, as words mended and
+         * broken on the seen set, the same on the unseen set, and the two measures (93.76 and 94.13 before): more
+         * 0.25, 9 and 1, 4 and 1, 93.89 and 94.21; more 0.5, 12 and 1, 6 and 2, 93.92 and 94.23; more 0.5 past
+         * 0.5, 11 and 0, 5 and 0, 93.91 and 94.22; more 0.5 past 1, 10 and 0, 5 and 0, 93.89 and 94.20; more 1
+         * past 1, 10 and 0, 5 and 0, 93.92 and 94.21. With nothing to pay, more of the bench's right words that no
+         * list has are spoiled (4.7% to 5.1% for its normal thumb on the 20,000); from half a point up they are
+         * not. Reading past the bound only toward a word of some frequency (5, then 6) did nothing the half point
+         * had not. Four letters and five ([SHORT] 4, 5) gain no word on either set and lose on the bench. In the
+         * tree with the rest of the reach, taking this out leaves 309 words wrong on the seen set for 298, 413 for
+         * 405 on the unseen, and 94.13 and 94.45 for 94.30 and 94.55.
+         */
         @JvmField var SHORT = 3f
         @JvmField var SHORT_MORE = 0.5f
         @JvmField var SHORT_PAST = 0.5f
+        /**
+         * The least a letter left out, a letter tapped twice or two letters swapped costs where the typed letters
+         * spell a common word and [Autocorrect.byTaps] asks ([search]'s reach); from [NEVER] up none is read, as
+         * none was before 2026-11-12. A common word was read as another by slips of the thumb alone, and the lists
+         * hold th, ot, su, tae, ff, ni, ou and soo as common words: they stood for the, to, us, take, off, in, out
+         * and so however likely those were. The plain costs ([SWAP] 1.1, [OMIT_DOUBLED] 1.2, [INSERT_DOUBLED] 1.4)
+         * were set where the typed letters are no word and little competes; against a word the lists hold each is
+         * held to this. A tap that doubles nothing is never taken out of a common word, at any cost: tried, the
+         * bench's "ink" came out "in" three times in 12,000 words.
+         *
+         * Set as [SHORT_MORE] was. On the decoder of 9468bfd with nothing else changed, as words mended and broken
+         * on the seen set, the same on the unseen set and the two measures (93.76 and 94.13 before): no least, 12
+         * and 4, 10 and 2, 93.94 and 94.23; 1.5, 11 and 2, 9 and 1, 93.93 and 94.24; 2, 11 and 2, 9 and 0, 93.92
+         * and 94.23; 2.4, 5 and 1, 7 and 0, 93.84 and 94.19. In the tree with the rest of the reach (298 and 405
+         * words wrong, 94.30 and 94.55): 1.6 leaves 298 and 409; 2.4 leaves 302 and 410, 94.27 and 94.53; never
+         * leaves 308 and 418, 94.09 and 94.41. What it spoils on the bench is "th" made "the" five times and "nd"
+         * made "and" once in 96,000 words typed, which are the bench's own "5th" and "2nd" with their digits
+         * trimmed: the keyboard itself corrects nothing that follows a digit.
+         */
         @JvmField var LISTED_EDIT = 2.0f
+        /**
+         * What a letter left out costs where the word was typed as one letter ("t" for "to", "n" for "in") and
+         * [Autocorrect.byTaps] asks; from [NEVER] up, never. The lists hold every letter as a word about as common
+         * as "ask" (5.34: t is 5.43, s 5.86, o 5.12), which a letter typed by itself is not: of the letters other
+         * than a and i that the scoreboard's two sets typed alone and that were no slip of a or i, 18 were a word
+         * of two letters with one of them gone and 5 were meant. A reading has still to beat the letter as the
+         * common word the lists make it, which at [OMIT] (2) leaves nearly every one standing. 1.4 is an estimate:
+         * what a letter left out costs a thumb (0.4% of letters, 2.4) less about a point, which is how far those
+         * counts put a lone letter under its listed frequency (5 meant in 11,613 words, among some ten letters, is
+         * about 4.6 each).
+         *
+         * In the tree with the rest of the reach (298 and 405 words wrong on the seen and the unseen set, the
+         * bench's measures 94.30 and 94.55): 1.0 leaves 296 and 405, 94.32 and 94.56; 2.0 leaves 298 and 409, 94.26
+         * and 94.51; never leaves 299 and 408, 94.20 and 94.50. The sets hold few letters typed on purpose and the
+         * bench fewer, so the cheaper end is not taken on their word. Two of the words it breaks on the seen set
+         * are [Autocorrect.rejoin]'s to mend: "o" and a tap on the bar's edge was "on", and is "of" now by the
+         * time the next space asks (see docs/versus.md).
+         */
         @JvmField var LONE_OMIT = 1.4f
+        /**
+         * The most that one of two taps in the wrong order may cost to read as a neighbour's key, where
+         * [Autocorrect.byTaps] asks ([swap]); at 0 two letters are swapped letter for letter or not at all, as
+         * before 2026-11-12. A thumb that types two letters in the wrong order scatters no less for it: "iculs" is
+         * "could" with its c and o swapped and the o tapped on i, "conevrned" is "concerned". Never both of the
+         * two: tried, it read the same words.
+         *
+         * In the tree with the rest of the reach (298 and 405 words wrong, 94.30 and 94.55): 0 leaves 302 and 411,
+         * 94.22 and 94.48; 0.5 leaves 299 and 409, 94.28 and 94.53; 1.5 reads the same words as 1 but two. It
+         * spoils one more of the bench's right words that no list has ("nvim" made "nick" by the careful thumb:
+         * 2.7% to 2.9% of 479 on the 20,000).
+         */
         @JvmField var SWAP_SLIP = 1.0f
         /** From this up, [LISTED_EDIT] and [LONE_OMIT] mean never. */
         const val NEVER = 90f
