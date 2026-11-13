@@ -797,10 +797,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                     if (row == null) IntArray(0) else row.keys.mapNotNull { w -> java.util.Arrays.binarySearch(sorted, w).takeIf { it >= 0 } }.toIntArray()
                 },
             )
+            // A thumb read loosely ([Taps.tight] under 1) has its joins' slips counted more tightly than its words'
+            // ([ThumbLean.SPREAD_JOINS]): else letters no list has are split into two words ("mapbox", "map of").
+            val loose = if (ThumbLean.SPREAD_JOINS == 0f) 1f else Math.pow(minOf(1f, spread(now, scorer, taps).tight).toDouble(), ThumbLean.SPREAD_JOINS.toDouble()).toFloat()
             for (j in joins) {
                 val a = sorted[j.first]; val b = sorted[j.second]
                 val first = zipfs[j.first] + lift(a, zipfs[j.first])
-                offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - j.cost, joinBar)
+                offer(capitalI(now, a) + " " + capitalI(now, b), first + worth(j.first, j.second) - 9f - (if (loose == 1f) j.cost else j.cost / loose), joinBar)
             }
         }
         return bestWord?.let { Fix(if (' ' in it) it else capitalI(now, it), true) }

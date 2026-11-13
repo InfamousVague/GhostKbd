@@ -240,8 +240,14 @@ class ThumbLean {
         @JvmField var SPREAD_TAPS = 4f
 
         /** The least and the most SPATIAL is read with, however widely or closely the taps fall. */
-        @JvmField var SPREAD_LOW = 0.5f
+        @JvmField var SPREAD_LOW = 0.9f
         @JvmField var SPREAD_HIGH = 3f
+
+        /**
+         * How much of the loosening two words run together are spared: their slips' cost is divided by [Taps.tight]
+         * (where under 1) to this power. 1: they are read as tightly as SPATIAL as it stands; 0: as loosely as words.
+         */
+        @JvmField var SPREAD_JOINS = 1f
 
         /** For measuring, and nothing: a SPATIAL to read every word with in place of the estimate's (the ceiling runs). */
         @JvmField var SPREAD_FIXED = 0f
