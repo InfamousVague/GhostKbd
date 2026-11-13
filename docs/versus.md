@@ -403,9 +403,10 @@ two ("Amenas" read as "one as": its bottom row's taps were read as nearer the ba
 **Not measured.** People: these are simulated thumbs whose lean is the same on every key, and `ODDS` is a belief
 about how many people lean that only recorded typing can settle. A phone: the service's part is held to its
 source by `ThumbLeanTest` and modelled by the Typist, but no build of it has been typed on. Speed, properly: the
-bench's time a word was read on a Mac with a load average near 200, where two passes of the tree before this gave
-626, 873, 1055 and 363, 551, 1008 µs a word for its three thumbs, and two of this tree 539, 811, 941 and 350, 669,
-806; the work added is one more pass over the keys for each tap of a word read by a lean.
+bench's time a word was read on a Mac with a load average of 50 to 200, where it swings by half from one pass to
+the next. The fastest of five passes of the tree before this was 196, 303 and 495 µs a word for the bench's three
+thumbs, and the fastest of six of this tree 197, 299 and 412: no difference that could be measured there. The work
+added is one more pass over the keys for each tap of a word read by a lean, and a word's taps summed once.
 
 ### What the thumb had done
 
