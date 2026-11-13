@@ -392,6 +392,18 @@ class Sweep:
             self.asked, self.seconds = 0, 0.0
 
 
+def guarded(sw, args, base):
+    """The answer the bench's penalty is counted against: the tree's own, or with --guard SETTING that setting's
+    bench and misspellings (the sets stay the tree's). A search then gains nothing by spoiling up to the tree's
+    count where the guard spoils fewer."""
+    if not getattr(args, "guard", None):
+        return base
+    g = sw.ask(sw.parse(args.guard))
+    out = dict(base)
+    out["bench"], out["misspellings"] = g["bench"], g["misspellings"]
+    return out
+
+
 class Objective:
     """What a search makes small: see this file's opening. [base] is the tree's own answer; [fit], where a half is
     held out, says for each set which words are fitted on.
@@ -555,7 +567,7 @@ def cmd_sets(sw, args):
 def cmd_line(sw, args):
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit, args.whole_bench)
+    obj = Objective(args.weights, guarded(sw, args, base), fit, args.whole_bench)
     for text in args.settings or ["-"]:
         setting = sw.parse(text)
         answer = sw.ask(setting)
@@ -602,7 +614,7 @@ def cmd_grid(sw, args):
     fixed = sw.parse(args.with_setting or "-")
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit, args.whole_bench)
+    obj = Objective(args.weights, guarded(sw, args, base), fit, args.whole_bench)
     axes = [values_of(sw, spec) for spec in args.dials]
     print("objective: " + obj.said())
     if fixed:
@@ -643,7 +655,7 @@ def cmd_scan(sw, args):
     fixed = sw.parse(args.with_setting or "-")
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit, args.whole_bench)
+    obj = Objective(args.weights, guarded(sw, args, base), fit, args.whole_bench)
     start = sw.ask(fixed)
     print("objective: " + obj.said())
     print(table_head("a step of %s either way" % fmt(args.step), 34, obj))
@@ -773,7 +785,7 @@ def cmd_search(sw, args):
     dials = search_dials(sw, args)
     base = sw.ask({})
     fit = sw.sets.halves(args.holdout, args.other_half) if args.holdout is not None else None
-    obj = Objective(args.weights, base, fit, args.whole_bench)
+    obj = Objective(args.weights, guarded(sw, args, base), fit, args.whole_bench)
     x = sw.parse(args.from_setting or "-")
     here = sw.ask(x)
     best = obj.of(here)
@@ -920,7 +932,7 @@ def cmd_front(sw, args):
     list has spoiled there. The objective is one way to weigh those against each other; this is the choice itself,
     as far as the settings tried so far show it (a search's path, not the whole space)."""
     base = sw.ask({})
-    obj = Objective(args.weights, base)
+    obj = Objective(args.weights, guarded(sw, args, base))
     rows = []
     for key, a in sw.cache.items():
         if "sets" in a and "bench" in a:
@@ -1020,6 +1032,7 @@ def main():
     ap.add_argument("--other-half", action="store_true")
     ap.add_argument("--whole-bench", action="store_true", help="with --holdout: count the bench's penalty whole, not for the share of the words fitted on")
     ap.add_argument("--weights", type=weights, default=dict(WEIGHTS))
+    ap.add_argument("--guard", metavar="SETTING", help="the setting whose bench the penalty is counted against, in place of the tree's")
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--bench-words", type=int, default=12000)
     ap.add_argument("--overlay")
