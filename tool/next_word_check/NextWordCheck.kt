@@ -254,6 +254,8 @@ private fun bundled(root: File) {
         var n = 0
         var first = ""
         var twos = 0
+        var ones = 0
+        var counted = 0
         f.useLines { lines ->
             lines.drop(1).forEach { line ->
                 val key = line.substringBefore('\t')
@@ -263,12 +265,16 @@ private fun bundled(root: File) {
                     bad++; if (first.isEmpty()) first = key
                 }
                 var rest = line.substringAfter('\t')
-                if (parts.size == 2) {
-                    twos++
+                if (parts.size == 2) twos++ else ones++
+                // A one-word context may open with "=n" too, how often its word was seen: all of a table's, or none.
+                if (parts.size == 2 || rest.startsWith('=')) {
+                    if (parts.size == 1) counted++
                     val seen = rest.substringBefore(' ').takeIf { it.startsWith('=') }?.drop(1)?.toIntOrNull()
                     if (seen == null || seen < 1) { bad++; if (first.isEmpty()) first = "$key without its =n" }
                     t.seen(key).let { if (it != (seen ?: 0)) { bad++; if (first.isEmpty()) first = "$key read as seen $it" } }
                     rest = rest.substringAfter(' ')
+                } else if (t.seen(key) != 0) {
+                    bad++; if (first.isEmpty()) first = "$key read as seen ${t.seen(key)}, and its row does not say"
                 }
                 for (part in rest.split(' ')) {
                     val shown = part.substringBeforeLast(':')
@@ -281,6 +287,9 @@ private fun bundled(root: File) {
         same(n, t.pairs, "$code: every pair was read")
         same(t.contexts, f.useLines { it.count() } - 1, "$code: every context was read ($twos of two words)")
         check(bad == 0) { "$code: $bad entries are not words of its list (the first: $first)" }
+        check(counted == 0 || counted == ones) { "$code: its one-word rows all say how often their word was seen, or none does ($counted of $ones)" }
+        check(t.counted == (counted == ones)) { "$code: the table knows whether its one-word rows are counted (${t.counted})" }
+        if (code == "en") check(counted == ones) { "en: every one-word row says how often its word was seen ($counted of $ones)" }
         check(t.pairs >= 5_000) { "$code has at least 5,000 pairs (${t.pairs})" }
         var start = 0
         t.followers(NextWordText.START) { _, _, _ -> start++ }

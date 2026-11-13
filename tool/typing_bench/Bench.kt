@@ -298,12 +298,12 @@ fun taps(root: File) {
     }
 }
 
-/** A cost by name ("A.UNKNOWN" is Autocorrect's, "T.OMIT" is TapDecoder's), for trying others. */
+/** A cost by name ("A.UNKNOWN" is Autocorrect's, "S.UNLISTED" is Scorer's, "T.OMIT" is TapDecoder's), for trying others. */
+fun costClass(name: String): Class<*> = when { name.startsWith("A.") -> Autocorrect::class.java; name.startsWith("S.") -> Scorer::class.java; else -> TapDecoder::class.java }
 fun setCost(name: String, value: Float) {
-    val cls = if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java
-    cls.getField(name.substring(2)).setFloat(null, value)
+    costClass(name).getField(name.substring(2)).setFloat(null, value)
 }
-fun getCost(name: String): Float = (if (name.startsWith("A.")) Autocorrect::class.java else TapDecoder::class.java).getField(name.substring(2)).getFloat(null)
+fun getCost(name: String): Float = costClass(name).getField(name.substring(2)).getFloat(null)
 
 fun sample(kb: Keyboard, all: Sentences, from: Int, limit: Int, seed: Long): Pair<List<List<String>>, Set<String>> {
     val oovList = UNKNOWN_WORDS.filter { !kb.ac.isWord(it) }.distinct()
@@ -911,7 +911,8 @@ fun turns(root: File) {
 
 fun main(args: Array<String>) {
     val root = File(args.getOrNull(0) ?: ".")
-    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); setCost(k, v.toFloat()) }
+    // A number, or a switch by its name ("A.HERE=false").
+    System.getProperty("set")?.split(',')?.forEach { val (k, v) = it.split('='); if (v == "true" || v == "false") costClass(k).getField(k.substring(2)).setBoolean(null, v.toBoolean()) else setCost(k, v.toFloat()) }
     when (args.getOrNull(1) ?: "all") {
         "taps" -> taps(root)
         "tune" -> tune(root)

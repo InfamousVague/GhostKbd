@@ -287,6 +287,11 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     var unhandled = 0
     /** What autocorrect did, a word at a time: "typed>stood" where it changed one. */
     val fixes = ArrayList<String>()
+    /**
+     * Told each word autocorrect was asked about, the text before it and what it made of it (null: left): for `why`.
+     * Two scraps it was asked to put together again are told as one, with the space between them.
+     */
+    var asked: ((word: String, before: String, fixed: String?) -> Unit)? = null
 
     private fun isWordChar(c: Char) = Words.isWordChar(c, joiners)
 
@@ -377,6 +382,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             cut = null
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
                 val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))
+                asked?.invoke(c.typed + " ", text.dropLast(c.stood.length + 1).takeLast(96).toString(), whole)
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - c.stood.length - 1)
@@ -428,6 +434,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         // The word before this one ended at a tap on the bar that may have been a letter of one word, this its end.
         if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + " " + word)) {
             val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(c.stood.length + 1 + word.length), tapsAcross(c.touches, c.tap, wordTouches))
+            asked?.invoke(c.typed + " " + word, text.dropLast(c.stood.length + 1 + word.length).takeLast(96).toString(), whole)
             if (whole != null) {
                 fixes += "${c.stood}_$word>$whole"
                 text.setLength(text.length - c.stood.length - 1 - word.length)
@@ -437,6 +444,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
         val fixed = decoder.ac.correct(word, scorer, tapsFor(word))
+        asked?.invoke(word, before.dropLast(word.length), fixed)
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch
         if (separator == " " && bar != null) cut = Cut(word, fixed ?: word, wordTouches.toList(), bar)
@@ -547,6 +555,52 @@ fun replay(root: File, all: List<String>) {
     System.err.println("replayed $n sentences")
 }
 
+/**
+ * `why`: replay's lines in, each with a word that was meant after a second tab ("<id> TAB <events> TAB <meant>"),
+ * and out, for every word of the sentence autocorrect was asked about, what Autocorrect.byTaps weighed
+ * (Autocorrect.TRACE): a line "<id> TAB <typed> TAB <what stands> TAB <the text before>", then a line a reading,
+ * each begun with a tab, the meant word's own among them whether or not the search came by it. tool/versus/why.py
+ * picks out the word it asked about.
+ */
+fun why(root: File, all: List<String>) {
+    val args = ArrayList<String>()
+    var recorded: File? = null
+    var i = 0
+    while (i < all.size) {
+        when {
+            all[i] == "--set" -> { dial(all[i + 1]); i++ }
+            all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
+            !all[i].startsWith("--") -> args += all[i]
+        }
+        i++
+    }
+    val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
+    val decoder = Decoder(root)
+    val told = ArrayList<String>()
+    Autocorrect.TRACE = { told += it }
+    var line = readLine()
+    while (line != null) {
+        val f = line.split('\t')
+        if (f.size >= 2) {
+            Autocorrect.TRACE_MEANT = f.getOrNull(2)?.takeIf { it.isNotEmpty() }
+            val typist = Typist(b, decoder)
+            typist.asked = { word, before, fixed ->
+                println(f[0] + "\t" + word + "\t" + (fixed ?: word) + "\t" + before)
+                told.forEach { println("\t" + it) }
+                told.clear()
+            }
+            for (e in f[1].split(' ')) {
+                val g = e.split(':')
+                when (g.getOrNull(0)) {
+                    "T" -> typist.tap(g[1].toFloat(), g[2].toFloat(), g[3].toLong())
+                    "M" -> typist.mark(e.substring(2, 3)[0])
+                }
+            }
+        }
+        line = readLine()
+    }
+}
+
 fun main(args: Array<String>) {
     val root = File(args.getOrNull(0) ?: ".")
     val rest = args.drop(2)
@@ -554,6 +608,7 @@ fun main(args: Array<String>) {
         "geometry" -> geometry(root, rest)
         "probes" -> probes(root, rest)
         "replay" -> replay(root, rest)
-        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay ..."); kotlin.system.exitProcess(2) }
+        "why" -> why(root, rest)
+        else -> { System.err.println("usage: Replay <repo root> geometry|probes|replay|why ..."); kotlin.system.exitProcess(2) }
     }
 }
