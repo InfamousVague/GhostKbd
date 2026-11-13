@@ -350,7 +350,7 @@ After review (2026-11-13), with nothing in English reading differently (seen 291
   sources (MainActivity and BuildConfig stubbed) against the SDK's `android.jar` and Gradle's cached jars, without
   Gradle; it is not a build.
 - **The mirror is the service's.** The `Typist` now rejoins after a closing mark only for `.,!?;:` and only where
-  what stands before the scraps ends in no letter, digit or `@#/._-\:$`'’`, as `rejoined` does; the 900 typings
+  what stands before the scraps ends in no letter, digit or `` @#/._-\:$`'’ ``, as `rejoined` does; the 900 typings
   read the same either way.
 - **Two spaces after a sentence** arm the service's `Cut` with no first scrap, so the next word is offered to
   `rejoin`. A test holds that fifteen words that stand (ice, all, and, one, ever, ...) are left under each of c v b
