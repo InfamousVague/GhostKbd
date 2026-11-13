@@ -267,6 +267,7 @@ and typed again).
 | --- | ---: | ---: | ---: | ---: |
 | Gboard, the run's 900 typings (5,205 words) | 1.84% | 3.23% | 6.40% | 3.82% (199) |
 | Gboard, the 900 unseen typings (6,408 words) | 1.64% | 2.39% | 6.32% | 3.45% (221) |
+| Gboard, the 900 final typings (6,609 words) | 1.45% | 3.09% | 4.90% | 3.15% (208) |
 | Ghost Keyboard's decoder at bbd0877, the run's | 2.48% | 5.42% | 10.89% | 6.26% (326) |
 | Ghost Keyboard's decoder at bbd0877, unseen | 3.28% | 5.01% | 12.17% | 6.82% (437) |
 
@@ -278,8 +279,13 @@ set's from them.
 
 A third set was to be kept for the end ("final"). Its place had been given as line 110,001 of the held-out file,
 which has 102,028 lines: the set was empty, and nothing was ever typed from it. It is now the 300 sentences from
-line 101,001 on; a set with fewer sentences than asked for is an error in `run.py` and in `scoreboard.py --final`;
-and Gboard is given it as the unseen set was.
+line 101,001 on, and a set with fewer sentences than asked for is an error in `run.py` and in
+`scoreboard.py --final`. Gboard was given it that evening as the unseen set was (20 typings thrown away for a stall
+and typed again; records in `tool/versus/runs/other-sets/final`): 3.15% of words wrong, 208 of 6,609. Ghost
+Keyboard's decoder has not been run on it and will not be until the work is done: no change is to be chosen by
+what it does there, and only its totals are read. Gboard's three figures (3.82%, 3.45%, 3.15%) are also a measure
+of how much a set of 300 sentences moves a keyboard's score by itself: two thirds of a point between the best and
+the worst of three.
 
 ### What the thumb had done
 
