@@ -277,23 +277,26 @@ those, so a real name is worth far more than its letters say ("thandiwe" -6.3, "
 letters say cannot tell a misspelling from a name at all.
 
 **So the table only ever lowers a bar, and counts for part of what it says.** `unlisted` is the lesser of the fixed
-bar and 9 + log10 of the share, plus `LETTERS_SHIFT` (0.75), less `LETTERS_WEIGHT` (0.6) times what the letters
+bar and 9 + log10 of the share, plus `LETTERS_SHIFT` (1; 0.75 until the review of 2026-11-13, below), less `LETTERS_WEIGHT` (0.6) times what the letters
 cost. Where the table has its say `odd` has none (`LETTERS_ODD` 0): `UNKNOWN_LONG` from six letters and `UNKNOWN`
 under six are the bars it lowers.
 
 | | careful | leaning | sloppy | all | Mended | Broken |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | the run's 900 typings, before | 2.5% | 5.4% | 10.9% | 6.3% (326) | | |
-| after | 2.4% | 4.7% | 9.1% | 5.4% (281) | 50 | 5 |
+| after | 2.4% | 4.7% | 9.4% | 5.5% (287) | 45 | 6 |
 | the 900 unseen typings, before | 3.3% | 5.0% | 12.2% | 6.8% (437) | | |
-| after | 3.2% | 4.5% | 10.2% | 6.0% (384) | 56 | 3 |
+| after | 3.3% | 4.5% | 10.4% | 6.1% (391) | 50 | 4 |
 
-On 12,000 of the bench's own words, careful, normal and sloppy: words right 96.41%, 92.34% and 85.65% to 96.53%,
-93.02% and 87.37%; right words spoiled 1.22, 1.48 and 1.65 in a thousand to 1.32, 1.48 and 1.24; the right words
-no list has that are spoiled 1.5%, 4.3% and 7.1% to 1.5%, 4.3% and 4.8%; two words run together and parted 60.0%,
-61.5% and 56.4% to 63.3%, 71.8% and 67.6% (two words must be worth the lesser of the bar and `JOIN_BAR`, 0, and
+On 12,000 of the bench's own words, careful, normal and sloppy: words right 96.41%, 92.34% and 85.65% to 96.51%,
+92.98% and 87.20%; right words spoiled 1.22, 1.48 and 1.65 in a thousand to 1.01, 1.21 and 1.03; the right words
+no list has that are spoiled 1.5%, 4.3% and 7.1% to 0.8%, 3.0% and 3.6%; two words run together and parted 60.0%,
+61.5% and 56.4% to 63.3%, 71.8% and 66.8% (two words must be worth the lesser of the bar and `JOIN_BAR`, 0, and
 two words run together with a slip in them are letters worth less than nothing by the table); misspellings mended
-232 of 264 to 235. Of the 199 words still lost to Gboard 155 are left (`fixtures.py --still`), and 40 of the 55
+232 of 264, as before. Of the slips the bench mends, more go to the wrong word: 3.4%, 4.0% and 5.1% of them to
+3.5%, 4.3% and 5.4% (a string that stood as typed now gives way to a reading, and the reading is sometimes another
+word), while 83.1%, 83.2% and 80.4% of slips are mended for 83.3%, 84.0% and 82.0%. The figures in the rest of
+this paragraph are for the shift of 0.75 it first stood at. Of the 199 words still lost to Gboard 155 are left (`fixtures.py --still`), and 40 of the 55
 that stood behind the bars: 18 of those meant a word no list has (stammer, crawlspace, rednecks, coffered), 15 are
 strings of five letters or fewer, which the table leaves at `UNKNOWN` or near it ("crah", "redi", "whiby"), and 7
 are longer strings it still makes worth more than the reading ("archerh", "donsted", "slaughtwres").
@@ -310,15 +313,21 @@ three points for all the misspellings.
 | 2.25 | 5.80% (302) | 32, 8 | 6.43% (412) | 36, 11 | 96.46, 92.71, 86.58 | 0.81, 0.94, 1.03 | 0.0%, 1.8%, 3.6% | 232 | 94.33 |
 | 1.75 | 5.71% (297) | 36, 7 | 6.30% (404) | 41, 8 | 96.48, 92.86, 86.81 | 0.81, 0.94, 1.03 | 0.0%, 1.8%, 3.6% | 232 | 94.46 |
 | 1.25 | 5.55% (289) | 43, 6 | 6.16% (395) | 47, 5 | 96.50, 92.95, 87.05 | 0.91, 0.94, 1.03 | 0.4%, 1.8%, 3.6% | 232 | 94.57 |
-| 1 | 5.51% (287) | 45, 6 | 6.10% (391) | 50, 4 | 96.51, 92.98, 87.20 | 1.01, 1.21, 1.03 | 0.8%, 3.0%, 3.6% | 232 | 94.60 |
-| **0.75** | 5.40% (281) | 50, 5 | 5.99% (384) | 56, 3 | 96.53, 93.02, 87.37 | 1.32, 1.48, 1.24 | 1.5%, 4.3%, 4.8% | 235 | 94.64 |
+| **1** | 5.51% (287) | 45, 6 | 6.10% (391) | 50, 4 | 96.51, 92.98, 87.20 | 1.01, 1.21, 1.03 | 0.8%, 3.0%, 3.6% | 232 | 94.60 |
+| 0.75 | 5.40% (281) | 50, 5 | 5.99% (384) | 56, 3 | 96.53, 93.02, 87.37 | 1.32, 1.48, 1.24 | 1.5%, 4.3%, 4.8% | 235 | 94.64 |
 | 0.5 | 5.28% (275) | 55, 4 | 5.93% (380) | 61, 4 | 96.52, 93.09, 87.42 | 1.52, 1.61, 1.45 | 2.3%, 4.9%, 6.0% | 235 | 94.64 |
 | 0.25 | 5.19% (270) | 58, 2 | 5.87% (376) | 63, 2 | 96.53, 93.18, 87.55 | 1.93, 2.02, 1.65 | 3.8%, 6.7%, 7.1% | 235 | 94.62 |
 | -0.25 | 5.11% (266) | 62, 2 | 5.74% (368) | 71, 2 | 96.50, 93.32, 87.79 | 3.04, 2.96, 3.31 | 8.0%, 11.0%, 16.7% | 241 | 94.52 |
 | -0.75 | 4.88% (254) | 76, 4 | 5.63% (361) | 79, 3 | 96.47, 93.21, 87.92 | 4.26, 5.65, 4.96 | 11.8%, 21.3%, 25.0% | 241 | 94.07 |
 | -1.25 | 4.86% (253) | 78, 5 | 5.63% (361) | 85, 9 | 96.37, 93.18, 87.99 | 6.29, 7.67, 6.41 | 18.3%, 29.9%, 32.1% | 241 | 93.59 |
 
-- **Where it stands.** 0.75 is where the bench's measure is highest (flat from 1 to 0.25), and the least shift at
+- **Where it stands (2026-11-13).** 1: the least shift tried at which no thumb spoils more right words, nor more
+  of the right words no list has, than the fixed bars do, on the bench's own words and on the tuner's own stretch
+  that the shift was not set on (next but one). On that stretch: words right 96.63%, 93.04% and 87.09% for 96.49%,
+  92.72% and 86.21% without the table; right words spoiled 0.99, 1.14 and 1.36 in a thousand for 1.18, 1.30 and
+  1.49; unknown words spoiled 2.5%, 4.0% and 5.5% for 3.1%, 4.7% and 6.2%; measure 94.62 for 94.13. It leaves six
+  more of the seen set's words wrong than 0.75 and seven more of the unseen set's.
+- **Where it stood first.** 0.75 is where the bench's measure is highest (flat from 1 to 0.25), and the least shift at
   which the right words no list has are spoiled no more often than the fixed bars spoil them. From 1 up no line of
   the bench is worse than the tree before, with 39 fewer words wrong on the seen set and 46 fewer on the unseen
   one. Below 0.75 a quarter of a unit buys some six words of the seen set's 5,205 and costs four, then eight, of
@@ -377,6 +386,24 @@ three points for all the misspellings.
   Ziri, Yanni and Skura). The listed words' own spelling counted in costs 1.056 and changes little (5.42% and
   6.05% at 0.75).
 
+**Reviewed 2026-11-13.**
+
+- *With prediction off.* There is no Scorer then (nor in a terminal, nor where the words before give no place to
+  read from), and that path is to behave as it did. The table has no say there (`LETTERS_UNSCORED` 0, and
+  `LetterModelTest.withPredictionOffTheFixedBarsAloneSay` holds it): the bench typed with no Scorer at all
+  (`-Dscorer=none`, `scoreboard.py --java=-Dscorer=none --bench`) gives the tree before to the last figure, 95.90%,
+  90.88% and 82.78% of words right. With the table let in there (`LETTERS_UNSCORED` 1) it would be 96.04%, 91.66%
+  and 84.73%; right words spoiled 1.01, 1.48 and 1.45 in a thousand to 1.12, 1.35 and 1.03; unknown words spoiled
+  1.5%, 4.3% and 7.1% to 1.5%, 3.7% and 4.8%; slips to the wrong word 4.1%, 4.6% and 6.0% to 4.2%, 4.9% and 6.5%;
+  misspellings 232 to 235 (measured at the shift of 0.75). Better by most lines, worse for the careful thumb's right
+  words: whoever owns that rule can choose.
+- *Joins.* The bench's joins (two words run together, parted) rise with the table, 60.0%, 61.5% and 56.4% to 63.3%,
+  71.8% and 66.8%, and the bench never calls `rejoin`: a run-together string is letters no list has, held by
+  `byTaps` to what the table says, so the reading of two words wins more often. That is this track's bar, not the
+  joins' code. `rejoin`'s own scraps are held to the table too, and `LETTERS_JOINS` 0 puts them back on the fixed
+  bars: the scoreboard's two sets give the same words to the last one either way (0 mended, 0 broken).
+- *Slips to the wrong word* rise a little on every thumb (above): a cost beside the slips mended.
+
 **The six right words** the tree changed are changed still: berber (to never, better and barber), yurt, dialled,
 knifed, envies and nan, and on the unseen set gabble, trill and incas. The table never raises a bar, so nothing
 it says can keep them. They want a list that has them.
@@ -387,7 +414,10 @@ the search, which looks further where the bar is lower. By the processor time of
 267 and 385 microseconds a word for the careful, normal and sloppy thumb before, 165, 292 and 446 after, which is
 4%, 9% and 16% more. Two more runs said 3%, 9% and 16%, and 6%, 10% and 18%. The Mac was busy and the clock's own
 figure (the bench's "µs a word") moved by half from run to run, so it is not given. A floor gives little of the
-time back: in one process, 161, 280 and 430 with none, 161, 272 and 421 with -4, 162, 275 and 417 with -2.
+time back: in one process, 161, 280 and 430 with none, 161, 272 and 421 with -4, 162, 275 and 417 with -2. At the
+shift of 1 (2026-11-13, the same harness, the least of five rounds, the table off and on by turns in one process):
+69, 113 and 162 microseconds a word without the table, 72, 127 and 188 with it, 4%, 12% and 16% more. The Mac was
+busier than before and the rounds moved by a third; separate processes, one tree each, moved by half or more.
 
 The bench's unknown words are spoiled as often as before, and they are other words: "gyatt" to hyatt went from 8
 times to 1 and "kekw" to like from 3 to none, which `odd` had held cheap; "ghostmd" to ghosts (4 times), "piotr" to
