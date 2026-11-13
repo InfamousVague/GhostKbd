@@ -688,16 +688,26 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * [known] is how common the typed word itself is, where the lists have it, and [stands] the word it stands as
      * (itself, or the contraction it is typed for: "im" stands as "i'm").
      *
-     * Every reading is worth its word's frequency, plus what the words before lift it by (at most [CONTEXT_PICK]),
-     * less what its slips cost. The typed word is one of the readings, with no slips:
+     * Every reading is worth what its word is worth at this place in the sentence, less what its slips cost. Where
+     * a starter table has a row for the words before, a word is worth how likely it is after them ([atPlace],
+     * [Scorer.Here]): its frequency where no row bears on it, more where a row lists it ("you" after "thank"), and
+     * less where it is a common word the rows there do not list ("is" after "about"). Where no table has a row, or
+     * prediction is off, it is worth its frequency plus what the words before lift it by (at most [CONTEXT_PICK]),
+     * as it was before the place was read at all. The typed word is one of the readings, with no slips, and is
+     * held the same way: a common word in a place it all but never stands is cheap to replace, and one the place
+     * expects is dear.
      * - a word no list has is worth [UNKNOWN], or [UNKNOWN_ODD] where it does not look like a word at all ([odd]):
      *   any reading worth more replaces it;
-     * - a rare listed word gives way to a reading worth [MARGIN_RARE] more than it;
-     * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one, and only by slips of
-     *   the thumb: "br" with its r tapped on the line between e and r is "be", and with the r tapped in the middle
-     *   of its key it is "br".
-     * The readings are the lists' words ([TapDecoder.search]), the person's own, and two words run together
-     * ([TapDecoder.joins], worth at least [JOIN_BAR]) where the typed one is no common word.
+     * - a rare listed word gives way to a word [RARE_GAP] commoner (at a place: likelier there) that is a slip or a
+     *   misspelling away, and at a place to any reading worth [HERE_RARE] more than it;
+     * - a common word gives way only to one worth [MARGIN_COMMON] more, about a hundred to one ([HERE_COMMON] at a
+     *   place), and only by slips of the thumb: "br" with its r tapped on the line between e and r is "be", and
+     *   with the r tapped in the middle of its key it is "br". At a place it may also be a word the rows list
+     *   there with a letter missed, added or swapped ([LISTED_EDITS]).
+     * The readings are the lists' words ([TapDecoder.search]), the words the rows list at the place (each held up
+     * against the taps: the search goes by frequency, and would pass over a word that is rare and likely here),
+     * the person's own, and two words run together ([TapDecoder.joins], worth at least [JOIN_BAR]) where the typed
+     * one is no common word. A join's second word is worth how likely it is after the first ([Scorer.after]).
      */
     /** A reader of taps over the lexicon in use: a letter's key is its own, or its plain letter's where the board keeps it behind a long-press. */
     private fun tapDecoder(now: Now, taps: Taps): TapDecoder {
@@ -746,8 +756,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // there, and a reading that is not so much likelier may still outdo it by [HERE_RARE].
         // A word no list has, with an ending of its own (chanced, dueled), is a word: only a far likelier reading takes it.
         fun needs(word: String, zipf: Float, worth: Float, cost: Float): Float = when {
-            rare && here == null -> if (zipf >= known!! + RARE_GAP) Float.NEGATIVE_INFINITY else Float.POSITIVE_INFINITY
-            rare -> if ((if (X_GAP_OWN) zipf >= known!! + RARE_GAP else worth >= stood + RARE_GAP) && cost <= RARE_BUDGET) Float.NEGATIVE_INFINITY else bar
+            known != null && rare && here == null -> if (zipf >= known + RARE_GAP) Float.NEGATIVE_INFINITY else Float.POSITIVE_INFINITY
+            rare -> if (worth >= stood + RARE_GAP && cost <= RARE_BUDGET) Float.NEGATIVE_INFINITY else bar
             known == null && unknown < UNKNOWN && inflected(words, lower, word) -> UNKNOWN
             else -> bar
         }
@@ -766,13 +776,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // The words the rows list as followers here, each held up against the taps: the search below goes by how
         // common a word is, and would pass over one that is rare and likely here ("straits" after "dire"). They are
         // few (a row has at most 160), and one whose worth cannot pay for its slips is let go at its first letters.
-        if (here != null && HERE_LISTED) here.listed { word ->
+        val letters = bare(script, lower)
+        here?.listed { word ->
             val zipf = words[word] ?: return@listed
             if (word == lower || word == stands || kotlin.math.abs(word.length - lower.length) > 2) return@listed
-            if (common && !X_EDITS && word.length != lower.length) return@listed
+            if (common && !LISTED_EDITS && word.length != lower.length) return@listed
             val w = worth(word, zipf)
             val room = minOf(w - bestScore, w - needs(word, zipf, w, 0f))
             if (room <= 0f) return@listed
+            if (LISTED_REACH && !inReach(letters, word, script)) return@listed
             val cost = decoder.align(word, 0, minOf(budget, room))
             if (cost.isInfinite()) return@listed
             val plain = script.plain(word)
@@ -784,9 +796,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // Every other word, found by how common it is: one no row lists is worth that here, or less.
         val reach = if (here != null || scorer == null) 0f else CONTEXT_PICK
         val floor = when {
-            rare && here == null -> known!! + RARE_GAP - budget
-            rare -> maxOf(minOf(stood + RARE_GAP - RARE_BUDGET, bar), bestScore) - reach
-            here != null -> maxOf(bar, bestScore) - reach
+            known != null && rare && here == null -> known + RARE_GAP - budget
+            rare -> maxOf(minOf(stood + RARE_GAP - RARE_BUDGET, bar), bestScore)
+            here != null -> maxOf(bar, bestScore)
             else -> bar - reach
         }
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
@@ -942,7 +954,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val trace = TRACE
         trace?.invoke("cut in two, $first and ${second.ifEmpty { "nothing" }}: as it stands ($stands) worth $one" + (if (second.isEmpty()) "" else " and $then after it, $asItStands in all") + "; one word needs $bestScore")
         // The words the rows list here, each held up against the taps, as [byTaps] holds them.
-        if (here != null && HERE_LISTED) here.listed { word ->
+        here?.listed { word ->
             val zipf = words[word] ?: return@listed
             val w = worth(word, zipf)
             if (w <= bestScore || kotlin.math.abs(word.length - typed.length) > 2) return@listed
@@ -965,13 +977,57 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
     /**
      * What [word], of frequency [zipf], is worth at a place the tables have a row for, against the other readings
-     * there. A word no row lists or holds down is worth its own frequency, exactly: every such word gains or loses
-     * the same from how much room the place has for unlisted words, so nothing is counted for it. Any other word is
-     * worth what the place makes it likelier or less likely by ([Scorer.Here.worth] over its frequency), counted
-     * [HERE_WEIGHT] times, with the room a plain word has there ([Scorer.Here.room]) counted [HERE_ROOM] times.
+     * there, in Zipf units. A word no row lists or holds down is worth its own frequency, exactly. Every such word
+     * is likelier or less likely there by the same amount (how much room the place leaves for words its rows do not
+     * list, [Scorer.Here.room]), and so are letters no list has, so that amount is left out of every word's worth:
+     * what [unlisted] makes letters worth against plain frequencies still holds, and a search by frequency finds
+     * every such word. Any other word is worth what the place makes it likelier or less likely by than such a
+     * word ([Scorer.Here.worth], less the room, over its frequency), counted [HERE_WEIGHT] times.
      */
     private fun atPlace(here: Scorer.Here, word: String, zipf: Float): Float =
-        if (here.plain(word, zipf)) zipf else zipf + HERE_WEIGHT * (here.worth(word, zipf) - zipf) - HERE_ROOM * here.room
+        if (here.plain(word, zipf)) zipf else zipf + HERE_WEIGHT * (here.worth(word, zipf) - here.room - zipf)
+
+    /** [word]'s letters as the keys that type them: its plainest spelling ([Script.plain]) without its apostrophes. */
+    private fun bare(script: Script, word: String): String =
+        script.plain(word).let { p -> if (p.indexOf('\'') < 0 && p.indexOf('’') < 0) p else p.filter { it != '\'' && it != '’' } }
+
+    /**
+     * Whether [word] is within the reach [TapDecoder.search] gives the typed [letters] ([bare]), counted in whole
+     * letters: one letter changed, missed, added or swapped with its neighbour at most in a word of three letters or
+     * fewer, two up to five, three up to eight, four beyond. The words the rows list at a place are held up against
+     * the taps one at a time ([byTaps]), by what their slips cost alone, and without this a word the place expects
+     * is read into letters that are nothing like it ("sptt" after "try to" was "do", for "sort").
+     *
+     * The search counts a letter read as the key its tap all but landed on for less than a whole change
+     * ([TapDecoder.WHOLE_CHANGE]). A listed word within the search's reach and beyond this one is still found by
+     * the search, wherever its frequency alone clears the bar.
+     */
+    private fun inReach(letters: String, word: String, script: Script): Boolean {
+        val b = bare(script, word)
+        val n = letters.length
+        val m = b.length
+        val most = when { n <= 3 -> 1; n <= 5 -> 2; n <= 8 -> 3; else -> 4 }
+        if (kotlin.math.abs(n - m) > most) return false
+        // The fewest letters changed, missed, added or swapped that turn one into the other, a row a typed letter.
+        var before2 = IntArray(m + 1)
+        var before = IntArray(m + 1) { it }
+        var row = IntArray(m + 1)
+        for (i in 1..n) {
+            row[0] = i
+            var least = i
+            for (j in 1..m) {
+                var v = before[j - 1] + (if (letters[i - 1] == b[j - 1]) 0 else 1)
+                if (before[j] + 1 < v) v = before[j] + 1
+                if (row[j - 1] + 1 < v) v = row[j - 1] + 1
+                if (i >= 2 && j >= 2 && letters[i - 1] == b[j - 2] && letters[i - 2] == b[j - 1] && before2[j - 2] + 1 < v) v = before2[j - 2] + 1
+                row[j] = v
+                if (v < least) least = v
+            }
+            if (least > most) return false
+            val spare = before2; before2 = before; before = row; row = spare
+        }
+        return before[m] <= most
+    }
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
     private fun unlisted(lower: String): Float = when {
@@ -1292,11 +1348,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         @JvmField var MARGIN_COMMON = 1.6f
         /** PLACEHOLDER: the place. */
         @JvmField var HERE = true
-        @JvmField var HERE_LISTED = true
         @JvmField var HERE_WEIGHT = 1f
-        @JvmField var HERE_ROOM = 1f
-        @JvmField var X_GAP_OWN = false
-        @JvmField var X_EDITS = true
+        @JvmField var LISTED_EDITS = true
+        @JvmField var LISTED_REACH = true
         @JvmField var HERE_COMMON = 1.0f
         @JvmField var HERE_RARE = 0.6f
         /** The most the slips may cost that turn one listed word into another. */

@@ -122,6 +122,14 @@ FOLLOWERS = 64
 #: TRIPLE_CONTEXT times, holding the followers seen at least the pair minimum, at most TRIPLE_FOLLOWERS of them.
 TRIPLE_CONTEXT = 8
 TRIPLE_FOLLOWERS = 24
+#: The languages whose one-word rows open with "=n" too: how often the word was seen in the counted sentences, the
+#: start of a sentence for "^". Autocorrect weighs every reading of a word's taps by how likely it is after the words
+#: before (Scorer.Here, NextWordModel.kt), and believes a row as far as it was seen. A row's own shares do not say
+#: that: three over the least share listed is within a quarter of the count for 72 in 100 of English's rows, more than
+#: twice it for 6 (their last follower is a name scaled down, see 3 above) and under half it for 9 (rows of one or two
+#: followers). English's table was made again with the counts on 2026-11-12. Another language's file is left as it
+#: is until it is made again with its code here; the keyboard reads both forms and estimates where there is no count.
+SEEN_ONE = {"en"}
 #: Where held-out sentences are written for tool/next_word_eval.sh (ignored by git; never in the app).
 EVAL = os.path.join(ROOT, "build", "ngram-eval")
 MAX_BYTES = 32_000_000
@@ -448,7 +456,8 @@ def count(lang):
 
 
 def build(c):
-    """A counted language's table: (rows, report). rows are (context, [(shown, share)...]) with "^" first."""
+    """A counted language's table: (rows, report). rows are (context, how often it was seen or None,
+    [(shown, share)...]) with "^" first."""
     lang, vocab, unigrams, listed = c["lang"], c["vocab"], c["unigrams"], c["listed"]
     total = sum(unigrams.values()) or 1
     bad = bad_words(lang)
@@ -503,7 +512,7 @@ def build(c):
 
     rows = []
     for context in sorted(by_context, key=lambda k: (k != START, k)):
-        rows.append((context, None, [(display(w), max(1, min(9999, round(weight * 10_000 / seen(context))))) for w, weight in by_context[context]]))
+        rows.append((context, seen(context) if lang in SEEN_ONE else None, [(display(w), max(1, min(9999, round(weight * 10_000 / seen(context))))) for w, weight in by_context[context]]))
 
     # Two-word rows. Seen is how often the two words stood together in the counted sentences: the pair's own count.
     def seen2(context2):
@@ -565,7 +574,9 @@ def build(c):
 
 def encode(lang, rows, dates):
     """A table's file. A two-word row opens with "=n", how often its two words were seen together: a keyboard of
-    version 1 skips the entry (it has no colon) and the row (its context has a space it never looks up)."""
+    version 1 skips the entry (it has no colon) and the row (its context has a space it never looks up). A one-word
+    row of a language in SEEN_ONE opens with "=n" as well, how often its word was seen; a keyboard from before that
+    skips the entry and reads the row as it always did."""
     head = f"#ghost-ngram\t1\t{lang}\tTatoeba export {dates}, CC BY 2.0 FR\n"
     return (head + "".join(context + "\t" + (f"={seen} " if seen else "") + " ".join(f"{s}:{n}" for s, n in followers) + "\n"
                            for context, seen, followers in rows)).encode("utf-8")

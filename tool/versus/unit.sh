@@ -2,7 +2,8 @@
 # The decoder's own unit tests in a minute, without Gradle: tool/versus/unit.sh [TestClass ...]
 #
 # Compiles the plain-Kotlin part of the keyboard (the same sources tool/typing_bench.sh takes) with the unit tests
-# that need nothing else (TypingAccuracyTest, MistakeMemoryTest, SwipeDecoderTest, LayoutsTest, TapKeysSourceTest)
+# that need nothing else (TypingAccuracyTest, PlaceWorthTest, MistakeMemoryTest, SwipeDecoderTest, LayoutsTest,
+# TapKeysSourceTest)
 # and runs them with JUnit from Gradle's own cache. For working on autocorrect: `./gradlew :app:testDebugUnitTest`
 # is still what says the whole app's tests pass, and takes ten minutes on a busy Mac.
 set -e
@@ -12,7 +13,7 @@ tst=android/app/src/test/kotlin/com/infamousvague/devkeyboard
 junit=$(find "$HOME/.gradle/caches/modules-2/files-2.1/junit/junit" -name 'junit-4.13.2.jar' 2>/dev/null | head -1)
 hamcrest=$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core" -name 'hamcrest-core-1.3.jar' 2>/dev/null | head -1)
 [ -n "$junit" ] && [ -n "$hamcrest" ] || { echo "unit: no junit 4.13.2 in ~/.gradle/caches (run the Gradle tests once)" >&2; exit 2; }
-tests="${*:-TypingAccuracyTest MistakeMemoryTest SwipeDecoderTest LayoutsTest TapKeysSourceTest}"
+tests="${*:-TypingAccuracyTest PlaceWorthTest MistakeMemoryTest SwipeDecoderTest LayoutsTest TapKeysSourceTest}"
 files=""
 for t in $tests; do files="$files $tst/$t.kt"; done
 jar=build/versus/unit.jar

@@ -407,6 +407,10 @@ class NextWordLearner(private val window: Int, private val learn: (NextWordText.
  * A context may be two words ("how are", "^ thank" for thank opening a sentence). Such a row opens with `=n`, how
  * often the two words were seen together where the counts came from ([seen]), so a row from a handful of sentences
  * is trusted less than one from thousands. Keyboards from before two-word rows skip both the entry and the row.
+ *
+ * A one-word row may open with `=n` as well: how often its word was seen, a sentence's start for "^". English's
+ * rows do (tool/next_words.py's SEEN_ONE, 2026-11-12); a table made before that has none, and [seen] is 0 for its
+ * one-word rows. A keyboard from before that skips the entry, having no colon, and reads the row as it always did.
  */
 class NgramTable private constructor(
     /** The language's code, the file's stem. */
@@ -457,9 +461,11 @@ class NgramTable private constructor(
         return if (cut >= 0 && cut < key.length - 1) one(key.substring(cut + 1)) else -1
     }
 
-    /** How often a two-word context's words were seen together where the counts came from; 0 for one word or none. */
+    /**
+     * How often [key]'s words were seen where the counts came from: two words together, or one word at all. 0 where
+     * there is no such row, or the row does not say (a one-word row of a table made before they carried it).
+     */
     fun seen(key: String): Int {
-        if (key.indexOf(' ') < 0) return 0
         val r = row(key)
         return if (r < 0) 0 else counts[r]
     }
@@ -1042,30 +1048,31 @@ class Scorer(
 
     /**
      * One row of a starter table as it bears on every word, listed in it or not: each follower it lists with its
-     * share of what followed ([shares]), the share it leaves over ([left]), the least share it lists ([least]) and
-     * how far it is believed ([trust], under 1). [rest] is the words it does not list as a share of all words: one,
-     * less the listed words' own shares (for a two-word row, less what the one-word row makes of them).
+     * share of what followed ([shares]), the share it leaves over ([left]), the most a word it does not list can
+     * have followed ([bound]) and how far it is believed ([trust], under 1). [rest] is the words it does not list
+     * as a share of all words: one, less the listed words' own shares (for a two-word row, less what the one-word
+     * row makes of them).
      */
-    internal class Row(val shares: HashMap<String, Float>, val left: Float, val least: Float, val trust: Float) {
+    internal class Row(val shares: HashMap<String, Float>, val left: Float, val bound: Float, val trust: Float) {
         var rest = 1f
 
         /**
          * How likely [lower] is by this row, where [back] is how likely it is without it (its own frequency, or what
          * the one-word row made of it). A listed word has its share. An unlisted one has its part of what the row
-         * leaves over, shared out among the unlisted by [back], and never more than [UNLISTED] of the least share
-         * listed: had it followed more often than that, the row would list it. Then the row is believed as far as
-         * its [trust] goes, and [back] for the rest.
+         * leaves over, shared out among the unlisted by [back], and never more than [bound]: had it followed more
+         * often than that, the row would list it. Then the row is believed as far as its [trust] goes, and [back]
+         * for the rest.
          */
         fun of(lower: String, back: Float): Float {
-            val said = shares[lower] ?: minOf(left * back / rest, UNLISTED * least)
+            val said = shares[lower] ?: minOf(left * back / rest, bound)
             return trust * said + (1f - trust) * back
         }
 
         /** What the row makes of a word it does not list and does not hold down, as a multiple of [of]'s back. */
         val plainly: Float get() = trust * left / rest + (1f - trust)
 
-        /** Whether [lower] is such a word: not listed, and under the least share's bound. */
-        fun plain(lower: String, back: Float): Boolean = !shares.containsKey(lower) && left * back / rest <= UNLISTED * least
+        /** Whether [lower] is such a word: not listed, and under the bound. */
+        fun plain(lower: String, back: Float): Boolean = !shares.containsKey(lower) && left * back / rest <= bound
     }
 
     /** One table's rows for a place: the row of the word before ([one]) and of the two words before ([two]), where it has them. */
@@ -1082,23 +1089,38 @@ class Scorer(
             (one == null || one.plain(lower, own)) && (two == null || two.plain(lower, if (one == null) own else own * one.plainly))
     }
 
-    /** [key]'s row in [table], or null; [seen] is how often a two-word [key] was seen (0 for one word). */
-    private fun row(table: NgramTable, key: String, seen: Int): Row? {
+    /**
+     * [key]'s row in [table], or null. How often the row's words were seen is the table's own count where it has
+     * one ([NgramTable.seen]: every two-word row, and English's one-word rows). Where it has none it is told from
+     * the shares: a follower is listed from [SEEN_LEAST] sightings, so the least share is about that many over the
+     * count. The very last followers of a row are often names the table's maker scaled down ("taught ... Tom:8
+     * Layla:1"), which would make the count thousands too many, so the least share that two followers have is gone
+     * by: in English's rows that is over twice the true count for 1 row in 100 where the least share of all is
+     * for 6, and both are under half of it for 9 or 10 (a row of one or two followers cannot say).
+     */
+    private fun row(table: NgramTable, key: String, prior: Float): Row? {
         val range = table.range(key)
         if (range.isEmpty()) return null
         val shares = HashMap<String, Float>((range.last - range.first + 1) * 2)
         var sum = 0f
         var least = 1f
+        var twice = 0f
+        var before = -1f
         for (i in range) {
             val s = table.shareAt(i)
             shares[table.lowerAt(i)] = s
             sum += s
             if (s < least) least = s
+            // Likeliest first: equal shares stand together, and the last such pair is the least.
+            if (s == before) twice = s
+            before = s
         }
-        // A two-word row says how often its words were seen. A one-word row does not: the least share it lists is
-        // of a follower seen [SEEN_LEAST] times, or a few more, which says about how often the word itself was.
-        val n = if (seen > 0) seen.toFloat() else SEEN_LEAST / least
-        return Row(shares, (1f - sum).coerceAtLeast(0f), least, n / (n + if (seen > 0) PRIOR_TABLE_TWO else PRIOR_TABLE_ONE))
+        val seen = table.seen(key)
+        val n = if (seen > 0) seen.toFloat() else SEEN_LEAST / (if (twice > 0f) twice else least)
+        // A word the row does not list was seen fewer than SEEN_LEAST times after it, or, where the row is full,
+        // no more often than its last follower.
+        val bound = UNLISTED * maxOf(least, SEEN_LEAST / n)
+        return Row(shares, (1f - sum).coerceAtLeast(0f), bound, n / (n + prior))
     }
 
     /** Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one. */
@@ -1107,9 +1129,8 @@ class Scorer(
         val out = ArrayList<Rows>(tables.size)
         for (t in tables.indices) {
             val table = tables[t]
-            val one = row(table, prev, 0)
-            val n2 = if (key2 == null) 0 else table.seen(key2)
-            val two = if (n2 > 0) row(table, key2!!, n2) else null
+            val one = row(table, prev, PRIOR_HERE_ONE)
+            val two = if (key2 == null) null else row(table, key2, PRIOR_HERE_TWO)
             if (one == null && two == null) continue
             one?.let { r ->
                 var listed = 0f
@@ -1263,8 +1284,9 @@ class Scorer(
         /**
          * [Here]'s numbers, PLACEHOLDER.
          */
-        @JvmField var UNLISTED = 0.5f
-        @JvmField var PRIOR_TABLE_ONE = 15f
+        @JvmField var UNLISTED = 0.2f
+        @JvmField var PRIOR_HERE_ONE = 15f
+        @JvmField var PRIOR_HERE_TWO = 15f
         @JvmField var SEEN_LEAST = 3f
         /** The least [Row.rest] is taken to be: a row whose listed words are nearly all the words there are shares its left-over out no more than twenty times over. */
         const val REST_LEAST = 0.05f
