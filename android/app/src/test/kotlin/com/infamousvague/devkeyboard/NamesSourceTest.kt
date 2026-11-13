@@ -82,6 +82,12 @@ class NamesSourceTest {
         // A fix that only gave a capital taught the mistakes nothing: there is nothing of it to forget, and the count
         // of the word having stood as typed is not to go with it.
         assertTrue(undo.contains("if (mistakesOn() && !fixed.equals(typed, ignoreCase = true)) mistakes.forget(lower, fixed)"))
+        // Nor is its undoing reported as a fix undone: a report counts a fix made by the letters alone
+        // (ReportRules.word), so a capital was never one, and one undone would be a fix undone that was never made.
+        assertTrue(undo.contains("if (reporting() && !fixed.equals(typed, ignoreCase = true)) Reports.undone(this, lower, fixed)"))
+        assertEquals(1, Regex("Reports\\.undone\\(").findAll(service).count())
+        val reports = code(File(main, "kotlin/com/infamousvague/devkeyboard/Reports.kt"))
+        assertTrue(reports.contains("val a = typed.lowercase()") && reports.contains("val b = stands.lowercase()") && reports.contains("val fixed = a != b"))
         // A word given only its capital stood in the letters it was typed in.
         assertTrue(correct.contains("if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)"))
     }

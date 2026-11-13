@@ -1186,7 +1186,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // or I) taught nothing to take back, and forgetting it would take away what is counted of the word's having
         // stood as typed ([Mistakes.kept]): the undo says it did.
         if (mistakesOn() && !fixed.equals(typed, ignoreCase = true)) mistakes.forget(lower, fixed)
-        if (reporting()) Reports.undone(this, lower, fixed)
+        // Nor was it counted as a fix made ([Reports.word] goes by the letters): its undoing is no fix undone.
+        if (reporting() && !fixed.equals(typed, ignoreCase = true)) Reports.undone(this, lower, fixed)
         if (fresh && !incognito && !keepSeparator) ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.taught = true
         scheduleRow()
         return true
