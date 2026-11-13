@@ -3,10 +3,10 @@
 #
 # Compiles the plain-Kotlin part of the keyboard (the same sources tool/typing_bench.sh takes) with the unit tests
 # that need nothing else (TypingAccuracyTest, LetterModelTest, PlaceWorthTest, ThumbLeanTest, MistakeMemoryTest,
-# SwipeDecoderTest, LayoutsTest, TapKeysSourceTest, WideWordsTest, AgainTest, AgainSourceTest) and runs them with JUnit
-# from Gradle's own cache; then, with no test named, tool/versus/again_check.py (the second look typed through the
-# replay). For working on autocorrect: `./gradlew :app:testDebugUnitTest` is still what says the whole app's tests
-# pass, and takes ten minutes on a busy Mac.
+# SwipeDecoderTest, LayoutsTest, TapKeysSourceTest, WideWordsTest, AgainTest, AgainSourceTest, NamesSourceTest) and runs
+# them with JUnit from Gradle's own cache; then, with no test named, tool/versus/again_check.py (the second look typed
+# through the replay). For working on autocorrect: `./gradlew :app:testDebugUnitTest` is still what says the whole
+# app's tests pass, and takes ten minutes on a busy Mac.
 set -e
 cd "$(dirname "$0")/../.."
 src=android/app/src/main/kotlin/com/infamousvague/devkeyboard
@@ -14,7 +14,7 @@ tst=android/app/src/test/kotlin/com/infamousvague/devkeyboard
 junit=$(find "$HOME/.gradle/caches/modules-2/files-2.1/junit/junit" -name 'junit-4.13.2.jar' 2>/dev/null | head -1)
 hamcrest=$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core" -name 'hamcrest-core-1.3.jar' 2>/dev/null | head -1)
 [ -n "$junit" ] && [ -n "$hamcrest" ] || { echo "unit: no junit 4.13.2 in ~/.gradle/caches (run the Gradle tests once)" >&2; exit 2; }
-tests="${*:-TypingAccuracyTest LetterModelTest PlaceWorthTest ThumbLeanTest MistakeMemoryTest SwipeDecoderTest LayoutsTest TapKeysSourceTest WideWordsTest AgainTest AgainSourceTest}"
+tests="${*:-TypingAccuracyTest LetterModelTest PlaceWorthTest ThumbLeanTest MistakeMemoryTest SwipeDecoderTest LayoutsTest TapKeysSourceTest WideWordsTest AgainTest AgainSourceTest NamesSourceTest}"
 files=""
 for t in $tests; do files="$files $tst/$t.kt"; done
 jar=build/versus/unit.jar

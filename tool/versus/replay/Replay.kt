@@ -32,6 +32,18 @@
 // mean other keys on it. Without --board the keys are this tree's (for `geometry`, and for `probes` of a
 // measurement made of this tree's build).
 //
+// Names are asked for their capitals (Autocorrect.correct's `names`, and Autocorrect.named for a word put together
+// again), as DevKeyboardService.namesWanted has it in a field like the one a run types into: sentences capitalised,
+// and "Capitals at sentence starts" on, as a new install has it. `replay ... --no-names` types as the builds before
+// that did (every one up to 0.16.3): the runs kept so far were typed on such builds, and their meta.json says so
+// ("replay": ["--no-names"]), which is what score.py holds the emulator's text against. The letters are the same
+// either way; only a name's capital differs.
+//
+// `replay ... --beside de` types as a person with German on beside English has it (any list's stem; say it again for
+// a third language): both lists are loaded on English's board, as LanguageState.dictionaries loads every enabled
+// language of the script, so every word is read against both, and English's names are those it keeps beside the
+// other (Autocorrect.load). The starter table is still English's alone, and no emulator run was typed that way.
+//
 // `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
 // @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
 // sentences of a versus run (tool/versus/whatif.py, fixtures.py). Nothing in the app is changed by it.
@@ -246,10 +258,13 @@ class Board(val width: Float, val screenHeight: Float, dpi: Float, val navInset:
     }
 }
 
-/** The decoder with its word lists and starter table, as the service sets it up for English with nothing learned. */
-class Decoder(root: File) {
+/**
+ * The decoder with its word lists and starter table, as the service sets it up for English with nothing learned.
+ * [beside] are other languages turned on with it (their lists' stems): English's board is still the one typed on.
+ */
+class Decoder(root: File, beside: List<String> = emptyList()) {
     private val assets = File(root, "android/app/src/main/assets")
-    val state = LanguageState.of(listOf("en"), emptyMap(), "")
+    val state = LanguageState.of(listOf("en") + beside, emptyMap(), "")
     val ac = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
     private val table: NgramTable = File(assets, "ngram/en.tsv").useLines { NgramTable.parse(it) }!!
     private val personal = PersonalPairs()
@@ -277,9 +292,10 @@ class Decoder(root: File) {
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
  * [lean] is the service's estimate of where this thumb is landing, which lives and dies with the field: a Typist is
- * one field, and starts with one that knows nothing.
+ * one field, and starts with one that knows nothing. [names] is DevKeyboardService.namesWanted: true in such a field at
+ * the app's defaults.
  */
-class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false, private val lean: ThumbLean = ThumbLean()) {
+class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false, private val lean: ThumbLean = ThumbLean(), private val names: Boolean = true) {
     val text = StringBuilder()
     /** The ?123 page is showing, on a build from before 2026-11-12: KeyboardView.tapKeys was null there, and a word was read without its taps. */
     private var offLetters = false
@@ -422,7 +438,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             val doubled = together(c?.tap, spaceTouch)
             behind = null
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ") && headFree(c.stood.length + 1)) {
-                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()), doubled = doubled)
+                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()), doubled = doubled)?.let { if (names) decoder.ac.named(it) else it }
                 asked?.invoke(c.typed + " ", text.dropLast(c.stood.length + 1).takeLast(96).toString(), whole)
                 if (whole != null) {
                     // The scrap was the last word settled: what it taught is taken back, as the service does.
@@ -481,7 +497,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             // A closing mark straight after the space that ended a word: the space may have been that word's last letter.
             if (separator.length == 1 && separator[0] in cutMarks && c != null && c.typed.isNotEmpty() && c.touches.size == c.typed.length && !offLetters && text.endsWith(c.stood + c.gap) && headFree(c.stood.length + c.gap.length)) {
                 val standing = c.stood.length + c.gap.length
-                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(standing), tapsAcross(c.touches, c.tap, emptyList()), doubled = separator[0] !in ".,", mark = true)
+                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(standing), tapsAcross(c.touches, c.tap, emptyList()), doubled = separator[0] !in ".,", mark = true)?.let { if (names) decoder.ac.named(it) else it }
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - standing)
@@ -499,7 +515,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         // The word before this one ended at a tap on the bar that may have been a letter of one word, this its end.
         if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + c.gap + word) && headFree(c.stood.length + c.gap.length + word.length, c.was)) {
             val standing = c.stood.length + c.gap.length + word.length
-            val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(standing, c.was), tapsAcross(c.touches, c.tap, wordTouches), c.was.isNotEmpty(), c.doubled, if (c.typed.isEmpty()) scorerAt(0) else null)
+            val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(standing, c.was), tapsAcross(c.touches, c.tap, wordTouches), c.was.isNotEmpty(), c.doubled, if (c.typed.isEmpty()) scorerAt(0) else null)?.let { if (names) decoder.ac.named(it) else it }
             asked?.invoke(c.typed + " " + word, (text.dropLast(standing).toString() + c.was).takeLast(96), whole)
             if (whole != null) {
                 lean.unlearn()
@@ -511,7 +527,8 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
         val taps = tapsFor(word)
-        val fixed = decoder.ac.correct(word, scorer, taps)
+        // The field capitalises sentences and the keyboard's own capitals are on: a name has its capital (namesWanted).
+        val fixed = decoder.ac.correct(word, scorer, taps, names)
         asked?.invoke(word, before.dropLast(word.length), fixed)
         val stands = fixed ?: word
         // The word is settled: its taps say where the thumb is landing in this field.
@@ -613,19 +630,23 @@ fun dial(setting: String) {
 
 fun replay(root: File, all: List<String>) {
     val without = "--marks-without-taps" in all
+    val names = "--no-names" !in all
     val args = ArrayList<String>()
+    val beside = ArrayList<String>()
     var recorded: File? = null
     var i = 0
     while (i < all.size) {
         when {
             all[i] == "--set" -> { dial(all[i + 1]); i++ }
             all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
+            all[i] == "--beside" -> { beside += all[i + 1]; i++ }
             !all[i].startsWith("--") -> args += all[i]
         }
         i++
     }
     val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
-    val decoder = Decoder(root)
+    val decoder = Decoder(root, beside)
+    if (beside.isNotEmpty()) System.err.println("word lists: ${decoder.state.dictionaries}, on ${decoder.state.spec.id}")
     val leans = HashMap<String, ThumbLean>()
     var line = readLine()
     var n = 0
@@ -638,7 +659,7 @@ fun replay(root: File, all: List<String>) {
             // field to the next: an id is "<thumb>/<line>", and a thumb is a typist.
             val lean = if (ThumbLean.KEEP) leans.getOrPut(id.substringBefore('/')) { ThumbLean() } else ThumbLean()
             if (LEAN_LOG) System.err.println("LEAN\t$id")
-            val typist = Typist(b, decoder, marksWithoutTaps = without, lean = lean)
+            val typist = Typist(b, decoder, marksWithoutTaps = without, lean = lean, names = names)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {
                 val f = e.split(':')

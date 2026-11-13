@@ -8,6 +8,9 @@
 // record (AccuracyLog, tool/accuracy-replay.sh) is the measure on real typing.
 //
 // Usage: Bench <repo root> [taps|row|swipe|turns|next|mistakes|voice|tune|tuneswipe|all]   (-Dwords=…, -Dseed=…, -Dverbose=true)
+// taps also takes -Dnames=false (no name is asked for its capital, as before there were any) and -Dcapitals=true
+// (which words were given a capital amiss, which names were left without theirs, and which words that came out
+// wrong stand with a capital).
 
 import com.infamousvague.devkeyboard.Autocorrect
 import com.infamousvague.devkeyboard.LanguageState
@@ -86,6 +89,45 @@ class Tally {
     /** Words changed behind the cursor once the word after them had ended (Autocorrect.again): a wrong one put right, a right one spoiled, any other. */
     var behindRight = 0; var behindSpoiled = 0; var behindOther = 0
     var isWord: (String) -> Boolean = { false }
+    /**
+     * Capitals, which every other count here leaves aside. Of the names typed in lower case that came out with the
+     * right letters (a word the sentence writes with a capital in its middle: Tom, Monday; not I), how many came out
+     * with their capital; and of the words it writes in lower case there, how many came out with one, which is a
+     * right word spoiled ([capital]).
+     */
+    var names = 0; var namesCapital = 0; var lowers = 0; var lowersCapital = 0
+    /** The words given a capital amiss ("will → Will"), and the names left without theirs, each as the sentence writes it. */
+    val amiss = ArrayList<String>()
+    val without = ArrayList<String>()
+    /**
+     * What the two counts above pass over, since each goes by words that came out with the right letters: the words
+     * that came out wrong and stand with a capital (a slip that spells a listed name, or is mended into one: "ben"
+     * for been is Ben). They were wrong before names too, and no other count moves by them; but it is what is seen.
+     * Never I or I'm, which had their capital before names.
+     */
+    var astray = 0
+    val astrays = ArrayList<String>()
+    /**
+     * [u] as [written] has its one word ("" where the word's capital could be its sentence's, and is not counted):
+     * a word typed as one token and come out with the right letters, as one word or mended into it. A stretch that
+     * came out wrong is looked at for [astray], wherever it stands (the thumb types no capital, so any is the
+     * keyboard's own).
+     */
+    fun capital(u: Unit, written: String) {
+        if (!u.right) {
+            val given = u.out.flatMap { it.split(' ') }.filter { it.isNotEmpty() && it[0].isUpperCase() && it != "I" && !it.startsWith("I'") }
+            if (given.isNotEmpty()) { astray += given.size; astrays += "${u.typed.joinToString(" ")} → ${u.out.joinToString(" ")}, meant ${u.targets.joinToString(" ")}" }
+            return
+        }
+        if (written.isEmpty() || u.targets.size != 1 || u.typed.size != 1 || written == "I" || written.startsWith("I'")) return
+        val given = u.out[0].first().isUpperCase()
+        if (written[0].isUpperCase() && written.drop(1) == written.drop(1).lowercase()) { names++; if (given) namesCapital++ else without += written }
+        else if (written == written.lowercase()) { lowers++; if (given) { lowersCapital++; amiss += "${u.typed[0]} → ${u.out[0]}" } }
+    }
+    fun capitalsLine(name: String) = String.format(
+        "%-22s capitals: names given theirs %d of %d (%.1f%%), a capital given amiss %d of %d words (%.2f per 1000), on a word that came out wrong %d",
+        name, namesCapital, names, 100.0 * namesCapital / names.coerceAtLeast(1), lowersCapital, lowers, 1000.0 * lowersCapital / lowers.coerceAtLeast(1), astray,
+    )
     fun add(u: Unit, oovWords: Set<String>) {
         words += u.targets.size
         if (u.right) right += u.targets.size
@@ -179,6 +221,25 @@ class Sentences(root: File) {
         // An acronym (NASA, TV) is typed in capitals and never touched: it is not what is measured here.
         .filter { it.isNotEmpty() && !(it.length >= 2 && it.all { c -> c.isUpperCase() }) }.map { it.lowercase() }
         .filter { it.all { c -> c in 'a'..'z' || c == '\'' } }
+
+    /**
+     * How the sentence writes each of [words]' words (Tom, will), for counting capitals: "" for a word whose capital
+     * could be its sentence's and not its own. A word is counted where tool/capitals.py counts one: straight after
+     * another word of its sentence, with a space between them, or a comma or semicolon and a space. Never the first
+     * word, nor one after a quotation mark, a bracket, a colon, a dash, a digit or a full stop.
+     */
+    fun written(line: String): List<String> {
+        val raw = line.split(Regex("\\s+"))
+        val out = ArrayList<String>()
+        for ((i, tok) in raw.withIndex()) {
+            val w = tok.trim { c -> !c.isLetter() }.replace('’', '\'')
+            if (w.isEmpty() || (w.length >= 2 && w.all { c -> c.isUpperCase() }) || !w.lowercase().all { c -> c in 'a'..'z' || c == '\'' }) continue
+            val prev = raw.getOrNull(i - 1).orEmpty()
+            val after = prev.isNotEmpty() && (prev.last().isLetter() || (prev.length > 1 && prev.last() in ",;" && prev[prev.length - 2].isLetter()))
+            out += if (after && tok.first().isLetter()) w else ""
+        }
+        return out
+    }
 }
 
 class Keyboard(root: File) {
@@ -229,6 +290,8 @@ fun typeAll(
      * word that has now followed, in hand; what it should be now, or null. Null here: every word settled at its space.
      */
     again: ((typed: Typed, stood: String, next: String, before: String) -> String?)? = null,
+    /** How each sentence writes each of its words ([Sentences.written]), where capitals are to be counted ([Tally.capital]). */
+    written: List<List<String>>? = null,
     fix: (typed: Typed, before: String) -> String?,
 ): Tally {
     val rnd = Random(seed)
@@ -248,12 +311,16 @@ fun typeAll(
         // The word being typed, the taps that made it, and the words it is meant to be (two, where a space was missed).
         val text = StringBuilder(); val xs = ArrayList<Float>(); val ys = ArrayList<Float>()
         val meant = ArrayList<String>(); val tokens = ArrayList<String>(); var outs = ArrayList<String>()
+        // Which word of the sentence was meant last: where a stretch is one word, the word [written] says how to write.
+        var last = -1
         // With [again]: a stretch that has ended waits to be tallied until the next word has ended, since the second
         // look may still change its last word; [prev] is the word that ended last, where its text stands, and where
         // [before] stood when it was typed.
         class Prev(val typed: Typed, val outs: ArrayList<String>, val at: Int, val from: Int)
         var prev: Prev? = null
         var pending: Triple<List<String>, List<String>, ArrayList<String>>? = null
+        // Which word of the sentence the pending stretch meant last, for its capital.
+        var pendingLast = -1
         val changedFrom = java.util.IdentityHashMap<ArrayList<String>, String>()
         fun flush() {
             val p = pending ?: return
@@ -266,6 +333,7 @@ fun typeAll(
                 } else tally.behindOther++
             }
             tally.add(unit, oov)
+            if (written != null) tally.capital(unit, written.getOrNull(at)?.getOrNull(pendingLast).orEmpty())
             after?.invoke(unit)
         }
         fun endToken() {
@@ -296,10 +364,14 @@ fun typeAll(
             if (again != null) {
                 flush()
                 pending = Triple(meant.toList(), tokens.toList(), outs)
+                pendingLast = last
                 outs = ArrayList()
             } else {
                 val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
                 tally.add(unit, oov)
+                // Every stretch, for the capitals: one with no word to hold to how the sentence writes it (its first word,
+                // two run together) still counts where it came out wrong and with a capital.
+                if (written != null) tally.capital(unit, written.getOrNull(at)?.getOrNull(last).orEmpty())
                 after?.invoke(unit)
                 outs.clear()
             }
@@ -312,8 +384,9 @@ fun typeAll(
             val k = Geo.hit(x, y)
             if (k == ' ') endToken() else { text.append(k); xs += x; ys += y }
         }
-        for (word in sentence) {
+        for ((n, word) in sentence.withIndex()) {
             meant += word
+            last = n
             // A contraction is typed without its apostrophe, as people type them; any other apostrophe on purpose.
             val keys = habit?.invoke(word) ?: kb.contractions[word] ?: word
             var i = 0
@@ -355,6 +428,9 @@ val LEAN_Y = System.getProperty("lean")?.split(',')?.getOrNull(1)?.toFloat() ?: 
  */
 val LEAN_TURN = System.getProperty("lean.turn")?.toInt() ?: 0
 
+/** The tap test asks names for their capitals ([Autocorrect.correct]'s names), unless told -Dnames=false. */
+val NAMES = System.getProperty("names", "true") == "true"
+
 fun taps(root: File) {
     val kb = Keyboard(root)
     val all = Sentences(root)
@@ -365,12 +441,15 @@ fun taps(root: File) {
     val oov = oovList.toSet()
     val rnd = Random(seed)
     val sentences = ArrayList<List<String>>()
+    // How each sentence writes each word, for the capitals: a word swapped for one no list has is written in lower case.
+    val written = ArrayList<List<String>>()
     var n = 0
     for (line in all.lines) {
         if (n >= limit) break
-        val words = all.words(line).map { if (rnd.nextFloat() < 0.03f) oovList[rnd.nextInt(oovList.size)] else it }
+        val how = all.written(line).toMutableList()
+        val words = all.words(line).mapIndexed { i, w -> if (rnd.nextFloat() < 0.03f) oovList[rnd.nextInt(oovList.size)].also { if (how[i].isNotEmpty()) how[i] = it } else w }
         if (words.isEmpty()) continue
-        sentences += words; n += words.size
+        sentences += words; written += how; n += words.size
     }
     println("tap typing: $n words in ${sentences.size} held-out sentences, 3% of them swapped for words no list has (${oov.size} of them)")
     misspellings(kb, false, verbose).let { (f, a) -> println("misspellings mended, by neighbours: $f of $a") }
@@ -388,8 +467,18 @@ fun taps(root: File) {
         val c0 = cpu.currentThreadCpuTime
         var calls = 0
         val again: (Typed, String, String, String) -> String? = { t, stood, next, before -> kb.ac.again(t.text, stood, next, kb.scorer(before), Taps(t.xs, t.ys, Geo.centres, Geo.W, SPACE)) }
-        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), t.taps) }
+        // As a message field has it: names are asked for their capitals (-Dnames=false: as before there were any).
+        // Words are scored with capitals aside, so a capital shows in that line only by what it does to the words
+        // after it; the line under it counts the capitals themselves.
+        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again, written = written) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), t.taps, NAMES) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word, %.0f µs of processor time)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1), (cpu.currentThreadCpuTime - c0) / 1000.0 / calls.coerceAtLeast(1)))
+        println(byTaps.capitalsLine("${noise.name}: by the taps"))
+        // -Dcapitals=true: which words were given a capital amiss, and which names were left without, commonest first.
+        if (verbose || System.getProperty("capitals") == "true") {
+            byTaps.amiss.forEach { println("    capital amiss  $it") }
+            byTaps.astrays.forEach { println("    capital on a wrong word  $it") }
+            println("    left without   " + byTaps.without.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.joinToString(" ") { "${it.key}:${it.value}" })
+        }
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }
         if (System.getProperty("spoils") == "true") byTaps.examples.filter { it.startsWith("spoil") }.forEach { println("    $it") }
     }

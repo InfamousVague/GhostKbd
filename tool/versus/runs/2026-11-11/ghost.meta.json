@@ -51,7 +51,8 @@
  },
  "typings_thrown_away_for_a_stall": 30,
  "replay": [
-  "--marks-without-taps"
+  "--marks-without-taps",
+  "--no-names"
  ],
- "replay_note": "0.15.0 read a word ended from the ?123 page without its taps (KeyboardView.tapKeys was null off the letters until 2026-11-12): tool/versus/replay.sh types as it did only with this"
+ "replay_note": "0.15.0 read a word ended from the ?123 page without its taps (KeyboardView.tapKeys was null off the letters until 2026-11-12), and gave no name typed in lower case its capital (Autocorrect.correct's names, asked for since versus-names): tool/versus/replay.sh types as it did only with these"
 }

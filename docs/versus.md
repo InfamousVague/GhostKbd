@@ -1283,12 +1283,179 @@ The 326 again, by the slip (`score.py`'s `category`):
 
 192 of the 326 were left exactly as typed: more often than it picks the wrong word, Ghost Keyboard does nothing.
 
-### Names get no capital
+### Names get their capital (made 2026-11-12)
 
-Not in the score, which leaves capitals aside. The thumb types everything in lower case. Of the names the field
-ended up with the right letters of (Tom, Mary, Vladimir, Algeria, Monday), Gboard gave 134 of 191 their capital
-(Mary 26 of 26, Tom 34 of 48), and Ghost Keyboard 0 of 188. Both capitalise I and the first word of a sentence
-every time.
+Not in the score, which leaves capitals aside. The thumb types everything in lower case. On 2026-11-11, of the
+names the field ended up with the right letters of (Tom, Mary, Vladimir, Algeria, Monday), Gboard gave 134 of 191
+their capital (Mary 26 of 26, Tom 34 of 48), and Ghost Keyboard 0 of 188. Both capitalise I and the first word of
+a sentence every time.
+
+Now a name typed in lower case comes out with its capital, in the middle of a sentence too: left as typed ("tom"
+is Tom), mended ("mondya" is Monday), parted from the word it ran into ("withmary" is "with Mary") or put together
+again after a tap on the bar ("lo doj" is London). `Autocorrect.correct` and `suggest` take a `names` argument,
+`Autocorrect.named` does the same for a word `rejoin` made, and `Autocorrect.proper` is the rule: a word of
+`assets/dict/en_capitals.txt` is written as that file has it, its possessive with it (tom's is Tom's), unless the
+person keeps it in lower case. A word that is no name comes out, asked for names, exactly as it does unasked:
+`Autocorrect.name` says whether it is one before anything of it is written again (as first made, a word left as
+typed was put in lower case and back into its capitals, and İrem, typed from i's long-press beside Turkish, came
+back as I and a dot above it, in French alone as much as in English).
+
+**The list** is 1,884 words, 15 KB, made by `tool/capitals.py` from the same Tatoeba export the starter tables
+are counted from, the held-out twentieth never counted. A word is counted where its capital can only be its own
+(straight after another word of its sentence), whole and in any alphabet (until 2026-11-13 a word was a to z
+alone, and Bah, Jos, Roc and Fran were on the list as the first letters of Bahá'í, José, Rocío and François, and
+Wal, Indo and Sino as the first halves of hyphenated names), and kept where it is a word of English's list, of three letters or
+more, counted five times or more and written with a capital 19 times in 20 or more. There is no list of names by
+hand. Words that are a name only some of the time fall to the same bar, each by how it was written: will 0.0%,
+rose 3.5%, may 4.0%, bill 14.9%, mark 32.2%, turkey 65.4%, jack 74.8%, march 86.8%, god 89.4%, joe 94.5% and bob
+94.6% are left as typed; china 95.9%, august 99.0% and tom 100.0% get their capital. The bar of 95% is a
+judgment about Tatoeba and not a measured best. `capitals.py --bars` tries others on sentences they were not set
+from (the list made from one half of the counted sentences, held against the other): from 95% down to 90% gives
+3,271 more capitals rightly for 272 wrongly, twelve to one, and from 90% to 80% six to one, so by the project's
+four-to-one measure alone the bar would be at 80% or under. It is left at 95% because Tatoeba reads like a
+phrasebook, fuller of names than what people type, so a word's share there flatters the name by an amount nothing
+here can measure; what it costs is in plain sight (under twenty counts it means never once in lower case, so Scott,
+18 of 19, is out, and Bob and Joe are near it). A real answer needs sentences that are not Tatoeba's. `--held`
+holds the list to the first 100,000 held-out sentences, as the decoder gives capitals (a listed name's possessive
+is the name's; I'm, I'll, I'd and I've are left out, having a rule of their own): 25,655 of the 32,662 words
+written there with a capital in the middle of a sentence get it (78.5%), and 11 of the 491,103 written in lower
+case get one (0.02 in a thousand: french, london, china and eight more, once each, where the sentence's writer left
+a capital out). Tom, Mary and their possessives are 14,804 of those 32,662; the other names get theirs 10,851
+times of 17,858, which is 60.8%, and that is the figure to carry to other text (the bench's sentences, where Tom
+and Mary are few, give 61%). Until 2026-11-13 this paragraph said 72.2%, counting I'm and possessives wrongly.
+That the sentences it holds out are the ones the bench and `tool/versus` type was checked line by line: the
+export's every 20th sentence, as `capitals.py` numbers them, is the line of `build/typing-bench/en-heldout.txt`
+in 100,000 of the first 100,000.
+
+A lower bar was tried on both sets of typings: at 90% the run's typings gain United three times and the unseen
+ones nothing, and Federation is given a capital three times where its sentence has none; at 80% nine and none, and
+Mandarin with it. That is one sentence each way, typed by three thumbs, and says nothing for or against the bar.
+
+The vocabulary is a list of files (`--vocab`; unsaid, English's lists as the tree has them: `en.tsv`, and
+`en_wide.tsv` where there is one), so the list can be made again when English's word list grows. Tried over
+`en.tsv` and the wider list as another branch had it on 2026-11-12 (127,488 words between them) the same rule
+keeps 2,293 words, 402 more and none fewer (Berber, Kabyle, Esperanto, Tuaregs, Polisario), and gives 25,264 of
+the 33,935 held-out capitals, with the same 11 wrongly given. That list marks 15,433 of its own words as names
+(`n`: a dictionary writes them with a capital and never without). 631 of them pass the rule; 14,691 were counted
+fewer than five times in Tatoeba's sentences; and among the rest are words people write in lower case whatever
+the dictionary says (tiktok with a capital 2 times of 82, parmesan 5 of 31, youtuber 0 of 20), so the mark is not
+the rule by itself.
+
+**Where.** `DevKeyboardService.namesWanted`: the field asks for its sentences to be capitalised and Settings ›
+Typing › Capitals at sentence starts is on, the two things that make the keyboard give a capital of its own at
+all; never in a terminal. The row shows what the space will leave: "Tom" as its pick for "tom", then "tom"
+itself. Backspace straight after puts the lower case back and keeps it as a learned word, as undoing any fix does,
+and a kept word is never given a capital again, nor its plural or possessive. Where nothing may be learned
+(incognito, a field that asks keyboards not to) the word typed again in the same place is still left as it was
+typed, as a fix of letters taken back always was. One backspace to swap the space for a question mark ("are you
+coming tom", backspace, "?") also keeps tom in lower case for good: as the track asked, and far more often than it
+happened for I; whether a capital taken back should be learned only from the row's quoted chip is a product
+question left open. With no English, asking for names changes nothing (`TypingAccuracyTest` tries every other
+language the keyboard has a list for, alone on its own board), and German's nouns are German's own affair. On the
+Turkish board, where I is the capital of ı, a name that begins with i is left as typed, as the lone i is there.
+
+**Beside another language.** The list is English's and read only with English loaded, and with it every other
+enabled language of the same script (`LanguageState.dictionaries`). A spelling that is a name in English may be
+an ordinary word in the other: French "roman", a novel; German "mir"; Spanish "los", and "catalán" typed without
+its accent. Until 2026-11-13 every spelling the other list had was taken out, and wordfreq's other lists hold Tom,
+Mary, London and Boston, since their writers tell of them as English's do: beside German 26 of the 146 seen names
+and 32 of the 98 unseen were left. Now `dict/en_capitals_beside.tsv` says, a line a language, which names are no
+names beside it, counted by `capitals.py` from that language's own Tatoeba sentences (every 20th held out, a word
+under its plain spelling): a name is out where, of all the times the two languages together write the spelling
+(weighted by the two lists' frequencies), it has its capital less than 95% of the time; where the other language
+writes it fewer than five times it counts as written with a capital nine times in ten if never seen in lower case
+(UNSEEN, set on ten languages cut down to a two-hundredth, a fiftieth and a tenth of their sentences and held to the
+rest: 96 to 97% of English's capitals kept, and 0.05 to 0.08 capitals wrongly given in a thousand of the other
+language's words, where the old rule gave 0.07). A language with no line keeps the old rule, now with the plain
+spelling of each accented word too. Out beside Spanish: catalan, israeli, hindu, danes, los, las; French: roman,
+hai, crete, les; Czech: tom (Czech writes "o tom"), mir, mira; Catalan: hague, plato, arabs; Hungarian: indian;
+Finnish: jai. Still given, by the same rule, because English writes them far more than the other list does:
+saudi beside Spanish, islamic and nordic beside Catalan, german beside Hungarian. Replayed with a second list
+loaded on English's board (`scoreboard.py --beside`, the JVM alone, no emulator run was typed that way):
+
+| beside | seen names | Tom and Mary aside | unseen names | Tom and Mary aside |
+| --- | ---: | ---: | ---: | ---: |
+| English alone | 146 of 191 | 73 of 118 | 98 of 122 | 69 of 93 |
+| German | 145 of 188 | 73 of 116 | 98 of 122 | 70 of 94 |
+| Spanish | 143 of 190 | 70 of 117 | 89 of 117 | 60 of 88 |
+| French | 146 of 189 | 73 of 116 | 98 of 122 | 69 of 93 |
+| Italian | 146 of 190 | 73 of 117 | 95 of 122 | 67 of 94 |
+| Portuguese | 149 of 193 | 72 of 116 | 100 of 124 | 69 of 93 |
+| Dutch | 118 of 159 | 50 of 91 | 77 of 100 | 51 of 74 |
+| Polish | 115 of 158 | 48 of 91 | 76 of 101 | 50 of 75 |
+| Turkish | 116 of 155 | 48 of 87 | 76 of 99 | 50 of 73 |
+
+Counted among the names whose letters came out right, as everywhere here. Beside Dutch, Polish and Turkish fewer
+names have the right letters at all: the words wrong on those replays are 23% (1,196 of 5,205 seen with Dutch),
+against 6.6 to 6.8% beside German, Spanish, French, Italian and Portuguese, with names and without alike. That is
+the decoder reading English's taps against two lists, not the names, and it is unexplained here (it may be the
+replay's: the starter table is English's alone); it wants a look from whoever owns two-language typing.
+
+What a capital counts as. To the Stats page it is a fix like any other ("Fixed by autocorrect", and a slip
+against the accuracy dial), as i made I has always been: of the 1,906 fixes made on the run's typings 101 are a
+name's capital and nothing else, which is 0.4 of a point of that dial (93.0% for 93.4%), and 73 of 2,361 on the
+unseen ones (0.2). To the mistake memory the word stood as typed: a fix that only gave a capital teaches nothing
+(until 2026-11-13 a possessive the lists lack, linda's for 1,634 of the names, was learned as a mistake for
+Linda's and shown among the words put right most often), and taking the capital back forgets nothing.
+To an anonymous report it is no fix made (a report goes by the letters) and, taken back, no fix undone. The
+setting that turns it off is still called "Capitals at sentence starts".
+
+| | Names given their capital | A capital given to a word the sentence writes without |
+| --- | ---: | ---: |
+| the run's 900 typings, Gboard | 134 of 191 (70.2%) | 1 of 3,925 words (the west Coast) |
+| the run's 900 typings, before | 0 of 191 | 0 of 3,787 |
+| after | 146 of 191 (76.4%) | 0 of 3,787 |
+| the 900 unseen typings, Gboard | 103 of 135 (76.3%) | 1 of 5,144 |
+| the 900 unseen typings, before | 0 of 122 | 1 of 4,934 |
+| after | 98 of 122 (80.3%) | 1 of 4,934 |
+| the typing bench's 12,000 words, careful thumb | 115 of 189 (60.8%) | 0 of 9,670 |
+| normal | 107 of 177 (60.5%) | 0 of 9,128 |
+| sloppy | 93 of 151 (61.6%) | 0 of 8,251 |
+
+Counted among the words that came out with the right letters (`scoreboard.py` prints the line under each set's,
+and `tool/typing_bench.sh taps` under each thumb's; `-Dcapitals=true` lists them). **The lead over Gboard is one
+name, Tom**: Tom is 57 of the 219 names in the run's sentences and 33 of the 159 in the unseen ones, and Ghost
+Keyboard gives him his capital every time where Gboard leaves "tom" in a few sentences for every thumb. With Tom
+and Mary aside (the line under the capitals in `scoreboard.py`), seen: 73 of 118 against Gboard's 74 of 117;
+unseen: 69 of 93 against 85 of 108; and Gboard gives a capital to more different names on both (23 of 38 against
+19 of 37, 31 of 38 against 25 of 34). So: ahead on Tom, level or behind on every other name, on both sets. What
+Gboard has and this lacks is names of several words (of 14 two-word names on the unseen typings Gboard gives both
+words their capital 14 times, Ghost Keyboard 6, and one word alone 5: "western Sahara", "new York") and names the
+list does not hold (Esperanto, Interlingua, Incas are not in en.tsv; Colgate); the wider word list and a list of
+pairs are the next gain, not the letters. Not one word of either set is mended or broken by the capitals, and the
+bench's own lines are to the digit what they were.
+
+A capital also lands on words that came out wrong, which the two counts above pass over since each goes by right
+letters: a slip that spells a listed name, or is mended into one. They were wrong words before names too, but
+"It had Ben a long meeting" is what is seen. On the run's typings 4 (Tim for Tom twice, Ana for Anna, Sam for
+ask), on the unseen 6 (Tim for Tom twice, Nile for mile, Ben for been, Luke for like, Tim for time), on the
+bench 5, 8 and 14 by thumb; Gboard 3 and 1. `--show` lists them; for the ranking track, a slip that spells a
+listed name (ben, tim, luke, nile) is being kept as a word. The one capital "amiss" on the unseen
+set was there before, and is Gboard's one too: the sentence itself writes "i" for I. `named` takes 77 ns a word,
+and `correct` timed with and without names in turn, in one process, shows no difference (22.6 and 20.9 µs a word
+at the middle of seven turns that ran from 17 to 30, on a Mac at a load average of 240); the list is 15 KB as a
+file (7 KB deflated), is read in 0.7 ms and takes 258 KB on the JVM.
+
+Still without, on the run's typings (45): names of several words whose words are ordinary alone, 12 (United
+States, the Polisario Front, Western Sahara: Gboard has United States every time); ordinary words that are a name
+where they stand, 17 (the Earth and the Moon, Grasshopper Green, Kiss the band, a D in a test: Gboard has none of
+them either); and names no list has, or that the counted sentences never wrote five times, 16 (At Frah, In
+Amenas, Adrar, Tuaregs, Polisario; Colgate, which Gboard has). On the bench's sentences the names its careful
+thumb left without are led by New (6 of 75), Bill (5), Year (4), Mr and Brown (3 each), then Union, Day, War,
+World and Series: words of names of several words again, and words that are a name only some of the time. What
+would reach the first kind is a second list, of pairs, made the same way, and a service that may give the word
+before its capital when the second one ends; neither is here. Nor is a swiped name given one unless a typed space
+or mark ends it. And a name that begins something written with dots (john.smith@..., amazon.com), typed in a
+field that capitalises sentences, gets its capital too: the full stop ends the word before anything says what it
+was the start of.
+
+On a phone none of this has been typed yet: `NamesSourceTest` holds the service's lines and the replay's to each
+other, and the replay is what the figures above are from. The two device checks kept so far were typed on builds
+that gave names no capital, and their `meta.json` says so (`--no-names`): typed that way on this tree the JVM's
+text is the emulator's in 144 of 144 typings and in 10 of 10, and with names asked for it is the emulator's but
+for a capital in all of them (24 and 4 differ: "Did tim survive?" is "Did Tim survive?"). So what is left for a
+phone to say is whether the service asks where its lines say it does: `device-check.sh` against a commit from
+before names types exactly the typings a name's capital alters.
 
 ### Where Ghost Keyboard wins
 
@@ -1412,7 +1579,8 @@ A run is replayed on the keyboard it was typed on, as the build of that day type
 the measured keys (`<run>/ghost.geometry.json`), and `Board.recorded` lays them out from that, not from the layout
 code in the tree: 0.16.2 gave the space bar the { } key's place, and on the tree's keys 2 of the 507 calibration
 taps of 0.15.0 already mean another key. A run's `meta.json` says where the build typed otherwise than the tree
-does (`"replay": ["--marks-without-taps"]` for 2026-11-11). With both, the count on main at 0.16.2 is still 900 of
+does (`"replay": ["--marks-without-taps", "--no-names"]` for 2026-11-11: that build read a word ended from ?123
+without its taps, and gave no name its capital). With both, the count on main at 0.16.2 is still 900 of
 900: the decoder has not changed since 0.15.0, and its 421 unit tests pass with the fix in.
 
 ## What these numbers are not

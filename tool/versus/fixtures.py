@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tries Ghost Keyboard's decoder, as it is in this tree, on the words it lost: tool/versus/fixtures.py [file ...]
-[--marks-without-taps] [--set NAME=VALUE ...] (the last two as tool/versus/whatif.py has them) [--still].
+[--marks-without-taps] [--set NAME=VALUE ...] (the last two as tool/versus/whatif.py has them) [--still] [--names].
 
 Each line of tool/versus/fixtures/*.tsv is a word another keyboard got and Ghost Keyboard did not, with the taps of
 the whole sentence it was in, exactly as they were injected on the emulator. This types every such sentence through
@@ -10,6 +10,11 @@ autocorrect: "mended" should go up, and "sentences that changed" says what else 
 
   --still   lists the words that are still lost, by what the decoder's limit was when the list was made: the
             word meant, what was typed, what stands now, and the words around it
+  --names   types with names given their capital, as the keyboard now does in a message field. Unsaid, it types
+            without (Replay.kt's --no-names): the emulator's text in these files is of a build that gave none, so
+            with them every sentence that has a name's capital would count as changed (17 of the 241 did, and
+            "sentences whose text is not what the emulator's was" read 136 where the decoder's letters make it 119).
+            The words mended are the same either way: they are held to their letters
 
 No emulator, and no other keyboard: what Gboard typed is in the file.
 """
@@ -33,6 +38,10 @@ def main():
     if "--marks-without-taps" in argv:
         argv.remove("--marks-without-taps")
         extra.append("--marks-without-taps")
+    if "--names" in argv:
+        argv.remove("--names")
+    else:
+        extra.append("--no-names")
     while "--set" in argv:
         i = argv.index("--set")
         extra += argv[i:i + 2]

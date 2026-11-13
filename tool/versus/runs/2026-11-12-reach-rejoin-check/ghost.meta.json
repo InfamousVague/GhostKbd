@@ -49,5 +49,9 @@
   "lastUpdateTime": "2026-11-12 18:26:54",
   "apk": "/data/app/~~Q8T_2HHj25HWJGJ3VGXfaw==/com.infamousvague.devkeyboard-uZxoaiC0S09lfSPwwvIAOw==/base.apk",
   "sha256": "3c7ed0d8b52064cd45a44920e18f443e1a28f5ff48a0f7ed3d8cedca082ba89c"
- }
+ },
+ "replay": [
+  "--no-names"
+ ],
+ "replay_note": "the build that was typed on (a debug build of 1594724: the reach and the rejoin) gave no name typed in lower case its capital (Autocorrect.correct's names, asked for since versus-names): tool/versus/replay.sh types as it did only with this"
 }

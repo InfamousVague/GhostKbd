@@ -473,15 +473,16 @@ class ThumbLeanTest {
         assertTrue(finish, finish.contains("lean.newField()"))
         // Taught in one place: straight after autocorrect has settled a word, which no password field ever gets to
         // (correctLastWord gives up first where autocorrect is not allowed, and it is never allowed in one).
-        // A word left as typed teaches as it is settled, a fix only once it has been put in the field.
-        assertEquals(2, Regex("\\.settled\\(lean").findAll(service).count())
+        // A word left as typed teaches as it is settled, a fix only once it has been put in the field: alone, or
+        // together with a change the second look made to the word before (Autocorrect.again).
+        assertEquals(3, Regex("\\.settled\\(lean").findAll(service).count())
         assertEquals(0, Regex("lean\\.learn\\(").findAll(service).count())
         val correct = service.substring(service.indexOf("private fun correctLastWord(")).substringBefore("\n    }")
         val allowed = correct.indexOf("if (!autocorrectAllowed()")
-        val asked = correct.indexOf("autocorrect.correct(word, scorer, taps)")
+        val asked = correct.indexOf("autocorrect.correct(word, scorer, taps")
         val asTyped = correct.indexOf("if (found == null) autocorrect.settled(lean, word, null, taps)")
         val replaced = correct.indexOf("if (!editor.replaceBefore(word, fixed + separator")
-        val fixed = correct.indexOf("autocorrect.settled(lean, word, fixed, taps)")
+        val fixed = correct.lastIndexOf("autocorrect.settled(lean, word, fixed, taps)")
         assertTrue(correct, allowed in 0 until asked && asked < asTyped && asTyped < replaced && replaced < fixed)
         assertTrue(correct, correct.contains("{ lean.pass(); return false }"))
         // Two scraps put together: the first scrap's lesson is taken back once the whole word is in the field.

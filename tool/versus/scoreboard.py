@@ -25,11 +25,36 @@ too, over the typings it has got through.
                    right words spoiled, and right words no list has that were spoiled, which these sentences are
                    too plain to show (they have few names)
   --overlay DIR, --java OPTS, --set NAME=VALUE, --marks-without-taps    as tool/versus/whatif.py has them
+  --no-names       types as a service that does not ask names for their capitals (Replay.kt's own; the bench's
+                   -Dnames=false): what every build up to 0.16.3 did, and what a field that capitalises nothing or
+                   a person with "Capitals at sentence starts" off still gets (DevKeyboardService.namesWanted)
+
+  --beside CODES   also types both sets as a person with a second language on has them (CODES are its word lists'
+                   stems, a comma between: de,es,fr), and prints each set's lines again for each. English's list of
+                   names loses some beside another language (Autocorrect.load, dict/en_capitals_beside.tsv), and
+                   every word is read against both lists. No emulator run was typed that way: these are the JVM's
+                   alone, held against nothing
+
+Under each set's line, its capitals, which the word score leaves aside: of the names the field has the right
+letters of (the sentence's words after its first that are written with a capital: Tom, Algeria, Monday; not I),
+how many have their capital; and of the words the sentence writes in lower case, how many the field has with a
+capital, which is a right word spoiled. The thumb types everything in lower case, so a capital is the keyboard's
+doing. --against says which names gained and lost their capital, and which words were given one amiss. Gboard's
+capitals are beside the seen set's, and beside the unseen and the final set's where it has been given them.
+
+Under that, what those two counts cannot show. The names again with Tom and Mary left out, and by how many
+different names there are: the two are Tatoeba's stock names, a third of the names in these sentences, and a
+keyboard that gave a capital to them alone would look well here. The capitals on words that came out wrong (a
+slip that spells a listed name, or is mended into one: "It had Ben a long meeting"), which neither count sees
+because each goes by words with the right letters; --show lists them. And the names two words long (Western
+Sahara, New York), by whether both words have their capital or one alone: a list of single words gives such a
+name half ("western Sahara"), and the first count takes the half for a name given.
 
 Ghost Keyboard alone, no emulator. The replay is the emulator's to the character on the seen set (score.py's
 count: 900 of 900), which is what lets a JVM stand in for it.
 """
 import argparse
+import collections
 import gzip
 import json
 import os
@@ -54,8 +79,9 @@ def kept(name):
         return [r for r in (json.loads(line) for line in f) if not r.get("stalled")]
 
 
-def other(name, keyboard="gboard"):
-    """What another keyboard made of the unseen or the final set (tool/versus/other-sets.sh), as verdicts; None where it was never typed."""
+def other_records(name, keyboard="gboard"):
+    """What another keyboard was given of the unseen or the final set and what it left in the field
+    (tool/versus/other-sets.sh): its records, one a typing; None where it was never typed."""
     for folder in (os.path.join(HERE, "runs", "other-sets", name), os.path.join(ROOT, "build", "versus", "runs", "other-sets", name)):
         for file, opener in ((keyboard + ".jsonl.gz", gzip.open), (keyboard + ".jsonl", open)):
             path = os.path.join(folder, file)
@@ -72,8 +98,22 @@ def other(name, keyboard="gboard"):
                     if not r.get("stalled"):
                         records[(r["thumb"], r["line"])] = r
             if records:
-                return {"%s/%d" % k: [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for k, r in records.items()}
+                return list(records.values())
     return None
+
+
+def other(name, keyboard="gboard"):
+    """What another keyboard made of the unseen or the final set (tool/versus/other-sets.sh), as verdicts; None where it was never typed."""
+    records = other_records(name, keyboard)
+    if records is None:
+        return None
+    return {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in records}
+
+
+def other_capitals(name, keyboard="gboard"):
+    """The same keyboard's capitals on that set ([capitals]); None where it was never typed."""
+    records = other_records(name, keyboard)
+    return None if records is None else capitals(records, lambda r: r["out"])
 
 
 def unseen(first, count, seed="7"):
@@ -145,6 +185,96 @@ def changes(now, then, show):
     return text
 
 
+def capitals(records, text_of):
+    """{"thumb/line": [the sentence's names as [the sentence writes it, the field has it], the words given a capital
+    amiss the same way, how many words the sentence writes in lower case that the field has, the capitals on words
+    that came out wrong as [what the sentence has there, the field has it], the names of two words the same way]}
+    (score.names, score.capitals_amiss, score.capitals_astray, score.name_pairs). [text_of] gives a record's field."""
+    out = {}
+    for r in records:
+        rec = {"target": r["target"], "out": text_of(r)}
+        amiss, plain = score.capitals_amiss(rec)
+        out["%s/%d" % (r["thumb"], r["line"])] = [[list(p) for p in score.names(rec)], [list(p) for p in amiss], plain,
+                                                   [list(p) for p in score.capitals_astray(rec)], [list(p) for p in score.name_pairs(rec)]]
+    return out
+
+
+#: Tatoeba's two stock names. They are a third of the names in these sentences (Tom alone is 57 of the 219 the seen
+#: ones hold) and next to none of anybody's messages, so the capitals are said with them and without: a list that
+#: had Tom and nothing else would give "names their capital" two times in five here.
+STOCK = ("Tom", "Mary")
+
+
+def capitals_line(name, c, beside=None):
+    def said(c):
+        found = [p for v in c.values() for p in v[0]]
+        with_capital = sum(1 for _, got in found if got[:1].isupper())
+        return "names given their capital %d of %d (%.1f%%), a capital given amiss %d of %d words" % (
+            with_capital, len(found), 100.0 * with_capital / max(1, len(found)), sum(len(v[1]) for v in c.values()), sum(v[2] for v in c.values()))
+    text = "%-8s %s%s" % (name, said(c), "   | Gboard " + said(beside) if beside is not None else "")
+    if beside is not None and len(beside) < len(c):
+        # Gboard has not been given every typing of this set yet: the same typings, side by side (as [line] has the words).
+        text += "\n         over the %d typings Gboard has had: this %s" % (len(beside), said({k: c[k] for k in beside if k in c}))
+    return text
+
+
+def capitals_more(c, beside=None):
+    """A second line under [capitals_line]'s, for what its two counts cannot show: the names with Tatoeba's stock
+    names left out ([STOCK]) and by how many different names there are; the capitals on words that came out wrong,
+    which neither count sees; and the names of two words, by how many of their words have a capital. None where
+    the capitals were saved before these were kept."""
+    def said(c):
+        if any(len(v) < 5 for v in c.values()):
+            return None
+        found = [p for v in c.values() for p in v[0]]
+        rest = [got for w, got in found if w not in STOCK]
+        given = sum(1 for got in rest if got[:1].isupper())
+        kinds = {w for w, _ in found}
+        kinds_given = {w for w, got in found if got[:1].isupper()}
+        astray = [p for v in c.values() for p in v[3]]
+        pairs = [got.split(" ") for v in c.values() for _, got in v[4]]
+        both = sum(1 for a, b in pairs if a[:1].isupper() and b[:1].isupper())
+        one = sum(1 for a, b in pairs if a[:1].isupper() != b[:1].isupper())
+        return "%s aside %d of %d (%.1f%%), %d of %d different names; a capital on a word that came out wrong %d (%d where the sentence has a name); of %d names two words long, both words have theirs in %d and one alone in %d" % (
+            " and ".join(STOCK), given, len(rest), 100.0 * given / max(1, len(rest)), len(kinds_given), len(kinds),
+            len(astray), sum(1 for there, _ in astray if there[:1].isupper()), len(pairs), both, one)
+    mine = said(c)
+    if mine is None:
+        return None
+    theirs = said(beside) if beside is not None else None
+    return "%-8s %s%s" % ("", mine, "   | Gboard " + theirs if theirs else "")
+
+
+def capital_changes(now, then, show):
+    """Names that gained or lost their capital since [then], and words given one amiss that were not: a name counts
+    where both typings have its letters, so that a word mended or broken is not also a capital won or lost. With
+    [show], the capitals now on words that came out wrong are listed too."""
+    gained, lost, amiss, righted, astray = [], [], [], [], []
+    for key in now:
+        if key not in then:
+            continue
+        has, had = collections.Counter(n for n, _ in now[key][0]), collections.Counter(n for n, _ in then[key][0])
+        with_now = collections.Counter(n for n, got in now[key][0] if got[:1].isupper())
+        with_then = collections.Counter(n for n, got in then[key][0] if got[:1].isupper())
+        for name in has:
+            both = min(has[name], had[name])
+            more = min(with_now[name], both) - min(with_then[name], both)
+            gained += [name] * max(0, more)
+            lost += [name] * max(0, -more)
+        before = collections.Counter(got for _, got in then[key][1])
+        after = collections.Counter(got for _, got in now[key][1])
+        amiss += ["%s (the sentence has %s)" % (got, word) for word, got in now[key][1] if before[got] == 0]
+        righted += [got for _, got in then[key][1] if after[got] == 0]
+        if len(now[key]) > 3:
+            astray += ["%s (the sentence has %s)" % (got, there or "another word") for there, got in now[key][3]]
+    text = "%d names gained their capital, %d lost it; %d words given a capital amiss that were not, %d no longer" % (len(gained), len(lost), len(amiss), len(righted))
+    if show:
+        def few(items):
+            return ", ".join("%s%s" % (w, " x%d" % n if n > 1 else "") for w, n in collections.Counter(items).most_common(show))
+        text += ("\n        gained  " + few(gained) if gained else "") + ("\n        LOST    " + few(lost) if lost else "") + ("\n        AMISS   " + few(amiss) if amiss else "") + ("\n        on a wrong word  " + few(astray) if astray else "")
+    return text
+
+
 def bench(overlay, java, dials):
     """The typing bench's tap test on its own sentences: the "by the taps" lines."""
     src = "android/app/src/main/kotlin/com/infamousvague/devkeyboard"
@@ -173,36 +303,62 @@ def main():
     ap.add_argument("--set", action="append", default=[])
     ap.add_argument("--marks-without-taps", action="store_true")
     ap.add_argument("--final", action="store_true")
+    ap.add_argument("--no-names", action="store_true")
+    ap.add_argument("--beside", default="")
     ap.add_argument("--unseen-first", type=int, default=UNSEEN_FIRST)
     ap.add_argument("--sentences", type=int, default=300)
     args = ap.parse_args()
     board = score.board_file(GEOMETRY)
-    flags = ["--marks-without-taps"] if args.marks_without_taps else []
+    flags = (["--marks-without-taps"] if args.marks_without_taps else []) + (["--no-names"] if args.no_names else [])
     size = (1248, 1972, 420)
 
-    def typed(records):
-        return verdicts(records, score.replay(records, size, board=board, flags=flags, dials=args.set, overlay=args.overlay, java=args.java))
-    seen_records = kept("ghost.jsonl.gz")
-    now = {"seen": typed(seen_records), "unseen": typed(unseen(args.unseen_first, args.sentences))}
-    gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in kept("gboard.jsonl.gz")}
-    print(line("seen", now["seen"], gboard))
-    print(line("unseen", now["unseen"], other("unseen") if args.unseen_first == UNSEEN_FIRST else None))
+    def typed(records, more=()):
+        """(every word's verdict, the capitals) of [records] typed through this tree's decoder."""
+        texts = score.replay(records, size, board=board, flags=flags + list(more), dials=args.set, overlay=args.overlay, java=args.java)
+        return verdicts(records, texts), capitals(records, lambda r: texts[(r["thumb"], r["line"])][0])
+
+    def said(name, words, caps, words_beside=None, caps_beside=None):
+        """A set's lines: its words, its capitals, and what the capitals' two counts leave out."""
+        print(line(name, words, words_beside))
+        print(capitals_line("", caps, caps_beside))
+        more = capitals_more(caps, caps_beside)
+        if more:
+            print(more)
+    now = {}
+    seen_records, unseen_records = kept("ghost.jsonl.gz"), unseen(args.unseen_first, args.sentences)
+    now["seen"], now["seen capitals"] = typed(seen_records)
+    now["unseen"], now["unseen capitals"] = typed(unseen_records)
+    theirs = kept("gboard.jsonl.gz")
+    gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in theirs}
+    said("seen", now["seen"], now["seen capitals"], gboard, capitals(theirs, lambda r: r["out"]))
+    said("unseen", now["unseen"], now["unseen capitals"], other("unseen") if args.unseen_first == UNSEEN_FIRST else None, other_capitals("unseen") if args.unseen_first == UNSEEN_FIRST else None)
     if args.final:
         last = unseen(FINAL_FIRST, args.sentences)
         if len(last) != 3 * args.sentences:
             raise SystemExit("scoreboard: the final set has %d typings, not %d: the held-out file has no %d sentences after line %d" % (len(last), 3 * args.sentences, args.sentences, FINAL_FIRST))
-        print(line("final", typed(last), other("final")))
+        # Totals only, of the words and of the capitals: neither is kept in `now`, so --save never writes its words.
+        words, caps = typed(last)
+        said("final", words, caps, other("final"), other_capitals("final"))
+    # A second language on: the same taps, read against both word lists, with the names English keeps beside it.
+    for code in [c for c in args.beside.split(",") if c]:
+        for name, records in (("seen", seen_records), ("unseen", unseen_records)):
+            words, caps = typed(records, ("--beside", code))
+            said("%s +%s" % (name, code), words, caps)
+            now["%s beside %s" % (name, code)], now["%s capitals beside %s" % (name, code)] = words, caps
     folder = os.path.join(ROOT, "build", "versus", "scoreboard")
     if args.against:
         then = json.load(open(os.path.join(folder, args.against + ".json")))
         for name in ("seen", "unseen"):
             print("    %s, against %s: %s" % (name, args.against, changes(now[name], then[name], args.show)))
+            # A save from before the capitals were counted has none to hold these against.
+            if name + " capitals" in then:
+                print("    %s, against %s: %s" % (name, args.against, capital_changes(now[name + " capitals"], then[name + " capitals"], args.show)))
     if args.save:
         os.makedirs(folder, exist_ok=True)
         with open(os.path.join(folder, args.save + ".json"), "w") as f:
             json.dump(now, f)
     if args.bench:
-        for ln in bench(args.overlay, args.java, args.set):
+        for ln in bench(args.overlay, ((args.java or "") + " -Dnames=false").strip() if args.no_names else args.java, args.set):
             print("bench    " + " ".join(ln.split()))
 
 

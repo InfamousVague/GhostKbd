@@ -318,6 +318,21 @@ Words on the "List of Dirty, Naughty, Obscene, and Otherwise Bad Words"
 (https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words, CC BY 4.0) were left out.
 None of that list is in the file.
 
+en_capitals.txt
+---------------
+The words of en.tsv that English all but always writes with a capital (Tom, Monday, Algeria, French), made by
+tool/capitals.py in Ghost Keyboard's repository: autocorrect gives a name typed in lower case its capital from it.
+
+Counts derived from Tatoeba (CC BY 2.0 FR); vocabulary limited to the wordfreq list (CC BY-SA 4.0).
+
+The counts are of the English sentences of Tatoeba (https://tatoeba.org), written by its contributors and released
+under the Creative Commons Attribution 2.0 France licence (https://creativecommons.org/licenses/by/2.0/fr/). They are
+the sentences the next-word starter tables were counted from, and the contributors who wrote them are named in
+assets/ngram/CREDITS.txt. What was changed: none of the sentences is here. The file holds the words of en.tsv, of
+three letters or more, that those sentences write with a capital 19 times in 20 or more where the word stands
+straight after another word of its sentence, counted there five times or more; each as it is written. Its first
+lines say which export was counted.
+
 wordfreq's sources
 ------------------
 wordfreq contains data extracted from Google Books Ngrams (http://books.google.com/ngrams) and Google Books Syntactic

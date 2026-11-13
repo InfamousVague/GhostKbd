@@ -51,6 +51,7 @@ Nothing on the page is sent anywhere (`tool/net_check.sh`).
 - **Speed**: characters typed over five, a minute, over the time spent typing (a pause of five seconds or more is
   not typing). Nothing until there are ten seconds to measure.
 - **Accuracy**: how much of what was typed stood. A backspace straight after a key, or an autocorrect fix, is a slip.
+  A capital autocorrect gives is a fix here (I always was; a name's is since names got theirs, docs/versus.md).
 - **In a row**: days with typing up to today, or up to yesterday before today's first word.
 - **Missed**: of the times a key was meant (its taps that stood and the slips meant for it), the share that landed
   on a neighbour. A key is tinted once it has ten taps; a slip is drawn as an arrow once it has been seen twice.
