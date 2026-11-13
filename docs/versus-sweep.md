@@ -44,10 +44,11 @@ dial here without this tool being touched, and `sweep.py dials` lists it. What e
 the tree's value, and every one is put back to that before each line, so a line never inherits from the line
 before. This tree has 70: 19 of `Autocorrect`, 19 of `TapDecoder`, 6 of `Scorer` and 26 of `SwipeDecoder`. A
 search takes 32 of them unless told otherwise, the numbers of `Autocorrect` and `TapDecoder` that a tapped word
-can reach; not swipe typing's, not next-word prediction's priors (`Scorer`'s, which nothing here measures), not
-the three that only the row above the keys or a person's remembered mistakes read, and no switch. A number of any
-other class that a change adds is taken too; a switch or a whole number is named (`--also TapDecoder.SOME_SWITCH`)
-and is then tried the other way, or by ones.
+can reach; not swipe typing's, not `Scorer`'s five (next-word prediction's: the row of next words feels them, and
+nothing here measures that row), not the three that only the row above the keys or a person's remembered
+mistakes read, and no switch. Those are named one by one in `sweep.py` (`NOT_SEARCHED`), so a number that a
+change adds, to `Scorer` or to a class of its own, is taken without being listed anywhere; a switch or a whole
+number is named (`--also TapDecoder.SOME_SWITCH`) and is then tried the other way, or by ones.
 
 **One setting at a time, on several threads.** The dials are static, so two settings cannot be tried at once in
 one JVM without a class loader each, and each class loader would hold its own copy of the word lists and warm up

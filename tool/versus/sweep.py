@@ -86,9 +86,13 @@ WORK = os.path.join(ROOT, "build", "versus", "sweep")
 LAST_LINE = min(110000, scoreboard.FINAL_FIRST)
 SETS = ("seen", "unseen")
 # What a search takes when it is given no dial: every number but these. Swipe typing's own are not asked for by a
-# tap; the starter table's priors are next-word prediction's, which nothing here measures; and three that only the
-# row above the keys or a person's remembered mistakes read, which no tap test here reaches.
-NOT_SEARCHED = ("SwipeDecoder.", "Scorer.", "Autocorrect.FINISH_LEAST", "TapDecoder.FINISH_BUDGET", "Autocorrect.REMEMBERED")
+# tap; Scorer's five are next-word prediction's (the starter table's priors, and how much the words before lift a
+# word: a tap's reading feels the last two, but so does the row of next words, which nothing here measures); and
+# three that only the row above the keys or a person's remembered mistakes read, which no tap test here reaches.
+# They are named one by one, but for swipe typing's, so that a number a change adds to Scorer, Autocorrect or
+# TapDecoder is searched without being listed anywhere.
+NOT_SEARCHED = ("SwipeDecoder.", "Scorer.PRIOR_ONE", "Scorer.PRIOR_TWO", "Scorer.PRIOR_TABLE_TWO", "Scorer.LIFT_WEIGHT", "Scorer.LIFT_CAP",
+                "Autocorrect.FINISH_LEAST", "TapDecoder.FINISH_BUDGET", "Autocorrect.REMEMBERED")
 # Dials that are read as a whole number (Autocorrect.LONG_WORD is a count of letters): stepped by ones.
 WHOLE = ("Autocorrect.LONG_WORD",)
 WEIGHTS = {"seen": 1.0, "unseen": 1.0, "spoiled": 4.0, "unknown": 4.0, "right": 1.0, "misspellings": 1.0, "bench": 0.0}
@@ -510,8 +514,9 @@ def a_step_away(sw, name, now, lo, hi, step):
 
 
 def searched(sw, name):
-    """Whether a search takes this dial when it is given none: see NOT_SEARCHED."""
-    return sw.dials[name]["type"] == "float" and not name.startswith(NOT_SEARCHED) and name not in NOT_SEARCHED
+    """Whether a search takes this dial when it is given none: see NOT_SEARCHED (a name there that ends in a full
+    stop is a whole class)."""
+    return sw.dials[name]["type"] == "float" and not any(name == n or (n.endswith(".") and name.startswith(n)) for n in NOT_SEARCHED)
 
 
 def cmd_dials(sw, args):
