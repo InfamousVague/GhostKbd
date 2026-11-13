@@ -39,5 +39,9 @@
  },
  "taken_up_again": [
   "2026-11-12T15:57:46-05:00"
- ]
+ ],
+ "replay": [
+  "--no-names"
+ ],
+ "replay_note": "the build that was typed on (0.16.2 with the taps kept at marks) gave no name typed in lower case its capital (Autocorrect.correct's names, asked for since versus-names): tool/versus/replay.sh types as it did only with this"
 }

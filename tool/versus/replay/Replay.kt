@@ -32,9 +32,12 @@
 // mean other keys on it. Without --board the keys are this tree's (for `geometry`, and for `probes` of a
 // measurement made of this tree's build).
 //
-// Names are asked for their capitals (Autocorrect.correct's `names`), as the service is to ask in a field like this
-// one, which capitalises sentences: DevKeyboardService.correctLastWord does not pass it yet, so until it does a
-// phone types as `replay ... --no-names` does, and as every build up to 0.16.3 did.
+// Names are asked for their capitals (Autocorrect.correct's `names`, and Autocorrect.named for a word put together
+// again), as DevKeyboardService.namesWanted has it in a field like the one a run types into: sentences capitalised,
+// and "Capitals at sentence starts" on, as a new install has it. `replay ... --no-names` types as the builds before
+// that did (every one up to 0.16.3): the runs kept so far were typed on such builds, and their meta.json says so
+// ("replay": ["--no-names"]), which is what score.py holds the emulator's text against. The letters are the same
+// either way; only a name's capital differs.
 //
 // `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
 // @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
@@ -274,6 +277,7 @@ class Decoder(root: File) {
 /**
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
+ * [names] is DevKeyboardService.namesWanted: true in such a field at the app's defaults.
  */
 class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false, private val names: Boolean = true) {
     val text = StringBuilder()
@@ -380,7 +384,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             val c = cut
             cut = null
             if (correcting && c != null && c.touches.size == c.typed.length && text.endsWith(c.stood + " ")) {
-                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))
+                val whole = decoder.ac.rejoin(c.typed, "", c.stood, scorerAt(c.stood.length + 1), tapsAcross(c.touches, c.tap, emptyList()))?.let { if (names) decoder.ac.named(it) else it }
                 if (whole != null) {
                     fixes += "${c.stood}_>$whole"
                     text.setLength(text.length - c.stood.length - 1)
@@ -431,7 +435,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         }
         // The word before this one ended at a tap on the bar that may have been a letter of one word, this its end.
         if (c != null && c.touches.size == c.typed.length && wordTouches.size == word.length && !offLetters && text.endsWith(c.stood + " " + word)) {
-            val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(c.stood.length + 1 + word.length), tapsAcross(c.touches, c.tap, wordTouches))
+            val whole = decoder.ac.rejoin(c.typed, word, c.stood, scorerAt(c.stood.length + 1 + word.length), tapsAcross(c.touches, c.tap, wordTouches))?.let { if (names) decoder.ac.named(it) else it }
             if (whole != null) {
                 fixes += "${c.stood}_$word>$whole"
                 text.setLength(text.length - c.stood.length - 1 - word.length)
@@ -440,7 +444,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             }
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-        // The field capitalises sentences and the keyboard's own capitals are on: a name is to have its capital.
+        // The field capitalises sentences and the keyboard's own capitals are on: a name has its capital (namesWanted).
         val fixed = decoder.ac.correct(word, scorer, tapsFor(word), names)
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch

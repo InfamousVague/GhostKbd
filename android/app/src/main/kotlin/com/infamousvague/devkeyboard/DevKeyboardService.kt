@@ -892,6 +892,21 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
+     * Names get their capital in this field ([Autocorrect.correct]'s names: tom is Tom, monday Monday, mended or
+     * left as typed): it asks for its sentences to be capitalised, and Settings › Typing › Capitals at sentence
+     * starts is on. Those are the two things that make the keyboard give a capital of its own at all
+     * ([updateShift]), so a field that takes its text as typed (a search box, a user name, code) keeps it so, and
+     * so does a person who has capitals turned off. Never in a terminal, where a word is a command or a file's
+     * name, and never on a script without capitals. The list of names is English's and is empty without English
+     * loaded ([Autocorrect.load]): asking for names then changes nothing.
+     */
+    private fun namesWanted(): Boolean {
+        if (!prefs.autoCaps || !language.spec.script.cased || terminalApp()) return false
+        val type = currentInputEditorInfo?.inputType ?: return false
+        return type and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT && type and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0
+    }
+
+    /**
      * The word just before the cursor, corrected and followed by [separator], if autocorrect has a better one. True
      * when it typed the separator itself. Words in code-shaped text (after @ # / . _ - or a digit) are left alone.
      */
@@ -927,7 +942,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(head, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
-        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps) ?: return false
+        // The one word is a name as often as any other ("lo doj" is London): its capital, where the field wants them.
+        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps)?.let { if (namesWanted()) autocorrect.named(it) else it } ?: return false
         if (!editor.replaceBefore(standing, whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty()) "" else separator)) return false
         stats { TypingStats.correction(this) }
         // Backspace straight after puts the two scraps back, as it puts back any word a fix replaced.
@@ -982,7 +998,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             return false
         }
         val taps = tapsFor(word)
-        val found = autocorrect.correct(word, scorer, taps)
+        // A name typed in lower case comes out with its capital, mended or not, where the field wants capitals.
+        val found = autocorrect.correct(word, scorer, taps, namesWanted())
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
         // Ended by the bar's own tap: kept, in case that tap was this word's next letter.
@@ -990,8 +1007,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (prior != null) retyped(prior, stands, opens)
         swipedThenTyped(head, stands, now)
         noteEnd(lower, stands, head, now)
-        // Left as typed: where this spelling has been a mistake before, that it is also meant counts against mending it.
-        if (found == null && mistakesOn()) mistakes.kept(lower)
+        // Left as typed (a capital given to its letters changes none of them): where this spelling has been a mistake
+        // before, that it is also meant counts against mending it.
+        if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)
         // A swiped word that a space or a full stop has just ended was counted as a swipe: it is not a typed word too.
         val swiped = atSwipe?.equals(word, ignoreCase = true) == true
         atSwipe = null
@@ -1071,10 +1089,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /**
      * How a word the person put there is remembered: in lower case, unless they gave it a capital of its own in the
      * middle of a sentence and it is no ordinary word (a name: "kria" was "Kira"). [opens] says it opened a sentence.
+     * Of two words (a fix that parted them: "tomis" is "Tom is") the first is the one with the capital, and a listed
+     * name's is autocorrect's own, given again wherever the field wants it: the lesson is the letters.
      */
     private fun meantAs(stands: String, opens: Boolean): String {
         val lower = stands.lowercase(locale)
-        return if (!opens && stands.isNotEmpty() && stands[0].isUpperCase() && stands.drop(1) == lower.drop(1) && !autocorrect.isListed(lower)) stands else lower
+        return if (!opens && stands.isNotEmpty() && stands[0].isUpperCase() && stands.drop(1) == lower.drop(1) && !autocorrect.isListed(lower.substringBefore(' '))) stands else lower
     }
 
     /**
@@ -1984,7 +2004,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 }
                 if (word.isNotEmpty()) {
                     val taps = tapsFor(word)
-                    val s = if (predict != null) autocorrect.suggest(word, nextWords.timed { nextWords.at(predict).ready() }, taps) else autocorrect.suggest(word, null, taps)
+                    // With names where the field wants them, so the row's pick is what the space will leave: "Tom" for
+                    // "tom", then "tom" itself, a tap away.
+                    val names = namesWanted()
+                    val s = if (predict != null) autocorrect.suggest(word, nextWords.timed { nextWords.at(predict).ready() }, taps, names) else autocorrect.suggest(word, null, taps, names)
                     if (!s.typedIsWord) items += RowItem("typed-$word", label = "\u201C$word\u201D", wide = true) { keepTyped(word) }
                     s.words.forEachIndexed { i, w ->
                         items += RowItem("s-$i-$w", label = w, bold = i == 0 && (s.fix != null || s.typedIsWord), wide = true) { pickSuggestion(word, w) }

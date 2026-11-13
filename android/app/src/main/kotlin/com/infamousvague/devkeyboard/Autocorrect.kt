@@ -448,7 +448,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * apostrophe, a half-space) only. [scorer] is what is likely at this place in the text, where prediction is on.
      * [taps] are where the fingers landed for it, where the keyboard knows (see [byTaps]): the fix may then be two
      * words ("thankyou" is "thank you"). [names] says the field wants capitals: then a name comes out with its own
-     * ([proper]), mended ("tmo" is "Tom") or left as typed ("tom" is "Tom"), in the middle of a sentence too.
+     * ([proper]), mended ("mondya" is "Monday"), left as typed ("tom" is "Tom") or parted from the word it ran into
+     * ("withmary" is "with Mary"), in the middle of a sentence too. Capitals typed on purpose are left, as ever.
      */
     fun correct(typed: String, scorer: Scorer? = null, taps: Taps? = null, names: Boolean = false): String? {
         val now = now
@@ -490,8 +491,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val stands = (kept(lower) && remembered(now, lower) == null) || eszett
         val mend = if (stands) null else best(now, lower, scorer, taps?.takeIf { it.xs.size == typed.length })
         val sure = mend?.takeIf { it.sure }?.word
-        // What the space will leave: the mend, and a name's capital where the field wants them, as [correct] has it.
-        val fix = if (names && !stands) named(now, sure ?: lower).takeIf { sure != null || recase(locale, typed, it) != typed } else sure
+        // What the space will leave: the mend, and a name's capital where the field wants them, as [correct] has it
+        // (which leaves capitals typed on purpose alone: TOM, tOm).
+        val fix = when {
+            !names || stands -> sure
+            sure != null -> named(now, sure)
+            typed.drop(1).any { it.isUpperCase() } -> null
+            else -> named(now, lower).takeIf { recase(locale, typed, it) != typed }
+        }
         fun shown(word: String) = if (names) proper(now, word) else capitalI(now, word)
         val out = LinkedHashSet<String>()
         fix?.let { out += recase(locale, typed, it) }
@@ -1151,6 +1158,13 @@ class Autocorrect(private val open: (String) -> InputStream?) {
 
     /** A fix, or the word as typed, with each of its words as [proper] has it: a fix may be two words. */
     private fun named(now: Now, text: String): String = if (' ' in text) text.split(' ').joinToString(" ") { proper(now, it) } else proper(now, text)
+
+    /**
+     * [text] with each name in it given its capital, as [correct] gives one where the field wants capitals: for a
+     * word that reached the field another way than through [correct], which is a word put together again by
+     * [rejoin] ("lo doj" is "london", and London). A word that has a capital already is left as it is.
+     */
+    fun named(text: String): String = named(now, text)
 
     /** The typed word's capitals on the correction: all, first, or none. Capitals are the layout's (Turkish i gives İ). */
     private fun recase(locale: Locale, typed: String, fixed: String): String = when {

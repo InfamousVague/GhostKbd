@@ -269,6 +269,74 @@ class TypingAccuracyTest {
         assertEquals("Monday", both.correct("monday", names = true))
     }
 
+    @Test fun aNameInsideTwoWordsRunTogetherGetsItsCapital() {
+        // The fix is two words, and each is looked at: the name among them has its capital, the other is as it was.
+        assertEquals("with Mary", ac.correct("withmary", null, taps("withmary"), names = true))
+        assertEquals("in London", ac.correct("inlondon", null, taps("inlondon"), names = true))
+        assertEquals("with mary", ac.correct("withmary", null, taps("withmary")))
+        // The row shows what the space will leave.
+        assertEquals("with Mary", ac.suggest("withmary", null, taps("withmary"), names = true).fix)
+    }
+
+    @Test fun aWordPutTogetherAgainHasItsNamesCapital() {
+        // "london" with its first n landed on the bar: "lo doj" in the field. Put together it is a name like any other,
+        // and the service gives it its capital by [Autocorrect.named] where the field wants them.
+        val whole = ac.rejoin("lo", "doj", "lo", null, cut("lo", "doj", 'n', 0.07f))
+        assertEquals("london", whole)
+        assertEquals("London", ac.named(whole!!))
+        // A capital it has already (the scrap opened a sentence) stays, and a word that is no name is as it was.
+        assertEquals("London", ac.named(ac.rejoin("Lo", "doj", "Lo", null, cut("Lo", "doj", 'n', 0.07f))!!))
+        assertEquals("being", ac.named("being"))
+        assertEquals("Being", ac.named("Being"))
+        // Each word of two, as a fix may be.
+        assertEquals("with Mary", ac.named("with mary"))
+        // One the person keeps in lower case is left there.
+        val mine = english()
+        mine.setLearned(setOf("london"))
+        assertEquals("london", mine.named("london"))
+    }
+
+    @Test fun capitalsTypedOnPurposeAreNoNamesToMend() {
+        // Caps lock, and a capital after the first letter: the space leaves both as typed, and the row offers no fix.
+        for (typed in listOf("TOM", "tOm", "MONDAY", "mOnday")) {
+            assertNull(typed, ac.correct(typed, null, taps(typed), names = true))
+            assertNull(typed, ac.suggest(typed, null, taps(typed), names = true).fix)
+        }
+    }
+
+    @Test fun slangThatIsAlsoANameIsLeftWhileSlangIsOn() {
+        // "stan" is on both lists: with texting slang on it is the person's word, as every slang word is.
+        assertEquals("Stan", ac.correct("stan", null, taps("stan"), names = true))
+        val texting = english()
+        texting.setSlang(true)
+        Thread.sleep(400) // the slang list is read on its own thread
+        assertNull(texting.correct("stan", null, taps("stan"), names = true))
+        assertNull(texting.suggest("stan", null, taps("stan"), names = true).fix)
+    }
+
+    @Test fun withoutEnglishLoadedAskingForNamesChangesNothing() {
+        // The list is English's. German capitalises every noun by rules of its own, and its list has tom, berlin and
+        // montag in lower case as English's has them: asked for names or not, every answer is the same.
+        val german = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val state = LanguageState.of(listOf("de"), emptyMap(), "")
+        german.loadNow(state.dictionaries, state.board)
+        for (word in listOf("tom", "berlin", "london", "montag", "monday", "maria", "china", "haus", "ich", "i", "hallo", "montga", "berlni", "tom's")) {
+            assertEquals(word, german.correct(word, null, taps(word)), german.correct(word, null, taps(word), names = true))
+            assertEquals(word, german.correct(word), german.correct(word, names = true))
+            val plain = german.suggest(word, null, taps(word))
+            val asked = german.suggest(word, null, taps(word), names = true)
+            assertEquals(word, plain.words, asked.words)
+            assertEquals(word, plain.fix, asked.fix)
+            assertEquals(word, word, german.named(word))
+        }
+        // With both loaded, a name German's list has too is left (it may be an ordinary word there), and one it lacks is English's.
+        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
+        val two = LanguageState.of(listOf("en", "de"), emptyMap(), "")
+        both.loadNow(two.dictionaries, two.board)
+        assertNull(both.correct("berlin", names = true))
+        assertEquals("Monday", both.correct("monday", names = true))
+    }
+
     // --- the person's own mistakes ----------------------------------------------------------------------------------
 
     @Test fun aRememberedMistakeIsMendedTheWayItWasPutRight() {
