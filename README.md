@@ -159,6 +159,16 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
 
+## 0.17.2
+
+- **The word before two scraps is read again once they are put together** ([docs/versus.md](docs/versus.md), "The
+  last items"): when a tap on the space bar cuts a word in two and the keyboard joins it back, the word before is
+  looked at again with the whole word after it, so "top rxpe sicr" ends as "too expensive". It goes in as one edit,
+  and backspace straight after puts all three back as typed. Words left wrong: 2.25% on the measured run and 2.97%
+  on sentences no change was made from (Gboard on the same taps: 3.82% and 3.45%). English's starter table gains a
+  row of how often each word ends a sentence, for a look at a sentence's last word that is built but left off: it
+  did not help on both sets of test sentences. Not yet tried on a phone.
+
 ## 0.17.1
 
 - **Fewer right words changed by mistake** ([docs/versus.md](docs/versus.md), "Squeezing 0.17.0"). The settings
