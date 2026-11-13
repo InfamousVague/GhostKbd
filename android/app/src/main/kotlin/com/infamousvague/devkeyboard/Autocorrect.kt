@@ -64,6 +64,8 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val cautious: Boolean = false,
         /** The starter tables' rows (assets/ngram/<language>.tsv), each word's followers as written, for swipe typing. */
         val pairRows: Map<String, String> = emptyMap(),
+        /** What letters no list has are worth ([unlisted]), where the one list loaded has a table for it (English's): else null. */
+        val letters: LetterModel? = null,
     ) {
         /** The words as a trie, for reading a word by where its taps landed ([TapDecoder]): made as the lists are read. */
         val trie: WordTrie = WordTrie(sorted, sortedZipf)
@@ -285,9 +287,12 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                 }
             }
         }
+        // English alone has a table of what its unlisted words are spelled like ([LetterModel]); any other set of
+        // lists holds letters no list has to the fixed bars, as before.
+        val letters = if (languages.size == 1 && languages[0] == "en") runCatching { LetterModel.read(open("dict/en_letters.tsv")) }.getOrNull() else null
         return Lexicon(
             key, w, f, c, sorted, FloatArray(sorted.size) { w[sorted[it]] ?: 0f }, plainKeys, plainWords, FloatArray(plainWords.size) { w[plainWords[it]] ?: 0f },
-            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows,
+            ends, gives, commonest, sharedI, languages.any { it !in FIRST_SIX }, rows, letters,
         )
     }
 
@@ -719,7 +724,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val common = known != null && known >= COMMON
         // What the typed word is worth where no list has it: little where it does not look like a word, less where
         // it is long (a long word a letter from a common one is that word misspelled, far more often than a name).
-        val unknown = if (known != null) UNKNOWN else unlisted(lower)
+        val unknown = if (known != null) UNKNOWN else unlisted(now, lower)
         // A rare listed word is as often a common misspelling as a word (definately, occured): it gives way to a
         // word [RARE_GAP] commoner that is a slip or a misspelling away ([RARE_BUDGET]), whatever that leaves it worth.
         val bar = when {
@@ -744,7 +749,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             if (plain != word && words.containsKey(plain)) continue
             val zipf = lex.sortedZipf[h.index]
             // A listed word with an ending of its own (chanced, dueled) is a word: only a far likelier reading takes it.
-            val least = if (known == null && unknown < UNKNOWN && inflected(words, lower, word)) UNKNOWN else bar
+            val least = if (known == null && unknown < UNKNOWN && (lex.letters == null || LETTERS <= 0f || LETTERS_INFLECTED > 0f) && inflected(words, lower, word)) UNKNOWN else bar
             offer(word, zipf + lift(word, zipf) - h.cost, least)
         }
         // The person's own words: never in the trie, so each is held up against the taps.
@@ -836,7 +841,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
         fun alone(word: String): Float {
             val l = word.lowercase(locale)
-            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(l)
+            return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(now, l)
         }
         val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
         val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
@@ -854,10 +859,97 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     }
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
-    private fun unlisted(lower: String): Float = when {
-        lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
-        lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
-        else -> UNKNOWN
+    private fun unlisted(now: Now, lower: String): Float {
+        val model = now.lexicon.letters
+        if (model != null && LETTERS > 0f && LETTERS_MODE == 0f) {
+            val cost = model.cost(now.board.script.plain(lower))
+            if (!cost.isNaN()) return (model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost).coerceIn(LETTERS_FLOOR, LETTERS_CEILING)
+        }
+        val fixed = when {
+            lower.length >= 4 && odd(lower) -> UNKNOWN_ODD
+            lower.length >= LONG_WORD.toInt() -> UNKNOWN_LONG
+            else -> UNKNOWN
+        }
+        if (model != null && LETTERS > 0f) {
+            val cost = model.cost(now.board.script.plain(lower))
+            if (!cost.isNaN()) return minOf(fixed, model.base + LETTERS_SHIFT - LETTERS_WEIGHT * cost)
+        }
+        return fixed
+    }
+
+    /**
+     * A letter model: how likely a string of letters is as a word no list has. Letter n-grams with a start and an
+     * end mark, read from assets/dict/<language>_letters.tsv (tool/letters.py makes it).
+     */
+    private class LetterModel(val order: Int, val base: Float, private val keys: IntArray, private val costs: ShortArray, private val backs: ShortArray) {
+        /**
+         * What [word] costs: minus the log to base ten of its chance as a word no list has, in Zipf units. NaN where
+         * it holds a character the model has no letter for.
+         */
+        fun cost(word: String): Float {
+            val span = 5 * (order - 1)
+            var ctx = 0
+            repeat(order - 1) { ctx = (ctx shl 5) or START }
+            var total = 0
+            for (i in 0..word.length) {
+                val c = if (i == word.length) END else code(word[i])
+                if (c == 0) return Float.NaN
+                var k = order - 1
+                while (true) {
+                    val h = if (k == 0) 0 else ctx and ((1 shl (5 * k)) - 1)
+                    val at = java.util.Arrays.binarySearch(keys, (h shl 5) or c)
+                    if (at >= 0 && costs[at] >= 0) { total += costs[at]; break }
+                    if (k == 0) { total += UNSEEN; break }
+                    val b = java.util.Arrays.binarySearch(keys, h)
+                    if (b >= 0) total += backs[b]
+                    k--
+                }
+                if (span > 0) ctx = ((ctx shl 5) or c) and ((1 shl span) - 1)
+            }
+            return total / 100f
+        }
+
+        companion object {
+            private const val START = 28
+            private const val END = 29
+            private const val UNSEEN = 900
+
+            private fun code(c: Char): Int = when (c) {
+                in 'a'..'z' -> c - 'a' + 1
+                '\'', '’' -> 27
+                '^' -> START
+                '$' -> END
+                else -> 0
+            }
+
+            fun read(stream: InputStream?): LetterModel? {
+                stream ?: return null
+                var order = 0
+                var share = 0f
+                val rows = ArrayList<Triple<Int, Int, Int>>()
+                stream.bufferedReader().useLines { lines ->
+                    for (line in lines) {
+                        if (line.isEmpty() || line[0] == '#') continue
+                        val f = line.split('\t')
+                        if (f[0] == "=") {
+                            var i = 1
+                            while (i + 1 < f.size) {
+                                when (f[i]) { "order" -> order = f[i + 1].toInt(); "share" -> share = f[i + 1].toFloat() }
+                                i += 2
+                            }
+                            continue
+                        }
+                        var key = 0
+                        for (ch in f[0]) { val c = code(ch); if (c == 0) { key = -1; break }; key = (key shl 5) or c }
+                        if (key <= 0 || f[0].length > 6) continue
+                        rows += Triple(key, f.getOrNull(1)?.toIntOrNull() ?: -1, f.getOrNull(2)?.toIntOrNull() ?: 0)
+                    }
+                }
+                if (order !in 1..6 || share <= 0f || rows.isEmpty()) return null
+                rows.sortBy { it.first }
+                return LetterModel(order, 9f + kotlin.math.log10(share), IntArray(rows.size) { rows[it].first }, ShortArray(rows.size) { rows[it].second.toShort() }, ShortArray(rows.size) { rows[it].third.toShort() })
+            }
+        }
     }
 
     /**
@@ -1153,6 +1245,14 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** What a typed word of [LONG_WORD] letters or more that no list has is worth: see [byTaps]. */
         @JvmField var UNKNOWN_LONG = 1.6f
         @JvmField var LONG_WORD = 6f
+        /** EXPERIMENT: the letter model's dials. */
+        @JvmField var LETTERS = 1f
+        @JvmField var LETTERS_SHIFT = 0f
+        @JvmField var LETTERS_WEIGHT = 1f
+        @JvmField var LETTERS_FLOOR = -99f
+        @JvmField var LETTERS_CEILING = 99f
+        @JvmField var LETTERS_INFLECTED = 1f
+        @JvmField var LETTERS_MODE = 1f
         /** A rare listed word gives way to a word this much commoner, whose slips cost at most [RARE_BUDGET]. */
         @JvmField var RARE_GAP = 2f
         @JvmField var RARE_BUDGET = 2.2f
