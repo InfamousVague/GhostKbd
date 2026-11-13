@@ -159,6 +159,20 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - With no row to hold the { } button (the row hidden, or nothing in it) the { } key keeps its place and the emoji key
   stands beside it, as from 0.12.1 to 0.15.0.
 
+## 0.17.1
+
+- **Fewer right words changed by mistake** ([docs/versus.md](docs/versus.md), "Squeezing 0.17.0"). The settings
+  0.17.0 brought together were tuned as one, each move kept only where both halves of the test sentences asked for
+  it. On the typing bench, right words changed by mistake fall from 2.0 to 1.5 in a thousand for an average thumb and
+  from 2.4 to 1.6 for a sloppy one, and names and slang changed by mistake from 4.3% to 2.5% and from 7.1% to 3.5%; a
+  careful thumb's stay at 1.3 in a thousand.
+- **A few more slips Gboard caught**: "ur" and "sm" typed with the taps almost on another common word's keys are read
+  as that word, and "Be is" at a sentence's start becomes "He is". Words left wrong: 2.3% on the measured run and 3.0%
+  on sentences no change was made from (Gboard on the same taps: 3.8% and 3.5%).
+- **The mic key's edge by the space bar is a space in fast typing**: a touch on the side of the mic key that meets
+  the bar, under half a second after a letter, types a space instead of starting dictation. A slower tap, or one on
+  the mic's far side, is the mic as before. Not yet tried on a phone.
+
 ## 0.17.0
 
 - **Tap autocorrect leaves about a third as many words wrong** ([docs/versus.md](docs/versus.md)). Measured by
