@@ -1586,7 +1586,11 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     dockFlip()?.let { (_, side) -> performHapticFeedback(KEYBOARD_TAP); listener.onDock(side, isWide) }
                     return true
                 }
-                val (key, rect) = keyAt(x, y) ?: return true
+                val (found, foundRect) = keyAt(x, y) ?: return true
+                // The mic key's edge by the bar, hit in fast typing, is the bar (Layouts.micEdgeIsSpace).
+                val bar = if (found.type == KeyType.MIC && page == Page.LETTERS) keyRects.firstOrNull { it.first.type == KeyType.SPACE } else null
+                val (key, rect) = if (bar != null && Layouts.micEdgeIsSpace(foundRect.left, foundRect.right, bar.second.left, bar.second.right, x, event.eventTime - downAt, lastDownLetter)) bar else found to foundRect
+                lastDownLetter = key.type == KeyType.CHAR
                 downAt = event.eventTime
                 press(Touch(event.getPointerId(i), key, rect, x, y).also { it.aimX = lastAim.first; it.aimY = lastAim.second; it.asIs = lastAsIs })
             }
@@ -1706,6 +1710,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     /** When each point of the swipe being drawn was made (ms, uptime): the finger slows at the letters it means. */
     private val swipeTimes = ArrayList<Long>()
     private var downAt = 0L
+    /** Whether the last touch to go down was a letter's: [Layouts.micEdgeIsSpace] reads it. */
+    private var lastDownLetter = false
     private var moveAt = 0L
     /** The last finished swipe's point times, alongside the path given to onSwipe, for the accuracy record. */
     var lastSwipeTimes: List<Long> = emptyList()
