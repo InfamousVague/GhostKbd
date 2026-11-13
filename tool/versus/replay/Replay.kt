@@ -47,6 +47,7 @@ import com.infamousvague.devkeyboard.NgramTable
 import com.infamousvague.devkeyboard.PersonalPairs
 import com.infamousvague.devkeyboard.Scorer
 import com.infamousvague.devkeyboard.Taps
+import com.infamousvague.devkeyboard.ThumbLean
 import com.infamousvague.devkeyboard.Words
 import java.io.File
 import kotlin.math.abs
@@ -270,8 +271,10 @@ class Decoder(root: File) {
 /**
  * What DevKeyboardService does with a tapped letter, a space and a mark that ends a word, in a message field
  * (sentences capitalised, autocorrect wanted) that asks for no learning. [correcting] off leaves the keys' own text.
+ * [lean] is the service's estimate of where this thumb is landing, which lives and dies with the field: a Typist is
+ * one field, and starts with one that knows nothing.
  */
-class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false) {
+class Typist(private val board: Board, private val decoder: Decoder, private val correcting: Boolean = true, private val marksWithoutTaps: Boolean = false, private val lean: ThumbLean = ThumbLean()) {
     val text = StringBuilder()
     /** The ?123 page is showing, on a build from before 2026-11-12: KeyboardView.tapKeys was null there, and a word was read without its taps. */
     private var offLetters = false
@@ -360,7 +363,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
     private fun tapsAcross(before: List<Touch?>, bar: Touch, after: List<Touch?>): Taps {
         val all = before + listOf<Touch?>(bar) + after
         val (keys, keyW, space) = board.tapKeys
-        return Taps(FloatArray(all.size) { all[it]?.x ?: Float.NaN }, FloatArray(all.size) { all[it]?.y ?: Float.NaN }, keys, keyW, space)
+        return lean.read(Taps(FloatArray(all.size) { all[it]?.x ?: Float.NaN }, FloatArray(all.size) { all[it]?.y ?: Float.NaN }, keys, keyW, space))
     }
 
     /** The scorer for the word that starts [back] characters before the end of the text. */
@@ -408,7 +411,7 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
         if (known * 2 < word.length) return null
         if (offLetters) return null
         val (keys, keyW, space) = board.tapKeys
-        return Taps(xs, ys, keys, keyW, space)
+        return lean.read(Taps(xs, ys, keys, keyW, space))
     }
 
     /** DevKeyboardService.correctLastWord, less what needs a person (a word typed again, a swipe, a report). */
@@ -436,7 +439,10 @@ class Typist(private val board: Board, private val decoder: Decoder, private val
             }
         }
         val scorer = runCatching { NextWordText.place(before, ::isWordChar, before.length >= 96, locale, "")?.let { decoder.at(it) } }.getOrNull()
-        val fixed = decoder.ac.correct(word, scorer, tapsFor(word))
+        val taps = tapsFor(word)
+        val fixed = decoder.ac.correct(word, scorer, taps)
+        // The word is settled: its taps say where the thumb is landing in this field.
+        decoder.ac.settled(lean, word, fixed, taps)
         // Ended by the bar's tap: kept, in case that tap was this word's next letter.
         val bar = spaceTouch
         if (separator == " " && bar != null) cut = Cut(word, fixed ?: word, wordTouches.toList(), bar)
@@ -524,13 +530,18 @@ fun replay(root: File, all: List<String>) {
     }
     val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
     val decoder = Decoder(root)
+    val leans = HashMap<String, ThumbLean>()
     var line = readLine()
     var n = 0
     while (line != null) {
         val tab = line.indexOf('\t')
         if (tab > 0) {
             val id = line.substring(0, tab)
-            val typist = Typist(b, decoder, marksWithoutTaps = without)
+            // A line is a field, and the thumb's lean is begun at nothing in it, as on the phone. Only with
+            // ThumbLean.KEEP set (it is not, and is there to be measured) is one typist's lean carried from one
+            // field to the next: an id is "<thumb>/<line>", and a thumb is a typist.
+            val lean = if (ThumbLean.KEEP) leans.getOrPut(id.substringBefore('/')) { ThumbLean() } else ThumbLean()
+            val typist = Typist(b, decoder, marksWithoutTaps = without, lean = lean)
             val plain = Typist(b, decoder, correcting = false)
             for (e in line.substring(tab + 1).split(' ')) {
                 val f = e.split(':')
@@ -540,6 +551,7 @@ fun replay(root: File, all: List<String>) {
                 }
             }
             println(id + "\t" + typist.text + "\t" + plain.text + "\t" + typist.fixes.joinToString(" ") + "\t" + typist.unhandled)
+            if (System.getProperty("lean.log") != null) System.err.println("LEAN\t" + id + "\t" + lean.x + "\t" + lean.y + "\t" + lean.debug())
             n++
         }
         line = readLine()
