@@ -1550,6 +1550,59 @@ Checks: unit.sh 184, lang_check 17,245, next_word_check 585, swipe-selfcheck 8, 
 tests. ThumbLeanTest's wild tap in a careful field's second word now loosens 10 fields of 20 (15 or more at
 `SPREAD` 0.065: the prior holds a little more). Not typed on the emulator or a phone.
 
+**A second round: Gboard's common catches first** (Matt, 2026-11-13: "try to fix the common mistakes gboard catches
+first"). The classes left above, largest first, each fix behind a dial and held to the bench (careful right words
+spoiled no higher than 1.32 a thousand nor unknown ones than 1.6%; normal and sloppy no more than 0.1 and 0.5% up) and
+to a fresh draw of it (24,000 words, seed 11). Two kept:
+
+- *Slang the lists also have, read by its taps* (`SLANG_SLIP` 0.5, 30ae078). With texting slang on, "ur", "sm" and
+  "eta" were never read at all: the slang list keeps its words as typed. A slang word the lists also have is now
+  read as any word is, and the mend taken only where it is a common listed word whose slips cost 0.5 or less, the
+  taps all but on its keys ("ur" with both taps near the lines toward i and t after "sort" is "it"). Typed on its
+  own keys slang stands, and slang no list has is never read. 1.2 lets a swap through too ("eta" for eat, two
+  words more) but would read slang typed cleanly as its swap ("ts" as st), which no bench types: left out.
+- *A pair of common words the tables never saw* (`AGAIN_LOW_BOTH` 2, `AGAIN_LOW_ZIPF` 6, ac2b491). The second look
+  lets a pair the tables never saw count no more than 1 against a word (`AGAIN_LOW`: "says only" is a pair Tatoeba
+  seldom has). Between words all of Zipf 6 or more, what stands, the reading and the word after, the tables would
+  have seen it: there it counts up to 2, "Be is" opening a sentence becomes "He is". Weighed pairwise; counted
+  against what stands alone it put back "I and" as "j and". On the documents' sentences (`elsewhere.py --at
+  9d36d4c`) 5 mended and 1 broken ("on is when" to "on us when"); at Zipf 6.5, 1 and 0; at 5.5 seen broke 2.
+
+| | seen | unseen | bench careful | normal | sloppy | fresh careful | normal | sloppy |
+| --- | ---: | ---: | --- | --- | --- | --- | --- | --- |
+| before (b937695) | 2.32% (121) | 3.03% (194) | 97.63%, 1.32, 1.6% | 95.13%, 1.47, 2.5% | 90.43%, 1.62, 3.5% | 97.63%, 0.91, 1.5% | 95.04%, 1.89, 4.5% | 90.37%, 2.39, 6.6% |
+| slang by its taps | 2.29% (119) | 2.97% (190) | 97.64%, 1.32, 1.6% | 95.17%, 1.47, 2.5% | 90.50%, 1.62, 3.5% | 97.63%, 0.91, 1.5% | 95.05%, 1.89, 4.5% | 90.43%, 2.39, 6.6% |
+| and the common pair | 2.27% (118) | 2.97% (190) | 97.66%, 1.32, 1.6% | 95.18%, 1.47, 2.5% | 90.50%, 1.62, 3.5% | 97.64%, 0.91, 1.5% | 95.06%, 1.89, 4.5% | 90.45%, 2.39, 6.6% |
+
+(Words right, right words spoiled a thousand, unknown words spoiled.) Per thumb: seen careful 1.15%, leaning 1.61%
+to 1.56%, sloppy 4.21% to 4.09%; unseen careful 1.54% to 1.50%, leaning 1.64% to 1.59%, sloppy 5.90% to 5.81%. Seen 3
+mended and none broken, unseen 4 and none. No spoil rises on either draw of the bench. Words Gboard got and this did
+not: seen 55 to 53, unseen 87 to 83.
+
+What was found on the way, and tried and left out:
+
+- *"is" for us after "forgot about"* is the sentence's last word: no word follows, and the second look never comes.
+  7 of the seen set's 44 wrong words typed as a common word are last words; reading them by the mark that ends them
+  needs rows the tables do not have. *"top" for too before "expensive"*: the word after was typed in two scraps
+  ("rxpe sicr") that `rejoin` later made "expensive", and the second look had already given up on letters no list
+  has; a look again after a rejoin would mend it, but it is rare (one word on seen) and needs the service, the
+  replay, the bench and the sweep changed alike. Not made.
+- *The common word's guard let go for a common reading a tap away that the word after favours* (`AGAIN_SWAP`): at
+  best seen 121 to 118, unseen the same, the bench's own draw the same, but on the fresh draw the normal thumb's
+  spoils 1.89 to 2.09 and the sloppy one's 2.39 to 2.81 ("beat" to best, "if" to of, "news" to need). Its gains
+  came from small margins in the word after (an for am, plot for ploy: 0.4 to 0.5), not from pairs far likelier;
+  asked for a margin of 1, it mends nothing.
+- *A lower bar for letters no list has that the letter table distrusts* (`NEAR`, only where the table makes the
+  letters worth less than the fixed bar, for readings whose slips cost 0.5 or 1): changes nothing on either set.
+  The seen set's "near but under the bar" words are mostly letters the table finds plausible ("redi" 4.8, "crah"
+  4.7, "uury" 3.5, "whiby" 3.5, each held at the fixed 3.1), or lost to a likelier word ("wokeb" to women, "dirw" to
+  fire), which the count above had put with them.
+- *The space* (11 seen words): no single cause. A space tapped on c run in ("archerycalone"), a word with two slips
+  and a space on v ("ysgvon" for tag on), a dropped space and a slip together ("answhiny"). Not tried.
+
+Checks: unit.sh 186, lang_check 17,245, next_word_check 585, swipe-selfcheck 8, 594 Gradle unit tests, 74 Flutter
+tests. Not typed on the emulator or a phone.
+
 ### Where Ghost Keyboard wins
 
 64 words it got and Gboard did not: short words (19), one key off (12), a right word changed (11), the space (7).
