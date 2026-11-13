@@ -288,6 +288,7 @@ private fun bundled(root: File) {
         same(t.contexts, f.useLines { it.count() } - 1, "$code: every context was read ($twos of two words)")
         check(bad == 0) { "$code: $bad entries are not words of its list (the first: $first)" }
         check(counted == 0 || counted == ones) { "$code: its one-word rows all say how often their word was seen, or none does ($counted of $ones)" }
+        check(t.counted == (counted == ones)) { "$code: the table knows whether its one-word rows are counted (${t.counted})" }
         if (code == "en") check(counted == ones) { "en: every one-word row says how often its word was seen ($counted of $ones)" }
         check(t.pairs >= 5_000) { "$code has at least 5,000 pairs (${t.pairs})" }
         var start = 0

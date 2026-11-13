@@ -128,7 +128,9 @@ TRIPLE_FOLLOWERS = 24
 #: that: three over the least share listed is within a quarter of the count for 72 in 100 of English's rows, more than
 #: twice it for 6 (their last follower is a name scaled down, see 3 above) and under half it for 9 (rows of one or two
 #: followers). English's table was made again with the counts on 2026-11-12. Another language's file is left as it
-#: is until it is made again with its code here; the keyboard reads both forms and estimates where there is no count.
+#: is until it is made again with its code here: the keyboard reads both forms, and weighs the words of a table
+#: without the counts as it did before (NgramTable.counted). Put a language here only with a measure of what that
+#: does to its typing: English's was tool/typing_bench.sh and tool/versus.
 SEEN_ONE = {"en"}
 #: Where held-out sentences are written for tool/next_word_eval.sh (ignored by git; never in the app).
 EVAL = os.path.join(ROOT, "build", "ngram-eval")

@@ -105,6 +105,7 @@ class PlaceWorthTest {
     }
 
     @Test fun englishRowsSayHowOftenTheirWordWasSeen() {
+        assertTrue(english.counted)
         assertTrue(english.seen("the") > 100_000)
         assertTrue(english.seen("^") > 1_000_000)
         assertTrue(english.seen("how are") in 1 until english.seen("are"))
@@ -117,11 +118,16 @@ class PlaceWorthTest {
         // times and not 30,000: the place is read as it was before, by frequency and a lift.
         val old = table("taught\tme:2348 you:728 him:347 all:28 how:28 for:21 kids:21 Tom:8 Layla:1", "she taught\t=50 me:3200 him:1000")
         assertEquals(0, old.seen("taught"))
+        assertFalse(old.counted)
         assertNull(here("taught", table = old))
         assertNull(here("she", "taught", table = old))
+        // Nor is its two-word row gone by where it has no one-word row for the word before: it is the table that
+        // was not made for this, whatever one of its rows carries.
+        assertNull(here("she", "taught", table = table("teach\tme:2348 you:728", "she taught\t=50 me:3200 him:1000")))
         assertTrue(scorer("taught", table = old).boost("me", z("me")) > 1f)
         val counted = table("taught\t=1429 me:2348 you:728 him:347 all:28 how:28 for:21 kids:21 Tom:8 Layla:1")
         assertEquals(1429, counted.seen("taught"))
+        assertTrue(counted.counted)
         // "it" is not listed: it followed at most twice in those 1,429, and is held to a share of three in them,
         // not of the one in ten thousand that "Layla:1" stands for.
         val it = here("taught", table = counted)!!.share("it", z("it"))

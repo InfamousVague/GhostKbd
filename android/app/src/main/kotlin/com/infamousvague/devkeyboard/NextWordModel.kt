@@ -428,6 +428,11 @@ class NgramTable private constructor(
     private val share: ShortArray,
     private val words: Array<String>,
     private val lowers: Array<String>,
+    /**
+     * Every one-word row says how often its word was seen: the table was made with the counts [Scorer.Here] needs
+     * (English's is). False for a table from before them, whose rows [Scorer.Here] does not go by.
+     */
+    val counted: Boolean,
 ) {
     /** How many word pairs it holds. */
     val pairs: Int get() = next.size
@@ -523,6 +528,7 @@ class NgramTable private constructor(
             val seenKeys = HashSet<String>()
             val starts = ArrayList<Int>()
             val seen = ArrayList<Int>()
+            var counted = true
             var next = IntArray(1 shl 14)
             var share = ShortArray(1 shl 14)
             var n = 0
@@ -571,6 +577,7 @@ class NgramTable private constructor(
                 if (n == from) continue
                 val row = starts.size
                 starts += from; seen += count
+                if (space < 0 && count <= 0) counted = false
                 if (space > 0) {
                     val a = id(key.substring(0, space))
                     val b = id(key.substring(space + 1))
@@ -595,7 +602,7 @@ class NgramTable private constructor(
             val sorted = twoList.copyOf(twos).also { it.sort() }
             val twoKeys = LongArray(twos) { sorted[it] ushr ROW_BITS }
             val twoRow = IntArray(twos) { (sorted[it] and ROW_MASK).toInt() }
-            return NgramTable(code, ids, oneRow, twoKeys, twoRow, starts.toIntArray(), seen.toIntArray(), next.copyOf(n), share.copyOf(n), shown, lowers)
+            return NgramTable(code, ids, oneRow, twoKeys, twoRow, starts.toIntArray(), seen.toIntArray(), next.copyOf(n), share.copyOf(n), shown, lowers, counted && oneKeys.isNotEmpty())
         }
     }
 }
@@ -1090,13 +1097,13 @@ class Scorer(
     }
 
     /**
-     * [key]'s row in [table], or null where it has none, or the row does not say how often its words were seen
-     * ([NgramTable.seen]: every two-word row says, and the one-word rows of a table made since 2026-11-12, which is
-     * English's). The shares cannot stand in for the count. A follower is listed from [SEEN_LEAST] sightings, so
-     * the least share should be that many over the count; but the last followers of a row are often names the
-     * table's maker scaled down ("taught ... Tom:8 Layla:1"), and a row of one follower says nothing of it: in
-     * English's rows that guess is within a quarter of the count for 72 in 100, more than twice it for 6 and under
-     * half it for 9.
+     * [key]'s row in [table], or null where it has none. The table is one whose rows say how often their words
+     * were seen ([NgramTable.counted]: every two-word row says, and the one-word rows of a table made since
+     * 2026-11-12, which is English's). The shares cannot stand in for the count. A follower is listed from
+     * [SEEN_LEAST] sightings, so the least share should be that many over the count; but the last followers of a
+     * row are often names the table's maker scaled down ("taught ... Tom:8 Layla:1"), and a row of one follower
+     * says nothing of it: in English's rows that guess is within a quarter of the count for 72 in 100, more than
+     * twice it for 6 and under half it for 9.
      */
     private fun row(table: NgramTable, key: String, prior: Float): Row? {
         val n = table.seen(key).toFloat()
@@ -1120,16 +1127,19 @@ class Scorer(
 
     /**
      * Every table's rows for the place after [prev], and after [prev2] then [prev]: only the tables that have one.
-     * None at all where a table has a row for [prev] that does not say how often it was seen (a language whose
-     * table has not been made again): that table's say cannot be weighed, and leaving it out would read its
-     * language's words by another's rows. The place is then read as it was before there was a [Here].
+     * None at all where a table whose rows do not say how often they were seen has a row here ([NgramTable.counted]:
+     * a language whose table has not been made again): that table's say cannot be weighed, and leaving it out would
+     * read its language's words by another's rows. The place is then read as it was before there was a [Here].
      */
     private fun rows(prev2: String?, prev: String, own: (String) -> Float?): List<Rows> {
         val key2 = prev2?.takeIf { prev != NextWordText.START }?.let { "$it $prev" }
         val out = ArrayList<Rows>(tables.size)
         for (t in tables.indices) {
             val table = tables[t]
-            if (table.seen(prev) <= 0 && !table.range(prev).isEmpty()) return emptyList()
+            if (!table.counted) {
+                if (table.range(prev).isEmpty() && (key2 == null || table.range(key2).isEmpty())) continue
+                return emptyList()
+            }
             val one = row(table, prev, PRIOR_HERE_ONE)
             val two = if (key2 == null) null else row(table, key2, PRIOR_HERE_TWO)
             if (one == null && two == null) continue

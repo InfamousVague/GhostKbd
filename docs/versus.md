@@ -258,9 +258,9 @@ the row leaves over, by its own frequency, and is held to a fifth of the most it
 unlisted (`UNLISTED`). A row is believed as far as it was seen, and the word's own frequency for the rest. The
 person's own counts lift a word as they do in the row above the keys, which is itself unchanged.
 `Autocorrect.byTaps`, `rejoin` and the second of two words run together weigh every reading by it, and the typed
-word too (`atPlace`): a word no row bears on is worth its frequency exactly, a listed one more ("your" after "with"
-6.94 for 6.53), and a common word in a place it all but never stands less ("of" after "tell you" 6.09 for 7.4), so
-that it is cheap to replace. The words a row lists are each held up against the taps, since the search goes by
+word too (`atPlace`): a word no row bears on is worth its frequency exactly, a listed one more ("your" after "them
+with" 6.94 for 6.53), and a common word in a place it all but never stands less ("of" after "tell you" 6.09 for
+7.4), so that it is cheap to replace. The words a row lists are each held up against the taps, since the search goes by
 frequency and would pass over a word that is rare and likely here. The place's say counts 0.7 times
 (`HERE_WEIGHT`), and at a place a common typed word gives way to a reading worth 1.0 more (`HERE_COMMON`). Where no
 table has a row for the words before, where next-word prediction is off, and in every language but English, a word
@@ -298,14 +298,16 @@ is; `Autocorrect.HERE_WEIGHT` has the table).
 cannot. Three sightings get a follower listed, so three over a row's least share should be the count; but the last
 followers of most rows are names the table's maker scaled down ("taught ... Tom:8 Layla:1"), and a row of one
 follower says nothing. That guess is within a quarter of the count for 72 in 100 of the 18,171 rows, more than
-twice it for 6 (7.8% of all places) and under half it for 9. With it "it" after "taught" was held to half of one in
-ten thousand. `tool/next_words.py` writes the counts for English alone (`SEEN_ONE`), the table is 78,969 bytes
+twice it for 6 (7.8% of all places) and under half it for 9. By that guess "it" after "taught" was held to half of
+one in ten thousand. `tool/next_words.py` writes the counts for English alone (`SEEN_ONE`), the table is 78,969 bytes
 longer (30,507 compressed), and a keyboard from before skips the entry. Every other language's file is as it was,
-and its words are weighed as before until its table is made again: `Scorer.Here` goes by no row that does not say
-how often it was seen. Made again, English's file also took in ten two-word rows after a sentence's start that the
-tokenizer has counted otherwise since a picture character began a sentence (`next_words.py --check en` said
-DIFFERENT before this, and says same now). The row above the keys is as it was: `tool/next_word_eval.sh` gives the
-same 20.0% for its first word, 33.8% for its three and 50.2% of key presses saved.
+and its words are weighed as before until its table is made again: `Scorer.Here` goes by no table whose one-word
+rows do not say how often they were seen (`NgramTable.counted`), and where such a table has a row for the words
+before, no other table is gone by either. Made again, English's file also took in ten two-word rows after a
+sentence's start that the tokenizer has counted otherwise since a picture character began a sentence
+(`next_words.py --check en` said DIFFERENT before this, and says same now). The row above the keys is as it was:
+`tool/next_word_eval.sh` gives the same 20.0% for its first word, 33.8% for its three and 50.2% of key presses
+saved.
 
 **The smoothing was set on held-out likelihood, not on these sentences** (`tool/versus/likelihood.sh`: Tatoeba's
 held-out lines 1 to 60,000, then lines 60,001 to 90,000 once, which chose nothing). What is measured is what a
@@ -341,13 +343,13 @@ and on a phone nobody listens.
 
     sloppy/90152  meant me, typed mr, stands mr  WRONG   | May I ask you to do me a favour?
           mr after "May I ask you to do": typed mr: listed at 5.69 (common), worth 5.2430506 as it stands here; a reading needs 6.2430506
-        meant me: frequency 6.48, worth 6.514906 (a row lists it), slips 0.27622107   (not among the readings)
-        chosen: none, it stands
+          meant me: frequency 6.48, worth 6.514906 (a row lists it), slips 0.27622107   (not among the readings)
+          chosen: none, it stands
 
 **What the words before cannot say.** 18 of the 23 slips that spell a common word still stand, and `why.py` shows
 that for most of them the words before do not decide: "is" and "us" are worth the same after "forgot about" (6.85
-and 6.82), "ate" is listed after "we" and its t was tapped on its key, "if" after "tell you" is worth 6.53 where
-"of" is worth 6.09. What tells them apart is the word after ("of I knew", "ate going to", "top expensive"), which
+and 6.82), "ate" is listed after "we" and reading its t as an r costs 2.61, "if" after "tell you" is worth 6.53
+where "of" is worth 6.09. What tells them apart is the word after ("of I knew", "ate going to", "top expensive"), which
 the decoder never looks at; `DevKeyboardService` already keeps the last word with its taps until the next one ends,
 for `rejoin`, and that is where a second look would be taken. Also not done: a name the tables do not list is
 worth only its frequency beside a word the place expects; a slip in a British spelling is mended to the American
