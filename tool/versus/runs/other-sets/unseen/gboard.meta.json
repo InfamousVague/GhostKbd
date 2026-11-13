@@ -1,0 +1,51 @@
+{
+ "keyboard": "gboard",
+ "name": "Gboard",
+ "version": {
+  "package": "com.google.android.inputmethod.latin",
+  "versionName": "15.1.08.726012951-preload-arm64-v8a",
+  "versionCode": "163542534",
+  "lastUpdateTime": "2026-10-07 19:35:23",
+  "apk": "/product/app/LatinIMEGooglePrebuilt/LatinIMEGooglePrebuilt.apk",
+  "sha256": "636b16dde5a77b4e6ebf25be5cc1e2a799488905bc718420125857cba4203c11"
+ },
+ "geometry": "gboard.geometry.json",
+ "geometry_measured": "2026-11-11T18:51:53-05:00",
+ "device": {
+  "serial": "emulator-5584",
+  "width": 1248,
+  "height": 1972,
+  "dpi": 420,
+  "model": "sdk_gphone64_arm64",
+  "android": "16"
+ },
+ "started": "2026-11-12T18:51:13-05:00",
+ "sentences": 300,
+ "file": "build/typing-bench/en-heldout.txt",
+ "first_line": 100000,
+ "skipped": {
+  "another character": 28,
+  "an apostrophe that is no listed contraction": 23,
+  "not one sentence with one closing mark": 17,
+  "an acronym": 3,
+  "spacing or length": 3
+ },
+ "seed": "7",
+ "aim": "answers",
+ "learn": false,
+ "thumbs": {
+  "careful": "scatter 0.20 of a key across and 0.15 down, no lean",
+  "leaning": "scatter 0.20 of a key across and 0.15 down, leaning 0.24 of a key right and 0.18 down",
+  "sloppy": "scatter 0.34 of a key across and 0.25 down, no lean"
+ },
+ "finished": "2026-11-12T21:08:50-05:00",
+ "typings_thrown_away_for_a_stall": 14,
+ "version_at_end": {
+  "package": "com.google.android.inputmethod.latin",
+  "versionName": "15.1.08.726012951-preload-arm64-v8a",
+  "versionCode": "163542534",
+  "lastUpdateTime": "2026-10-07 19:35:23",
+  "apk": "/product/app/LatinIMEGooglePrebuilt/LatinIMEGooglePrebuilt.apk",
+  "sha256": "636b16dde5a77b4e6ebf25be5cc1e2a799488905bc718420125857cba4203c11"
+ }
+}

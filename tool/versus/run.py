@@ -180,6 +180,9 @@ def main():
         geo = geometry_for(args.keyboard)
     board = th.Board(geo)
     sents, skipped = th.sentences(args.sentences, path=args.file, first=args.first)
+    if len(sents) < args.sentences:
+        # A set that is not there is no set: the "final" one was once asked for past the end of the file, and typed nothing.
+        raise SystemExit("run: %s has only %d sentences the thumb can type after line %d, not the %d asked for" % (args.file, len(sents), args.first, args.sentences))
     thumbs = [th.THUMBS[n] for n in args.thumbs.split(",")]
     os.makedirs(args.out, exist_ok=True)
     path = os.path.join(args.out, args.keyboard + ".jsonl")

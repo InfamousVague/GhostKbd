@@ -11,9 +11,14 @@ says how many words are left wrong, by thumb:
            same three thumbs laid on the same keys. Nothing was looked at there but these totals: what a change
            does to these is what it does.
 
-  --final          also types a third set, kept for the end: 300 more held-out sentences from line 110,001 on.
+  --final          also types a third set, kept for the end: 300 more held-out sentences from line 101,001 on
+                   (the file has 102,028 lines; until 2026-11-12 this said line 110,001, where there is nothing).
                    Only its totals are ever printed (no --show, no --save of its words), so that nothing can be
                    fitted to it: look at it when the work is done, not while it is being done
+
+Where the unseen or the final set has been typed into Gboard on the emulator since (tool/versus/other-sets.sh, kept
+under tool/versus/runs/other-sets or still in build/versus/runs/other-sets), its line is printed beside that set's
+too, over the typings it has got through.
   --save NAME      keeps every word's verdict under build/versus/scoreboard/NAME.json
   --against NAME   and says, set by set, how many words are mended and how many broken since then (--show N of each)
   --bench          also runs the typing bench's own tap test (tool/typing_bench.sh taps, 12,000 words): words right,
@@ -21,13 +26,15 @@ says how many words are left wrong, by thumb:
                    too plain to show (they have few names)
   --overlay DIR, --java OPTS, --set NAME=VALUE, --marks-without-taps    as tool/versus/whatif.py has them
   --no-names       types as a service that does not ask names for their capitals (Replay.kt's own; the bench's
-                   -Dnames=false): what a phone does until DevKeyboardService passes Autocorrect.correct its names
+                   -Dnames=false): what every build up to 0.16.3 did, and what a field that capitalises nothing or
+                   a person with "Capitals at sentence starts" off still gets (DevKeyboardService.namesWanted)
 
 Under each set's line, its capitals, which the word score leaves aside: of the names the field has the right
 letters of (the sentence's words after its first that are written with a capital: Tom, Algeria, Monday; not I),
 how many have their capital; and of the words the sentence writes in lower case, how many the field has with a
 capital, which is a right word spoiled. The thumb types everything in lower case, so a capital is the keyboard's
-doing. --against says which names gained and lost their capital, and which words were given one amiss.
+doing. --against says which names gained and lost their capital, and which words were given one amiss. Gboard's
+capitals are beside the seen set's, and beside the unseen and the final set's where it has been given them.
 
 Ghost Keyboard alone, no emulator. The replay is the emulator's to the character on the seen set (score.py's
 count: 900 of 900), which is what lets a JVM stand in for it.
@@ -50,12 +57,49 @@ RUN = os.path.join(HERE, "runs", "2026-11-11")
 GEOMETRY = os.path.join(RUN, "ghost.geometry.json")
 THUMBS = ["careful", "leaning", "sloppy"]
 UNSEEN_FIRST = 100000
-FINAL_FIRST = 110000
+FINAL_FIRST = 101000
 
 
 def kept(name):
     with gzip.open(os.path.join(RUN, name), "rt", encoding="utf-8") as f:
         return [r for r in (json.loads(line) for line in f) if not r.get("stalled")]
+
+
+def other_records(name, keyboard="gboard"):
+    """What another keyboard was given of the unseen or the final set and what it left in the field
+    (tool/versus/other-sets.sh): its records, one a typing; None where it was never typed."""
+    for folder in (os.path.join(HERE, "runs", "other-sets", name), os.path.join(ROOT, "build", "versus", "runs", "other-sets", name)):
+        for file, opener in ((keyboard + ".jsonl.gz", gzip.open), (keyboard + ".jsonl", open)):
+            path = os.path.join(folder, file)
+            if not os.path.exists(path):
+                continue
+            records = {}
+            with opener(path, "rt", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    # A typing that stalled was typed again: the later record of it is the one that counts.
+                    if not r.get("stalled"):
+                        records[(r["thumb"], r["line"])] = r
+            if records:
+                return list(records.values())
+    return None
+
+
+def other(name, keyboard="gboard"):
+    """What another keyboard made of the unseen or the final set (tool/versus/other-sets.sh), as verdicts; None where it was never typed."""
+    records = other_records(name, keyboard)
+    if records is None:
+        return None
+    return {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in records}
+
+
+def other_capitals(name, keyboard="gboard"):
+    """The same keyboard's capitals on that set ([capitals]); None where it was never typed."""
+    records = other_records(name, keyboard)
+    return None if records is None else capitals(records, lambda r: r["out"])
 
 
 def unseen(first, count, seed="7"):
@@ -104,6 +148,12 @@ def line(name, v, beside=None):
         lost = sum(1 for k in v for a, b in zip(v[k], beside.get(k, [])) if not a[0] and b[0])
         won = sum(1 for k in v for a, b in zip(v[k], beside.get(k, [])) if a[0] and not b[0])
         text += "   | words Gboard got and this did not: %d, the other way: %d" % (lost, won)
+        if len(beside) < len(v):
+            # Gboard has not been given every typing of this set yet: the same typings, side by side.
+            mine = tally({k: v[k] for k in beside if k in v})
+            text += "\n         over the %d typings Gboard has had: this %s  all %.2f%% (%d of %d)" % (
+                len(beside), "  ".join("%.2f%%" % (100.0 * mine[t][1] / max(1, mine[t][0])) for t in THUMBS),
+                100.0 * sum(r[1] for r in mine.values()) / max(1, sum(r[0] for r in mine.values())), sum(r[1] for r in mine.values()), sum(r[0] for r in mine.values()))
     return text
 
 
@@ -139,7 +189,11 @@ def capitals_line(name, c, beside=None):
         with_capital = sum(1 for _, got in found if got[:1].isupper())
         return "names given their capital %d of %d (%.1f%%), a capital given amiss %d of %d words" % (
             with_capital, len(found), 100.0 * with_capital / max(1, len(found)), sum(len(v[1]) for v in c.values()), sum(v[2] for v in c.values()))
-    return "%-8s %s%s" % (name, said(c), "   | Gboard " + said(beside) if beside is not None else "")
+    text = "%-8s %s%s" % (name, said(c), "   | Gboard " + said(beside) if beside is not None else "")
+    if beside is not None and len(beside) < len(c):
+        # Gboard has not been given every typing of this set yet: the same typings, side by side (as [line] has the words).
+        text += "\n         over the %d typings Gboard has had: this %s" % (len(beside), said({k: c[k] for k in beside if k in c}))
+    return text
 
 
 def capital_changes(now, then, show):
@@ -215,13 +269,16 @@ def main():
     gboard = {"%s/%d" % (r["thumb"], r["line"]): [[p == w, True, "", p or "", w] for p, w in zip(score.align(r["words"], score.out_words(r["out"]))[0], r["words"])] for r in theirs}
     print(line("seen", now["seen"], gboard))
     print(capitals_line("", now["seen capitals"], capitals(theirs, lambda r: r["out"])))
-    print(line("unseen", now["unseen"]))
-    print(capitals_line("", now["unseen capitals"]))
+    print(line("unseen", now["unseen"], other("unseen") if args.unseen_first == UNSEEN_FIRST else None))
+    print(capitals_line("", now["unseen capitals"], other_capitals("unseen") if args.unseen_first == UNSEEN_FIRST else None))
     if args.final:
+        last = unseen(FINAL_FIRST, args.sentences)
+        if len(last) != 3 * args.sentences:
+            raise SystemExit("scoreboard: the final set has %d typings, not %d: the held-out file has no %d sentences after line %d" % (len(last), 3 * args.sentences, args.sentences, FINAL_FIRST))
         # Totals only, of the words and of the capitals: neither is kept in `now`, so --save never writes its words.
-        words, caps = typed(unseen(FINAL_FIRST, args.sentences))
-        print(line("final", words))
-        print(capitals_line("", caps))
+        words, caps = typed(last)
+        print(line("final", words, other("final")))
+        print(capitals_line("", caps, other_capitals("final")))
     folder = os.path.join(ROOT, "build", "versus", "scoreboard")
     if args.against:
         then = json.load(open(os.path.join(folder, args.against + ".json")))
