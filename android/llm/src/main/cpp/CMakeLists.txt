@@ -32,6 +32,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(llama)
 
+# The app's size (Matt, 2026-11-12: "as long as it's not too large we don't want to bloat the app size"). llama.cpp's
+# own code is reading a model, its vocabulary, sampling and the wiring of every architecture it knows: none of it is
+# where a rewrite's time goes, which is ggml's arithmetic. So the first is built for size and the second keeps its
+# speed. docs/local-ai.md has what each choice weighs.
+target_compile_options(llama PRIVATE -Os)
+
 # A tag can be moved; a commit cannot. This is the commit v0.9.0 named when llm_core.cpp was written against it.
 execute_process(COMMAND git -C ${llama_SOURCE_DIR} rev-parse HEAD OUTPUT_VARIABLE LLAMA_HEAD OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(NOT LLAMA_HEAD STREQUAL "cd959bae99ff4bed22bef2604f45241c09bbb8c8")

@@ -36,7 +36,16 @@ android {
         versionName = flutter.versionName
         // arm64 only: the phones this is for, and whisper.cpp built once rather than four times.
         ndk { abiFilters += listOf("arm64-v8a") }
-        externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DANDROID_STL=c++_static")
+                // The line above did not keep whisper to arm64: Flutter's plugin adds its own three to that list, and
+                // up to 0.16.3 every APK carried whisper for 32-bit ARM and x86_64 as well, 3 MB that no phone could
+                // use (Flutter's own libraries are in it for arm64 alone, so the app cannot start on another). This
+                // one is the native build's own list, which nothing else adds to.
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
         // The GIF plugin's GIPHY key, from CI's GIPHY_API_KEY secret (empty: the plugin asks for one in Settings).
         buildConfigField("String", "GIPHY_KEY", "\"${System.getenv("GIPHY_API_KEY") ?: ""}\"")
     }
@@ -80,6 +89,8 @@ flutter {
 }
 
 dependencies {
+    // The on-phone language model's library (android/llm: llama.cpp behind llm_jni.cpp), for Rewrite on this phone.
+    implementation(project(":llm"))
     // The passwords plugin: the style Android's inline autofill suggestions are drawn in.
     implementation("androidx.autofill:autofill:1.1.0")
     // The undo history's self-check (src/test): plain JUnit on a desk, no device.

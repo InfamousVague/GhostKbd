@@ -197,10 +197,11 @@ const SECTIONS = [
       ['Export my typing profile…'],
     ]),
   ]),
-  S('rowtools', 'Row tools', '7 of 9 on', [      // Agent keys is not added; One-time codes from texts is off to start, and not one of the nine
+  S('rowtools', 'Row tools', '7 of 9 on', [      // Agent keys is not added; One-time codes from texts and from email are off to start, and not among the nine
     ['Arrow keys', 'Left, up, down and right at the end of the row, always there; hold one to keep moving.'],
     ['Clipboard history', 'Your last 25 copies, a tap away, and the clips you pin. Never a password manager’s.'],
     ['One-time codes from texts', 'A code that arrives by text message shows above the keys, a tap to type it. Android will ask to let Ghost Keyboard receive texts.'],
+    ['One-time codes from email', 'A code that arrives in Gmail or another mail app shows above the keys, a tap to type it. It is read from the mail app’s notification, on this phone: there is no account to connect. Android will ask to let Ghost Keyboard see notifications.'],
     ['Undo and redo', 'Takes back what the keyboard did, a word or an action at a time, in any app.'],
     ['Emoji', 'A key next to ?123, beside the space bar, with a panel and search; :shortcodes and emoji for the word you type.'],
     ['GIFs', 'Search GIPHY and send one.'],

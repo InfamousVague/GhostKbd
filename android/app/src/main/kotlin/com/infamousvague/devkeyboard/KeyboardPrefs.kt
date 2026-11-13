@@ -110,6 +110,9 @@ class KeyboardPrefs(context: Context) {
     val rewriteLocal: Boolean get() = bool(REWRITE_LOCAL)
     val localModel: String get() = prefs.getString(LOCAL_MODEL, DEFAULTS[LOCAL_MODEL] as String)!!
 
+    /** The models the person added by their links, for Rewrite on this phone: ModelLinks.write's text, a line a model. */
+    val ownModels: String get() = prefs.getString(OWN_MODELS, DEFAULTS[OWN_MODELS] as String)!!
+
     /** Settings › Backlight: on (by default; never in password fields), its effect, colour, strength and mode. */
     val backlight: Boolean get() = bool(BACKLIGHT)
     val backlightEffect: String get() = prefs.getString(BACKLIGHT_EFFECT, "reactive")!!
@@ -249,6 +252,8 @@ class KeyboardPrefs(context: Context) {
     val arrowKeys: Boolean get() = bool(ARROW_KEYS)
     /** The clipboard plugin's "One-time codes from texts" (SmsCodes.kt): off until switched on, and Android asked. */
     val smsCodes: Boolean get() = bool(SMS_CODES)
+    /** And its "One-time codes from email" (MailCodes.kt): off until switched on, and Android's notification access given. */
+    val mailCodes: Boolean get() = bool(MAIL_CODES)
     /** Autocorrect leaves texting slang alone and offers it (assets/dict/en_slang.txt). */
     val slang: Boolean get() = bool(SLANG)
     /**
@@ -403,6 +408,7 @@ class KeyboardPrefs(context: Context) {
         const val ADAPTIVE_MAP = "adaptive_map"
         const val ARROW_KEYS = "arrow_keys"
         const val SMS_CODES = "sms_codes"
+        const val MAIL_CODES = "mail_codes"
         const val SLANG = "slang"
         const val SHORTCUTS_AUTO = "shortcuts_auto"
         const val WIDE_LAYOUT = "wide_layout"
@@ -413,6 +419,7 @@ class KeyboardPrefs(context: Context) {
         const val REWRITE_LANGUAGE = "rewrite_language"
         const val REWRITE_LOCAL = "rewrite_local"
         const val LOCAL_MODEL = "local_model"
+        const val OWN_MODELS = "own_models"
         const val ENHANCE_STYLE = "enhance_style"
         const val ENHANCE_NOTES = "enhance_notes"
         /** The live preview at the foot of Settings is open (lib/settings/keyboard_preview.dart). */
@@ -496,6 +503,7 @@ class KeyboardPrefs(context: Context) {
             ADAPTIVE_MAP to false,
             ARROW_KEYS to false,
             SMS_CODES to false,
+            MAIL_CODES to false,
             SLANG to true,
             SHORTCUTS_AUTO to true,
             WIDE_LAYOUT to "split",
@@ -506,6 +514,7 @@ class KeyboardPrefs(context: Context) {
             REWRITE_LANGUAGE to "Spanish",
             REWRITE_LOCAL to true,
             LOCAL_MODEL to "",
+            OWN_MODELS to "",
             ENHANCE_STYLE to "tight",
             ENHANCE_NOTES to "",
             PREVIEW_OPEN to false,

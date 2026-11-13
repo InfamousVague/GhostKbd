@@ -104,6 +104,26 @@
             </intent-filter>
         </receiver>
 
+        <!--
+            A mail app's notification, looked at once for a one-time code (MailCodes.kt, docs/mail-codes.md). Off
+            (enabled="false") until the switch in Settings › Row tools turns it on, and off again with it
+            (MailCodes.apply); and Android hands nothing over until the person has given the app notification access
+            in Android's own settings. Only Android itself can bind this: BIND_NOTIFICATION_LISTENER_SERVICE is a
+            permission no app can hold. Notifications that stay up (a call, music, a download) are never asked for.
+        -->
+        <service
+            android:name=".MailCodeListener"
+            android:label="One-time codes from email"
+            android:enabled="false"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+            <meta-data android:name="android.service.notification.default_filter_types" android:value="conversations|alerting|silent" />
+            <meta-data android:name="android.service.notification.disabled_filter_types" android:value="ongoing" />
+        </service>
+
         <!-- Android's installer reports a self-update's progress here (Updater.kt). -->
         <receiver
             android:name=".InstallReceiver"

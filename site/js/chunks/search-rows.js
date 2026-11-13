@@ -63,6 +63,7 @@ export const OFFLINE_ROWS = [
   ["Ghost.md online", "Signing in, searching your notes online, and signing out."],
   ["GIFs", "GIPHY’s trending and search, and loading or sending a GIF."],
   ["Speech model downloads", "Fetching a dictation model. One already on the phone keeps working."],
+  ["Language model downloads", "Fetching a model for Rewrite on this phone. One already on the phone keeps working, and Rewrite with it."],
   ["Updates", "The check for a new version, by itself and by hand, the Update chip above the keys, and the download."],
   ["Anonymous typing reports", "Sending a typing report. What is waiting stays on the phone until it can go, or until you turn sharing off."],
   ["Connectors", "Reading a connector’s tools, and every tool Ghostwriter would have called while it writes."],
@@ -71,13 +72,14 @@ export const OFFLINE_ROWS = [
   ["Adaptive keys, typing stats and per-app profiles", "Learned and kept on this phone."],
   ["Clipboard history, emoji, undo and redo, markdown and terminal keys", "None of them has ever needed a connection."],
   ["Dictation", "Once a speech model is on the phone. None is yet."],
+  ["Rewrite and Fix on this phone", "With a language model already on the phone (Settings › AI › Rewrite)."],
   ["Ghost.md on this phone", "[[links]], #tags and Save to Ghost.md."],
   ["Password manager logins", "Android and your manager draw and fill them; their connections are their own."],
   ["Mockingbird’s samples", "Still kept on this phone where that switch is on. None is sent to train."],
   ["An update already downloaded", "It can still be installed from About, after a restart too: nothing more is fetched."],
 ];
 
-/** Settings › Offline › What leaves your phone: the 21 connections, without their server lines. */
+/** Settings › Offline › What leaves your phone: the 22 connections, without their server lines. */
 export const LEAVES_ROWS = [
   ["Offline", "The one switch that stops them all."],
   ["AI"],
@@ -101,6 +103,8 @@ export const LEAVES_ROWS = [
   ["GIF pictures", "When: Showing results, up to 30 small pictures at a time, and picking one to send. Sent: Which pictures are asked for."],
   ["Speech model downloads"],
   ["Speech model download", "When: Adding Dictation, and choosing a speech model that isn’t on the phone. Sent: The model file’s name, and where to carry on from when part of it is already here."],
+  ["Language model downloads"],
+  ["Language model download", "When: Tapping Download beside a model in Settings › AI › Rewrite › On this phone. Never by itself. Sent: The model file’s name, and where to carry on from when part of it is already here. Nothing of what you type: with a model on the phone, Rewrite sends nothing anywhere."],
   ["Updates"],
   ["Update check", "When: Opening the app with “Install updates by itself” on; the keyboard, at most every 12 hours, even with that switch off; and tapping Check for updates. Sent: The request and the time it was made. No version and no id."],
   ["Update download", "When: A newer version found with “Install updates by itself” on, or tapping Update now. Sent: The request alone."],
