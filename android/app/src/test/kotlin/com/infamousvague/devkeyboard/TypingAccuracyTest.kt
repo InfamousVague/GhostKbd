@@ -146,6 +146,47 @@ class TypingAccuracyTest {
         assertNull(ac.rejoin("o", "", "o", null, cut("o", "", 'n', 0.5f)))
     }
 
+    @Test fun aWordMendedAtTheBarsTapIsHeldAtWhatTheMendCost() {
+        // "women" with its w tapped as e and its n on the bar: the space made "some" of "eome", by reading the e as
+        // an s a row away. What stands is worth less by that, and "women" reads the same taps for less.
+        assertEquals("women", ac.rejoin("eome", "", "some", null, cut("eome", "", 'n', 0.05f)))
+        // "wome" was made "women" at the space by a letter nobody typed. With the bar's tap for that letter it is
+        // "women" as it stands, and the second space is its space: it comes back, so that no full stop is made.
+        assertEquals("women", ac.rejoin("wome", "", "women", null, cut("wome", "", 'n', 0.07f)))
+        // In the middle of the bar the tap was the space, the letter was left out, and two spaces are a full stop.
+        assertNull(ac.rejoin("wome", "", "women", null, cut("wome", "", 'n', 0.5f)))
+    }
+
+    @Test fun aWordWhoseFirstLetterLandedOnTheBarIsPutTogether() {
+        // The tap came straight after a space and ended no word: there is no first scrap. "ery" after it is "very".
+        assertEquals("very", ac.rejoin("", "ery", "", null, cut("", "ery", 'v', 0.07f)))
+        assertEquals("begin", ac.rejoin("", "egin", "", null, cut("", "egin", 'b', 0.07f)))
+        // At the start of a sentence the capital is the word's; where the tap made a full stop of the space before
+        // it, the capital was that full stop's, and goes with it.
+        assertEquals("Begin", ac.rejoin("", "Egin", "", null, cut("", "egin", 'b', 0.07f)))
+        assertEquals("very", ac.rejoin("", "Ery", "", null, cut("", "ery", 'v', 0.07f), stopped = true))
+        // A word that stands after a full stop is not made a longer one: "It was. Ever since" is not "never".
+        assertNull(ac.rejoin("", "Ever", "", null, cut("", "ever", 'n', 0.07f), stopped = true))
+        assertNull(ac.rejoin("", "An", "", null, cut("", "an", 'c', 0.07f), stopped = true))
+        assertNull(ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.07f), stopped = true))
+        // Unless the two taps that made the full stop landed apart: no double tap, and nobody's full stop.
+        assertEquals("near", ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.07f), stopped = true, doubled = false))
+        // In the middle of the bar the tap was a space wherever the other landed.
+        assertNull(ac.rejoin("", "Ear", "", null, cut("", "ear", 'n', 0.5f), stopped = true, doubled = false))
+        // Letters that make a better word by themselves keep it: "thr" after a full stop is "the", whatever the bar's tap was under.
+        assertNull(ac.rejoin("", "Thr", "", null, cut("", "thr", 'b', 0.07f), stopped = true))
+    }
+
+    @Test fun twoTapsOnTheBarThatLandedApartAreNoDoubleTap() {
+        // "i" and two spaces is "I." where the two were one double tap, as it always was.
+        assertNull(ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f)))
+        // Where the second landed away from the first, the first is held as no likelier a space than its place
+        // says: on the top edge of the bar, beneath the n, "i" is as well "in", which is the commoner word.
+        assertEquals("in", ac.rejoin("i", "", "I", null, cut("i", "", 'n', 0f), doubled = false))
+        // A word that is far commoner than the longer one still stands.
+        assertNull(ac.rejoin("the", "", "the", null, cut("the", "", 'n', 0f), doubled = false))
+    }
+
     @Test fun twoWordsThatAreTwoWordsStand() {
         // However high on the bar the space was tapped.
         for ((a, b) in listOf("is" to "a", "to" to "go", "in" to "the", "it" to "was", "we" to "can", "a" to "man", "be" to "nice")) {

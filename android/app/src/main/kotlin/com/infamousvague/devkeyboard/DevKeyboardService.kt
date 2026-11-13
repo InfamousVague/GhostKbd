@@ -197,8 +197,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
      * have been one of the word's own letters, landed on the top of the bar, and the word is then put together
      * again ([rejoined], Autocorrect.rejoin). [typed] is the word as typed and [stood] what the space left standing
      * for it; [touches] are its taps and [tap] the bar's own. Never kept across a field or a moved cursor.
+     *
+     * A tap on the bar that ended no word is kept the same way, with no word ([typed] and [stood] empty): it came
+     * straight after a space, and may have been the next word's first letter. [gap] is what that tap left standing
+     * between the word and whatever is typed next (a space; or the full stop and space it made of the space before
+     * it), and [was] what stood there before it (nothing; or that space).
      */
-    private class Cut(val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val tap: KeyboardView.Typed, val field: EditorInfo?)
+    private class Cut(
+        val typed: String, val stood: String, val touches: List<KeyboardView.Typed?>, val tap: KeyboardView.Typed, val field: EditorInfo?,
+        val gap: String = " ", val was: String = "", val doubled: Boolean = true,
+    )
     private var cut: Cut? = null
     /** The space bar's tap, while [space] deals with it; null for a space that came any other way. */
     private var spaceTouch: KeyboardView.Typed? = null
@@ -906,20 +914,32 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     }
 
     /**
+     * Whether two taps on the space bar, one straight after the other, were one double tap: they landed within
+     * [Autocorrect.REJOIN_APART] of a key's width of each other. True where either is not known, which is how it
+     * was held before this was looked at.
+     */
+    private fun together(a: KeyboardView.Typed?, b: KeyboardView.Typed?): Boolean {
+        if (a == null || b == null) return true
+        val keyW = keyboard?.tapKeys()?.second ?: return true
+        return kotlin.math.hypot(a.x - b.x, a.y - b.y) < Autocorrect.REJOIN_APART * keyW
+    }
+
+    /**
      * Puts a word together again that a tap on the space bar cut in two, where its taps say that tap was a letter
      * (Autocorrect.rejoin): [word] is what has been typed since the bar's tap (nothing, where a second space has
      * just come), and [separator] what ends it. True when the field now has the one word and its separator.
      */
-    private fun rejoined(ic: InputConnection, word: String, separator: String): Boolean {
+    private fun rejoined(ic: InputConnection, word: String, separator: String, doubled: Boolean = true): Boolean {
         val c = cut ?: return false
         cut = null
         if (c.field !== currentInputEditorInfo || c.touches.size != c.typed.length || wordTouches.size != word.length) return false
         if (!autocorrectAllowed() || !(profile?.flag("autocorrect") ?: prefs.autocorrect)) return false
-        val standing = if (word.isEmpty()) c.stood + " " else c.stood + " " + word
+        val standing = c.stood + c.gap + word
         val before = ic.getTextBeforeCursor(CORRECT_CHARS, 0)?.toString() ?: return false
         if (!before.endsWith(standing)) return false
-        // The scrap before the bar's tap starts a word of its own: nothing it would be the tail of.
-        val head = before.dropLast(standing.length)
+        // The scrap before the bar's tap starts a word of its own: nothing it would be the tail of. Where the tap
+        // ended no word, the one word starts after what stood before the tap.
+        val head = before.dropLast(standing.length) + c.was
         if (head.isNotEmpty() && (head.last().isLetterOrDigit() || head.last() in "@#/._-\\:\$`'’")) return false
         val after = ic.getTextAfterCursor(1, 0)
         if (!after.isNullOrEmpty() && (after[0].isDigit() || isWordChar(after[0]))) return false
@@ -927,11 +947,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         val scorer = if (!prefs.nextWord || terminalApp()) null else runCatching {
             NextWordText.place(head, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
         }.getOrNull()
-        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps) ?: return false
-        if (!editor.replaceBefore(standing, whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty()) "" else separator)) return false
+        // Where the tap ended no word, what it left standing is held in its own place: the start of a sentence.
+        val after = if (c.typed.isNotEmpty() || !prefs.nextWord || terminalApp()) null else runCatching {
+            NextWordText.place(before, ::isWordChar, before.length >= CORRECT_CHARS, locale, sentenceEnds())?.let { nextWords.at(it) }
+        }.getOrNull()
+        val whole = autocorrect.rejoin(c.typed, word, c.stood, scorer, taps, stopped = c.was.isNotEmpty(), doubled = doubled && c.doubled, after = after) ?: return false
+        // A second space is the word's own and stays; anything else that ended it was typed, and the fix takes it in.
+        if (!editor.replaceBefore(standing, c.was + whole + separator, Kind.CORRECTION, typedFirst = if (word.isEmpty() && separator == " ") "" else separator)) return false
         stats { TypingStats.correction(this) }
         // Backspace straight after puts the two scraps back, as it puts back any word a fix replaced.
-        lastCorrection = Triple(standing, whole, separator)
+        lastCorrection = Triple(standing, c.was + whole, separator)
         return true
     }
 
@@ -945,7 +970,16 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         // its first letter, so one typed straight after an emoji is mended (or left) alone, and the emoji stays.
         val from = (before.length - 48).coerceAtLeast(0)
         val word = before.substring(Words.lastStart(before, joiners, from))
-        if (word.isEmpty()) return false
+        if (word.isEmpty()) {
+            // The bar's own tap, straight after a space or before anything at all: it ends no word and stands as a
+            // space, and it may have been the first letter of the word that comes next ([Cut]).
+            if (separator == " " && (before.isEmpty() || before.last() == ' ' || before.last() == '\n')) spaceTouch?.let { cut = Cut("", "", emptyList(), it, currentInputEditorInfo) }
+            // A closing mark straight after the space that ended a word: that space may have been the word's own
+            // last letter, landed on the bar ("tragi ." for "tragic."), as a second space after it may ([space]).
+            // No double tap is in it, and before a full stop or a comma nobody means a space.
+            if (separator.length == 1 && separator[0] in CUT_MARKS && pending != null && pending.typed.isNotEmpty()) { cut = pending; if (rejoined(ic, "", separator, doubled = separator[0] !in ".,")) return true }
+            return false
+        }
         val start = Words.runStart(before, joiners, from)
         if (start > 0) {
             val prev = before[start - 1]
@@ -1153,7 +1187,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!editor.replaceBefore(tail, if (keepSeparator) typed + separator else typed, Kind.CORRECTION)) return false
         lastSpaceAt = 0L
         // Two scraps put back where a word had been put together ([rejoined]): they are no word to keep or to learn from.
-        if (' ' in typed) { learner.unhold(fixed.lowercase(locale)); scheduleRow(); return true }
+        if (' ' in typed) { learner.unhold(fixed.trim().lowercase(locale)); scheduleRow(); return true }
         // The fix was never meant, so it is never counted; the word put back is the one that was typed.
         learner.unhold(fixed.lowercase(locale))
         learner.word(typed.length)
@@ -1275,9 +1309,14 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
                 // Unless the space before this one was the word's own last letter, landed on the bar ("o " for
                 // "on"): then this is the word's space, and no full stop.
-                if (rejoined(ic, "", " ")) { lastSpaceAt = now; return }
+                // A double tap lands twice on one spot. Where this tap and the one before it landed apart, the one
+                // that may have been a letter is held as no likelier a space than its place says.
+                val doubled = together(cut?.tap, spaceTouch)
+                if (rejoined(ic, "", " ", doubled)) { lastSpaceAt = now; return }
                 if (editor.replaceBefore(" ", language.spec.fullStop + " ", Kind.CORRECTION, typedFirst = " ")) {
                     lastSpaceAt = 0L
+                    // Or this tap was the next word's first letter, landed on the bar: kept till that word ends ([Cut]).
+                    spaceTouch?.let { cut = Cut("", "", emptyList(), it, currentInputEditorInfo, gap = language.spec.fullStop + " ", was = " ", doubled = doubled) }
                     return
                 }
             }
@@ -3434,6 +3473,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
         /** How much text autocorrect reads when a word ends: the word, and the two before it for context. */
         private const val CORRECT_CHARS = 96
+
+        /** The marks that close what is before them: one typed straight after the space that ended a word says that space may have been a slip ([Cut]). */
+        private const val CUT_MARKS = ".,!?;:"
 
         /** How long the row says "Offline is on" after a network chip is tapped while it is. */
         private const val OFFLINE_NOTE_MS = 3000L

@@ -821,35 +821,60 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     /**
      * The one word that a tap on the space bar cut in two, or null where the two stand as they are. A thumb reaching
      * for the bottom row (c, v, b, n, m) lands on the top of the bar as often as on the key above it, and the word
-     * is then two scraps with a space between: "bei g" for "being", "ha e" for "have", or with nothing after it,
-     * "o " for "on" (and a second space then made it "o. "). 37 of the 326 words Gboard got and this did not on
-     * 2026-11-11 were cut so (docs/versus.md).
+     * is then two scraps with a space between: "bei g" for "being", "ha e" for "have"; or with nothing after it,
+     * "o " for "on" (and a second space then made it "o. "); or with nothing before it, " ot" for "not" (and the
+     * space already there made a full stop of the two: "It did. Ot"). 37 of the 326 words Gboard got and this did
+     * not on 2026-11-11 were cut so (docs/versus.md).
      *
-     * [first] and [second] are the two scraps as they were typed ([second] is empty where the tap was the word's
-     * last letter and nothing has been typed since), [stands] is what stands in the field for the first (itself, or
-     * what it was mended to at the space), and [taps] is where every tap landed, the space bar's own among them at
-     * [first]'s length (xs and ys are [first], a space and [second] long). [scorer] is the place the first scrap
-     * stands in.
+     * [first] and [second] are the two scraps as they were typed. [second] is empty where the tap was the word's
+     * last letter and nothing has been typed since. [first] is empty where the tap ended no word: it came straight
+     * after a space, and either made a full stop of that space ([stopped]) or stands as a second space, and
+     * [second] is the word typed after it. [stands] is what stands in the field for the first (itself, or what it
+     * was mended to at the space), and [taps] is where every tap landed, the space bar's own among them at
+     * [first]'s length (xs and ys are [first], a space and [second] long). [scorer] is the place the one word would
+     * stand in: where the first scrap stands, or, with no first scrap, before the full stop or the second space;
+     * [after] is then the place [second] stands in as things are, the start of a sentence.
+     *
+     * [doubled] says the bar's tap and the tap on the bar beside it (the second space after it, or the space
+     * before it that it made a full stop of) were one double tap, or that it is not known. A full stop is made by
+     * tapping twice on one spot; a letter that fell on the bar and the space beside it land where each was aimed,
+     * most of a key apart ([REJOIN_APART]). It is false too where a full stop or a comma follows the space: before
+     * those nobody means a space, and there is no double tap in it.
      *
      * The letters and the bar's tap are read as one word, as [byTaps] reads any ([TapDecoder] takes the bar's tap as
      * a letter for how much nearer the bar's middle line it was than that letter's key: next to nothing just under
-     * the bar's top edge, a great deal in its middle). That reading is held against what stands. Two scraps are
-     * worth the first as it stands and the second after it, less nine for being two words, as a join is counted,
-     * and the one word must be worth [REJOIN_MARGIN] more: two real words stand however high on the bar the space
-     * was tapped ("is a", "to go"), and two scraps that are no words give way even to a tap in the bar's middle
-     * ("bei g"). One scrap with nothing after it is a word typed with one tap more, and is held as [byTaps] holds
-     * one: letters no list has are worth what they are worth there and give way to any reading worth more, and a
-     * listed word gives way only to one worth [REJOIN_MARGIN] more ("the" and two spaces is a full stop, not
-     * "then"; "o" and two spaces after "sit" is "on").
+     * the bar's top edge, a great deal in its middle). That reading is held against what stands:
+     * - two scraps are worth the first as it stands and the second after it, less nine for being two words, as a
+     *   join is counted, and the one word must be worth [REJOIN_MARGIN] more: two real words stand however high on
+     *   the bar the space was tapped ("is a", "to go"), and two scraps that are no words give way even to a tap in
+     *   the bar's middle ("bei g");
+     * - where the first scrap was mended at the bar's tap, what stands is worth less by what that mending cost:
+     *   "eome" made "some" by reading its e as an s, and "women" reads the same taps for less;
+     * - one scrap with nothing after it is a word typed with one tap more, and is held as [byTaps] holds one:
+     *   letters no list has are worth what they are worth there and give way to any reading worth more, and a
+     *   listed word gives way only to one worth [REJOIN_MARGIN] more ("the" and two spaces is a full stop, not
+     *   "then"; "o" and two spaces after "sit" is "on"), or, where the taps were no double tap, to one worth
+     *   more at all ("i" and a tap on the bar's top edge under the n is "in" where "in" is the likelier there).
+     *   The word the scrap was mended to may itself be the reading ("wome" was made "women" by a letter nobody
+     *   typed, which the bar's tap now is): it comes back as it stands where the tap costs less as that letter
+     *   than the mend did, and the second space is its space, not a full stop;
+     * - one scrap with nothing before it is held against the letters as they stand and against the best word
+     *   those letters make by themselves. After a full stop that a double tap made, and after a second space
+     *   that made none, they stand where they are, at the start of a sentence ([after]), and letters that are a
+     *   word give way only to one worth [REJOIN_MARGIN] more: "axj" after a full stop is "back", and "ever" after
+     *   one is not "never". After a full stop that two taps apart made, they are held in the place the one word
+     *   would stand in, on even terms with it.
      */
-    fun rejoin(first: String, second: String, stands: String, scorer: Scorer? = null, taps: Taps): String? {
+    fun rejoin(first: String, second: String, stands: String, scorer: Scorer? = null, taps: Taps, stopped: Boolean = false, doubled: Boolean = true, after: Scorer? = null): String? {
         val now = now
         val lex = now.lexicon
-        if (!TAPS || !REJOIN || lex.cautious || lex.words.isEmpty() || first.isEmpty()) return null
+        if (!TAPS || !REJOIN || lex.cautious || lex.words.isEmpty() || (first.isEmpty() && second.isEmpty())) return null
         val typed = "$first $second"
         if (typed.length > 24 || taps.xs.size != typed.length || !taps.has(first.length) || taps.space == null) return null
         // Letters only, and no capital after a scrap's first letter: an acronym or a camelCase name is left alone.
-        if (!first.all { it.isLetter() } || !second.all { it.isLetter() } || first.drop(1).any { it.isUpperCase() } || second.any { it.isUpperCase() }) return null
+        // With no first scrap the second's first letter may be a capital: the sentence's, or the full stop's doing.
+        val leads = first.isEmpty()
+        if (!first.all { it.isLetter() } || !second.all { it.isLetter() } || first.drop(1).any { it.isUpperCase() } || second.drop(if (leads) 1 else 0).any { it.isUpperCase() }) return null
         val locale = now.board.locale
         val words = lex.words
         fun lift(word: String, zipf: Float) = if (scorer == null) 0f else minOf(scorer.boost(word, zipf), CONTEXT_PICK)
@@ -857,19 +882,60 @@ class Autocorrect(private val open: (String) -> InputStream?) {
             val l = word.lowercase(locale)
             return words[l] ?: lex.contractions[l]?.let { words[it] } ?: if (kept(l)) LEARNED_ZIPF else unlisted(l)
         }
-        val one = alone(stands).let { it + lift(stands.lowercase(locale), it) }
-        val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
+        /** The taps of [count] letters from [from] on, as a word's own. */
+        fun part(from: Int, count: Int) = Taps(taps.xs.copyOfRange(from, from + count), taps.ys.copyOfRange(from, from + count), taps.keys, taps.keyW, taps.space)
         val decoder = tapDecoder(now, taps)
+        var bestScore: Float
+        // The word the first scrap was mended to where a tap of the mend's own making may be the bar's, with what
+        // that mend cost and the least a reading of it is worth: null where there is no such word.
+        var mendedTo: String? = null
+        var mended = 0f
+        var floor = Float.POSITIVE_INFINITY
+        if (leads) {
+            val lower = second.lowercase(locale)
+            // A full stop that two taps on one spot made is a full stop: the letters after it start a sentence
+            // ([after]) and, where they are a word, give way only to one worth [REJOIN_MARGIN] more; so do letters
+            // after a second space that made none. Two taps that landed apart were no double tap, and the full
+            // stop they made was nobody's: the letters after it are held in the place the one word would stand
+            // in, on even terms with it.
+            val meant = !stopped || doubled
+            val place = if (meant) after else scorer
+            fun here(word: String, zipf: Float) = if (place == null) 0f else minOf(place.boost(word, zipf), CONTEXT_PICK)
+            bestScore = alone(second).let { it + here(lower, it) } + (if (meant && isWord(lower)) REJOIN_MARGIN else 0f)
+            // The best word the letters make by themselves, which is what the space would otherwise leave standing.
+            decoder.load(lower, part(1, second.length))
+            for (h in decoder.search(bestScore - (if (place == null) 0f else CONTEXT_PICK), TapDecoder.BUDGET)) {
+                val zipf = lex.sortedZipf[h.index]
+                bestScore = maxOf(bestScore, zipf + here(lex.sorted[h.index], zipf) - h.cost)
+            }
+        } else {
+            val stood = stands.lowercase(locale)
+            // What it cost to read the first scrap as what stands for it, where the space mended it (into one word:
+            // a scrap parted in two there is held as letters no list has, as it was before this was counted).
+            if (stood != first.lowercase(locale) && ' ' !in stood) {
+                decoder.load(first.lowercase(locale), part(0, first.length))
+                mended = decoder.align(stood, 0, TapDecoder.BUDGET).let { if (it.isInfinite()) 0f else it }
+                if (second.isEmpty() && mended > 0f) { mendedTo = stood; floor = alone(stands) - mended }
+            }
+            val one = alone(stands).let { it + lift(stood, it) } - mended
+            val asItStands = if (second.isEmpty()) one else one + alone(second) - 9f
+            bestScore = asItStands + (if (second.isEmpty() && (!isWord(stood) || !doubled)) 0f else REJOIN_MARGIN)
+        }
         decoder.load(typed.lowercase(locale), taps)
         var best: String? = null
-        var bestScore = asItStands + (if (second.isEmpty() && !isWord(stands.lowercase(locale))) 0f else REJOIN_MARGIN)
-        for (h in decoder.search(bestScore - (if (scorer == null) 0f else CONTEXT_PICK), TapDecoder.BUDGET)) {
+        var same = false
+        for (h in decoder.search(minOf(floor, bestScore - (if (scorer == null) 0f else CONTEXT_PICK)), TapDecoder.BUDGET)) {
             val word = lex.sorted[h.index]
+            // The word that stands, read with the bar's tap for the letter the mend had to supply: nothing changes
+            // but that the tap was no space, so it need only cost less than the mend did.
+            if (word == mendedTo) { if (h.cost < mended) same = true; continue }
             val zipf = lex.sortedZipf[h.index]
             val score = zipf + lift(word, zipf) - h.cost
             if (score > bestScore) { best = word; bestScore = score }
         }
-        return best?.let { recase(locale, first, capitalI(now, it)) }
+        if (best == null && same) return stands
+        // The capital of a word typed after a full stop was the full stop's: without the stop it has none.
+        return best?.let { if (leads && stopped) capitalI(now, it) else recase(locale, if (leads) second else first, capitalI(now, it)) }
     }
 
     /** What letters no list has are worth against a reading of their taps: see [byTaps]. */
@@ -1187,6 +1253,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** Putting a word together again that a tap on the space bar cut in two ([rejoin]), and how much more than what stands the one word must be worth. */
         @JvmField var REJOIN = true
         @JvmField var REJOIN_MARGIN = 1.0f
+        /**
+         * Two taps on the space bar, one straight after the other, were one double tap where they landed within
+         * this much of a key's width of each other ([rejoin]'s doubled; DevKeyboardService.together). Not set on
+         * any measurement of double taps, which no set of typings here has: a thumb that never types a full stop
+         * with two spaces typed them all. It is half a key because a double tap is one thumb tapping twice
+         * without moving, and because the pairs it must tell from one lie further apart: of the 37 times a
+         * letter fell on the bar next to a space in the 1,800 typings of tool/versus/scoreboard.py, the two taps
+         * were less than half a key apart 3 times, and 1.4 keys apart at the middle one.
+         */
+        @JvmField var REJOIN_APART = 0.5f
         /** What a typed word no list has is worth against the readings of its taps: see [byTaps]. Set on tool/typing_bench.sh. */
         @JvmField var UNKNOWN = 3.2f
         @JvmField var UNKNOWN_ODD = 1.8f
