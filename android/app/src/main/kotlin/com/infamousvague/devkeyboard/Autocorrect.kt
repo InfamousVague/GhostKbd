@@ -736,7 +736,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         // A common word is only ever read as another by a slip of the thumb or two: no misspelling.
         val budget = when { common -> LISTED_BUDGET; known != null -> RARE_BUDGET; else -> TapDecoder.BUDGET }
         val floor = if (known != null && !common) known + RARE_GAP - budget else bar - (if (scorer == null) 0f else CONTEXT_PICK)
-        for (h in decoder.search(floor, budget, 0, slipsOnly = common)) {
+        for (h in decoder.search(floor, budget, 0, slipsOnly = common, reach = true)) {
             val word = lex.sorted[h.index]
             if (known != null && !common && lex.sortedZipf[h.index] < known + RARE_GAP) continue
             // Typed plainly with a slip: the plain word where there is one (esra is esta, not está).
