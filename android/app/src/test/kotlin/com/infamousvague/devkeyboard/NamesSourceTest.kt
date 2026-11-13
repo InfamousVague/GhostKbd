@@ -45,9 +45,34 @@ class NamesSourceTest {
 
     @Test fun `a word that ends is corrected with names, and in no other way`() {
         val correct = body("private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean")
-        assertTrue(correct.contains("val found = autocorrect.correct(word, scorer, taps, namesWanted())"))
+        // Names where the field wants them, but for the one word whose fix the backspace has just taken back here.
+        assertTrue(correct.contains("val found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)"))
         // The one place the service asks for a correction.
         assertEquals(1, Regex("autocorrect\\.correct\\(").findAll(service).count())
+    }
+
+    @Test fun `a capital the backspace took back is not given again to the same word typed again`() {
+        // The undo keeps the typed word as a learned one, and a learned word is never given a capital; but incognito,
+        // or in a field that asks keyboards not to learn, nothing is kept, and the capital came straight back at the
+        // next space. The undo marks the word as it ended, whatever the fix was and whether or not it could be kept.
+        val undo = body("private fun undoCorrection(ic: InputConnection, keepSeparator: Boolean): Boolean")
+        val marks = undo.indexOf("ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.let {")
+        assertTrue(undo, marks >= 0 && undo.indexOf("it.undone = true", marks) > marks)
+        // It is not behind the test that keeps a word only where words may be kept.
+        val learns = undo.indexOf("if (!incognito) { prefs.learn(typed, locale); autocorrect.setLearned(prefs.learnedWords) }")
+        assertTrue(undo, learns in 0 until marks && !undo.substring(marks, undo.indexOf("it.undone = true", marks)).contains("incognito"))
+        // The word that ended in this same place a moment ago, the same letters, its fix taken back: no names for it,
+        // and the mark stays with the word as it ends again (its space deleted and typed once more).
+        val correct = body("private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean")
+        assertTrue(correct.contains("val prior = ends.firstOrNull { it.field === currentInputEditorInfo && it.head == head && now - it.at < RETYPE_MS }"))
+        assertTrue(correct.contains("val takenBack = prior != null && prior.undone && prior.typed == lower"))
+        assertTrue(correct.contains("if (takenBack) ends.peekFirst()?.undone = true"))
+        // The row says what the space will leave: it finds the same word the same way, and offers no capital for it.
+        val taken = body("private fun capitalTakenBack(word: String, before: String): Boolean")
+        assertTrue(taken, taken.contains("val head = before.dropLast(word.length).takeLast(HEAD_CHARS)"))
+        assertTrue(taken, taken.contains("val prior = ends.firstOrNull { it.field === currentInputEditorInfo && it.head == head && now - it.at < RETYPE_MS } ?: return false"))
+        assertTrue(taken, taken.contains("return prior.undone && prior.typed == word.lowercase(locale)"))
+        assertTrue(correct.contains("val head = before.dropLast(word.length).takeLast(HEAD_CHARS)"))
     }
 
     @Test fun `a word put together again has its name's capital`() {
@@ -58,7 +83,7 @@ class NamesSourceTest {
 
     @Test fun `the row is asked as the space will be`() {
         val row = body("private fun refreshRow(before: String?, place: NextWordText.Place?)")
-        assertTrue(row.contains("val names = namesWanted()"))
+        assertTrue(row.contains("val names = namesWanted() && !(before != null && capitalTakenBack(word, before))"))
         // With next-word prediction and without it.
         assertTrue(row.contains("autocorrect.suggest(word, nextWords.timed { nextWords.at(predict).ready() }, taps, names) else autocorrect.suggest(word, null, taps, names)"))
         assertEquals(2, Regex("autocorrect\\.suggest\\(").findAll(service).count())
@@ -90,6 +115,20 @@ class NamesSourceTest {
         assertTrue(reports.contains("val a = typed.lowercase()") && reports.contains("val b = stands.lowercase()") && reports.contains("val fixed = a != b"))
         // A word given only its capital stood in the letters it was typed in.
         assertTrue(correct.contains("if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)"))
+    }
+
+    @Test fun `a capital alone teaches the mistake memory nothing`() {
+        // A fix left to stand is half a lesson, but not one that changed no letter. A listed name was passed over
+        // anyway (it is remembered in lower case, and a word meant as itself is no lesson); the possessive of a name
+        // is a word the lists mostly lack, so "linda's" was remembered as a mistake for "Linda's", which is what the
+        // memory does with a word and its own letters in another case (the last lines here show that it would).
+        val correct = body("private fun correctLastWord(ic: android.view.inputmethod.InputConnection, separator: String): Boolean")
+        assertTrue(correct.contains("if (mistakesOn() && !fixed.equals(word, ignoreCase = true)) mistakes.learn(lower, meantAs(fixed, opens), Mistakes.STOOD)"))
+        // The one lesson a word's end gives, and the only one in that function.
+        assertEquals(1, Regex("mistakes\\.learn\\(").findAll(correct).count())
+        val memory = MistakeMemory()
+        memory.learn("linda's", "Linda's", 0.5f)
+        assertTrue("what the service must not teach would be kept", memory.most(8).any { it.first == "linda's" && it.second == "Linda's" })
     }
 
     @Test fun `a listed name's capital is never what a correction teaches`() {

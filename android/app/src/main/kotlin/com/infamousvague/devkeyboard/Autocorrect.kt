@@ -213,19 +213,43 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         val strict = HashSet<String>()
         val commonest = LinkedHashMap<String, ArrayList<String>>()
         var sharedI = false
-        // English's names (dict/en_capitals.txt: Tom, Monday, Algeria), read before the lists: a spelling another
-        // loaded language also lists is taken out again as that list is read, since there it may be an ordinary
-        // word that has no capital (French "roman", a novel; Spanish "china", a pebble).
+        // English's names (dict/en_capitals.txt: Tom, Monday, Algeria), read before the lists. Beside another language
+        // some of them are no names: a spelling that language writes without a capital as a word of its own (French
+        // "roman", a novel; German "mir"; Spanish "los", and "catalán" typed without its accent). Which ones is in
+        // dict/en_capitals_beside.tsv, a line a language, made by tool/capitals.py from how that language's own
+        // sentences write each spelling; Tom, Mary and London are names in all of them. A language that file says
+        // nothing of gets the cautious rule that was the only one before 2026-11-13: every spelling its list has is
+        // taken out as the list is read, and the plain spelling of every accented word it has.
         val caps = HashMap<String, String>()
-        if ("en" in languages) runCatching {
-            open("dict/en_capitals.txt")?.bufferedReader()?.useLines { lines ->
-                lines.forEach { line -> val word = line.trim(); if (word.isNotEmpty() && word[0] != '#') caps[word.lowercase(Locale.ROOT)] = word }
+        val unjudged = HashSet<String>()
+        if ("en" in languages) {
+            runCatching {
+                open("dict/en_capitals.txt")?.bufferedReader()?.useLines { lines ->
+                    lines.forEach { line -> val word = line.substringBefore('\t').trim(); if (word.isNotEmpty() && word[0] != '#') caps[word.lowercase(Locale.ROOT)] = word }
+                }
+            }
+            if (caps.isNotEmpty() && languages.size > 1) {
+                val beside = HashMap<String, String>()
+                runCatching {
+                    open("dict/en_capitals_beside.tsv")?.bufferedReader()?.useLines { lines ->
+                        lines.forEach { line ->
+                            val tab = line.indexOf('\t')
+                            if (tab > 0 && line[0] != '#' && line.substring(0, tab) in languages) beside[line.substring(0, tab)] = line.substring(tab + 1)
+                        }
+                    }
+                }
+                for (lang in languages) {
+                    if (lang == "en") continue
+                    val none = beside[lang]
+                    if (none == null) unjudged += lang else for (word in none.split(' ')) caps.remove(word)
+                }
             }
         }
         for (lang in languages) {
             if (gone()) return null
             val firsts = commonest.getOrPut(lang) { ArrayList(12) }
             val first = lang in STRICT
+            val cautious = lang in unjudged
             runCatching {
                 open("dict/$lang.tsv")!!.bufferedReader().useLines { lines ->
                     lines.forEach { line ->
@@ -238,7 +262,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
                             if (firsts.size < 12) firsts += word
                             if (first && lenient && languages.size > 1) strict += word
                             if (word == "i" && lang != "en" && zipf >= I_WORD) sharedI = true
-                            if (lang != "en" && caps.isNotEmpty()) caps.remove(word)
+                            if (cautious && caps.isNotEmpty()) { caps.remove(word); script.plain(word).let { if (it != word) caps.remove(it) } }
                         }
                     }
                 }
@@ -1148,7 +1172,7 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * sentence. A word that is a name only some of the time (will, mark, rose, may, bill, march, turkey) is not
      * among them and is left as typed: a capital wrongly given spoils a right word. Never one the person keeps in
      * lower case ([kept]: undoing a capital teaches that, as undoing any fix does), and never a spelling another
-     * loaded language has as a word of its own ([load]).
+     * loaded language writes without a capital as a word of its own ([load]).
      */
     private fun proper(now: Now, word: String): String = name(now, word) ?: capitalI(now, word)
 
@@ -1157,10 +1181,15 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * where it is none: a word of no list of names, one the person keeps in lower case, any word at all where
      * English is not loaded. What [correct] goes by for a word it would otherwise leave as typed, so that asking
      * for names changes a name and nothing else.
+     *
+     * On the Turkish board a name that begins with i is none either: I is the capital of ı there and i's is İ, so
+     * neither capital is both the board's and the name's (ivan would be Ivan in an English sentence and İvan in a
+     * Turkish one, and İvan typed on purpose would be changed to Ivan). It is left as the lone i is ([capitalises]).
      */
     private fun name(now: Now, word: String): String? {
         val caps = now.lexicon.capitals
         if (caps.isEmpty() || word.length < 3) return null
+        if (word[0] == 'i' && now.board.locale.language == "tr") return null
         caps[word]?.let { return if (kept(word)) null else it }
         // A name's possessive is the name's.
         if (word.length > 3 && word[word.length - 1] == 's' && (word[word.length - 2] == '\'' || word[word.length - 2] == '’')) {

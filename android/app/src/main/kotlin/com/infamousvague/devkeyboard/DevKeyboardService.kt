@@ -894,11 +894,13 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /**
      * Names get their capital in this field ([Autocorrect.correct]'s names: tom is Tom, monday Monday, mended or
      * left as typed): it asks for its sentences to be capitalised, and Settings › Typing › Capitals at sentence
-     * starts is on. Those are the two things that make the keyboard give a capital of its own at all
-     * ([updateShift]), so a field that takes its text as typed (a search box, a user name, code) keeps it so, and
-     * so does a person who has capitals turned off. Never in a terminal, where a word is a command or a file's
-     * name, and never on a script without capitals. The list of names is English's and is empty without English
-     * loaded ([Autocorrect.load]): asking for names then changes nothing.
+     * starts is on. Those are what make the keyboard start a sentence with a capital of its own ([updateShift]), so
+     * a field that takes its text as typed (a search box, a user name, code) keeps it so, and so does a person who
+     * has capitals turned off. A field that asks for a capital on every word or every letter and not on sentences
+     * (a form's name field) gets its capitals from the shift key as it always did, and is not asked for names.
+     * Never in a terminal, where a word is a command or a file's name, and never on a script without capitals. The
+     * list of names is English's and is empty without English loaded ([Autocorrect.load]): asking for names then
+     * changes nothing.
      */
     private fun namesWanted(): Boolean {
         if (!prefs.autoCaps || !language.spec.script.cased || terminalApp()) return false
@@ -999,7 +1001,12 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         }
         val taps = tapsFor(word)
         // A name typed in lower case comes out with its capital, mended or not, where the field wants capitals.
-        val found = autocorrect.correct(word, scorer, taps, namesWanted())
+        // Not the word whose fix the backspace took back here a moment ago, typed again as it was ([Ended.undone]):
+        // the undo keeps such a word as a learned one, but where nothing is learned (incognito, a field that asks
+        // keyboards not to) only this keeps a capital from coming straight back at the space. (A fix that changed a
+        // letter is caught above, by what stood here; a capital leaves the letters as they were typed.)
+        val takenBack = prior != null && prior.undone && prior.typed == lower
+        val found = autocorrect.correct(word, scorer, taps, namesWanted() && !takenBack)
         if (accuracyOn()) recordWord(word, found, before.dropLast(word.length))
         val stands = found ?: word
         // Ended by the bar's own tap: kept, in case that tap was this word's next letter.
@@ -1007,6 +1014,8 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (prior != null) retyped(prior, stands, opens)
         swipedThenTyped(head, stands, now)
         noteEnd(lower, stands, head, now)
+        // Should its space be deleted and typed again, the capital stays taken back.
+        if (takenBack) ends.peekFirst()?.undone = true
         // Left as typed (a capital given to its letters changes none of them): where this spelling has been a mistake
         // before, that it is also meant counts against mending it.
         if ((found == null || found.equals(word, ignoreCase = true)) && mistakesOn()) mistakes.kept(lower)
@@ -1021,21 +1030,39 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         stats { TypingStats.correction(this) }
         lastCorrection = Triple(word, fixed, separator)
         // A fix left to stand is half a lesson (it may not have been looked at); undoing it takes the lesson back.
-        if (mistakesOn()) mistakes.learn(lower, meantAs(fixed, opens), Mistakes.STOOD)
+        // A fix that only gave the word its capital is none: the word stood in the letters it was typed in, which
+        // [Mistakes.kept] has counted above, and the capital is autocorrect's own to give again. A listed name was
+        // passed over here anyway ([meantAs] has it in lower case, and a word meant as itself teaches nothing), but
+        // a name's possessive the lists lack (linda's, of 1,634 of the 1,891 names) was remembered as a mistake for
+        // Linda's, and shown among the words put right most often.
+        if (mistakesOn() && !fixed.equals(word, ignoreCase = true)) mistakes.learn(lower, meantAs(fixed, opens), Mistakes.STOOD)
         return true
     }
 
     /**
      * A word that finished in this field a moment ago: as it was typed (lower case) and as it stood once autocorrect
      * had looked at it ([out], with its capitals), the text that stood before it ([head], which says where it was)
-     * and when. [taught] says undoing its fix is what made the typed spelling a learned word.
+     * and when. [taught] says undoing its fix is what made the typed spelling a learned word, and [undone] that its
+     * fix was taken back by the backspace, whatever the fix was and whether or not anything could be learned from it.
      */
-    private class Ended(val typed: String, val out: String, val head: String, val at: Long, val field: EditorInfo?) { var taught = false }
+    private class Ended(val typed: String, val out: String, val head: String, val at: Long, val field: EditorInfo?) { var taught = false; var undone = false }
     private val ends = java.util.ArrayDeque<Ended>()
 
     private fun noteEnd(typed: String, out: String, head: String, at: Long) {
         ends.addFirst(Ended(typed, out, head, at, currentInputEditorInfo))
         while (ends.size > ENDS_KEPT) ends.removeLast()
+    }
+
+    /**
+     * [word], at the cursor with [before] the text up to it, is the word whose fix the backspace took back here a
+     * moment ago, as it was typed ([Ended.undone]): the space will not give a name's capital to it again
+     * ([correctLastWord] finds the same word the same way), so the row does not offer it.
+     */
+    private fun capitalTakenBack(word: String, before: String): Boolean {
+        val head = before.dropLast(word.length).takeLast(HEAD_CHARS)
+        val now = android.os.SystemClock.uptimeMillis()
+        val prior = ends.firstOrNull { it.field === currentInputEditorInfo && it.head == head && now - it.at < RETYPE_MS } ?: return false
+        return prior.undone && prior.typed == word.lowercase(locale)
     }
 
     /**
@@ -1183,12 +1210,18 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!incognito) { prefs.learn(typed, locale); autocorrect.setLearned(prefs.learnedWords) }
         // The fix was not wanted: it is no lesson. Should another word be typed over this one next, the spelling put
         // back was no word either, and is let go again ([retyped]). A fix that only gave the word a capital (a name's,
-        // or I) taught nothing to take back, and forgetting it would take away what is counted of the word's having
-        // stood as typed ([Mistakes.kept]): the undo says it did.
+        // or I) was never taught ([correctLastWord] leaves it out of the lesson), and forgetting it would take away
+        // what is counted of the word's having stood as typed ([Mistakes.kept]): the undo says it did.
         if (mistakesOn() && !fixed.equals(typed, ignoreCase = true)) mistakes.forget(lower, fixed)
         // Nor was it counted as a fix made ([Reports.word] goes by the letters): its undoing is no fix undone.
         if (reporting() && !fixed.equals(typed, ignoreCase = true)) Reports.undone(this, lower, fixed)
-        if (fresh && !incognito && !keepSeparator) ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.taught = true
+        // The word as it ended a moment ago, in this field: its fix was taken back, so its capital is not given again
+        // should it be ended again as it was typed ([correctLastWord]), incognito or not; and where the undo is what
+        // made it a learned word, typing on lets it go ([retyped]).
+        ends.firstOrNull { it.typed == lower && it.field === currentInputEditorInfo }?.let {
+            it.undone = true
+            if (fresh && !incognito && !keepSeparator) it.taught = true
+        }
         scheduleRow()
         return true
     }
@@ -2008,8 +2041,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
                 if (word.isNotEmpty()) {
                     val taps = tapsFor(word)
                     // With names where the field wants them, so the row's pick is what the space will leave: "Tom" for
-                    // "tom", then "tom" itself, a tap away.
-                    val names = namesWanted()
+                    // "tom", then "tom" itself, a tap away. Not where the space will leave "tom": the word whose
+                    // capital the backspace took back here a moment ago ([capitalTakenBack]).
+                    val names = namesWanted() && !(before != null && capitalTakenBack(word, before))
                     val s = if (predict != null) autocorrect.suggest(word, nextWords.timed { nextWords.at(predict).ready() }, taps, names) else autocorrect.suggest(word, null, taps, names)
                     if (!s.typedIsWord) items += RowItem("typed-$word", label = "\u201C$word\u201D", wide = true) { keepTyped(word) }
                     s.words.forEachIndexed { i, w ->

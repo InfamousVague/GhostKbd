@@ -9,7 +9,8 @@
 //
 // Usage: Bench <repo root> [taps|row|swipe|turns|next|mistakes|voice|tune|tuneswipe|all]   (-Dwords=…, -Dseed=…, -Dverbose=true)
 // taps also takes -Dnames=false (no name is asked for its capital, as before there were any) and -Dcapitals=true
-// (which words were given a capital amiss, and which names were left without theirs).
+// (which words were given a capital amiss, which names were left without theirs, and which words that came out
+// wrong stand with a capital).
 
 import com.infamousvague.devkeyboard.Autocorrect
 import com.infamousvague.devkeyboard.LanguageState
@@ -88,18 +89,33 @@ class Tally {
     val amiss = ArrayList<String>()
     val without = ArrayList<String>()
     /**
+     * What the two counts above pass over, since each goes by words that came out with the right letters: the words
+     * that came out wrong and stand with a capital (a slip that spells a listed name, or is mended into one: "ben"
+     * for been is Ben). They were wrong before names too, and no other count moves by them; but it is what is seen.
+     * Never I or I'm, which had their capital before names.
+     */
+    var astray = 0
+    val astrays = ArrayList<String>()
+    /**
      * [u] as [written] has its one word ("" where the word's capital could be its sentence's, and is not counted):
-     * a word typed as one token and come out with the right letters, as one word or mended into it.
+     * a word typed as one token and come out with the right letters, as one word or mended into it. A stretch that
+     * came out wrong is looked at for [astray], wherever it stands (the thumb types no capital, so any is the
+     * keyboard's own).
      */
     fun capital(u: Unit, written: String) {
-        if (written.isEmpty() || u.targets.size != 1 || u.typed.size != 1 || !u.right || written == "I" || written.startsWith("I'")) return
+        if (!u.right) {
+            val given = u.out.flatMap { it.split(' ') }.filter { it.isNotEmpty() && it[0].isUpperCase() && it != "I" && !it.startsWith("I'") }
+            if (given.isNotEmpty()) { astray += given.size; astrays += "${u.typed.joinToString(" ")} → ${u.out.joinToString(" ")}, meant ${u.targets.joinToString(" ")}" }
+            return
+        }
+        if (written.isEmpty() || u.targets.size != 1 || u.typed.size != 1 || written == "I" || written.startsWith("I'")) return
         val given = u.out[0].first().isUpperCase()
         if (written[0].isUpperCase() && written.drop(1) == written.drop(1).lowercase()) { names++; if (given) namesCapital++ else without += written }
         else if (written == written.lowercase()) { lowers++; if (given) { lowersCapital++; amiss += "${u.typed[0]} → ${u.out[0]}" } }
     }
     fun capitalsLine(name: String) = String.format(
-        "%-22s capitals: names given theirs %d of %d (%.1f%%), a capital given amiss %d of %d words (%.2f per 1000)",
-        name, namesCapital, names, 100.0 * namesCapital / names.coerceAtLeast(1), lowersCapital, lowers, 1000.0 * lowersCapital / lowers.coerceAtLeast(1),
+        "%-22s capitals: names given theirs %d of %d (%.1f%%), a capital given amiss %d of %d words (%.2f per 1000), on a word that came out wrong %d",
+        name, namesCapital, names, 100.0 * namesCapital / names.coerceAtLeast(1), lowersCapital, lowers, 1000.0 * lowersCapital / lowers.coerceAtLeast(1), astray,
     )
     fun add(u: Unit, oovWords: Set<String>) {
         words += u.targets.size
@@ -273,7 +289,9 @@ fun typeAll(
             if (meant.isEmpty()) return
             val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
             tally.add(unit, oov)
-            written?.getOrNull(at)?.getOrNull(last)?.let { tally.capital(unit, it) }
+            // Every stretch, for the capitals: one with no word to hold to how the sentence writes it (its first word,
+            // two run together) still counts where it came out wrong and with a capital.
+            if (written != null) tally.capital(unit, written.getOrNull(at)?.getOrNull(last).orEmpty())
             after?.invoke(unit)
             meant.clear(); tokens.clear(); outs.clear()
         }
@@ -357,6 +375,7 @@ fun taps(root: File) {
         // -Dcapitals=true: which words were given a capital amiss, and which names were left without, commonest first.
         if (verbose || System.getProperty("capitals") == "true") {
             byTaps.amiss.forEach { println("    capital amiss  $it") }
+            byTaps.astrays.forEach { println("    capital on a wrong word  $it") }
             println("    left without   " + byTaps.without.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.joinToString(" ") { "${it.key}:${it.value}" })
         }
         if (verbose) byTaps.examples.take(150).forEach { println("    $it") }

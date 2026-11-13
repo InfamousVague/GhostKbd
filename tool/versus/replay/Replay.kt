@@ -39,6 +39,11 @@
 // ("replay": ["--no-names"]), which is what score.py holds the emulator's text against. The letters are the same
 // either way; only a name's capital differs.
 //
+// `replay ... --beside de` types as a person with German on beside English has it (any list's stem; say it again for
+// a third language): both lists are loaded on English's board, as LanguageState.dictionaries loads every enabled
+// language of the script, so every word is read against both, and English's names are those it keeps beside the
+// other (Autocorrect.load). The starter table is still English's alone, and no emulator run was typed that way.
+//
 // `replay ... --set TapDecoder.BUDGET=8 --set Autocorrect.UNKNOWN_LONG=0` sets the decoder's own dials (the
 // @JvmField numbers tool/typing_bench.sh tunes) for this one run: for asking what a number costs and buys on the
 // sentences of a versus run (tool/versus/whatif.py, fixtures.py). Nothing in the app is changed by it.
@@ -247,10 +252,13 @@ class Board(val width: Float, val screenHeight: Float, dpi: Float, val navInset:
     }
 }
 
-/** The decoder with its word lists and starter table, as the service sets it up for English with nothing learned. */
-class Decoder(root: File) {
+/**
+ * The decoder with its word lists and starter table, as the service sets it up for English with nothing learned.
+ * [beside] are other languages turned on with it (their lists' stems): English's board is still the one typed on.
+ */
+class Decoder(root: File, beside: List<String> = emptyList()) {
     private val assets = File(root, "android/app/src/main/assets")
-    val state = LanguageState.of(listOf("en"), emptyMap(), "")
+    val state = LanguageState.of(listOf("en") + beside, emptyMap(), "")
     val ac = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
     private val table: NgramTable = File(assets, "ngram/en.tsv").useLines { NgramTable.parse(it) }!!
     private val personal = PersonalPairs()
@@ -522,18 +530,21 @@ fun replay(root: File, all: List<String>) {
     val without = "--marks-without-taps" in all
     val names = "--no-names" !in all
     val args = ArrayList<String>()
+    val beside = ArrayList<String>()
     var recorded: File? = null
     var i = 0
     while (i < all.size) {
         when {
             all[i] == "--set" -> { dial(all[i + 1]); i++ }
             all[i] == "--board" -> { recorded = File(all[i + 1]); i++ }
+            all[i] == "--beside" -> { beside += all[i + 1]; i++ }
             !all[i].startsWith("--") -> args += all[i]
         }
         i++
     }
     val b = recorded?.let { Board.recorded(it) } ?: board(root, args)
-    val decoder = Decoder(root)
+    val decoder = Decoder(root, beside)
+    if (beside.isNotEmpty()) System.err.println("word lists: ${decoder.state.dictionaries}, on ${decoder.state.spec.id}")
     var line = readLine()
     var n = 0
     while (line != null) {

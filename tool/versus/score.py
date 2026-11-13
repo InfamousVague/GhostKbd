@@ -298,10 +298,11 @@ def tokens(text):
     return [w for w in (re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t) for t in text.replace("’", "'").split()) if w]
 
 
-def names(rec):
-    """The sentence's names the field has the right letters of, each as (the sentence writes it, the field has it):
-    the sentence's words after its first that are written with a capital (Tom, Algeria, Monday; not I). The thumb
-    types everything in lower case, so a capital is the keyboard's doing."""
+def names_at(rec):
+    """The sentence's names the field has the right letters of, each as (its place in the sentence, its place in
+    the field, the sentence writes it, the field has it): the sentence's words after its first that are written
+    with a capital (Tom, Algeria, Monday; not I). The thumb types everything in lower case, so a capital is the
+    keyboard's doing."""
     want, got = tokens(rec["target"]), tokens(rec["out"])
     lower = [w.lower() for w in got]
     out = []
@@ -315,8 +316,22 @@ def names(rec):
         except ValueError:
             continue
         used = k + 1
-        out.append((w, got[k]))
+        out.append((j, k, w, got[k]))
     return out
+
+
+def names(rec):
+    """[names_at] without the places: each name as (the sentence writes it, the field has it)."""
+    return [(w, got) for _, _, w, got in names_at(rec)]
+
+
+def name_pairs(rec):
+    """The names of several words among [names]: two of the sentence's names that stand next to each other and
+    that the field has next to each other (Western Sahara, New York), each pair as (the sentence writes it, the
+    field has it). A list of single words gives such a name half its capitals or none ("western Sahara"), and
+    [names] counts the half as a name given."""
+    found = {j: (k, w, got) for j, k, w, got in names_at(rec)}
+    return [(found[j][1] + " " + found[j + 1][1], found[j][2] + " " + found[j + 1][2]) for j in sorted(found) if j + 1 in found and found[j + 1][0] == found[j][0] + 1]
 
 
 def capitals(rec):
@@ -325,23 +340,29 @@ def capitals(rec):
     return sum(1 for _, got in found if got[:1].isupper()), len(found)
 
 
-def capitals_amiss(rec):
-    """The other side of [names]: (words the field has with a capital where the sentence writes none, each as
-    (the sentence writes it, the field has it); how many words the sentence writes in lower case that the field has
-    the right letters of). The two are lined up word for word (the longest runs they share). A word that stands
-    first in the field, or after a full stop the keyboard put in (a second space typed within a second), has the
-    sentence's capital, which is the shift key's doing and not counted."""
-    import difflib
-    want = tokens(rec["target"])
-    raw = rec["out"].replace("’", "'").split()
+def field_words(text):
+    """A field's words as they stand, the marks about them gone, and for each whether it opens a sentence there:
+    the first word, or one after a full stop, a question or an exclamation mark. Such a word's capital is the shift
+    key's doing (a full stop may be the keyboard's own, from a second space typed within a second)."""
     got, opens = [], []
     start = True
-    for t in raw:
+    for t in text.replace("’", "'").split():
         w = re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", t)
         if w:
             got.append(w)
             opens.append(start)
         start = t[-1:] in ".?!…"
+    return got, opens
+
+
+def capitals_amiss(rec):
+    """The other side of [names]: (words the field has with a capital where the sentence writes none, each as
+    (the sentence writes it, the field has it); how many words the sentence writes in lower case that the field has
+    the right letters of). The two are lined up word for word (the longest runs they share). A word that opens a
+    sentence in the field ([field_words]) has the sentence's capital, which is not counted."""
+    import difflib
+    want = tokens(rec["target"])
+    got, opens = field_words(rec["out"])
     amiss, plain = [], 0
     blocks = difflib.SequenceMatcher(None, [w.lower() for w in want], [w.lower() for w in got], autojunk=False).get_matching_blocks()
     for a, b, size in blocks:
@@ -352,6 +373,28 @@ def capitals_amiss(rec):
             if got[k][:1].isupper():
                 amiss.append((want[j], got[k]))
     return amiss, plain
+
+
+def capitals_astray(rec):
+    """What [names] and [capitals_amiss] both pass over, since each counts a word only where the field has the
+    sentence's letters: the capitals on words that came out wrong, each as (what the sentence has there, the field
+    has it). A slip that spells a listed name, or is mended into one, stands with a capital ("It had Ben a long
+    meeting" for been, "Tim" for Tom). The word was wrong before names too, so no count of words moves by it, but
+    it is what the person sees. What the sentence has there is "" where the two do not line up one word for one.
+    Never I or I'm (which had their capital before names), nor a word that opens a sentence in the field."""
+    import difflib
+    want = tokens(rec["target"])
+    got, opens = field_words(rec["out"])
+    out = []
+    for tag, a1, a2, b1, b2 in difflib.SequenceMatcher(None, [w.lower() for w in want], [w.lower() for w in got], autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        for i, k in enumerate(range(b1, b2)):
+            w = got[k]
+            if opens[k] or not w[:1].isupper() or w == "I" or w.startswith("I'"):
+                continue
+            out.append((want[a1 + i] if a2 - a1 == b2 - b1 else "", w))
+    return out
 
 
 def at_the_press(rec):

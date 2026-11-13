@@ -25,6 +25,44 @@ class TypingAccuracyTest {
 
         val ac: Autocorrect by lazy { english() }
 
+        /**
+         * [languages]' lists loaded on [layout] (the first language's own where it is not said), from the real
+         * assets but for the files of [swapped]: each one's text in its place, or null for a file that is not there.
+         */
+        private fun loaded(languages: List<String>, layout: String = "", swapped: Map<String, String?> = emptyMap()): Autocorrect {
+            val ac = Autocorrect { name -> if (name in swapped) swapped[name]?.byteInputStream() else File(assets, name).takeIf { it.exists() }?.inputStream() }
+            val state = LanguageState.of(languages, emptyMap(), layout)
+            ac.loadNow(state.dictionaries, state.board)
+            return ac
+        }
+
+        private val table: NgramTable by lazy { File(assets, "ngram/en.tsv").useLines { NgramTable.parse(it) }!! }
+
+        /** What is likely at the end of [before], as next-word prediction has it with nothing typed yet (the starter table alone). */
+        private fun scorer(ac: Autocorrect, before: String): Scorer? {
+            val personal = PersonalPairs()
+            val place = NextWordText.place(before, { Words.isWordChar(it, "'") }, false) ?: return null
+            val lookup = object : Scorer.Lookup {
+                override fun isWord(lower: String) = ac.isWord(lower)
+                override fun form(lower: String) = personal.form(lower)
+                override fun count(lower: String) = personal.unigram(lower)
+                override fun starting(prefix: String) = personal.starting(prefix)
+                override fun fills() = ac.commonest(6)
+            }
+            return Scorer(place, listOf(table), Scorer.weights(listOf(table), place.recent), personal.followers(place.prev), emptyList(), lookup)
+        }
+
+        /** English's names (dict/en_capitals.txt) in lower case. */
+        private val names: Set<String> by lazy {
+            File(assets, "dict/en_capitals.txt").readLines().map { it.substringBefore('\t').trim() }.filter { it.isNotEmpty() && it[0] != '#' }.map { it.lowercase() }.toSet()
+        }
+
+        /** dict/en_capitals_beside.tsv: for each language it judges, the names that are no names beside it. */
+        private val beside: Map<String, Set<String>> by lazy {
+            File(assets, "dict/en_capitals_beside.tsv").readLines().filter { it.isNotEmpty() && it[0] != '#' && '\t' in it }
+                .associate { it.substringBefore('\t') to it.substringAfter('\t').split(' ').filter { w -> w.isNotEmpty() }.toSet() }
+        }
+
         /** A drawn QWERTY: keys 100 wide and 150 tall, the middle row half a key in, the bottom a key and a half. */
         const val W = 100f
         const val H = 150f
@@ -259,14 +297,145 @@ class TypingAccuracyTest {
         assertEquals("Tom", shifted.words.first())
     }
 
-    @Test fun aSpellingAnotherLoadedLanguageHasIsNoName() {
+    @Test fun aSpellingAnotherLoadedLanguageWritesAsAWordOfItsOwnIsNoName() {
         // "roman" is Roman in English and a novel in French: with both loaded it is left. Monday is nobody else's word.
         assertEquals("Roman", ac.correct("roman", names = true))
-        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
-        val state = LanguageState.of(listOf("en", "fr"), emptyMap(), "")
-        both.loadNow(state.dictionaries, state.board)
+        val both = loaded(listOf("en", "fr"))
         assertNull(both.correct("roman", names = true))
         assertEquals("Monday", both.correct("monday", names = true))
+        // Each of these is a name in English alone, and beside the language named a word that language writes in
+        // lower case, by its own sentences (dict/en_capitals_beside.tsv): asked for names it is as it is unasked.
+        val own = listOf(
+            "de" to listOf("mir", "seine", "los", "weiss"), "es" to listOf("los", "las", "catalan", "china"), "fr" to listOf("roman", "les", "marie"),
+            "nl" to listOf("ben", "dan", "april", "september"), "cs" to listOf("tom", "sam", "jim"), "it" to listOf("roma", "marco"), "sl" to listOf("sami", "mali"),
+        )
+        for ((other, words) in own) {
+            val two = loaded(listOf("en", other))
+            for (word in words) {
+                assertEquals(word, word.replaceFirstChar { it.uppercase() }, ac.correct(word, names = true))
+                assertTrue("$other: $word", word in beside.getValue(other))
+                assertEquals("$other: $word", two.correct(word), two.correct(word, names = true))
+                assertEquals("$other: $word", two.suggest(word).fix, two.suggest(word, names = true).fix)
+                assertEquals("$other: $word", word, two.named(word))
+            }
+        }
+    }
+
+    @Test fun besideAnotherLanguageANameItWritesAsANameIsStillOne() {
+        // Until 2026-11-13 every spelling the other list has was taken out, and the other lists have Tom, Mary and
+        // London: their writers tell of them as English's do. Beside German 26 of the 146 names the measured run
+        // gives their capital were left. These are names in each of them, by how its own sentences write them.
+        for (other in listOf("de", "es", "fr", "it", "pt", "nl", "pl", "tr", "sv")) {
+            val two = loaded(listOf("en", other))
+            for ((typed, name) in listOf("tom" to "Tom", "mary" to "Mary", "john" to "John", "london" to "London", "boston" to "Boston", "monday" to "Monday", "english" to "English")) {
+                assertEquals("$other: $typed", name, two.correct(typed, names = true))
+                assertEquals("$other: $typed", name, two.correct(typed, null, taps(typed), names = true))
+            }
+            assertEquals("$other", "Tom", two.suggest("tom", names = true).fix)
+        }
+        // German's own nouns are German's affair, but Berlin is Berlin in both.
+        assertEquals("Berlin", loaded(listOf("en", "de")).correct("berlin", names = true))
+        // The order the languages were turned on in changes nothing.
+        val turned = loaded(listOf("de", "en"), layout = "qwerty")
+        assertEquals("Tom", turned.correct("tom", names = true))
+        assertEquals(turned.correct("mir"), turned.correct("mir", names = true))
+        // With three, what either of the others writes as a word of its own is out: French's roman, German's mir.
+        val three = loaded(listOf("en", "de", "fr"))
+        assertEquals("Tom", three.correct("tom", names = true))
+        for (word in listOf("roman", "mir")) assertEquals(word, three.correct(word), three.correct(word, names = true))
+    }
+
+    @Test fun everyLanguageEnglishCanBeLoadedBesideHasItsLineAndItDecides() {
+        // Every Latin-script language with a word list is judged in dict/en_capitals_beside.tsv; each of its words
+        // is a name of the list; and with that language loaded beside English, on English's board, a name it takes
+        // out never gets a capital, and the names it leaves get theirs (all but the few the decoder reads as
+        // another word, as in English alone), with no letter changed by the asking.
+        var judged = 0
+        for (language in Languages.ALL) {
+            if (language.script != Script.LATIN || language.dict == null || language.code == "en") continue
+            val out = beside[language.code]
+            assertNotNull("${language.code} has no line in dict/en_capitals_beside.tsv: make it again (tool/capitals.py)", out)
+            judged++
+            assertTrue("${language.code}: ${out!! - names}", names.containsAll(out))
+            val two = loaded(listOf("en", language.code))
+            var given = 0
+            for (name in names) {
+                val plain = two.correct(name) ?: name
+                val asked = two.correct(name, names = true) ?: name
+                assertEquals("${language.code}: $name", plain.lowercase(), asked.lowercase())
+                if (name in out) assertEquals("${language.code}: $name", plain, asked) else if (asked != plain) given++
+            }
+            assertTrue("${language.code}: $given of ${names.size - out.size}", given >= (names.size - out.size) * 9 / 10)
+        }
+        assertEquals(beside.keys.toString(), judged, beside.size)
+    }
+
+    @Test fun aLanguageTheFileHasNoLineForLosesEverySpellingItsListHas() {
+        // A language added to the keyboard since the file was made, or a file that could not be read: the rule
+        // there was before the file. Every spelling the other list has is out, and now the plain spelling of every
+        // accented word it has too (Spanish "catalán", typed catalan, was given English's capital).
+        for (file in listOf<String?>("# made before Spanish was added\nde\tmir seine\n", "", null)) {
+            val two = loaded(listOf("en", "es"), swapped = mapOf("dict/en_capitals_beside.tsv" to file))
+            for (word in listOf("tom", "mary", "london", "china", "catalan", "los")) assertEquals("$word, $file", two.correct(word), two.correct(word, names = true))
+            // A name Spanish's list does not have is English's still.
+            assertEquals("Wednesday", two.correct("wednesday", names = true))
+        }
+        // A language with a line loses that line's words and no others, whatever its list has.
+        val german = loaded(listOf("en", "de"), swapped = mapOf("dict/en_capitals_beside.tsv" to "# two words\nde\tmir seine\nfr\ttom\n"))
+        for (word in listOf("mir", "seine")) assertEquals(word, german.correct(word), german.correct(word, names = true))
+        assertEquals("Tom", german.correct("tom", names = true))
+        assertEquals("Los", german.correct("los", names = true))
+        // And with English alone the file is not looked at.
+        assertEquals("Tom", loaded(listOf("en"), swapped = mapOf("dict/en_capitals_beside.tsv" to "en\ttom\n")).correct("tom", names = true))
+    }
+
+    @Test fun aLineOfTheNamesFileMayCarryMoreThanTheName() {
+        // Should the list ever say more of a name than the name (a count, a mark), what follows a tab is left aside.
+        val one = loaded(listOf("en"), swapped = mapOf("dict/en_capitals.txt" to "# names\nTom\t9142\n  Mary  \n\nMonday\t12\tx\n"))
+        for ((typed, name) in listOf("tom" to "Tom", "mary" to "Mary", "monday" to "Monday", "tom's" to "Tom's")) assertEquals(name, one.correct(typed, names = true))
+        assertNull(one.correct("london", names = true))
+        // No file, or one with no name in it: no names, and everything else as it was.
+        for (file in listOf<String?>(null, "", "# nothing\n")) {
+            val none = loaded(listOf("en"), swapped = mapOf("dict/en_capitals.txt" to file))
+            for (word in listOf("tom", "monday", "hello", "teh", "im")) assertEquals("$word, $file", ac.correct(word), none.correct(word, names = true))
+        }
+    }
+
+    @Test fun onTheTurkishBoardANameThatBeginsWithIIsLeft() {
+        // English beside Turkish, typed on Turkish's own board: I is the capital of ı there and i's is İ. Ivan would
+        // be Ivan in an English sentence and İvan in a Turkish one, and İvan typed on purpose was changed to Ivan.
+        // As the lone i is left on that board (tool/lang_check), so is a name that begins with it, typed either way.
+        val turkish = loaded(listOf("en", "tr"), layout = "turkish")
+        for (typed in listOf("ivan", "İvan", "ireland", "İreland", "italy", "İtaly", "iraq", "İraq", "isaac", "ivan's")) {
+            assertEquals(typed, turkish.correct(typed), turkish.correct(typed, names = true))
+            assertEquals(typed, turkish.suggest(typed).fix, turkish.suggest(typed, names = true).fix)
+            assertEquals(typed, turkish.suggest(typed).words, turkish.suggest(typed, names = true).words)
+            assertEquals(typed, typed, turkish.named(typed))
+        }
+        for (typed in listOf("İvan", "İreland", "İtaly")) assertNull(typed, turkish.correct(typed, names = true))
+        // A name that begins with another letter has its capital there as anywhere.
+        assertEquals("Monday", turkish.correct("monday", names = true))
+        assertEquals("London", turkish.correct("london", names = true))
+        // On QWERTY, which Turkish shares with English and where shift gives English's I, Ivan has his.
+        val shared = loaded(listOf("en", "tr"))
+        assertEquals("Ivan", shared.correct("ivan", names = true))
+        assertEquals("Ireland", shared.correct("ireland", names = true))
+    }
+
+    @Test fun theRowAndTheSpaceAgreeOnANameWithTheWordsBeforeToGoBy() {
+        // With next-word prediction on (a Scorer for the place) as without: the space leaves "Tom", and the row has
+        // "Tom" as its pick and "tom" next to it.
+        val before = scorer(ac, "i met tom")
+        assertNotNull(before)
+        assertEquals("Tom", ac.correct("tom", before, taps("tom"), names = true))
+        val row = ac.suggest("tom", before, taps("tom"), names = true)
+        assertEquals("Tom", row.fix)
+        assertEquals(listOf("Tom", "tom"), row.words.take(2))
+        assertNull(ac.correct("tom", before, taps("tom")))
+        // A name mended by its taps and the words before has its capital too, and a word that is no name is as it was.
+        assertEquals("Monday", ac.correct("mondya", scorer(ac, "see you on mondya"), taps("mondya"), names = true))
+        val plain = scorer(ac, "i met them")
+        assertEquals(ac.correct("them", plain, taps("them")), ac.correct("them", plain, taps("them"), names = true))
     }
 
     @Test fun everyNameOfTheListIsAWordAndAskingForNamesChangesNoLetter() {
@@ -351,11 +520,11 @@ class TypingAccuracyTest {
             assertEquals(word, plain.fix, asked.fix)
             assertEquals(word, word, german.named(word))
         }
-        // With both loaded, a name German's list has too is left (it may be an ordinary word there), and one it lacks is English's.
-        val both = Autocorrect { name -> File(assets, name).takeIf { it.exists() }?.inputStream() }
-        val two = LanguageState.of(listOf("en", "de"), emptyMap(), "")
-        both.loadNow(two.dictionaries, two.board)
-        assertNull(both.correct("berlin", names = true))
+        // With both loaded, a word German writes in lower case is left ("mir", to me), and a name German writes as a
+        // name is English's still, whether or not German's list has it.
+        val both = loaded(listOf("en", "de"))
+        assertEquals(both.correct("mir"), both.correct("mir", names = true))
+        assertEquals("Berlin", both.correct("berlin", names = true))
         assertEquals("Monday", both.correct("monday", names = true))
     }
 

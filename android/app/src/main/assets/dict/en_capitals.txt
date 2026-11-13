@@ -7,7 +7,7 @@
 # Vocabulary limited to the wordfreq list (assets/dict/en.tsv, CC BY-SA 4.0). None of Tatoeba's sentences is here.
 #
 # Kept: a word of the list, of 3 letters or more, counted 5 times or more straight after another word of its
-# sentence, and written with a capital 95 times in 100 or more. 1,891 words.
+# sentence, and written with a capital 95 times in 100 or more. 1,884 words.
 Aaron
 Abe
 Abel
@@ -27,6 +27,7 @@ Africa
 African
 Africans
 Afrikaans
+Agar
 Agatha
 Agnes
 Aires
@@ -158,13 +159,11 @@ Azerbaijan
 Azerbaijani
 Aztec
 Aztecs
-Bab
 Babel
 Babylon
 Babylonian
 Bach
 Baghdad
-Bah
 Bahamas
 Bahia
 Baku
@@ -234,6 +233,7 @@ Birmingham
 Blair
 Blake
 Blythe
+Bob
 Boeing
 Bolivia
 Bolivian
@@ -393,7 +393,6 @@ Cleopatra
 Cleveland
 Clinton
 Clyde
-Cockney
 Coliseum
 Collins
 Colombia
@@ -602,7 +601,6 @@ Florentine
 Florida
 Floyd
 Fontaine
-Fran
 France
 Francesca
 Francis
@@ -678,7 +676,6 @@ Goodall
 Gorbachev
 Gordon
 Grammy
-Greco
 Greece
 Greek
 Greeks
@@ -794,7 +791,6 @@ India
 Indian
 Indiana
 Indians
-Indo
 Indonesia
 Indonesian
 Indus
@@ -892,7 +888,6 @@ Jong
 Jordan
 Jordanian
 Jorge
-Jos
 Jose
 Joseph
 Juan
@@ -909,7 +904,6 @@ Juliet
 Julius
 July
 June
-Jung
 Juno
 Jupiter
 Jurassic
@@ -1003,6 +997,7 @@ Lawrence
 Layla
 Lebanese
 Lebanon
+Lee
 Leeds
 Lenin
 Leningrad
@@ -1257,6 +1252,7 @@ Nebraska
 Ned
 Neil
 Nelson
+Neo
 Nepal
 Nepalese
 Nepali
@@ -1328,6 +1324,7 @@ Orpheus
 Orwell
 Osaka
 Oscars
+Osiris
 Oslo
 Ottawa
 Otto
@@ -1471,7 +1468,6 @@ Robert
 Roberto
 Robinson
 Roblox
-Roc
 Rodrigo
 Rodriguez
 Roger
@@ -1511,6 +1507,7 @@ Sahara
 Saharan
 Salah
 Salem
+Salle
 Salman
 Salvador
 Salzburg
@@ -1548,7 +1545,6 @@ Schmidt
 Schubert
 Schwab
 Schwarzenegger
-Scooby
 Scorpio
 Scotia
 Scotland
@@ -1596,7 +1592,6 @@ Simon
 Sinai
 Sinatra
 Singapore
-Sino
 Sioux
 Sirius
 Skype
@@ -1820,7 +1815,6 @@ Vuitton
 Vulcan
 Waco
 Wagner
-Wal
 Wales
 Walmart
 Walsh
@@ -1848,7 +1842,6 @@ Willie
 Wilson
 Wimbledon
 Windsor
-Winnie
 Winston
 Wisconsin
 Wolfgang
