@@ -70,8 +70,12 @@ val NOISES = System.getProperty("thumbs")?.split(',')?.map { t -> t.split(':').l
  */
 class Typed(val text: String, val xs: FloatArray, val ys: FloatArray, val taps: Taps)
 
-/** What came of a stretch of the sentence: the words meant, the tokens typed, and what the keyboard left there. */
-class Unit(val targets: List<String>, val typed: List<String>, val out: List<String>) {
+/**
+ * What came of a stretch of the sentence: the words meant, the tokens typed, and what the keyboard left there.
+ * (It was called Unit until tool/versus/replay/Sweep.kt was compiled beside this file: a class of that name here
+ * takes kotlin.Unit's place in every file of the package.)
+ */
+class Stretch(val targets: List<String>, val typed: List<String>, val out: List<String>) {
     val right get() = out.joinToString(" ").lowercase() == targets.joinToString(" ")
     val typedRight get() = typed.joinToString(" ") == targets.joinToString(" ")
 }
@@ -113,7 +117,7 @@ class Tally {
      * came out wrong is looked at for [astray], wherever it stands (the thumb types no capital, so any is the
      * keyboard's own).
      */
-    fun capital(u: Unit, written: String) {
+    fun capital(u: Stretch, written: String) {
         if (!u.right) {
             val given = u.out.flatMap { it.split(' ') }.filter { it.isNotEmpty() && it[0].isUpperCase() && it != "I" && !it.startsWith("I'") }
             if (given.isNotEmpty()) { astray += given.size; astrays += "${u.typed.joinToString(" ")} → ${u.out.joinToString(" ")}, meant ${u.targets.joinToString(" ")}" }
@@ -128,7 +132,7 @@ class Tally {
         "%-22s capitals: names given theirs %d of %d (%.1f%%), a capital given amiss %d of %d words (%.2f per 1000), on a word that came out wrong %d",
         name, namesCapital, names, 100.0 * namesCapital / names.coerceAtLeast(1), lowersCapital, lowers, 1000.0 * lowersCapital / lowers.coerceAtLeast(1), astray,
     )
-    fun add(u: Unit, oovWords: Set<String>) {
+    fun add(u: Stretch, oovWords: Set<String>) {
         words += u.targets.size
         if (u.right) right += u.targets.size
         if (u.typedRight) rawRight += u.targets.size
@@ -214,8 +218,9 @@ fun misspellings(kb: Keyboard, useTaps: Boolean, show: Boolean = false): Pair<In
     return fixed to asked
 }
 
-class Sentences(root: File) {
-    val lines: List<String> = File(root, "build/typing-bench/en-heldout.txt").readLines()
+/** The held-out sentences, or only the first [most] lines of them (the sweep must not be able to read the lines kept for the end). */
+class Sentences(root: File, most: Int = Int.MAX_VALUE) {
+    val lines: List<String> = File(root, "build/typing-bench/en-heldout.txt").useLines { it.take(most).toList() }
     /** A sentence's words in lower case: letters and apostrophes only; anything else (a number, a symbol) is dropped with its context. */
     fun words(line: String): List<String> = line.split(Regex("\\s+")).map { it.trim { c -> !c.isLetter() }.replace('’', '\'') }
         // An acronym (NASA, TV) is typed in capitals and never touched: it is not what is measured here.
@@ -283,7 +288,7 @@ fun typeAll(
     /** The letters the person goes for in place of a word's own (a habit of theirs), or null for the word as it is spelled. */
     habit: ((String) -> String?)? = null,
     /** Told what came of each stretch, once the keyboard has had it. */
-    after: ((Unit) -> kotlin.Unit)? = null,
+    after: ((Stretch) -> Unit)? = null,
     /**
      * The second look (Autocorrect.again), as DevKeyboardService and the replay's Typist have it: once a word has
      * ended, the word before it ([typed], standing as [stood], typed after [before]) is read again with [next], the
@@ -325,7 +330,7 @@ fun typeAll(
         fun flush() {
             val p = pending ?: return
             pending = null
-            val unit = Unit(p.first, p.second, p.third.toList())
+            val unit = Stretch(p.first, p.second, p.third.toList())
             changedFrom.remove(p.third)?.let { was ->
                 if (unit.targets.size == 1 && unit.typed.size == 1) {
                     val a = was.lowercase() == unit.targets[0]
@@ -367,7 +372,7 @@ fun typeAll(
                 pendingLast = last
                 outs = ArrayList()
             } else {
-                val unit = Unit(meant.toList(), tokens.toList(), outs.toList())
+                val unit = Stretch(meant.toList(), tokens.toList(), outs.toList())
                 tally.add(unit, oov)
                 // Every stretch, for the capitals: one with no word to hold to how the sentence writes it (its first word,
                 // two run together) still counts where it came out wrong and with a capital.
@@ -431,6 +436,15 @@ val LEAN_TURN = System.getProperty("lean.turn")?.toInt() ?: 0
 /** The tap test asks names for their capitals ([Autocorrect.correct]'s names), unless told -Dnames=false. */
 val NAMES = System.getProperty("names", "true") == "true"
 
+/**
+ * The tap test's reading of one typed word: autocorrect with the words before it, where its taps landed (with the
+ * field's lean on them, [Typed.taps]) and names asked for their capitals ([NAMES]). Its own function so that
+ * tool/versus/replay/Sweep.kt, which types the tap test again for every setting it tries, reads each word as [taps]
+ * does at its space. (The tap test also reads the word before again once the next has ended, Autocorrect.again, and
+ * teaches the lean from every settled word; the sweep's planned typing does neither: see docs/versus-sweep.md.)
+ */
+fun byTheTaps(kb: Keyboard, t: Typed, before: String): String? = kb.ac.correct(t.text, kb.scorer(before), t.taps, NAMES)
+
 fun taps(root: File) {
     val kb = Keyboard(root)
     val all = Sentences(root)
@@ -470,7 +484,7 @@ fun taps(root: File) {
         // As a message field has it: names are asked for their capitals (-Dnames=false: as before there were any).
         // Words are scored with capitals aside, so a capital shows in that line only by what it does to the words
         // after it; the line under it counts the capitals themselves.
-        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again, written = written) { t, before -> calls++; kb.ac.correct(t.text, kb.scorer(before), t.taps, NAMES) }
+        val byTaps = typeAll(kb, sentences, noise, seed, oov, again = again, written = written) { t, before -> calls++; byTheTaps(kb, t, before) }
         println(byTaps.line("${noise.name}: by the taps") + String.format("  (%.0f µs a word, %.0f µs of processor time)", (System.nanoTime() - t0) / 1000.0 / calls.coerceAtLeast(1), (cpu.currentThreadCpuTime - c0) / 1000.0 / calls.coerceAtLeast(1)))
         println(byTaps.capitalsLine("${noise.name}: by the taps"))
         // -Dcapitals=true: which words were given a capital amiss, and which names were left without, commonest first.
