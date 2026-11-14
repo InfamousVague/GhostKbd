@@ -38,7 +38,7 @@ class KeyboardPrefs(context: Context) {
      */
     val commaKey: Boolean get() = bool(COMMA_KEY)
     /**
-     * Settings › Typing › Held backspace (Momentum.kt): its base speed and letters before words (numbers in strings:
+     * Settings › Typing › Backspace momentum (Momentum.kt): its base speed and letters before words (numbers in strings:
      * the settings bridge carries strings and switches), how hard it ramps up, and a rumble for each word.
      */
     val backspaceRate: String get() = prefs.getString(BACKSPACE_RATE, DEFAULTS[BACKSPACE_RATE] as String)!!

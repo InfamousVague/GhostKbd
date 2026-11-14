@@ -142,7 +142,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
-    /** Settings › Typing › Held backspace (Momentum.kt): how it ramps, and a rumble for each word it takes. */
+    /** Settings › Typing › Backspace momentum (Momentum.kt): how it ramps, and a rumble for each word it takes. */
     var heldBackspace = Momentum.Settings()
 
     var dictation = DictationPhase.OFF

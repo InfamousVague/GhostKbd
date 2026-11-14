@@ -946,7 +946,7 @@ List<Widget> _typingPage(BuildContext context, SettingsStore store) => [
 List<SettingsSection> _typingParts(SettingsStore store) => [
       // Languages are the keys themselves as much as the word lists, so the page is here with or without Autocorrect.
       _part('languages', 'Languages', LucideMore.languages, 'blue', (s) => s.languages.map((c) => s.languageOf(c)?.name ?? c).join(', '), _languagesPart),
-      if (!isIOS) _part('backspace', 'Held backspace', Lucide.gauge, 'orange', _backspaceSummary, _backspacePart),
+      if (!isIOS) _part('backspace', 'Backspace momentum', Lucide.gauge, 'orange', _backspaceSummary, _backspacePart),
       if (store.pluginOn('autocorrect'))
         _part('autocorrect', 'Autocorrect', Lucide.spellCheck, 'lime', (s) => [s.flag('autocorrect') ? 'Corrects as you type' : 'Suggests only', if (s.flag('next_word')) 'next words', if (s.flag('slang')) 'slang'].join(', '), _autocorrectPart),
       if (store.pluginOn('adaptive'))

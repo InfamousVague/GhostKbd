@@ -1,4 +1,4 @@
-/// A slider in Glacier's look, for a setting that is a number (Settings › Typing › Held backspace). Glacier has none,
+/// A slider in Glacier's look, for a setting that is a number (Settings › Typing › Backspace momentum). Glacier has none,
 /// and the app draws nothing from Material, so this one is drawn here: a track in the border colour, the part up to
 /// the thumb in the accent, a white thumb as the switch's, and over it what the value means as it moves.
 library;

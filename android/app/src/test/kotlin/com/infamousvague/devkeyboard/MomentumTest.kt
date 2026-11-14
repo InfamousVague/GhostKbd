@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Settings › Typing › Held backspace (Momentum.kt): a rate, letters before words, an optional ramp, a rumble per word. */
+/** Settings › Typing › Backspace momentum (Momentum.kt): a rate, letters before words, an optional ramp, a rumble per word. */
 class MomentumTest {
     private fun steps(s: Momentum.Settings) = (0 until 80).map { Momentum.step(it, s) }
 

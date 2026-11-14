@@ -1760,7 +1760,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onKeyFeedback(key: Key, haptic: Boolean) = keyFeedback(key.type, haptic)
 
     /**
-     * Settings › Typing › Held backspace's rumble for each word a held backspace takes: a thud where the phone can play one (Android
+     * Settings › Typing › Backspace momentum's rumble for each word a held backspace takes: a thud where the phone can play one (Android
      * 11 and later, on a vibrator that has it), firmer at [strength]; else a short buzz of that strength. Never with
      * vibration off in Settings.
      */

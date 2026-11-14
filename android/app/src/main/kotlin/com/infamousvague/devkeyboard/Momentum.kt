@@ -1,7 +1,7 @@
 package com.infamousvague.devkeyboard
 
 /**
- * A held backspace, as Settings › Typing › Held backspace has it (Kevin, 2026-11-14: "base speed slider and speed
+ * A held backspace, as Settings › Typing › Backspace momentum has it (Kevin, 2026-11-14: "base speed slider and speed
  * ramp options like the turbo").
  *
  * - [Settings.rate]: the base speed, letters a second ([RATE_MIN] to [RATE_MAX]). Whole words come at a pace that
