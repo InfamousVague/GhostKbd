@@ -5,9 +5,10 @@ import kotlin.math.abs
 
 /**
  * What a key does when it is pressed. GLOBE goes to the next layout (long-press: the list of them); MIC starts or
- * ends a dictation (long-press: the full stop it stands in for, and that key's punctuation).
+ * ends a dictation (long-press: the full stop it stands in for, and that key's punctuation). ARROW moves the cursor
+ * the way its [Key.text] says (up, down, left, right), again and again while held (the musclememory plugin's row).
  */
-enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE, EMOJI }
+enum class KeyType { CHAR, SHIFT, DELETE, SPACE, ENTER, MODE, MIC, GLOBE, EMOJI, ARROW }
 
 /** Gboard's three pages (letters, ?123, =\<) and the developer page behind the { } key. */
 enum class Page { LETTERS, SYMBOLS, MORE, DEV }
@@ -17,7 +18,10 @@ enum class Page { LETTERS, SYMBOLS, MORE, DEV }
  * [width] its share of the row in key units, [hint] the small character in its corner, [alts] the long-press
  * choices (the hint, when there is one, comes first), [page] the page a MODE key goes to. A `¦` in [text] or an
  * alternative is where the cursor is left: `(¦)` types a pair and puts the cursor between. [pill] is whether a MODE
- * key is drawn as Gboard's pill (?123) or as a bare label (the { } key, where Gboard's comma was).
+ * key is drawn as Gboard's pill (?123) or as a bare label (the { } key, where Gboard's comma was). [bare] keys have no
+ * face even with Key borders on (SwiftKey's number row and arrows); [holdsMic] is a key whose hold starts a dictation
+ * rather than opening its long-press (SwiftKey's comma), a mic drawn in its corner. [flick]: a slide that starts on
+ * it opens SwiftKey's quick punctuation at once ([MuscleMemory.FLICK]), without waiting for a hold.
  */
 data class Key(
     val type: KeyType,
@@ -28,13 +32,19 @@ data class Key(
     val alts: List<String> = emptyList(),
     val page: Page? = null,
     val pill: Boolean = true,
+    val bare: Boolean = false,
+    val holdsMic: Boolean = false,
+    val flick: Boolean = false,
 ) {
     /** Drawn in the darker "function" colour, as Gboard draws shift, delete, ?123 and the like. */
     val functional: Boolean get() = type == KeyType.SHIFT || type == KeyType.DELETE || type == KeyType.MODE
 }
 
-/** A row of keys, [inset] key units of space before and after it (Gboard's middle letter row sits half a key in). */
-class KeyRow(val keys: List<Key>, val inset: Float = 0f) {
+/**
+ * A row of keys, [inset] key units of space before and after it (Gboard's middle letter row sits half a key in), and
+ * [height] rows tall (the musclememory plugin's arrow row is shorter than a row of letters).
+ */
+class KeyRow(val keys: List<Key>, val inset: Float = 0f, val height: Float = 1f) {
     val units: Float get() = keys.sumOf { it.width.toDouble() }.toFloat() + inset * 2
 }
 

@@ -761,7 +761,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!Plugins.isOn(prefs, Plugins.GIFS) || offlineOn) closeGifs()
         showUpdateBadge()
         scheduleRow()
-        view.keyBorders = prefs.keyBorders
+        // SwiftKey's keys each have a face, and it is SwiftKey's look the musclememory plugin is for.
+        view.muscle = MuscleMemory.parts(prefs)
+        view.keyBorders = prefs.keyBorders || view.muscle.layout
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints
         view.spaceCursor = prefs.spaceCursor

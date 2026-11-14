@@ -139,6 +139,13 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
 
+    /**
+     * The musclememory plugin's parts that are on (MuscleMemory.kt): SwiftKey's letters, its short number row, the
+     * arrow row; with any of them, one key size on every page.
+     */
+    var muscle = MuscleMemory.Parts()
+        set(value) { if (field != value) { field = value; rebuild(); requestLayout(); invalidate() } }
+
     var dictation = DictationPhase.OFF
         set(value) {
             if (value == DictationPhase.TRANSCRIBING && field != value) writingSince = android.os.SystemClock.uptimeMillis()
@@ -530,20 +537,41 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     }
 
     private fun rebuild() {
-        val letters by lazy { Layouts.letters(spec, numberRow, extras, globe) }
-        val base = when (page) {
+        val letters by lazy { Layouts.letters(spec, numbersOn, extras, globe) }
+        if (muscle.any) {
+            // The letters' number row, bare (and short, with the numbers part on): it heads every page.
+            val number = if (numbersOn) MuscleMemory.numbers(letters.first(), muscle.numbers) else null
+            val keys = when (page) {
+                // SwiftKey's letters have their own bottom row: none of the mic, comma and emoji moves apply there.
+                Page.LETTERS -> {
+                    val own = if (number != null) listOf(number) + letters.drop(1) else letters
+                    if (muscle.layout) MuscleMemory.letters(own, emoji = emojiKey, mic = micKey) else matts(own)
+                }
+                Page.SYMBOLS -> MuscleMemory.page(matts(Layouts.symbols(spec)), page, number, muscle.numbers)
+                Page.MORE -> MuscleMemory.page(matts(Layouts.more(spec)), page, number, muscle.numbers)
+                Page.DEV -> MuscleMemory.page(matts(Layouts.dev()), page, number, muscle.numbers)
+            }
+            rows = if (muscle.arrows) keys + MuscleMemory.arrows(keys.maxOf { it.units }) else keys
+            layoutKeys()
+            return
+        }
+        rows = matts(when (page) {
             Page.LETTERS -> letters
             Page.SYMBOLS -> Layouts.symbols(spec)
             Page.MORE -> Layouts.more(spec)
             Page.DEV -> Layouts.dev()
-        }
+        })
+        layoutKeys()
+    }
+
+    /** The mic, comma and emoji keys put where the settings and plugins have them, on any page's [base] rows. */
+    private fun matts(base: List<KeyRow>): List<KeyRow> {
         // The mic first: it knows the letters page by its { } key, which the emoji key then takes the place of.
         val spoken = if (micKey) Layouts.withMic(base) else base
         // With the { } key away its place is the comma's (the setting on), or the emoji key's, or with neither it
         // stays the { } key's own, which is then the way to the code keys as well as the row's button.
         val pointed = if (codeAway && commaKey) Layouts.withComma(spoken, spec) else spoken
-        rows = if (emojiKey) Layouts.withEmoji(pointed, inPlace = codeAway && !commaKey) else pointed
-        layoutKeys()
+        return if (emojiKey) Layouts.withEmoji(pointed, inPlace = codeAway && !commaKey) else pointed
     }
 
     // --- metrics ----------------------------------------------------------------------------------------------------
@@ -576,8 +604,20 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private var seenInset = -1L
 
     /** The letters page sets the height; the symbol pages spread their rows over the same space, as Gboard does. */
-    private val rowCount get() = if (numberRow) 5 else 4
+    private val numbersOn get() = numberRow || muscle.numbers
+    private val rowCount get() =
+        4f + (if (!numbersOn) 0f else if (muscle.numbers) MuscleMemory.NUMBER_ROW else 1f) + (if (muscle.arrows) MuscleMemory.ARROW_ROW else 0f)
     private val keysHeight get() = rowCount * dp(rowHeightDp)
+
+    /**
+     * One row's height in [rows]. Gboard's way: the page's rows spread over the letters' room. With a musclememory
+     * part on, SwiftKey's: each row its own [KeyRow.height] of a letter row, the same on every page ([rowsTop]).
+     */
+    private fun rowHeight(row: KeyRow) =
+        if (muscle.any) dp(rowHeightDp) * row.height else keysHeight * row.height / rows.sumOf { it.height.toDouble() }.toFloat()
+
+    /** Where the first row starts: a page shorter than the letters stands on the same bottom line, room above it. */
+    private val rowsTop get() = keysTop + (keysHeight - rows.sumOf { rowHeight(it).toDouble() }.toFloat()).coerceAtLeast(0f)
 
     init {
         isHapticFeedbackEnabled = true
@@ -750,11 +790,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         areaRight = left + areaW
         val unit = (areaW - sidePad * 2 - gap) / units
         val mid = left + sidePad + units * unit / 2
-        val rowH = keysHeight / rows.size
-        var y = keysTop
-        // The three letter rows of the letters page, counted from its first (after the number row where there is one).
-        val firstLetterRow = if (page == Page.LETTERS) rows.size - 4 else -1
+        var y = rowsTop
+        // The three letter rows of the letters page, counted from its first (after the number row where there is one):
+        // the third is the one with delete in it.
+        val firstLetterRow = if (page == Page.LETTERS) rows.indexOfFirst { r -> r.keys.any { it.type == KeyType.DELETE } } - 2 else -1
         rows.forEachIndexed { r, row ->
+            val rowH = rowHeight(row)
             val start = row.inset + (units - row.units) / 2
             var across = start
             var x = left + sidePad + start * unit
@@ -983,6 +1024,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         var f = f0
         if (theme.mechanical) {
             f = drawKeycap(canvas, key, f0, pressed)
+        } else if (keyBorders && key.bare) {
+            if (pressed) { fill.color = theme.key; canvas.drawRoundRect(f, keyRadius, keyRadius, fill) }
         } else if (keyBorders) {
             fill.color = when {
                 key.type == KeyType.ENTER -> if (pressed) theme.accentPressed else theme.accent
@@ -1025,6 +1068,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                     label.textSize = sizes[i]
                 }
                 canvas.drawText(text, cx, cy + rises[i], label)
+                // SwiftKey's comma: a small mic in its corner, where a hold dictates.
+                if (key.holdsMic) drawMic(canvas, f.right - dp(if (condensed) 8f else 9f), f.top + dp(if (condensed) 9f else 10f), theme.hint, 0.55f)
                 drawHint(canvas, key, f)
             }
             KeyType.MODE -> {
@@ -1043,6 +1088,33 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             KeyType.SHIFT -> drawShift(canvas, cx, cy)
             KeyType.DELETE -> drawDelete(canvas, cx, cy)
             KeyType.ENTER -> drawEnter(canvas, cx, cy)
+            KeyType.ARROW -> drawPackIcon(canvas, arrowIcon(key), cx, cy, dp(if (condensed) 18f else 20f), theme.text, filled = true)
+        }
+    }
+
+    private fun arrowIcon(key: Key) = when (key.text) {
+        "up" -> RowIcon.CARET_UP
+        "down" -> RowIcon.CARET_DOWN
+        "left" -> RowIcon.CARET_LEFT
+        else -> RowIcon.CARET_RIGHT
+    }
+
+    /** An arrow key's step: left and right a character, up and down a line, as the space bar's slide moves them. */
+    private fun arrowStep(key: Key) = when (key.text) {
+        "up" -> listener.onCursorLine(-1)
+        "down" -> listener.onCursorLine(1)
+        "left" -> listener.onCursor(-1)
+        else -> listener.onCursor(1)
+    }
+
+    /** A held arrow key: a step every [ARROW_REPEAT_MS] once [ARROW_HOLD_MS] has passed, as a held arrow on a hardware keyboard. */
+    private val repeatArrow = object : Runnable {
+        override fun run() {
+            val t = touch ?: return
+            if (t.key.type != KeyType.ARROW) return
+            listener.onKeyFeedback(t.key, haptic = false)
+            arrowStep(t.key)
+            timer.postDelayed(this, ARROW_REPEAT_MS)
         }
     }
 
@@ -1375,6 +1447,21 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         return Panel(choices, cells, bounds, cols).also { it.selected = at }
     }
 
+    /** SwiftKey's quick punctuation over the full stop ([MuscleMemory.FLICK]): one line, the full stop over its key, chosen. */
+    private fun makeFlickPanel(rect: RectF): Panel {
+        val f = face(rect)
+        val cellW = f.width() + keyPadX * 2
+        val cellH = f.height()
+        val pad = dp(6f)
+        val cellsLeft = MuscleMemory.flickLeft(f.centerX(), cellW, dp(2f) + pad, width - dp(2f) - pad)
+        val bottom = f.top - dp(2f)
+        val top = (bottom - cellH - pad * 2).coerceAtLeast(0f)
+        val choices = MuscleMemory.FLICK
+        val cells = choices.indices.map { i -> RectF(cellsLeft + i * cellW, top + pad, cellsLeft + (i + 1) * cellW, top + pad + cellH) }
+        val bounds = RectF(cellsLeft - pad, top, cellsLeft + choices.size * cellW + pad, top + cellH + pad * 2)
+        return Panel(choices, cells, bounds, choices.size).also { it.selected = choices.indexOf(".") }
+    }
+
     private fun drawPanel(canvas: Canvas, panel: Panel) {
         fill.color = theme.popup
         fill.setShadowLayer(dp(6f), 0f, dp(2f), theme.popupShadow)
@@ -1488,8 +1575,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             val (ox, oy) = letterCorrection(rawX, rawY)
             (rawX - ox) to (rawY - oy).coerceAtLeast(keysTop + 1f)
         } else {
-            val rowH = keysHeight / rows.size
-            val fromBottom = rows.size - 1 - ((rawY - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
+            // Counted from the bottom row of keys proper: the musclememory plugin's arrows under it are not a row of them.
+            var top = rowsTop
+            var at = rows.size - 1
+            for (r in rows.indices) { val h = rowHeight(rows[r]); if (rawY < top + h) { at = r; break }; top += h }
+            val keyRows = rows.size - (if (muscle.arrows) 1 else 0)
+            val fromBottom = (keyRows - 1 - at).coerceAtLeast(0)
             val lift = when (fromBottom) { 0, 1 -> 0f; 2 -> dp(LIFT_MIDDLE_DP); else -> dp(LIFT_TOP_DP) }
             (if (rawX < width / 2f) rawX + dp(SHIFT_LEFT_HALF_DP) else rawX) to (rawY - lift).coerceAtLeast(keysTop + 1f)
         }
@@ -1519,7 +1610,8 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         val unitW = keyRects.firstOrNull { it.first.type == KeyType.CHAR }?.second?.width() ?: return 0f to 0f
         val sigma2 = 2f * (unitW * 0.6f) * (unitW * 0.6f)
         var sw = 0f; var sx = 0f; var sy = 0f
-        val bottomTop = keyRects.last().second.top
+        // The bottom row (the space bar's): the arrows' row under it, where the musclememory plugin has one, too.
+        val bottomTop = keyRects.lastOrNull { it.first.type == KeyType.SPACE }?.second?.top ?: keyRects.last().second.top
         for (i in keyRects.indices) {
             val r = keyRects[i].second
             val off = keyOffsets[i]
@@ -1621,6 +1713,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 listener.onDelete()
                 timer.postDelayed(repeatDelete, 400)
             }
+            KeyType.ARROW -> {
+                arrowStep(t.key)
+                timer.postDelayed(repeatArrow, ARROW_HOLD_MS)
+            }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT, KeyType.GLOBE -> timer.postDelayed(longPress, longPressMs)
             // The mic key holds the full stop it stands in for; not while it is listening, when a touch only ends the take.
             KeyType.MIC -> if (dictation == DictationPhase.OFF) timer.postDelayed(longPress, longPressMs)
@@ -1672,6 +1768,17 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             }
             KeyType.CHAR -> {
                 t.swipe?.let { addSwipePoint(it, x, y); redraw(); return }
+                // SwiftKey's full stop: a slide that starts on it opens ! , . ? at once, the full stop under the finger.
+                if (t.firstKey.flick && t.key === t.firstKey && !t.longPressed && kotlin.math.hypot(x - t.downX, y - t.downY) > dp(MuscleMemory.FLICK_DP)) {
+                    timer.removeCallbacks(longPress)
+                    val panel = makeFlickPanel(t.rect)
+                    t.panel = panel
+                    t.longPressed = true
+                    performHapticFeedback(LONG_PRESS)
+                    selectInPanel(panel, x, y)
+                    redraw()
+                    return
+                }
                 // Swipe typing: a slide of most of a key's width from a letter starts spelling a word.
                 if (swipeTyping && page == Page.LETTERS && t.panel == null && t.firstKey.text.length == 1 && t.firstKey.text[0].isLetter() &&
                     kotlin.math.hypot(x - t.downX, y - t.downY) > t.rect.width() * 0.9f
@@ -1748,6 +1855,12 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 performHapticFeedback(LONG_PRESS); listener.onShiftChanged(); invalidate()
             }
             KeyType.CHAR -> {
+                if (t.key.holdsMic) {
+                    t.longPressed = true
+                    performHapticFeedback(LONG_PRESS)
+                    listener.onMic()
+                    return
+                }
                 if (t.key.text == ",") {
                     t.longPressed = true
                     listener.onOpenSettings()
@@ -1775,6 +1888,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private fun release(t: Touch) {
         timer.removeCallbacks(longPress)
         timer.removeCallbacks(repeatDelete)
+        timer.removeCallbacks(repeatArrow)
         touch = null
         val panel = t.panel
         val swipe = t.swipe
@@ -1807,7 +1921,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
                 KeyType.MIC -> listener.onMic()
                 KeyType.EMOJI -> listener.onEmoji()
                 KeyType.GLOBE -> nextLayout()?.let { listener.onLayout(it) }
-                KeyType.DELETE -> Unit
+                KeyType.DELETE, KeyType.ARROW -> Unit
             }
         }
         invalidate()
@@ -1816,6 +1930,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     private fun cancelTouch() {
         timer.removeCallbacks(longPress)
         timer.removeCallbacks(repeatDelete)
+        timer.removeCallbacks(repeatArrow)
         touch = null
         redraw()
     }
@@ -1850,6 +1965,10 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         /** A held backspace takes this many characters one by one, then whole words, one each [DELETE_WORD_MS]. */
         const val DELETE_CHARS = 15
         const val DELETE_WORD_MS = 200L
+
+        /** A held arrow key (the musclememory plugin): its first repeat, and the steps after. */
+        const val ARROW_HOLD_MS = 400L
+        const val ARROW_REPEAT_MS = 60L
         /** The steps a legend's light is drawn in, and how its code is told apart ([lightCode]). */
         private const val LIGHT_LEVELS = 64
         private const val LIGHT_LEVEL_MASK = 0x7F

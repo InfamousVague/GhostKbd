@@ -41,6 +41,8 @@ package com.infamousvague.devkeyboard
  * - `agent` (AgentKeys.kt): the keys a coding agent in a terminal is driven with (Shift+Tab, Esc twice, Ctrl+C, a new
  *   line that does not send, / @ ! and Ctrl+R) as chips in the row, in terminal apps; in AI chat apps a new line, a
  *   code block, / and @.
+ * - `musclememory` (MuscleMemory.kt): the letters laid out as Microsoft SwiftKey's, its corner symbols, number row,
+ *   bottom row and a row of arrow keys under every page, for thumbs that learned on it.
  */
 object Plugins {
     const val AUTOCORRECT = "autocorrect"
@@ -64,7 +66,8 @@ object Plugins {
     const val SHORTCUTS = "shortcuts"
     const val ENHANCE = "enhance"
     const val CONNECTORS = "connectors"
-    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS, ENHANCE, CONNECTORS)
+    const val MUSCLE_MEMORY = "musclememory"
+    val ALL = listOf(AUTOCORRECT, DICTATION, THEMES, SWIPE, PASSWORDS, GIFS, MARKDOWN, TERMINAL, CLIPBOARD, UNDO, INCOGNITO, EMOJI, GHOSTMD, MOCKINGBIRD, GHOSTWRITER, ADAPTIVE, REWRITE, AGENT, SHORTCUTS, ENHANCE, CONNECTORS, MUSCLE_MEMORY)
 
     /**
      * The plugins that are added. The setting is one string, and it is asked about dozens of times for every key
