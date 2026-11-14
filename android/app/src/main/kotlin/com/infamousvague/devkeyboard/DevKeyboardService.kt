@@ -761,6 +761,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!Plugins.isOn(prefs, Plugins.GIFS) || offlineOn) closeGifs()
         showUpdateBadge()
         scheduleRow()
+        view.heldBackspace = Momentum.settings(prefs)
         view.keyBorders = prefs.keyBorders
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints
@@ -1757,6 +1758,26 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     override fun onShiftChanged() = Unit
 
     override fun onKeyFeedback(key: Key, haptic: Boolean) = keyFeedback(key.type, haptic)
+
+    /**
+     * Settings › Typing › Held backspace's rumble for each word a held backspace takes: a thud where the phone can play one (Android
+     * 11 and later, on a vibrator that has it), firmer at [strength]; else a short buzz of that strength. Never with
+     * vibration off in Settings.
+     */
+    override fun onRumble(strength: Float) {
+        if (!prefs.vibrate) return
+        val s = strength.coerceIn(0.1f, 1f)
+        val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_THUD)
+        ) {
+            VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, s).compose()
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.hasAmplitudeControl()) {
+            VibrationEffect.createOneShot(28L, (80 + 175 * s).toInt().coerceIn(1, 255))
+        } else {
+            VibrationEffect.createOneShot(28L, VibrationEffect.DEFAULT_AMPLITUDE)
+        }
+        vibrator.vibrate(effect)
+    }
 
     /** A key's haptic and sound, as Settings has them: for the finger's presses and Ghostwriter's typing alike. */
     private fun keyFeedback(type: KeyType, haptic: Boolean = true) {
