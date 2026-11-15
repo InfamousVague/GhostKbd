@@ -37,15 +37,6 @@ class KeyboardPrefs(context: Context) {
      * setting users can toggle on").
      */
     val commaKey: Boolean get() = bool(COMMA_KEY)
-    /**
-     * Settings › Typing › Backspace momentum (Momentum.kt): its base speed and letters before words (numbers in strings:
-     * the settings bridge carries strings and switches), how hard it ramps up, and a rumble for each word.
-     */
-    val backspaceRate: String get() = prefs.getString(BACKSPACE_RATE, DEFAULTS[BACKSPACE_RATE] as String)!!
-    val backspaceLetters: String get() = prefs.getString(BACKSPACE_LETTERS, DEFAULTS[BACKSPACE_LETTERS] as String)!!
-    val backspaceRamp: String get() = prefs.getString(BACKSPACE_RAMP_STYLE, DEFAULTS[BACKSPACE_RAMP_STYLE] as String)!!
-    val backspaceRumble: Boolean get() = bool(BACKSPACE_RUMBLE)
-    val backspaceRumbleStrength: String get() = prefs.getString(BACKSPACE_RUMBLE_STRENGTH, DEFAULTS[BACKSPACE_RUMBLE_STRENGTH] as String)!!
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -96,6 +87,15 @@ class KeyboardPrefs(context: Context) {
 
     /** Cursor control: sliding left from backspace deletes a word at a time. */
     val deleteSwipe: Boolean get() = bool(DELETE_SWIPE)
+    /**
+     * Settings › Typing › Backspace momentum (Momentum.kt): its base speed and letters before words (numbers in strings:
+     * the settings bridge carries strings and switches), how hard it ramps up, and a rumble for each word.
+     */
+    val backspaceRate: String get() = prefs.getString(BACKSPACE_RATE, DEFAULTS[BACKSPACE_RATE] as String)!!
+    val backspaceLetters: String get() = prefs.getString(BACKSPACE_LETTERS, DEFAULTS[BACKSPACE_LETTERS] as String)!!
+    val backspaceRamp: String get() = prefs.getString(BACKSPACE_RAMP_STYLE, DEFAULTS[BACKSPACE_RAMP_STYLE] as String)!!
+    val backspaceRumble: Boolean get() = bool(BACKSPACE_RUMBLE)
+    val backspaceRumbleStrength: String get() = prefs.getString(BACKSPACE_RUMBLE_STRENGTH, DEFAULTS[BACKSPACE_RUMBLE_STRENGTH] as String)!!
 
     /** Typing stats: speed and accuracy counted on this phone (TypingStats.kt). */
     val typingStats: Boolean get() = bool(TYPING_STATS)
@@ -361,11 +361,6 @@ class KeyboardPrefs(context: Context) {
         const val TOOLBAR = "toolbar"
         const val HIDE_ROW = "hide_row"
         const val COMMA_KEY = "comma_key"
-        const val BACKSPACE_RATE = "backspace_rate"
-        const val BACKSPACE_LETTERS = "backspace_letters"
-        const val BACKSPACE_RAMP_STYLE = "backspace_ramp_style"
-        const val BACKSPACE_RUMBLE = "backspace_rumble"
-        const val BACKSPACE_RUMBLE_STRENGTH = "backspace_rumble_strength"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
@@ -431,6 +426,11 @@ class KeyboardPrefs(context: Context) {
         const val WIDE_LAYOUT = "wide_layout"
         const val ONE_HANDED = "one_handed"
         const val DELETE_SWIPE = "delete_swipe"
+        const val BACKSPACE_RATE = "backspace_rate"
+        const val BACKSPACE_LETTERS = "backspace_letters"
+        const val BACKSPACE_RAMP_STYLE = "backspace_ramp_style"
+        const val BACKSPACE_RUMBLE = "backspace_rumble"
+        const val BACKSPACE_RUMBLE_STRENGTH = "backspace_rumble_strength"
         const val BOTTOM_SPACE = "bottom_space"
         const val TYPING_STATS = "typing_stats"
         const val REWRITE_LANGUAGE = "rewrite_language"
@@ -463,11 +463,6 @@ class KeyboardPrefs(context: Context) {
             TOOLBAR to false,
             HIDE_ROW to false,
             COMMA_KEY to false,
-            BACKSPACE_RATE to "20",
-            BACKSPACE_LETTERS to "15",
-            BACKSPACE_RAMP_STYLE to "off",
-            BACKSPACE_RUMBLE to false,
-            BACKSPACE_RUMBLE_STRENGTH to "medium",
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",
@@ -533,6 +528,11 @@ class KeyboardPrefs(context: Context) {
             WIDE_LAYOUT to "split",
             ONE_HANDED to "off",
             DELETE_SWIPE to true,
+            BACKSPACE_RATE to "20",
+            BACKSPACE_LETTERS to "15",
+            BACKSPACE_RAMP_STYLE to "off",
+            BACKSPACE_RUMBLE to false,
+            BACKSPACE_RUMBLE_STRENGTH to "medium",
             BOTTOM_SPACE to "auto",
             TYPING_STATS to true,
             REWRITE_LANGUAGE to "Spanish",

@@ -111,6 +111,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var spaceCursor = true
     /** Cursor control: sliding left from backspace deletes whole words. */
     var deleteSwipe = true
+    /** Settings › Typing › Backspace momentum (Momentum.kt): how it ramps, and a rumble for each word it takes. */
+    var heldBackspace = Momentum.Settings()
+
     var longPressMs = 300L
 
     /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
@@ -141,9 +144,6 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
     var micKey = false
         set(value) { if (field != value) { field = value; rebuild(); invalidate() } }
-
-    /** Settings › Typing › Backspace momentum (Momentum.kt): how it ramps, and a rumble for each word it takes. */
-    var heldBackspace = Momentum.Settings()
 
     var dictation = DictationPhase.OFF
         set(value) {

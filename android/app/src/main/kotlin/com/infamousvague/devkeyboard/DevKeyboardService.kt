@@ -721,6 +721,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         view.bottomSpace = prefs.bottomSpace
         view.phone = stripPhone
         view.deleteSwipe = prefs.deleteSwipe
+        view.heldBackspace = Momentum.settings(prefs)
         // The backlight is on by default, but never while typing a password: lit letters would show what is typed.
         view.adaptive = if (Plugins.isOn(prefs, Plugins.ADAPTIVE)) AdaptiveKeys.get(this, language.spec.id) else null
         // A trainer run that tests a fix has the keys listen where the fix has them, in the trainer's own field and
@@ -761,7 +762,6 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         if (!Plugins.isOn(prefs, Plugins.GIFS) || offlineOn) closeGifs()
         showUpdateBadge()
         scheduleRow()
-        view.heldBackspace = Momentum.settings(prefs)
         view.keyBorders = prefs.keyBorders
         view.showPreview = prefs.keyPopup
         view.showHints = prefs.hints

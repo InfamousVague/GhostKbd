@@ -347,98 +347,6 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
       ],
     );
 
-// --- Held backspace (android Momentum.kt) ---------------------------------------------------------------------------
-
-/// android Momentum.kt's bounds and defaults: keep the two the same.
-const int _rateMin = 4, _rateMax = 40, _rateDefault = 20, _lettersMin = 0, _lettersMax = 40, _lettersDefault = 15;
-
-/// Where a speed sits, in words: the zones the slider names as it moves.
-String _rateZone(int r) => switch (r) {
-      <= 9 => 'Careful',
-      <= 16 => 'Steady',
-      <= 24 => 'Brisk',
-      <= 32 => 'Fast',
-      _ => 'Turbo',
-    };
-
-int _intSetting(SettingsStore s, String key, int fallback, int min, int max) => (int.tryParse(s.choice(key)) ?? fallback).clamp(min, max);
-
-String _backspaceSummary(SettingsStore s) {
-  final rate = _intSetting(s, 'backspace_rate', _rateDefault, _rateMin, _rateMax);
-  final letters = _intSetting(s, 'backspace_letters', _lettersDefault, _lettersMin, _lettersMax);
-  final ramp = s.choice('backspace_ramp_style');
-  return [
-    '$rate a second (${_rateZone(rate).toLowerCase()})',
-    if (ramp != 'off') '$ramp ramp',
-    letters == 0 ? 'words at once' : 'words after $letters',
-    if (s.flag('backspace_rumble')) 'rumble',
-  ].join(', ');
-}
-
-List<Widget> _backspacePart(BuildContext context, SettingsStore store) {
-  final rate = _intSetting(store, 'backspace_rate', _rateDefault, _rateMin, _rateMax);
-  final letters = _intSetting(store, 'backspace_letters', _lettersDefault, _lettersMin, _lettersMax);
-  final wordMs = (4000 ~/ rate).clamp(80, 500);
-  return [
-    PaneSection(
-      title: 'Base speed',
-      footer: Text('Where it starts. Whole words follow the same pace: about ${(1000 / wordMs).toStringAsFixed(1)} a second. The tick is the keyboard’s own, 20.'),
-      children: [
-        SettingRowBox(
-          child: ValueSlider(
-            value: rate,
-            min: _rateMin,
-            max: _rateMax,
-            marks: const [_rateDefault],
-            ariaLabel: 'Backspace base speed',
-            describe: (v) => ('$v letters a second', _rateZone(v)),
-            onChanged: (v) => store.set('backspace_rate', '$v'),
-          ),
-        ),
-      ],
-    ),
-    PaneSection(
-      title: 'Ramp',
-      footer: Text(switch (store.choice('backspace_ramp_style')) {
-        'gentle' => 'Eases up to about 1.6× the base (${(rate * 1.6).round()} a second) over the first second or so.',
-        'quick' => 'Climbs to about 2.5× the base (${(rate * 2.5).round()} a second) within a few letters.',
-        'turbo' => 'Rockets to 4× the base (${(rate * 4).clamp(0, 50).round()} a second) almost at once, then tears through words.',
-        _ => 'Holds the base speed the whole time, letters and words alike.',
-      }),
-      children: [
-        _choice(store, 'backspace_ramp_style', 'Speed up while held', const {'off': 'Off', 'gentle': 'Gentle', 'quick': 'Quick', 'turbo': 'Turbo'}),
-      ],
-    ),
-    PaneSection(
-      title: 'Whole words',
-      footer: Text(letters == 0 ? 'Straight to whole words: every repeat takes a word.' : 'It takes $letters letters one by one, then moves on to whole words. The tick is the keyboard’s own, 15.'),
-      children: [
-        SettingRowBox(
-          child: ValueSlider(
-            value: letters,
-            min: _lettersMin,
-            max: _lettersMax,
-            marks: const [_lettersDefault],
-            ariaLabel: 'Letters before whole words',
-            describe: (v) => (v == 0 ? 'Words right away' : v == 1 ? '1 letter, then words' : '$v letters, then words', null),
-            onChanged: (v) => store.set('backspace_letters', '$v'),
-          ),
-        ),
-      ],
-    ),
-    PaneSection(
-      title: 'Rumble',
-      footer: Text(store.flag('vibrate')
-          ? 'A soft thud for every whole word it takes, a little firmer as it goes, so you can feel how far you have gone.'
-          : 'Vibration is off in Key press & sound, so there is nothing to feel until it is on.'),
-      children: [
-        _toggle(store, 'backspace_rumble', 'Rumble for each word'),
-        if (store.flag('backspace_rumble')) _choice(store, 'backspace_rumble_strength', 'Strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
-      ],
-    ),
-  ];
-}
-
 // --- Mockingbird and Ghostwriter ------------------------------------------------------------------------------------
 
 String _when(Object? ms) {
@@ -925,6 +833,98 @@ String _rowSummary(SettingsStore s) {
   final ids = _rowIds.where(pluginHere);
   final on = ids.where(s.pluginOn).length + (s.flag('arrow_keys') ? 1 : 0);
   return on == 0 ? 'None' : '$on of ${ids.length + 1} on';
+}
+
+// --- Held backspace (android Momentum.kt) ---------------------------------------------------------------------------
+
+/// android Momentum.kt's bounds and defaults: keep the two the same.
+const int _rateMin = 4, _rateMax = 40, _rateDefault = 20, _lettersMin = 0, _lettersMax = 40, _lettersDefault = 15;
+
+/// Where a speed sits, in words: the zones the slider names as it moves.
+String _rateZone(int r) => switch (r) {
+      <= 9 => 'Careful',
+      <= 16 => 'Steady',
+      <= 24 => 'Brisk',
+      <= 32 => 'Fast',
+      _ => 'Turbo',
+    };
+
+int _intSetting(SettingsStore s, String key, int fallback, int min, int max) => (int.tryParse(s.choice(key)) ?? fallback).clamp(min, max);
+
+String _backspaceSummary(SettingsStore s) {
+  final rate = _intSetting(s, 'backspace_rate', _rateDefault, _rateMin, _rateMax);
+  final letters = _intSetting(s, 'backspace_letters', _lettersDefault, _lettersMin, _lettersMax);
+  final ramp = s.choice('backspace_ramp_style');
+  return [
+    '$rate a second (${_rateZone(rate).toLowerCase()})',
+    if (ramp != 'off') '$ramp ramp',
+    letters == 0 ? 'words at once' : 'words after $letters',
+    if (s.flag('backspace_rumble')) 'rumble',
+  ].join(', ');
+}
+
+List<Widget> _backspacePart(BuildContext context, SettingsStore store) {
+  final rate = _intSetting(store, 'backspace_rate', _rateDefault, _rateMin, _rateMax);
+  final letters = _intSetting(store, 'backspace_letters', _lettersDefault, _lettersMin, _lettersMax);
+  final wordMs = (4000 ~/ rate).clamp(80, 500);
+  return [
+    PaneSection(
+      title: 'Base speed',
+      footer: Text('Where it starts. Whole words follow the same pace: about ${(1000 / wordMs).toStringAsFixed(1)} a second. The tick is the keyboard’s own, 20.'),
+      children: [
+        SettingRowBox(
+          child: ValueSlider(
+            value: rate,
+            min: _rateMin,
+            max: _rateMax,
+            marks: const [_rateDefault],
+            ariaLabel: 'Backspace base speed',
+            describe: (v) => ('$v letters a second', _rateZone(v)),
+            onChanged: (v) => store.set('backspace_rate', '$v'),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'Ramp',
+      footer: Text(switch (store.choice('backspace_ramp_style')) {
+        'gentle' => 'Eases up to about 1.6× the base (${(rate * 1.6).round()} a second) over the first second or so.',
+        'quick' => 'Climbs to about 2.5× the base (${(rate * 2.5).round()} a second) within a few letters.',
+        'turbo' => 'Rockets to 4× the base (${(rate * 4).clamp(0, 50).round()} a second) almost at once, then tears through words.',
+        _ => 'Holds the base speed the whole time, letters and words alike.',
+      }),
+      children: [
+        _choice(store, 'backspace_ramp_style', 'Speed up while held', const {'off': 'Off', 'gentle': 'Gentle', 'quick': 'Quick', 'turbo': 'Turbo'}),
+      ],
+    ),
+    PaneSection(
+      title: 'Whole words',
+      footer: Text(letters == 0 ? 'Straight to whole words: every repeat takes a word.' : 'It takes $letters letters one by one, then moves on to whole words. The tick is the keyboard’s own, 15.'),
+      children: [
+        SettingRowBox(
+          child: ValueSlider(
+            value: letters,
+            min: _lettersMin,
+            max: _lettersMax,
+            marks: const [_lettersDefault],
+            ariaLabel: 'Letters before whole words',
+            describe: (v) => (v == 0 ? 'Words right away' : v == 1 ? '1 letter, then words' : '$v letters, then words', null),
+            onChanged: (v) => store.set('backspace_letters', '$v'),
+          ),
+        ),
+      ],
+    ),
+    PaneSection(
+      title: 'Rumble',
+      footer: Text(store.flag('vibrate')
+          ? 'A soft thud for every whole word it takes, a little firmer as it goes, so you can feel how far you have gone.'
+          : 'Vibration is off in Key press & sound, so there is nothing to feel until it is on.'),
+      children: [
+        _toggle(store, 'backspace_rumble', 'Rumble for each word'),
+        if (store.flag('backspace_rumble')) _choice(store, 'backspace_rumble_strength', 'Strength', const {'light': 'Light', 'medium': 'Medium', 'strong': 'Strong'}),
+      ],
+    ),
+  ];
 }
 
 // --- Typing -------------------------------------------------------------------------------------------------------
