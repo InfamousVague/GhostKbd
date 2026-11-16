@@ -66,7 +66,9 @@ data class KeyboardTheme(
         )
 
         /** The theme the settings ask for: the themes plugin's preset or own theme where it is added, else Gboard's. */
-        fun resolve(context: Context, prefs: KeyboardPrefs): KeyboardTheme = withAccent(chosen(context, prefs), prefs.accent) { AccentSync.wallpaper(context, it) }
+        /** The theme the settings ask for, wearing [accent] (the keyboard's colour, or Ghost Messaging's of the moment). */
+        fun resolve(context: Context, prefs: KeyboardPrefs, accent: String = prefs.accent): KeyboardTheme =
+            withAccent(chosen(context, prefs), accent) { AccentSync.wallpaper(context, it) }
 
         /**
          * [theme] wearing the colour [id] (AccentSync.COLOURS, Ghost Messaging's bubble colours) as its accent: the

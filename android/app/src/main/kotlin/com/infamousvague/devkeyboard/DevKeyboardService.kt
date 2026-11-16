@@ -315,6 +315,27 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
     /** The phone's own settings for the buttons it draws under a keyboard (SystemStrip.phone), kept in step by [stripWatcher]. */
     private var stripPhone = SystemStrip.Phone(false)
     private var accentWatch: android.database.ContentObserver? = null
+
+    /** Ghost Messaging's colour of the moment while typing in it (AccentSync.now), and the watch on it; null elsewhere. */
+    private var liveAccent: String? = null
+    private var liveWatch: android.database.ContentObserver? = null
+
+    private fun followGhostMessaging(inIt: Boolean) {
+        val was = liveAccent
+        if (inIt) {
+            liveAccent = AccentSync.now(this)
+            if (liveWatch == null) liveWatch = AccentSync.watchNow(this) {
+                val before = liveAccent
+                liveAccent = AccentSync.now(this)
+                if (liveAccent != before) applySettings()
+            }
+        } else {
+            liveAccent = null
+            AccentSync.unwatch(this, liveWatch)
+            liveWatch = null
+        }
+        if (liveAccent != was) applySettings()
+    }
     private val stripWatcher = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             stripPhone = SystemStrip.phone(this@DevKeyboardService)
@@ -432,6 +453,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SmsCodes.removeListener(onSmsCode)
         AccentSync.unwatch(this, accentWatch)
+        AccentSync.unwatch(this, liveWatch)
         runCatching { contentResolver.unregisterContentObserver(stripWatcher) }
         rowHandler.removeCallbacks(codesFresh)
         SoundPacks.release()
@@ -594,6 +616,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         runCatching { AppProfiles.seen(this, prefs, info.packageName) }
         // Ghost Messaging may have been installed since the keyboard started: its codes are watched for from then.
         if (!restarting) GhostMessagingCodes.apply(this)
+        // In Ghost Messaging the keys wear its colour of the moment, the open chat's own where it has one (AccentSync.now),
+        // and follow it as chats change; anywhere else, the keyboard's own colour.
+        followGhostMessaging(info.packageName == AccentSync.OTHER)
         // What Mockingbird heard in apps of this kind (a chat, or anything else) counts most toward the next word here.
         runCatching { nextWords.chat = AppContext.kind(info.packageName) == AppKind.CHAT }
         // A field is asked about once, as it is entered: an app restarting its input (many do, mid-typing) must not
@@ -709,7 +734,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
             }
         }
         val view = keyboard ?: return
-        val theme = KeyboardTheme.resolve(this, prefs)
+        val theme = KeyboardTheme.resolve(this, prefs, liveAccent ?: prefs.accent)
         view.theme = theme
         // The mic key stands where the full stop was (Layouts.withMic). In a password, an e-mail address or a web
         // address the full stop keeps its key: nothing is dictated there, and an address needs one at every turn.

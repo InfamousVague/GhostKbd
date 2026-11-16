@@ -102,6 +102,30 @@ object AccentSync {
         return changed
     }
 
+    private val nowUri: Uri by lazy { Uri.parse("content://$OTHER_AUTHORITY/now") }
+
+    /**
+     * The colour Ghost Messaging is wearing this moment: the open chat's own where it has one, else its colour everywhere
+     * (Matt, 2026-11-15: "sync the keyboard colors to each chat so if i switch to a chat that uses different bubble
+     * colors the keyboard should copy those instead"). Worn while the keyboard types in Ghost Messaging, never kept.
+     * Null where it is not here, or answers nothing this keyboard knows.
+     */
+    fun now(context: Context): String? {
+        if (!trusted(context)) return null
+        return runCatching {
+            context.contentResolver.query(nowUri, null, null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        }.getOrNull()?.takeIf { it in COLOURS }
+    }
+
+    /** Watches what [now] answers, calling [onChange] on the main thread when Ghost Messaging says it changed. */
+    fun watchNow(context: Context, onChange: () -> Unit): ContentObserver? {
+        if (!trusted(context)) return null
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) = onChange()
+        }
+        return if (runCatching { context.contentResolver.registerContentObserver(nowUri, false, observer) }.isSuccess) observer else null
+    }
+
     /** Watches Ghost Messaging's address while [context] runs, pulling when it says its colour changed. */
     fun watch(context: Context, onChange: () -> Unit = {}): ContentObserver? {
         if (!trusted(context)) return null
