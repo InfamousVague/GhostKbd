@@ -873,7 +873,9 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         return when (info.imeOptions and EditorInfo.IME_MASK_ACTION) {
             EditorInfo.IME_ACTION_GO -> EnterIcon.GO
             EditorInfo.IME_ACTION_SEARCH -> EnterIcon.SEARCH
-            EditorInfo.IME_ACTION_SEND -> EnterIcon.SEND
+            // A field that sends (a messenger's) still shows the enter key's own icon; pressing it sends as before (Matt,
+            // 2026-11-15: "Show the enter key icon instead of the send icon on ghost").
+            EditorInfo.IME_ACTION_SEND -> EnterIcon.RETURN
             EditorInfo.IME_ACTION_NEXT -> EnterIcon.NEXT
             EditorInfo.IME_ACTION_PREVIOUS -> EnterIcon.PREVIOUS
             EditorInfo.IME_ACTION_DONE -> EnterIcon.DONE
