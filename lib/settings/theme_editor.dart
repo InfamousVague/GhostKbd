@@ -3,6 +3,7 @@
 /// five colours the keyboard draws). The keyboard draws whichever is chosen (KeyboardTheme.kt).
 library;
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:glacier/glacier.dart';
 
@@ -32,6 +33,17 @@ class ThemeEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Android's keyboard alone draws it, and Ghost Messaging keeps it in step there (AccentSync.kt).
+        if (defaultTargetPlatform == TargetPlatform.android) ...[
+        PaneSection(
+          title: 'Colour',
+          footer: const Text('The enter key and a chosen key’s colour: the same colours as Ghost Messaging’s bubbles, and kept in step with it. Choose one here or there and both change. Ghost leaves each theme its own colour; Ink is the keys’ own black or white.'),
+          children: [
+            SettingRowBox(child: AccentSwatches(chosen: store.choice('accent'), onPick: (id) => store.set('accent', id))),
+          ],
+        ),
+        SizedBox(height: t.space(4)),
+        ],
         PaneSection(
           title: 'Presets',
           description: const Text('Ghost follows Light or dark in Look & layout; the others are their own.'),
@@ -211,4 +223,79 @@ class _MiniKeyboard extends CustomPainter {
 
   @override
   bool shouldRepaint(_MiniKeyboard old) => old.c != c;
+}
+
+/// Ghost Messaging's bubble colours (its lib/backgrounds.dart `bubbleColors`; here AccentSync.kt's COLOURS): id, name,
+/// and the colour, null for the three that are not one fixed colour. Kept the same as both of those.
+const accentColours = <(String, String, int?)>[
+  ('ghost', 'Ghost', null),
+  ('ink', 'Ink', null),
+  ('wallpaper', 'Wallpaper', null),
+  ('white', 'White', 0xFFFFFFFF),
+  ('silver', 'Silver', 0xFFD9DBE0),
+  ('gray', 'Gray', 0xFF8A8D93),
+  ('graphite', 'Graphite', 0xFF3A3D42),
+  ('blue', 'Blue', 0xFF0A84FF),
+  ('indigo', 'Indigo', 0xFF4F5BD5),
+  ('purple', 'Purple', 0xFF9A45C9),
+  ('pink', 'Pink', 0xFFE0457B),
+  ('red', 'Red', 0xFFDD3A30),
+  ('orange', 'Orange', 0xFFE8730C),
+  ('yellow', 'Yellow', 0xFFF2C200),
+  ('green', 'Green', 0xFF2A9D4B),
+  ('mint', 'Mint', 0xFF1F9E8F),
+];
+
+/// [accentColours] as round swatches, each named under it; [chosen] ringed.
+class AccentSwatches extends StatelessWidget {
+  const AccentSwatches({super.key, required this.chosen, required this.onPick});
+  final String chosen;
+  final ValueChanged<String> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final dark = t.isDark;
+    final side = t.lenOf('2.5rem');
+    Decoration fill(String id, int? colour) => switch (id) {
+          'ghost' => BoxDecoration(shape: BoxShape.circle, color: Color(dark ? 0xFF51FCFB : 0xFF008B8A)),
+          'ink' => BoxDecoration(shape: BoxShape.circle, color: dark ? const Color(0xFFE8EDED) : const Color(0xFF1F1F1F)),
+          // The wallpaper's colour is the phone's: drawn as a sweep of colours.
+          'wallpaper' => const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(colors: [Color(0xFFE0457B), Color(0xFFF2C200), Color(0xFF2A9D4B), Color(0xFF0A84FF), Color(0xFF9A45C9), Color(0xFFE0457B)]),
+            ),
+          _ => BoxDecoration(shape: BoxShape.circle, color: Color(colour ?? 0xFF008B8A), border: Border.all(color: t.color('app-rule'))),
+        };
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.space(2)),
+      child: Wrap(
+        spacing: t.space(3),
+        runSpacing: t.space(3),
+        children: [
+          for (final (id, name, colour) in accentColours)
+            GlacierPressable(
+              onPressed: () => onPick(id),
+              semanticLabel: '$name${chosen == id ? ', chosen' : ''}',
+              builder: (context, state) => SizedBox(
+                width: side + t.space(3),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  AnimatedScale(
+                    scale: state.pressed ? 0.92 : 1,
+                    duration: const Duration(milliseconds: 120),
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: chosen == id ? t.color('app-ink') : const Color(0x00000000), width: 2)),
+                      child: Container(width: side, height: side, decoration: fill(id, colour)),
+                    ),
+                  ),
+                  SizedBox(height: t.space(1)),
+                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: pageText(t, t.fontSize('xs'), color: chosen == id ? t.color('app-ink') : t.color('app-ink-3'))),
+                ]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

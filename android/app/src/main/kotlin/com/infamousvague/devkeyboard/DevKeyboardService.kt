@@ -314,6 +314,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
 
     /** The phone's own settings for the buttons it draws under a keyboard (SystemStrip.phone), kept in step by [stripWatcher]. */
     private var stripPhone = SystemStrip.Phone(false)
+    private var accentWatch: android.database.ContentObserver? = null
     private val stripWatcher = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             stripPhone = SystemStrip.phone(this@DevKeyboardService)
@@ -409,6 +410,10 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         MailCodes.apply(this)
         GhostMessagingCodes.apply(this)
         SmsCodes.addListener(onSmsCode)
+        // Ghost Messaging's colour (AccentSync.kt): taken if chosen there since, and watched while the keyboard runs.
+        // Taking it writes the preferences, which redraws the keys (onSharedPreferenceChanged).
+        Thread { AccentSync.pull(this) }.start()
+        accentWatch = AccentSync.watch(this)
         // Whether the phone draws its own buttons under the keyboard (SystemStrip.kt): read now, and again when the
         // person changes it in the phone's settings, so the keys move without the keyboard being restarted.
         stripPhone = SystemStrip.phone(this)
@@ -426,6 +431,7 @@ class DevKeyboardService : InputMethodService(), KeyboardListener, Dictation.Lis
         reader.shutdownNow()
         runCatching { clipboard.removePrimaryClipChangedListener(onClip) }
         SmsCodes.removeListener(onSmsCode)
+        AccentSync.unwatch(this, accentWatch)
         runCatching { contentResolver.unregisterContentObserver(stripWatcher) }
         rowHandler.removeCallbacks(codesFresh)
         SoundPacks.release()

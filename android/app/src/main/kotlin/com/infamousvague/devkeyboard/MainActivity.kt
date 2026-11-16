@@ -137,6 +137,8 @@ class MainActivity : FlutterActivity() {
     override fun onPause() {
         super.onPause()
         stopAudio()
+        AccentSync.unwatch(this, accentWatch)
+        accentWatch = null
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -270,6 +272,8 @@ class MainActivity : FlutterActivity() {
                         if (ok && key == KeyboardPrefs.SMS_CODES) SmsCodes.apply(this@MainActivity)
                         if (ok && key == KeyboardPrefs.MAIL_CODES) MailCodes.apply(this@MainActivity)
                         if (ok && key == KeyboardPrefs.GHOST_MESSAGING_CODES) GhostMessagingCodes.apply(this@MainActivity)
+                        // A colour chosen here: stamped, and Ghost Messaging told (AccentSync.kt).
+                        if (ok && key == KeyboardPrefs.ACCENT) AccentSync.chosen(this@MainActivity)
                         if (ok) result.success(null) else result.error("bad_setting", "Unknown setting or wrong type: $key", null)
                     }
                     "status" -> result.success(status())
@@ -625,7 +629,12 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         channel?.invokeMethod("statusChanged", status())
+        // Ghost Messaging's colour, if it was chosen there since (AccentSync.kt): taken, and the pages read again.
+        Thread { if (AccentSync.pull(this)) runOnUiThread { channel?.invokeMethod("settingsChanged", null) } }.start()
+        accentWatch = AccentSync.watch(this) { channel?.invokeMethod("settingsChanged", null) }
     }
+
+    private var accentWatch: android.database.ContentObserver? = null
 
     companion object {
         /** An extra naming the settings page to open at. */
