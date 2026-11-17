@@ -564,10 +564,16 @@ class Autocorrect(private val open: (String) -> InputStream?) {
     /** True once there are words; until then nothing is corrected. */
     val isReady: Boolean get() = active
 
-    /** Words the person has kept: never corrected, and targets for correcting slips of them. */
+    /**
+     * Words the person has kept: never corrected, and targets for correcting slips of them. The commonest slips
+     * ([LISTED_SLIPS]) are never kept: one backspace straight after "thr" was put right keeps it, and it then stood
+     * for good (Matt, 2026-11-17: "fix the common typo i keep having where I type thr instead of the"). Taking a
+     * fix out still puts the word back that once.
+     */
     fun setLearned(words: Set<String>) {
-        if (words == learned) return
-        learned = words
+        val kept = words - LISTED_SLIPS.keys
+        if (kept == learned) return
+        learned = kept
         synchronized(decoder) { decoder.clear() }
     }
 
@@ -576,8 +582,9 @@ class Autocorrect(private val open: (String) -> InputStream?) {
      * never corrected, targets for correcting slips of them, and words to swipe, as learned words are.
      */
     fun setOwn(words: Set<String>) {
-        if (words == own) return
-        own = words
+        val kept = words - LISTED_SLIPS.keys
+        if (kept == own) return
+        own = kept
         synchronized(decoder) { decoder.clear() }
     }
 
@@ -2614,10 +2621,11 @@ class Autocorrect(private val open: (String) -> InputStream?) {
         /** [runLetter]'s range: a word's edge, a to z, and one for every other character. */
         private const val RUN_LETTERS = 28
         /**
-         * The spellings the lists do hold that nobody means: the commonest swaps, typed often enough to have got
-         * into the word counts. Every other listed spelling stands.
+         * The spellings the lists do hold that nobody means: the commonest slips, typed often enough to have got
+         * into the word counts ("thr", Matt's: 2026-11-17). Every other listed spelling stands. None is ever kept as
+         * the person's own word ([setLearned]).
          */
-        private val LISTED_SLIPS = mapOf("teh" to "the", "thier" to "their", "recieve" to "receive")
+        private val LISTED_SLIPS = mapOf("teh" to "the", "thr" to "the", "thier" to "their", "recieve" to "receive")
         /** A learned word counts as moderately common (about one in 30,000 words) when a slip lands near it. */
         private const val LEARNED_ZIPF = 4.0f
         /** Slang ranks as about one in 50,000 words among completions; it is never a target for correcting a slip. */
