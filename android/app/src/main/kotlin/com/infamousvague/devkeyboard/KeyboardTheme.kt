@@ -66,7 +66,40 @@ data class KeyboardTheme(
         )
 
         /** The theme the settings ask for: the themes plugin's preset or own theme where it is added, else Gboard's. */
-        fun resolve(context: Context, prefs: KeyboardPrefs): KeyboardTheme {
+        /** The theme the settings ask for, wearing [accent] (the keyboard's colour, or Ghost Messaging's of the moment). */
+        fun resolve(context: Context, prefs: KeyboardPrefs, accent: String = prefs.accent): KeyboardTheme =
+            withAccent(chosen(context, prefs), accent) { AccentSync.wallpaper(context, it) }
+
+        /**
+         * [theme] wearing the colour [id] (AccentSync.COLOURS, Ghost Messaging's bubble colours) as its accent: the
+         * enter key and a chosen popup key. Ghost leaves the theme's own accent; Ink is the keys' own lettering;
+         * Wallpaper is [wallpaper]'s (null before Android 12, and the theme's own then). A colour that would not be
+         * seen on the keyboard's ground (white on the light keyboard) leaves it too, as Ghost Messaging's accent does.
+         */
+        fun withAccent(theme: KeyboardTheme, id: String, wallpaper: (dark: Boolean) -> Int? = { null }): KeyboardTheme {
+            val accent = when (id) {
+                "ghost", "" -> return theme
+                "ink" -> theme.text
+                "wallpaper" -> wallpaper(theme.dark) ?: return theme
+                else -> AccentSync.COLOURS[id] ?: return theme
+            }
+            if (contrast(accent, theme.background) < 1.5) return theme
+            val on = if (luminance(accent) > 0.5) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
+            return theme.copy(
+                accent = accent,
+                accentPressed = mix(accent, if (theme.dark) 0xFFFFFFFF.toInt() else 0xFF000000.toInt(), 0.15f),
+                onAccent = on,
+                popupSelected = accent,
+                onPopupSelected = on,
+            )
+        }
+
+        private fun contrast(a: Int, b: Int): Double {
+            val x = luminance(a); val y = luminance(b)
+            return (maxOf(x, y) + 0.05) / (minOf(x, y) + 0.05)
+        }
+
+        private fun chosen(context: Context, prefs: KeyboardPrefs): KeyboardTheme {
             if (Plugins.isOn(prefs, Plugins.THEMES)) {
                 when (val preset = prefs.themePreset) {
                     "ghost", "gboard" -> Unit

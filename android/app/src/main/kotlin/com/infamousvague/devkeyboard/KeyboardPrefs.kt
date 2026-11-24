@@ -297,6 +297,12 @@ class KeyboardPrefs(context: Context) {
     /** The themes plugin's own theme: "background,key,functionKey,accent,text" as #RRGGBB, comma-separated. */
     val customTheme: String get() = prefs.getString(CUSTOM_THEME, DEFAULTS[CUSTOM_THEME] as String)!!
 
+    /** The keyboard's colour, one of AccentSync.COLOURS' ids: Ghost Messaging's bubble colours, kept in step with it. */
+    val accent: String get() = prefs.getString(ACCENT, DEFAULTS[ACCENT] as String)!!
+
+    /** When [accent] was chosen, here or in Ghost Messaging (milliseconds since 1970; 0 where it never was). */
+    val accentAt: Long get() = prefs.getString(ACCENT_AT, DEFAULTS[ACCENT_AT] as String)!!.toLongOrNull() ?: 0L
+
     /** "light", "medium" or "strong". */
     val haptics: String get() = prefs.getString(HAPTICS, DEFAULTS[HAPTICS] as String)!!
 
@@ -400,6 +406,8 @@ class KeyboardPrefs(context: Context) {
         const val LEARNED_WORDS = "learned_words"
         const val PLUGINS = "plugins"
         const val THEME_PRESET = "theme_preset"
+        const val ACCENT = "accent"
+        const val ACCENT_AT = "accent_at"
         const val CUSTOM_THEME = "custom_theme"
         const val ONBOARDED = "onboarded"
         const val AI_PROVIDER = "ai_provider"
@@ -501,6 +509,8 @@ class KeyboardPrefs(context: Context) {
             LEARNED_WORDS to "",
             PLUGINS to "autocorrect,swipe,clipboard,undo,emoji",
             THEME_PRESET to "ghost",
+            ACCENT to "ghost",
+            ACCENT_AT to "0",
             CUSTOM_THEME to "#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED",
             ONBOARDED to false,
             AI_PROVIDER to "anthropic",

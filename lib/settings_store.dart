@@ -11,6 +11,14 @@ class SettingsStore extends ChangeNotifier {
     current = this;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'statusChanged') _setStatus(call.arguments);
+      // A setting changed outside the app's pages: Ghost Messaging's colour, taken to keep the two in step (AccentSync.kt).
+      if (call.method == 'settingsChanged') {
+        final values = await _channel.invokeMapMethod<String, Object>('getSettings');
+        if (values != null) {
+          _values.addAll(values);
+          notifyListeners();
+        }
+      }
       if (call.method == 'updateChanged') _setUpdate(call.arguments);
       if (call.method == 'dictationChanged') _setDictation(call.arguments);
       if (call.method == 'localAiChanged') _setLocalAi(call.arguments);
@@ -95,6 +103,8 @@ class SettingsStore extends ChangeNotifier {
     'stock_sound': 'bamboo',
     'plugins': 'autocorrect,swipe,clipboard,undo,emoji',
     'theme_preset': 'ghost',
+    'accent': 'ghost',
+    'accent_at': '0',
     'custom_theme': '#0A0B0C,#232528,#16181A,#51FCFB,#E8EDED',
     'onboarded': false,
     'sms_codes': false,

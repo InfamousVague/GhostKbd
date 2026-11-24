@@ -136,12 +136,20 @@
             android:exported="false"
             android:grantUriPermissions="true" />
 
+        <!-- The keyboard's colour, for Ghost Messaging alone, to keep the two in step (AccentSync.kt). -->
+        <provider
+            android:name=".AccentProvider"
+            android:authorities="${applicationId}.accent"
+            android:exported="true" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
     <queries>
+        <!-- Ghost Messaging's colour, kept in step with the keyboard's (AccentSync.kt). -->
+        <provider android:authorities="com.infamousvague.ghostmessaging.accent" />
         <!-- The Ghost.md plugin: whether Ghost.md is on this phone, to save to it and read the titles it shares. -->
         <package android:name="com.mattssoftware.glyph" />
         <package android:name="com.mattssoftware.glyph.flutter" />

@@ -251,6 +251,12 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
   back: one app answers another on the phone. Only the code and its time are handed over. Each app knows the other
   by its package and the certificate its releases are signed with. Seen on an emulator with both apps' release
   builds; not on a phone.
+- **Ghost Messaging's colours, kept in step** (`AccentSync.kt`, `KeyboardTheme.withAccent`; Settings › Look & feel ›
+  Colours › Colour, Android only; [docs/accent-sync.md](docs/accent-sync.md)): the enter key and a chosen popup key
+  wear one of Ghost Messaging's bubble colours, by the same ids (Ghost, Ink, Wallpaper, White to Mint). Choosing one
+  in either app changes both: each keeps its choice and when it was made, answers the other at
+  `content://<package>.accent/current`, and asks the other as it starts or comes back, watching it while it runs; the
+  later choice wins. Ghost leaves a theme its own colour.
 - **The keys sit lower where the phone's own buttons are off** (`SystemStrip.kt`;
   [docs/system-strip.md](docs/system-strip.md)): Space under the keys › Auto still keeps 48dp for Android's hide and
   switch-keyboard buttons, but only the gesture bar's room where a Galaxy's own settings say both are switched off.

@@ -156,6 +156,8 @@ class TypingAccuracyTest {
     @Test fun aSlipIsMended() {
         assertEquals("the", ac.correct("thw", null, taps("thw")))
         assertEquals("the", ac.correct("teh", null, taps("teh")))
+        assertEquals("the", ac.correct("thr", null, taps("thr")))
+        assertEquals("the", ac.correct("thr"))
         assertEquals("because", ac.correct("becuase", null, taps("becuase")))
         assertEquals("definitely", ac.correct("definately", null, taps("definately")))
         assertEquals("tomorrow", ac.correct("tommorow", null, taps("tommorow")))
@@ -526,6 +528,21 @@ class TypingAccuracyTest {
             assertNull(word, ac.suggest(word, null, taps(word)).fix)
         }
         assertEquals("monday", ac.correct("mondya", null, taps("mondya")))
+    }
+
+    @Test fun theCommonestSlipsAreMendedEvenOnceKept() {
+        // Matt, 2026-11-17: "fix the common typo i keep having where I type thr instead of the". A backspace straight
+        // after the fix kept "thr" as his own word, and a kept word is never corrected.
+        val mine = english()
+        mine.setLearned(setOf("thr", "teh", "monday"))
+        mine.setOwn(setOf("thr"))
+        assertEquals("the", mine.correct("thr", null, taps("thr")))
+        assertEquals("the", mine.correct("thr"))
+        assertEquals("The", mine.correct("Thr", null, taps("Thr")))
+        assertEquals("the", mine.correct("teh", null, taps("teh")))
+        assertEquals("the", mine.suggest("thr", null, taps("thr")).fix)
+        assertNull(mine.correct("monday", null, taps("monday")))
+        assertEquals("The", mine.slip("Thr"))
     }
 
     @Test fun aNameThePersonKeepsInLowerCaseStaysThere() {
