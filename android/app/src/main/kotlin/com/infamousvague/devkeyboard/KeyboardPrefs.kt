@@ -37,6 +37,10 @@ class KeyboardPrefs(context: Context) {
      * setting users can toggle on").
      */
     val commaKey: Boolean get() = bool(COMMA_KEY)
+    /** The musclememory plugin's three parts (MuscleMemory.kt), each on unless turned off on its page. */
+    val muscleLayout: Boolean get() = bool(MM_LAYOUT)
+    val muscleNumbers: Boolean get() = bool(MM_NUMBERS)
+    val muscleArrows: Boolean get() = bool(MM_ARROWS)
     /** Autocorrect changes words on its own; off, it only suggests. */
     val autocorrect: Boolean get() = bool(AUTOCORRECT)
     val suggestions: Boolean get() = bool(SUGGESTIONS)
@@ -358,6 +362,9 @@ class KeyboardPrefs(context: Context) {
         const val TOOLBAR = "toolbar"
         const val HIDE_ROW = "hide_row"
         const val COMMA_KEY = "comma_key"
+        const val MM_LAYOUT = "mm_layout"
+        const val MM_NUMBERS = "mm_numbers"
+        const val MM_ARROWS = "mm_arrows"
         const val HAPTICS = "haptics"
         const val AUTOCORRECT = "autocorrect"
         const val LANGUAGES = "languages"
@@ -457,6 +464,9 @@ class KeyboardPrefs(context: Context) {
             TOOLBAR to false,
             HIDE_ROW to false,
             COMMA_KEY to false,
+            MM_LAYOUT to true,
+            MM_NUMBERS to true,
+            MM_ARROWS to true,
             HAPTICS to "medium",
             AUTOCORRECT to true,
             LANGUAGES to "en",

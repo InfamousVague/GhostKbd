@@ -531,6 +531,25 @@ const List<PluginManifest> catalogue = [
     icon: LucideMore.target,
     adds: ['Touch areas nudged toward your slips', 'Slow to move, and back to the defaults over time', 'A heatmap of your mistakes on the keys'],
     hasPage: true,
+  ),  PluginManifest(
+    id: 'musclememory',
+    name: 'Muscle Memory',
+    line: 'SwiftKey’s layout, for thumbs that spent years on it.',
+    description:
+        'The letters laid out the way Microsoft SwiftKey has them, so years of habit land where they expect: a number '
+        'row that is always there, SwiftKey’s symbols in the corners (% ^ ~ | [ ] < > { } on the top row, @ # & * - + = '
+        '( ) in the middle, _ \$ " \' : ; / at the bottom), ?123, emoji and a comma beside the space bar, a full stop '
+        'you can slide from for ! , . ? without waiting, and a row of arrow keys under every page that repeat while you '
+        'hold them. Keys are the same size on every page. Every part is a switch of its own: just the arrows, just '
+        'the numbers, or just the layout. With Dictation ready, hold the comma to talk.',
+    category: PluginCategory.look,
+    hue: 'mint',
+    icon: LucideMore.keyboard,
+    adds: ['SwiftKey’s letters, symbols and bottom row', 'A short number row on every page', 'Arrow keys under the keys', 'Slide from the full stop for ! , . ?', 'Each part a switch of its own'],
+    author: 'Kevin',
+    hasPage: true,
+    ios: false,
+    iosWhy: 'Only on Android for now.',
   ),
 ];
 

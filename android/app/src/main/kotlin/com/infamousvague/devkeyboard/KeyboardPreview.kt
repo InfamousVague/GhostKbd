@@ -81,7 +81,8 @@ class KeyboardPreview(context: Context) : PlatformView, SharedPreferences.OnShar
                 it.mode == prefs.backlightMode && it.fade == Backlight.fadeOf(prefs.backlightFade)
         } ?: Backlight(prefs.backlightEffect, prefs.backlightColour, Backlight.strengthOf(prefs.backlightStrength), prefs.backlightMode, Backlight.fadeOf(prefs.backlightFade))
         if (prefs.sound) prefs.stockSound.takeIf { it in SoundPacks.STOCK }?.let { SoundPacks.prepare(app, it) }
-        keys.keyBorders = prefs.keyBorders
+        keys.muscle = MuscleMemory.parts(prefs)
+        keys.keyBorders = prefs.keyBorders || keys.muscle.layout
         keys.showPreview = prefs.keyPopup
         keys.showHints = prefs.hints
         keys.spaceCursor = prefs.spaceCursor

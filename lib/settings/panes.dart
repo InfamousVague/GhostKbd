@@ -116,6 +116,8 @@ List<SettingsSection> settingsSections(SettingsStore store) => [
         SettingsSection(id: 'connectors', label: 'Connectors', icon: _icon(Lucide.network), hue: 'cyan', group: 'plugins', summary: _connectorsSummary, page: _connectorsPage, parts: _connectorsParts),
       if (store.pluginOn('enhance') && pluginHere('enhance'))
         SettingsSection(id: 'enhance', label: 'Prompt enhancer', icon: _icon(LucideMore.wandSparkles), hue: 'coral', group: 'plugins', summary: _enhanceSummary, page: _enhancePage, parts: (s) => [_aiProviderPart()]),
+      if (store.pluginOn('musclememory') && pluginHere('musclememory'))
+        SettingsSection(id: 'musclememory', label: 'Muscle Memory', icon: _icon(LucideMore.keyboard), hue: 'mint', group: 'plugins', summary: _muscleSummary, page: _musclePage),
       if (store.pluginOn('ghostmd') && pluginHere('ghostmd'))
         SettingsSection(id: 'ghostmd', label: 'Ghost.md', icon: _icon(Lucide.ghost), hue: 'cyan', group: 'plugins', summary: (s) => 'Notes, tags and saving', page: _ghostmd),
       SettingsSection(id: 'about', label: 'About', icon: _icon(Lucide.info), hue: 'blue', group: 'app', summary: _updateSummary, page: _aboutPage),
@@ -345,6 +347,31 @@ List<Widget> _ghostmd(BuildContext context, SettingsStore store) => _rowPluginPa
         ('Where titles come from', 'The links and tags you type in Ghost.md are remembered on this phone. When Ghost.md shares its whole list with the keyboard, every note shows.'),
       ],
     );
+
+// --- Muscle Memory -------------------------------------------------------------------------------------------------
+
+/// android MuscleMemory.kt: which of SwiftKey's three parts are on.
+String _muscleSummary(SettingsStore s) =>
+    [if (s.flag('mm_layout')) 'Layout', if (s.flag('mm_numbers')) 'numbers', if (s.flag('mm_arrows')) 'arrows'].join(', ').ifEmptyThen('All parts off');
+
+List<Widget> _musclePage(BuildContext context, SettingsStore store) => [
+      PaneHero(
+        glyph: AppIcon(LucideMore.keyboard, size: 24),
+        title: 'SwiftKey’s board',
+        meta: const Text('Take the parts you want: each one works on its own.'),
+        status: PaneHeroStatus([store.flag('mm_layout'), store.flag('mm_numbers'), store.flag('mm_arrows')].any((on) => on) ? 'On' : 'Off'),
+      ),
+      PaneSection(
+        title: 'Parts',
+        footer: const Text('With any part on, keys are the same size on every page, and a shorter page keeps its bottom rows where the letters have them.'),
+        children: [
+          _toggle(store, 'mm_layout', 'Layout', 'SwiftKey’s symbols in the corners, ?123, emoji and a comma by the space bar, every key with its own face, and a slide from the full stop for ! , . ?'),
+          _toggle(store, 'mm_numbers', 'Number row', 'Digits along the top of every page, in a slightly shorter row.'),
+          _toggle(store, 'mm_arrows', 'Arrow keys', 'Up, down, left and right under the keys. Hold one to keep moving.'),
+        ],
+      ),
+      PaneSection(children: [SettingRow(label: 'Remove Muscle Memory', onPress: () => store.setPlugin('musclememory', false))]),
+    ];
 
 // --- Mockingbird and Ghostwriter ------------------------------------------------------------------------------------
 

@@ -21,6 +21,13 @@ A developer-centric keyboard for Android. Stage 1: a faithful copy of Gboard's Q
 - Number/phone fields open on `?123`; toolbar with settings and hide
 - Settings: theme, key height, number row, symbol hints, auto-caps, double-space period, space-bar cursor, long-press delay, popup, vibrate, sound
 
+## Unreleased
+
+- **Muscle Memory** (a Market plugin, `MuscleMemory.kt`; [docs/muscle-memory.md](docs/muscle-memory.md)): Microsoft
+  SwiftKey's layout, in three parts that each have a switch: SwiftKey's corner symbols and bottom row (with `! , . ?`
+  a slide from the full stop), a short number row on every page, and a row of arrow keys under every page. With any
+  part on, keys are one size on every page.
+
 ## 0.9.0
 
 - **Rewrite** (a Market plugin, `Rewrite.kt`): a Rewrite button in the row; Fix, Shorter, Formal, Casual, Friendlier or
