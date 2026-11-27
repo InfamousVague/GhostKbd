@@ -44,6 +44,8 @@ interface KeyboardListener {
     fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) {}
     /** Cursor control: a slide left from backspace takes the word before the cursor. */
     fun onDeleteWord() {}
+    /** The momentum plugin's rumble for a word a held backspace took, [strength] 0..1. */
+    fun onRumble(strength: Float) {}
     /** Cursor control: a slide up or down from the space bar moves the cursor [lines] lines (negative is up). */
     fun onCursorLine(lines: Int) {}
     /** The empty side of a docked or one-handed keyboard was tapped: the keys should move to [side] ("left" or "right"). */
@@ -75,6 +77,7 @@ class SafeListener(private val inner: KeyboardListener) : KeyboardListener {
     override fun onPage() = guard("onPage") { inner.onPage() }
     override fun onSwipe(path: List<PointF>, keys: Map<Char, PointF>, keyWidth: Float) = guard("onSwipe") { inner.onSwipe(path, keys, keyWidth) }
     override fun onDeleteWord() = guard("onDeleteWord") { inner.onDeleteWord() }
+    override fun onRumble(strength: Float) = guard("onRumble") { inner.onRumble(strength) }
     override fun onCursorLine(lines: Int) = guard("onCursorLine") { inner.onCursorLine(lines) }
     override fun onDock(side: String, wide: Boolean) = guard("onDock") { inner.onDock(side, wide) }
     override fun onLayout(id: String) = guard("onLayout") { inner.onLayout(id) }
@@ -108,6 +111,9 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
     var spaceCursor = true
     /** Cursor control: sliding left from backspace deletes whole words. */
     var deleteSwipe = true
+    /** Settings › Typing › Backspace momentum (Momentum.kt): how it ramps, and a rumble for each word it takes. */
+    var heldBackspace = Momentum.Settings()
+
     var longPressMs = 300L
 
     /** Gboard's look: only ?123, space and enter have a shape; letters float. On, every key has its own face. */
@@ -1462,14 +1468,16 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
             val t = touch ?: return
             if (t.key.type != KeyType.DELETE) return
             listener.onKeyFeedback(t.key, haptic = false)
-            if (t.repeats < DELETE_CHARS) {
-                t.repeats++
-                listener.onDelete()
-                timer.postDelayed(this, 50)
-            } else {
+            // Classic is the steps this always took (DELETE_CHARS characters 50 ms apart, then DELETE_WORD_MS a word).
+            val step = Momentum.step(t.repeats, heldBackspace)
+            if (t.repeats < Int.MAX_VALUE) t.repeats++
+            if (step.word) {
                 listener.onDeleteWord()
-                timer.postDelayed(this, DELETE_WORD_MS)
+                if (step.rumble > 0f) listener.onRumble(step.rumble)
+            } else {
+                listener.onDelete()
             }
+            timer.postDelayed(this, step.nextMs)
         }
     }
 
@@ -1619,7 +1627,7 @@ class KeyboardView(context: Context, host: KeyboardListener, private val embedde
         when (t.key.type) {
             KeyType.DELETE -> {
                 listener.onDelete()
-                timer.postDelayed(repeatDelete, 400)
+                timer.postDelayed(repeatDelete, Momentum.HOLD_MS)
             }
             KeyType.CHAR, KeyType.SPACE, KeyType.SHIFT, KeyType.GLOBE -> timer.postDelayed(longPress, longPressMs)
             // The mic key holds the full stop it stands in for; not while it is listening, when a touch only ends the take.
